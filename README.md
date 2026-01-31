@@ -1,6 +1,22 @@
 # AI-HRM - Intelligent HR Management System
 
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-6.0-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791?style=flat-square&logo=postgresql)](https://neon.tech/)
+[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=flat-square&logo=vercel)](https://vercel.com/)
+[![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
+
 A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech**. This modern web application streamlines HR operations with features like employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, and an intelligent AI chatbot assistant.
+
+<p align="center">
+  <a href="https://ai-hrm.vercel.app"><strong>View Demo</strong></a> ·
+  <a href="https://alfredang.github.io/ai-hrm/"><strong>Documentation</strong></a> ·
+  <a href="https://github.com/alfredang/ai-hrm/issues"><strong>Report Bug</strong></a>
+</p>
+
+---
 
 ## Features
 
@@ -61,7 +77,19 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
 - Fallback to OpenAI/Anthropic if configured
 - Floating chat widget for easy access
 
+---
+
 ## Tech Stack
+
+<table>
+  <tr>
+    <td align="center"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg" width="40"/><br/>Next.js 14</td>
+    <td align="center"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" width="40"/><br/>TypeScript</td>
+    <td align="center"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-original.svg" width="40"/><br/>Tailwind</td>
+    <td align="center"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" width="40"/><br/>PostgreSQL</td>
+    <td align="center"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prisma/prisma-original.svg" width="40"/><br/>Prisma</td>
+  </tr>
+</table>
 
 | Category | Technology |
 |----------|------------|
@@ -76,6 +104,8 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
 | **Email** | Resend |
 | **PDF Generation** | jsPDF + jspdf-autotable |
 | **Deployment** | Vercel |
+
+---
 
 ## Getting Started
 
@@ -146,6 +176,8 @@ npm run dev
 |-------|----------|------|
 | admin@tertiaryinfotech.com | ***REMOVED*** | Admin |
 
+---
+
 ## Project Structure
 
 ```
@@ -178,9 +210,15 @@ hr-management/
 └── docs/                      # Documentation
 ```
 
-## Documentation
+---
 
-For detailed documentation, visit the [User Guide](https://alfredang.github.io/ai-hrm/).
+## Links
+
+- **Demo**: [https://ai-hrm.vercel.app](https://ai-hrm.vercel.app)
+- **Documentation**: [https://alfredang.github.io/ai-hrm/](https://alfredang.github.io/ai-hrm/)
+- **Repository**: [https://github.com/alfredang/ai-hrm](https://github.com/alfredang/ai-hrm)
+
+---
 
 ## License
 
