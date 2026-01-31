@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============ AUTHENTICATION ============
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  role          Role      @default(STAFF)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employee      Employee?
+  sessions      Session[]
+  accounts      Account[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum Role {
+  STAFF
+  MANAGER
+  HR
+  ADMIN
+}
+
+// ============ EMPLOYEE ============
+
+model Employee {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  employeeId      String         @unique
+  firstName       String
+  lastName        String
+  email           String         @unique
+  phone           String?
+  dateOfBirth     DateTime
+  gender          Gender
+  nationality     String         @default("Singaporean")
+  nric            String?        @unique
+  address         String?
+
+  // Employment Details
+  department      Department     @relation(fields: [departmentId], references: [id])
+  departmentId    String
+  position        String
+  employmentType  EmploymentType @default(FULL_TIME)
+  startDate       DateTime
+  endDate         DateTime?
+  status          EmployeeStatus @default(ACTIVE)
+
+  // Manager relationship
+  managerId       String?
+  manager         Employee?      @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates    Employee[]     @relation("ManagerSubordinates")
+
+  // Profile
+  avatarUrl       String?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salaryInfo      SalaryInfo?
+  leaveRequests   LeaveRequest[]
+  leaveBalances   LeaveBalance[]
+  expenseClaims   ExpenseClaim[]
+  payslips        Payslip[]
+
+  // Approvals (as manager)
+  leaveApprovals  LeaveRequest[] @relation("LeaveApprover")
+  expenseApprovals ExpenseClaim[] @relation("ExpenseApprover")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+  RESIGNED
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  code        String     @unique
+  description String?
+  headId      String?
+
+  employees   Employee[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// ============ PAYROLL ============
+
+model SalaryInfo {
+  id                String   @id @default(cuid())
+  employeeId        String   @unique
+  basicSalary       Decimal  @db.Decimal(12, 2)
+  allowances        Decimal  @db.Decimal(12, 2) @default(0)
+
+  // Bank Details
+  bankName          String?
+  bankAccountNumber String?
+
+  // CPF Configuration
+  cpfApplicable     Boolean  @default(true)
+  cpfEmployeeRate   Decimal  @db.Decimal(5, 2) @default(20.00)
+  cpfEmployerRate   Decimal  @db.Decimal(5, 2) @default(17.00)
+
+  effectiveDate     DateTime @default(now())
+
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Payslip {
+  id                  String        @id @default(cuid())
+  employeeId          String
+  payPeriodStart      DateTime
+  payPeriodEnd        DateTime
+  paymentDate         DateTime
+
+  // Earnings
+  basicSalary         Decimal       @db.Decimal(12, 2)
+  allowances          Decimal       @db.Decimal(12, 2) @default(0)
+  overtime            Decimal       @db.Decimal(12, 2) @default(0)
+  bonus               Decimal       @db.Decimal(12, 2) @default(0)
+  grossSalary         Decimal       @db.Decimal(12, 2)
+
+  // Deductions
+  cpfEmployee         Decimal       @db.Decimal(12, 2) @default(0)
+  cpfEmployer         Decimal       @db.Decimal(12, 2) @default(0)
+  incomeTax           Decimal       @db.Decimal(12, 2) @default(0)
+  otherDeductions     Decimal       @db.Decimal(12, 2) @default(0)
+  totalDeductions     Decimal       @db.Decimal(12, 2)
+
+  // Net
+  netSalary           Decimal       @db.Decimal(12, 2)
+
+  status              PayslipStatus @default(DRAFT)
+  pdfUrl              String?
+
+  employee            Employee      @relation(fields: [employeeId], references: [id])
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@unique([employeeId, payPeriodStart, payPeriodEnd])
+}
+
+enum PayslipStatus {
+  DRAFT
+  GENERATED
+  PAID
+}
+
+// ============ LEAVE MANAGEMENT ============
+
+model LeaveType {
+  id              String         @id @default(cuid())
+  name            String         @unique
+  code            String         @unique
+  description     String?
+  defaultDays     Int
+  carryOver       Boolean        @default(false)
+  maxCarryOver    Int            @default(0)
+  paid            Boolean        @default(true)
+
+  leaveRequests   LeaveRequest[]
+  leaveBalances   LeaveBalance[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model LeaveBalance {
+  id              String    @id @default(cuid())
+  employeeId      String
+  leaveTypeId     String
+  year            Int
+  entitlement     Decimal   @db.Decimal(5, 2)
+  used            Decimal   @db.Decimal(5, 2) @default(0)
+  pending         Decimal   @db.Decimal(5, 2) @default(0)
+  carriedOver     Decimal   @db.Decimal(5, 2) @default(0)
+
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType       LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+model LeaveRequest {
+  id              String      @id @default(cuid())
+  employeeId      String
+  leaveTypeId     String
+  startDate       DateTime
+  endDate         DateTime
+  days            Decimal     @db.Decimal(5, 2)
+  reason          String?
+  status          LeaveStatus @default(PENDING)
+
+  // Approval
+  approverId      String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  employee        Employee    @relation(fields: [employeeId], references: [id])
+  leaveType       LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  approver        Employee?   @relation("LeaveApprover", fields: [approverId], references: [id])
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// ============ EXPENSE CLAIMS ============
+
+model ExpenseCategory {
+  id              String         @id @default(cuid())
+  name            String         @unique
+  code            String         @unique
+  description     String?
+  maxAmount       Decimal?       @db.Decimal(12, 2)
+  requiresReceipt Boolean        @default(true)
+
+  expenses        ExpenseClaim[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model ExpenseClaim {
+  id              String        @id @default(cuid())
+  employeeId      String
+  categoryId      String
+
+  description     String
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("SGD")
+  expenseDate     DateTime
+
+  // Receipt
+  receiptUrl      String?
+  receiptFileName String?
+
+  status          ExpenseStatus @default(PENDING)
+
+  // Approval
+  approverId      String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  // Payment
+  paidAt          DateTime?
+  paymentReference String?
+
+  employee        Employee        @relation(fields: [employeeId], references: [id])
+  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
+  approver        Employee?       @relation("ExpenseApprover", fields: [approverId], references: [id])
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+// ============ CALENDAR/EVENTS ============
+
+model CalendarEvent {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime
+  allDay          Boolean   @default(false)
+  type            EventType
+  color           String?
+
+  // For leave events, link to leave request
+  leaveRequestId  String?   @unique
+
+  // For recurring events
+  recurring       Boolean   @default(false)
+  recurrenceRule  String?
+
+  createdById     String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+enum EventType {
+  HOLIDAY
+  MEETING
+  TRAINING
+  COMPANY_EVENT
+  LEAVE
+}
+
+// ============ AUDIT LOG ============
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String
+  entity      String
+  entityId    String
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt   DateTime @default(now())
+}

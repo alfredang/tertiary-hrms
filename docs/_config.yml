@@ -1,0 +1,39 @@
+title: AI-HRM Documentation
+description: User Guide for AI-HRM - Intelligent HR Management System
+theme: just-the-docs
+
+url: https://alfredang.github.io
+baseurl: /ai-hrm
+
+# Aux links (top right)
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/alfredang/ai-hrm"
+
+# Navigation structure
+nav_sort: case_insensitive
+
+# Footer
+footer_content: "Copyright &copy; 2025 Tertiary Infotech. All rights reserved."
+
+# Color scheme
+color_scheme: light
+
+# Search
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+
+# Back to top link
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Last edit timestamp
+last_edit_timestamp: true
+last_edit_time_format: "%b %e %Y at %I:%M %p"
+
+# Heading anchor links
+heading_anchors: true
