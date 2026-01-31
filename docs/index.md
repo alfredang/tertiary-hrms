@@ -2,14 +2,14 @@
 layout: default
 title: Home
 nav_order: 1
-description: "AI-HRM is an intelligent HR Management System for Tertiary Infotech"
+description: "AI-HRM is an intelligent HR Management System for Tertiary Infotech Academy Pte Ltd"
 permalink: /
 ---
 
 # AI-HRM User Guide
 {: .fs-9 }
 
-A comprehensive, AI-powered Human Resource Management System built for Tertiary Infotech.
+A comprehensive, AI-powered Human Resource Management System built for Tertiary Infotech Academy Pte Ltd.
 {: .fs-6 .fw-300 }
 
 [Get Started]({{ site.baseurl }}/getting-started){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
@@ -55,7 +55,7 @@ AI-HRM is a modern HR management system designed to streamline human resource op
 
 ## About
 
-AI-HRM is developed for Tertiary Infotech to modernize HR operations with AI-powered assistance and streamlined workflows.
+AI-HRM is developed for Tertiary Infotech Academy Pte Ltd to modernize HR operations with AI-powered assistance and streamlined workflows.
 
 ### Tech Stack
 

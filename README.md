@@ -8,7 +8,7 @@
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=flat-square&logo=vercel)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
 
-A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech**. This modern web application streamlines HR operations with features like employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, and an intelligent AI chatbot assistant.
+A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. This modern web application streamlines HR operations with features like employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, and an intelligent AI chatbot assistant.
 
 <p align="center">
   <a href="https://ai-hrm.vercel.app"><strong>View Demo</strong></a> ·
@@ -222,7 +222,7 @@ hr-management/
 
 ## License
 
-This project is proprietary software developed for Tertiary Infotech.
+This project is proprietary software developed for Tertiary Infotech Academy Pte Ltd.
 
 ## Support
 
