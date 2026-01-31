@@ -13,7 +13,7 @@ A comprehensive, AI-powered Human Resource Management System built for Tertiary 
 {: .fs-6 .fw-300 }
 
 [Get Started]({{ site.baseurl }}/getting-started){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View on GitHub](https://github.com/alfredang/ai-hrm){: .btn .fs-5 .mb-4 .mb-md-0 }
+[View on GitHub](https://github.com/alfredang/ai-hrms){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---
 

@@ -3,12 +3,12 @@ description: User Guide for AI-HRM - Intelligent HR Management System
 theme: just-the-docs
 
 url: https://alfredang.github.io
-baseurl: /ai-hrm
+baseurl: /ai-hrms
 
 # Aux links (top right)
 aux_links:
   "GitHub Repository":
-    - "https://github.com/alfredang/ai-hrm"
+    - "https://github.com/alfredang/ai-hrms"
 
 # Navigation structure
 nav_sort: case_insensitive

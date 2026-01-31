@@ -12,8 +12,8 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
 
 <p align="center">
   <a href="https://ai-hrm.vercel.app"><strong>View Demo</strong></a> ·
-  <a href="https://alfredang.github.io/ai-hrm/"><strong>Documentation</strong></a> ·
-  <a href="https://github.com/alfredang/ai-hrm/issues"><strong>Report Bug</strong></a>
+  <a href="https://alfredang.github.io/ai-hrms/"><strong>Documentation</strong></a> ·
+  <a href="https://github.com/alfredang/ai-hrms/issues"><strong>Report Bug</strong></a>
 </p>
 
 ---
@@ -121,7 +121,7 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/alfredang/ai-hrm.git
+git clone https://github.com/alfredang/ai-hrms.git
 cd ai-hrm
 ```
 
@@ -215,8 +215,8 @@ hr-management/
 ## Links
 
 - **Demo**: [https://ai-hrm.vercel.app](https://ai-hrm.vercel.app)
-- **Documentation**: [https://alfredang.github.io/ai-hrm/](https://alfredang.github.io/ai-hrm/)
-- **Repository**: [https://github.com/alfredang/ai-hrm](https://github.com/alfredang/ai-hrm)
+- **Documentation**: [https://alfredang.github.io/ai-hrms/](https://alfredang.github.io/ai-hrms/)
+- **Repository**: [https://github.com/alfredang/ai-hrms](https://github.com/alfredang/ai-hrms)
 
 ---
 
