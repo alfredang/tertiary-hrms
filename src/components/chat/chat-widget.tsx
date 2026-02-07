@@ -30,7 +30,8 @@ export function ChatWidget() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary/90 transition-all"
+          className="fixed right-6 z-50 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary/90 transition-all bottom-20 lg:bottom-6"
+          style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           <MessageCircle className="h-6 w-6" />
         </button>
@@ -38,7 +39,7 @@ export function ChatWidget() {
 
       {/* Chat Window */}
       {isOpen && (
-        <Card className="fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-48px)] shadow-2xl">
+        <Card className="fixed right-6 z-50 w-96 max-w-[calc(100vw-48px)] shadow-2xl bottom-20 lg:bottom-6" style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
           <CardHeader className="bg-primary text-white rounded-t-xl flex flex-row items-center justify-between py-4">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />

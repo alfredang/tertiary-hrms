@@ -36,3 +36,10 @@ next-env.d.ts
 
 # prisma
 /prisma/migrations
+
+# Capacitor build artifacts
+ios/App/Pods
+android/.gradle
+android/app/build
+android/build
+android/local.properties
