@@ -6,20 +6,20 @@ description: "AI-HRM is an intelligent HR Management System for Tertiary Infotec
 permalink: /
 ---
 
-# AI-HRM User Guide
+# HR Portal User Guide
 {: .fs-9 }
 
-A comprehensive, AI-powered Human Resource Management System built for Tertiary Infotech Academy Pte Ltd.
+A comprehensive, AI-powered Human Resource Management System built for Tertiary Infotech Academy Pte Ltd. Available on Web, iOS, and Android.
 {: .fs-6 .fw-300 }
 
 [Get Started]({{ site.baseurl }}/getting-started){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View on GitHub](https://github.com/alfredang/ai-hrms){: .btn .fs-5 .mb-4 .mb-md-0 }
+[View on GitHub](https://github.com/alfredang/tertiary-hrms){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---
 
-## Welcome to AI-HRM
+## Welcome to HR Portal
 
-AI-HRM is a modern HR management system designed to streamline human resource operations. Built with Next.js and powered by AI, it provides an intuitive interface for managing employees, tracking leave, processing payroll, and handling expense claims.
+HR Portal is a modern, cross-platform HR management system designed to streamline human resource operations. Built with Next.js and Capacitor, it provides an intuitive interface for managing employees, tracking leave, processing payroll, and handling expense claims - accessible on any device.
 
 ### Key Features
 
