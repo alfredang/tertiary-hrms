@@ -1,6 +1,6 @@
 title: HR Portal Documentation
 description: User Guide for HR Portal - Intelligent HR Management System
-theme: just-the-docs
+remote_theme: just-the-docs/just-the-docs
 
 url: https://alfredang.github.io
 baseurl: /tertiary-hrms
