@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(req: NextRequest) {
-  // TEMPORARY: Disable all authentication checks
-  // TODO: Re-enable after fixing login issue
-  return NextResponse.next();
+  // Development mode: Skip authentication checks if SKIP_AUTH is enabled
+  if (process.env.SKIP_AUTH === "true") {
+    return NextResponse.next();
+  }
 
-  /* COMMENTED OUT - RE-ENABLE LATER
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
   const isLoggedIn = !!token;
   const { pathname } = req.nextUrl;
@@ -35,7 +35,6 @@ export async function middleware(req: NextRequest) {
   }
 
   return NextResponse.next();
-  */
 }
 
 export const config = {

@@ -38,11 +38,11 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-800 bg-gray-950 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex items-center gap-x-3">
           <MobileSidebar />
-          <h1 className="text-lg font-semibold text-gray-900">{currentPage}</h1>
+          <h1 className="text-lg font-semibold text-white">{currentPage}</h1>
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-x-4 lg:gap-x-6">
@@ -55,7 +55,7 @@ export function Header() {
                       {getInitials(session.user.name || session.user.email || "U")}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden sm:block text-sm font-medium text-gray-700">
+                  <span className="hidden sm:block text-sm font-medium text-gray-300">
                     {session.user.name || session.user.email}
                   </span>
                 </Button>

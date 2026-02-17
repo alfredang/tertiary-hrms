@@ -33,8 +33,8 @@ export function Sidebar() {
           <span className="text-lg font-bold text-white">HR</span>
         </div>
         <div>
-          <p className="font-semibold text-gray-900">HR Portal</p>
-          <p className="text-xs text-gray-500">Management System</p>
+          <p className="font-semibold text-white">HR Portal</p>
+          <p className="text-xs text-gray-400">Management System</p>
         </div>
       </div>
 
@@ -51,13 +51,13 @@ export function Sidebar() {
                     "group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-medium transition-all",
                     isActive
                       ? "bg-primary text-white"
-                      : "text-gray-700 hover:bg-gray-100"
+                      : "text-gray-300 hover:bg-gray-800"
                   )}
                 >
                   <item.icon
                     className={cn(
                       "h-5 w-5 shrink-0",
-                      isActive ? "text-white" : "text-gray-400 group-hover:text-gray-600"
+                      isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"
                     )}
                   />
                   {item.name}

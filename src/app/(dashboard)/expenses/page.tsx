@@ -8,12 +8,15 @@ import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
-async function getExpenseStats() {
+async function getExpenseStats(employeeId?: string) {
+  const where = employeeId ? { employeeId } : {};
+
   const totalExpenses = await prisma.expenseClaim.aggregate({
+    where,
     _sum: { amount: true },
   });
 
-  const claimsCount = await prisma.expenseClaim.count();
+  const claimsCount = await prisma.expenseClaim.count({ where });
 
   return {
     totalExpenses: Number(totalExpenses._sum.amount || 0),
@@ -21,8 +24,11 @@ async function getExpenseStats() {
   };
 }
 
-async function getExpenseClaims() {
+async function getExpenseClaims(employeeId?: string) {
+  const where = employeeId ? { employeeId } : {};
+
   const claims = await prisma.expenseClaim.findMany({
+    where,
     include: {
       employee: {
         select: {
@@ -48,9 +54,14 @@ async function getCategories() {
 
 export default async function ExpensesPage() {
   const session = await auth();
+
+  // Staff can only see their own expense claims
+  const employeeId =
+    session?.user?.role === "STAFF" ? session.user.employeeId : undefined;
+
   const [stats, claims, categories] = await Promise.all([
-    getExpenseStats(),
-    getExpenseClaims(),
+    getExpenseStats(employeeId),
+    getExpenseClaims(employeeId),
     getCategories(),
   ]);
 
@@ -63,8 +74,8 @@ export default async function ExpensesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Expense Claims</h1>
-          <p className="text-gray-500 mt-1">Submit and manage expenses</p>
+          <h1 className="text-3xl font-bold text-white">Expense Claims</h1>
+          <p className="text-gray-400 mt-1">Submit and manage expenses</p>
         </div>
         <Link href="/expenses/submit">
           <Button>
@@ -75,7 +86,7 @@ export default async function ExpensesPage() {
       </div>
 
       {/* Stats Header */}
-      <div className="bg-gray-900 text-white rounded-2xl p-6">
+      <div className="bg-gray-950 border border-gray-800 text-white rounded-2xl p-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-400">Total Expenses</p>

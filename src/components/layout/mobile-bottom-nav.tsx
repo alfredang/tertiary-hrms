@@ -18,7 +18,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-800 bg-gray-950 lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="flex justify-around">
@@ -31,7 +31,7 @@ export function MobileBottomNav() {
               href={tab.href}
               className={cn(
                 "flex flex-col items-center py-2 px-3 text-xs min-w-[56px]",
-                isActive ? "text-primary" : "text-gray-500"
+                isActive ? "text-primary" : "text-gray-400"
               )}
             >
               <tab.icon className="h-5 w-5 mb-1" />

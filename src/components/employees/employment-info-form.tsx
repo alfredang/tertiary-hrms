@@ -1,0 +1,174 @@
+"use client";
+
+import { UseFormReturn } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { EmploymentType, EmployeeStatus } from "@prisma/client";
+import type { Department } from "@prisma/client";
+
+interface EmploymentInfoFormProps {
+  form: UseFormReturn<any>;
+  departments: Department[];
+}
+
+const employmentTypeOptions = [
+  { value: "FULL_TIME", label: "Full Time" },
+  { value: "PART_TIME", label: "Part Time" },
+  { value: "CONTRACT", label: "Contract" },
+  { value: "INTERN", label: "Intern" },
+];
+
+const statusOptions = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "ON_LEAVE", label: "On Leave" },
+  { value: "RESIGNED", label: "Resigned" },
+  { value: "TERMINATED", label: "Terminated" },
+];
+
+export function EmploymentInfoForm({
+  form,
+  departments,
+}: EmploymentInfoFormProps) {
+  return (
+    <div className="space-y-4">
+      {/* Department */}
+      <div className="space-y-2">
+        <Label htmlFor="departmentId" className="text-gray-300">
+          Department *
+        </Label>
+        <Select
+          value={form.watch("employmentInfo.departmentId")}
+          onValueChange={(value) =>
+            form.setValue("employmentInfo.departmentId", value)
+          }
+        >
+          <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+            <SelectValue placeholder="Select department" />
+          </SelectTrigger>
+          <SelectContent>
+            {departments.map((dept) => (
+              <SelectItem key={dept.id} value={dept.id}>
+                {dept.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {form.formState.errors.employmentInfo?.departmentId && (
+          <p className="text-sm text-red-400">
+            {form.formState.errors.employmentInfo.departmentId.message as string}
+          </p>
+        )}
+      </div>
+
+      {/* Position */}
+      <div className="space-y-2">
+        <Label htmlFor="position" className="text-gray-300">
+          Position *
+        </Label>
+        <Input
+          id="position"
+          {...form.register("employmentInfo.position")}
+          className="bg-gray-900 border-gray-800 text-white"
+        />
+        {form.formState.errors.employmentInfo?.position && (
+          <p className="text-sm text-red-400">
+            {form.formState.errors.employmentInfo.position.message as string}
+          </p>
+        )}
+      </div>
+
+      {/* Employment Type */}
+      <div className="space-y-2">
+        <Label htmlFor="employmentType" className="text-gray-300">
+          Employment Type *
+        </Label>
+        <Select
+          value={form.watch("employmentInfo.employmentType")}
+          onValueChange={(value) =>
+            form.setValue("employmentInfo.employmentType", value as EmploymentType)
+          }
+        >
+          <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+            <SelectValue placeholder="Select employment type" />
+          </SelectTrigger>
+          <SelectContent>
+            {employmentTypeOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Start Date */}
+        <div className="space-y-2">
+          <Label htmlFor="startDate" className="text-gray-300">
+            Start Date *
+          </Label>
+          <Input
+            id="startDate"
+            type="date"
+            {...form.register("employmentInfo.startDate")}
+            className="bg-gray-900 border-gray-800 text-white"
+          />
+          {form.formState.errors.employmentInfo?.startDate && (
+            <p className="text-sm text-red-400">
+              {form.formState.errors.employmentInfo.startDate.message as string}
+            </p>
+          )}
+        </div>
+
+        {/* End Date */}
+        <div className="space-y-2">
+          <Label htmlFor="endDate" className="text-gray-300">
+            End Date
+          </Label>
+          <Input
+            id="endDate"
+            type="date"
+            {...form.register("employmentInfo.endDate")}
+            className="bg-gray-900 border-gray-800 text-white"
+          />
+          {form.formState.errors.employmentInfo?.endDate && (
+            <p className="text-sm text-red-400">
+              {form.formState.errors.employmentInfo.endDate.message as string}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Status */}
+      <div className="space-y-2">
+        <Label htmlFor="status" className="text-gray-300">
+          Status *
+        </Label>
+        <Select
+          value={form.watch("employmentInfo.status")}
+          onValueChange={(value) =>
+            form.setValue("employmentInfo.status", value as EmployeeStatus)
+          }
+        >
+          <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}

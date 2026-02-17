@@ -157,7 +157,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
       {/* Expense Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClaims.map((claim) => (
-          <Card key={claim.id}>
+          <Card key={claim.id} className="bg-gray-950 border-gray-800">
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -165,10 +165,10 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                     {categoryIcons[claim.category.code] || "📄"}
                   </span>
                   <div>
-                    <h3 className="font-semibold text-gray-900 line-clamp-1">
+                    <h3 className="font-semibold text-white line-clamp-1">
                       {claim.description}
                     </h3>
-                    <p className="text-sm text-gray-500">{claim.category.name}</p>
+                    <p className="text-sm text-gray-400">{claim.category.name}</p>
                   </div>
                 </div>
                 <Badge className={statusColors[claim.status]}>
@@ -177,11 +177,11 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               </div>
 
               <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-gray-400">
                   <Calendar className="h-4 w-4" />
                   <span>{formatDate(claim.expenseDate)}</span>
                 </div>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-lg font-bold text-white">
                   {formatCurrency(Number(claim.amount))}
                 </p>
               </div>
@@ -217,7 +217,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
 
       {filteredClaims.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No expense claims found</p>
+          <p className="text-gray-400">No expense claims found</p>
         </div>
       )}
     </div>

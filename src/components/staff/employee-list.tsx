@@ -118,7 +118,7 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredEmployees.map((employee) => (
             <Link key={employee.id} href={`/employees/${employee.id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer bg-gray-950 border-gray-800">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <div className="relative">
@@ -133,18 +133,18 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900 truncate">
+                        <h3 className="font-semibold text-white truncate">
                           {employee.firstName.substring(0, 3)}...
                         </h3>
                         <Badge className={statusColors[employee.status]}>
                           {statusLabels[employee.status]}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 truncate">{employee.position}</p>
+                      <p className="text-sm text-gray-400 truncate">{employee.position}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-2 text-sm text-gray-500">
+                  <div className="mt-4 space-y-2 text-sm text-gray-400">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       <span className="truncate">{employee.department.name}</span>
@@ -166,11 +166,11 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
           ))}
         </div>
       ) : (
-        <Card>
-          <div className="divide-y">
+        <Card className="bg-gray-950 border-gray-800">
+          <div className="divide-y divide-gray-800">
             {filteredEmployees.map((employee) => (
               <Link key={employee.id} href={`/employees/${employee.id}`}>
-                <div className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-4 p-4 hover:bg-gray-900 transition-colors cursor-pointer">
                   <Avatar className="h-10 w-10 bg-primary">
                     <AvatarFallback className="bg-primary text-white text-sm">
                       {getInitials(`${employee.firstName} ${employee.lastName}`)}
@@ -178,19 +178,19 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-white">
                         {employee.firstName} {employee.lastName}
                       </p>
                       <Badge className={statusColors[employee.status]}>
                         {statusLabels[employee.status]}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-500">{employee.position}</p>
+                    <p className="text-sm text-gray-400">{employee.position}</p>
                   </div>
-                  <div className="hidden sm:block text-sm text-gray-500">
+                  <div className="hidden sm:block text-sm text-gray-400">
                     {employee.department.name}
                   </div>
-                  <div className="hidden md:block text-sm text-gray-500">
+                  <div className="hidden md:block text-sm text-gray-400">
                     {employee.email}
                   </div>
                 </div>
@@ -202,7 +202,7 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
 
       {filteredEmployees.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No employees found</p>
+          <p className="text-gray-400">No employees found</p>
         </div>
       )}
     </div>

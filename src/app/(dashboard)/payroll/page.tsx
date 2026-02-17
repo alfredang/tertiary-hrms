@@ -8,9 +8,12 @@ import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
-async function getPayrollStats() {
+async function getPayrollStats(employeeId?: string) {
+  const baseWhere = employeeId ? { employeeId } : {};
+
   const payslips = await prisma.payslip.findMany({
     where: {
+      ...baseWhere,
       status: "PAID",
     },
     select: {
@@ -25,6 +28,7 @@ async function getPayrollStats() {
 
   const pendingPayslips = await prisma.payslip.findMany({
     where: {
+      ...baseWhere,
       status: { in: ["DRAFT", "GENERATED"] },
     },
     select: {
@@ -40,8 +44,11 @@ async function getPayrollStats() {
   return { totalPaid, pendingAmount };
 }
 
-async function getPayslips() {
+async function getPayslips(employeeId?: string) {
+  const where = employeeId ? { employeeId } : {};
+
   const payslips = await prisma.payslip.findMany({
+    where,
     include: {
       employee: {
         select: {
@@ -61,7 +68,15 @@ async function getPayslips() {
 
 export default async function PayrollPage() {
   const session = await auth();
-  const [stats, payslips] = await Promise.all([getPayrollStats(), getPayslips()]);
+
+  // Staff can only see their own payslips
+  const employeeId =
+    session?.user?.role === "STAFF" ? session.user.employeeId : undefined;
+
+  const [stats, payslips] = await Promise.all([
+    getPayrollStats(employeeId),
+    getPayslips(employeeId),
+  ]);
 
   const isHR =
     session?.user?.role === "HR" || session?.user?.role === "ADMIN";
@@ -70,8 +85,8 @@ export default async function PayrollPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Payroll</h1>
-          <p className="text-gray-500 mt-1">Manage salary payments</p>
+          <h1 className="text-3xl font-bold text-white">Payroll</h1>
+          <p className="text-gray-400 mt-1">Manage salary payments</p>
         </div>
         {isHR && (
           <Link href="/payroll/generate">
@@ -85,29 +100,29 @@ export default async function PayrollPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-green-500 text-white rounded-2xl p-6">
+        <div className="bg-gray-950 border border-green-800 rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-green-100">Total Paid</p>
-              <p className="text-3xl font-bold mt-1">
+              <p className="text-sm text-gray-400">Total Paid</p>
+              <p className="text-3xl font-bold text-green-400 mt-1">
                 {formatCurrency(stats.totalPaid)}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-green-400/30">
-              <DollarSign className="h-8 w-8 text-white" />
+            <div className="p-3 rounded-xl bg-green-950/50">
+              <DollarSign className="h-8 w-8 text-green-400" />
             </div>
           </div>
         </div>
-        <div className="bg-amber-500 text-white rounded-2xl p-6">
+        <div className="bg-gray-950 border border-amber-800 rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-amber-100">Pending Payments</p>
-              <p className="text-3xl font-bold mt-1">
+              <p className="text-sm text-gray-400">Pending Payments</p>
+              <p className="text-3xl font-bold text-amber-400 mt-1">
                 {formatCurrency(stats.pendingAmount)}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-amber-400/30">
-              <TrendingUp className="h-8 w-8 text-white" />
+            <div className="p-3 rounded-xl bg-amber-950/50">
+              <TrendingUp className="h-8 w-8 text-amber-400" />
             </div>
           </div>
         </div>

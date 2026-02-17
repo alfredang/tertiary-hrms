@@ -25,7 +25,7 @@ export function MobileSidebar() {
           <span className="sr-only">Open menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0">
+      <SheetContent side="left" className="p-0 bg-gray-950 border-gray-800">
         <div className="flex h-full flex-col overflow-y-auto">
           <Sidebar />
           <UserNav />

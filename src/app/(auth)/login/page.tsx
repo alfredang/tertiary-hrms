@@ -106,15 +106,17 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full mt-2"
-              onClick={() => window.location.href = "/dashboard"}
-            >
-              Skip Login (Temporary)
-            </Button>
           </form>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mt-4"
+            onClick={() => window.location.href = "/dashboard"}
+          >
+            Skip Login (Temporary)
+          </Button>
+
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>Demo credentials:</p>
             <p className="font-mono text-xs mt-1">admin@tertiaryinfotech.com / Tertiary@888</p>
