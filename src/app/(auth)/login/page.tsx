@@ -38,8 +38,8 @@ export default function LoginPage() {
         setError("Invalid email or password");
       } else {
         console.log("SignIn successful, redirecting..."); // DEBUG
-        router.push("/dashboard");
-        router.refresh();
+        // Use window.location for hard navigation to ensure session is recognized
+        window.location.href = "/dashboard";
       }
     } catch (error) {
       console.error("SignIn exception:", error); // DEBUG
