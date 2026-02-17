@@ -92,7 +92,7 @@ export default function LoginPage() {
           </form>
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>Demo credentials:</p>
-            <p className="font-mono text-xs mt-1">admin@tertiaryinfotech.com / ***REMOVED***</p>
+            <p className="font-mono text-xs mt-1">admin@tertiaryinfotech.com / Tertiary@888</p>
           </div>
         </CardContent>
       </Card>
