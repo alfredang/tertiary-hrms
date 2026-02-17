@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { auth } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
 async function getCalendarEvents() {
   const events = await prisma.calendarEvent.findMany({
     orderBy: { startDate: "asc" },

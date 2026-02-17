@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { EmployeeList } from "@/components/staff/employee-list";
 
+export const dynamic = 'force-dynamic';
+
 async function getEmployees() {
   const employees = await prisma.employee.findMany({
     include: {

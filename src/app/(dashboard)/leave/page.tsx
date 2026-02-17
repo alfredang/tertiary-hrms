@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 async function getLeaveStats() {
   const [pending, approved, rejected] = await Promise.all([
     prisma.leaveRequest.count({ where: { status: "PENDING" } }),

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Plus, DollarSign, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
+export const dynamic = 'force-dynamic';
+
 async function getPayrollStats() {
   const payslips = await prisma.payslip.findMany({
     where: {

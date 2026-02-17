@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Plus, DollarSign } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
+export const dynamic = 'force-dynamic';
+
 async function getExpenseStats() {
   const totalExpenses = await prisma.expenseClaim.aggregate({
     _sum: { amount: true },

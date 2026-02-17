@@ -5,6 +5,8 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { COMPANY_NAME } from "@/lib/constants";
 
+export const dynamic = 'force-dynamic';
+
 async function getDashboardStats() {
   const [
     totalEmployees,
