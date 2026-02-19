@@ -8,7 +8,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  // Determine if secure cookies are used based on AUTH_URL protocol.
+  // NextAuth sets __Secure- prefixed cookies when AUTH_URL is https://,
+  // but getToken() defaults to looking for unprefixed cookies — causing a
+  // mismatch behind reverse proxies like Coolify/Traefik.
+  const secureCookie =
+    process.env.AUTH_URL?.startsWith("https://") ??
+    process.env.NEXTAUTH_URL?.startsWith("https://") ??
+    false;
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET, secureCookie });
   const isLoggedIn = !!token;
   const { pathname } = req.nextUrl;
 
