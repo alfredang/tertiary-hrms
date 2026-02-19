@@ -4,6 +4,14 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  // Safety: require explicit flag to run seed (prevents accidental data wipe)
+  if (!process.env.SEED_CONFIRM && process.argv[2] !== "--confirm") {
+    console.error("⚠️  WARNING: This will DELETE all leave requests, expenses, payslips, and calendar events.");
+    console.error("   Run with --confirm flag to proceed:");
+    console.error("   npx tsx prisma/seed.ts --confirm");
+    process.exit(1);
+  }
+
   console.log("Seeding database...");
 
   // Create Departments (sequential to avoid connection issues)
