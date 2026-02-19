@@ -12,7 +12,7 @@
 A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. Cross-platform (Web, iOS, Android) with role-based access control, employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, Google OAuth, and an intelligent AI chatbot assistant.
 
 <p align="center">
-  <a href="https://ai-hrms.vercel.app"><strong>Live Demo</strong></a> ·
+  <a href="https://hrms.tertiaryinfo.tech"><strong>Live Demo</strong></a> ·
   <a href="https://alfredang.github.io/tertiary-hrms/"><strong>Documentation</strong></a> ·
   <a href="https://github.com/alfredang/tertiary-hrms/issues"><strong>Report Bug</strong></a>
 </p>
@@ -76,7 +76,7 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 - Multiple leave types (Annual Leave, Sick Leave, Medical Certificate, Compassionate)
 - Leave balance tracking per employee per year with carry-over support
 - **Leave request form** with date range picker and reason
-- MC submission with **doctor's certificate upload** (via UploadThing)
+- MC submission with **doctor's certificate upload**
 - Pro-rated entitlements for new employees
 - Admin approval/rejection workflow
 - Status filtering (Pending, Approved, Rejected)
@@ -147,12 +147,12 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 | **ORM** | Prisma 6.2 |
 | **Authentication** | NextAuth v5 (Auth.js) — Credentials + Google OAuth |
 | **AI/LLM** | Vercel AI SDK (Gemini, OpenAI, Anthropic) |
-| **File Upload** | UploadThing |
+| **File Upload** | Local filesystem (UploadThing installed, not wired) |
 | **Mobile** | Capacitor 8 (iOS + Android) |
-| **Email** | Resend |
+| **Email** | Resend (installed, not implemented) |
 | **PDF** | jsPDF + jspdf-autotable |
 | **Testing** | Vitest + Playwright |
-| **Deployment** | Vercel |
+| **Deployment** | Vercel + Coolify (self-hosted) |
 
 ---
 
@@ -217,8 +217,10 @@ NEXT_PUBLIC_COMPANY_NAME="Your Company Name"
 
 ```bash
 npx prisma db push
-npx prisma db seed
+npx tsx prisma/seed.ts --confirm
 ```
+
+> **Warning:** The seed script deletes all leave requests, expenses, payslips, and calendar events before re-creating sample data. The `--confirm` flag is required to prevent accidental data wipe.
 
 ### Run Development Server
 
@@ -232,10 +234,15 @@ Open [http://localhost:3000](http://localhost:3000)
 
 In development mode, use the **Dev Quick Login** buttons on the login page, or enter credentials manually:
 
-| Email | Password | Role |
-|-------|----------|------|
-| admin@tertiaryinfotech.com | 123456 | Admin |
-| staff@tertiaryinfotech.com | 123456 | Staff |
+| Email | Password | Role | Employee |
+|-------|----------|------|----------|
+| admin@tertiaryinfotech.com | 123456 | Admin | Ang Chew Hoe (EMP001, HR Director) |
+| staff@tertiaryinfotech.com | 123456 | Staff | Test Staff (EMP007, Software Engineer) |
+| sarah.johnson@tertiaryinfotech.com | 123456 | Staff | EMP002, Senior Software Engineer |
+| michael.chen@tertiaryinfotech.com | 123456 | Staff | EMP003, Marketing Manager |
+| emily.rodriguez@tertiaryinfotech.com | 123456 | Staff | EMP004, HR Coordinator |
+| james.williams@tertiaryinfotech.com | 123456 | Staff | EMP005, Sales Representative |
+| lisa.park@tertiaryinfotech.com | 123456 | Staff | EMP006, Financial Analyst |
 
 ---
 
@@ -367,6 +374,10 @@ tertiary-hrms/
 
 The app auto-deploys to Vercel on push to `main`. Visit [https://ai-hrms.vercel.app](https://ai-hrms.vercel.app).
 
+### Web (Coolify — Self-Hosted)
+
+Also deployed on Coolify with Traefik reverse proxy at [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech). Auto-deploys on `git push` to `main`. Database is external (Neon) so data persists across redeployments.
+
 ### iOS (App Store)
 
 1. Open in Xcode: `npm run cap:open:ios`
@@ -383,7 +394,8 @@ The app auto-deploys to Vercel on push to `main`. Visit [https://ai-hrms.vercel.
 
 ## Links
 
-- **Live Demo**: [https://ai-hrms.vercel.app](https://ai-hrms.vercel.app)
+- **Live (Coolify)**: [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech)
+- **Live (Vercel)**: [https://ai-hrms.vercel.app](https://ai-hrms.vercel.app)
 - **Documentation**: [https://alfredang.github.io/tertiary-hrms/](https://alfredang.github.io/tertiary-hrms/)
 - **Repository**: [https://github.com/alfredang/tertiary-hrms](https://github.com/alfredang/tertiary-hrms)
 

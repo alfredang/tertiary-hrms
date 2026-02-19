@@ -34,7 +34,9 @@ For first-time setup, use the admin credentials:
 | Field | Value |
 |-------|-------|
 | Email | admin@tertiaryinfotech.com |
-| Password | ***REMOVED*** |
+| Password | 123456 |
+
+All test accounts use password `123456`. See the [README](../README.md) for the full list of test accounts.
 
 {: .warning }
 > Change the default password immediately after your first login for security.
