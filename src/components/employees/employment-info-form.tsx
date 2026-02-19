@@ -36,6 +36,8 @@ export function EmploymentInfoForm({
   form,
   departments,
 }: EmploymentInfoFormProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const errors = form.formState.errors.employmentInfo as Record<string, any> | undefined;
   return (
     <div className="space-y-4">
       {/* Department */}
@@ -60,9 +62,9 @@ export function EmploymentInfoForm({
             ))}
           </SelectContent>
         </Select>
-        {form.formState.errors.employmentInfo?.departmentId && (
+        {errors?.departmentId && (
           <p className="text-sm text-red-400">
-            {form.formState.errors.employmentInfo.departmentId.message as string}
+            {errors?.departmentId.message as string}
           </p>
         )}
       </div>
@@ -77,9 +79,9 @@ export function EmploymentInfoForm({
           {...form.register("employmentInfo.position")}
           className="bg-gray-900 border-gray-800 text-white"
         />
-        {form.formState.errors.employmentInfo?.position && (
+        {errors?.position && (
           <p className="text-sm text-red-400">
-            {form.formState.errors.employmentInfo.position.message as string}
+            {errors?.position.message as string}
           </p>
         )}
       </div>
@@ -120,9 +122,9 @@ export function EmploymentInfoForm({
             {...form.register("employmentInfo.startDate")}
             className="bg-gray-900 border-gray-800 text-white"
           />
-          {form.formState.errors.employmentInfo?.startDate && (
+          {errors?.startDate && (
             <p className="text-sm text-red-400">
-              {form.formState.errors.employmentInfo.startDate.message as string}
+              {errors?.startDate.message as string}
             </p>
           )}
         </div>
@@ -138,9 +140,9 @@ export function EmploymentInfoForm({
             {...form.register("employmentInfo.endDate")}
             className="bg-gray-900 border-gray-800 text-white"
           />
-          {form.formState.errors.employmentInfo?.endDate && (
+          {errors?.endDate && (
             <p className="text-sm text-red-400">
-              {form.formState.errors.employmentInfo.endDate.message as string}
+              {errors?.endDate.message as string}
             </p>
           )}
         </div>

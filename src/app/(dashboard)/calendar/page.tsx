@@ -28,12 +28,6 @@ async function getCalendarEvents(employeeId?: string) {
           }
         : {}),
     },
-    include: employeeId
-      ? {
-          // We need to join with LeaveRequest to filter by employeeId
-          // But since there's no relation defined, we'll fetch leave requests separately
-        }
-      : undefined,
     orderBy: { startDate: "asc" },
   });
 
@@ -106,8 +100,8 @@ export default async function CalendarPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-white">Calendar</h1>
+          <p className="text-gray-400 mt-1">
             Events, holidays & leave schedule
           </p>
         </div>

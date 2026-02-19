@@ -118,12 +118,18 @@ export async function PATCH(
         });
       } else if (salaryInfo && !employee.salaryInfo) {
         // Create salary info if it doesn't exist
+        // Filter out undefined values so Prisma Decimal fields get proper defaults
+        const definedSalaryInfo = Object.fromEntries(
+          Object.entries(salaryInfo).filter(([, v]) => v !== undefined)
+        );
         await tx.salaryInfo.create({
           data: {
             id: `sal_${Date.now()}`,
             employeeId: id,
-            ...salaryInfo,
+            basicSalary: 0,
+            allowances: 0,
             effectiveDate: new Date(),
+            ...definedSalaryInfo,
           },
         });
       }

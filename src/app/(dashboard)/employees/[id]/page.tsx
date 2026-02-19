@@ -530,7 +530,7 @@ export default async function EmployeeDetailPage({
                             {format(new Date(request.endDate), "dd MMM yyyy")}
                           </td>
                           <td className="py-3 px-4 text-sm text-white font-medium">
-                            {Number(request.daysRequested)}
+                            {Number(request.days)}
                           </td>
                           <td className="py-3 px-4">
                             <Badge

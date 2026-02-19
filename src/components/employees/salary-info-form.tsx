@@ -16,6 +16,8 @@ interface SalaryInfoFormProps {
 }
 
 export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const formErrors = form.formState.errors.salaryInfo as Record<string, any> | undefined;
   const cpfApplicable = form.watch("salaryInfo.cpfApplicable");
   const basicSalary = form.watch("salaryInfo.basicSalary") || 0;
   const cpfEmployeeRate = form.watch("salaryInfo.cpfEmployeeRate") || 0;
@@ -41,9 +43,9 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
           })}
           className="bg-gray-900 border-gray-800 text-white"
         />
-        {form.formState.errors.salaryInfo?.basicSalary && (
+        {formErrors?.basicSalary && (
           <p className="text-sm text-red-400">
-            {form.formState.errors.salaryInfo.basicSalary.message as string}
+            {formErrors?.basicSalary.message as string}
           </p>
         )}
       </div>
@@ -62,9 +64,9 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
           })}
           className="bg-gray-900 border-gray-800 text-white"
         />
-        {form.formState.errors.salaryInfo?.allowances && (
+        {formErrors?.allowances && (
           <p className="text-sm text-red-400">
-            {form.formState.errors.salaryInfo.allowances.message as string}
+            {formErrors?.allowances.message as string}
           </p>
         )}
       </div>
@@ -154,9 +156,9 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
                 per month
               </p>
             )}
-            {form.formState.errors.salaryInfo?.cpfEmployeeRate && (
+            {formErrors?.cpfEmployeeRate && (
               <p className="text-sm text-red-400">
-                {form.formState.errors.salaryInfo.cpfEmployeeRate.message as string}
+                {formErrors?.cpfEmployeeRate.message as string}
               </p>
             )}
           </div>
@@ -184,9 +186,9 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
                 per month
               </p>
             )}
-            {form.formState.errors.salaryInfo?.cpfEmployerRate && (
+            {formErrors?.cpfEmployerRate && (
               <p className="text-sm text-red-400">
-                {form.formState.errors.salaryInfo.cpfEmployerRate.message as string}
+                {formErrors?.cpfEmployerRate.message as string}
               </p>
             )}
           </div>

@@ -30,6 +30,8 @@ const educationOptions = [
 ];
 
 export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const errors = form.formState.errors.personalInfo as Record<string, any> | undefined;
   return (
     <div className="space-y-4">
       {/* Full Name */}
@@ -43,13 +45,13 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
           className="bg-gray-900 border-gray-800 text-white"
           placeholder="e.g. Alfred Ang"
         />
-        {(form.formState.errors.personalInfo?.fullName ||
-          form.formState.errors.personalInfo?.firstName ||
-          form.formState.errors.personalInfo?.lastName) && (
+        {(errors?.fullName ||
+          errors?.firstName ||
+          errors?.lastName) && (
           <p className="text-sm text-red-400">
-            {(form.formState.errors.personalInfo?.fullName?.message ||
-              form.formState.errors.personalInfo?.firstName?.message ||
-              form.formState.errors.personalInfo?.lastName?.message) as string}
+            {(errors?.fullName?.message ||
+              errors?.firstName?.message ||
+              errors?.lastName?.message) as string}
           </p>
         )}
       </div>
@@ -65,9 +67,9 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
           {...form.register("personalInfo.email")}
           className="bg-gray-900 border-gray-800 text-white"
         />
-        {form.formState.errors.personalInfo?.email && (
+        {errors?.email && (
           <p className="text-sm text-red-400">
-            {form.formState.errors.personalInfo.email.message as string}
+            {errors?.email.message as string}
           </p>
         )}
       </div>
@@ -96,9 +98,9 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
             {...form.register("personalInfo.dateOfBirth")}
             className="bg-gray-900 border-gray-800 text-white"
           />
-          {form.formState.errors.personalInfo?.dateOfBirth && (
+          {errors?.dateOfBirth && (
             <p className="text-sm text-red-400">
-              {form.formState.errors.personalInfo.dateOfBirth.message as string}
+              {errors?.dateOfBirth.message as string}
             </p>
           )}
         </div>
@@ -139,9 +141,9 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
             {...form.register("personalInfo.nationality")}
             className="bg-gray-900 border-gray-800 text-white"
           />
-          {form.formState.errors.personalInfo?.nationality && (
+          {errors?.nationality && (
             <p className="text-sm text-red-400">
-              {form.formState.errors.personalInfo.nationality.message as string}
+              {errors?.nationality.message as string}
             </p>
           )}
         </div>
