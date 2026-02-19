@@ -16,11 +16,12 @@ import {
 } from "@/components/ui/select";
 import { Search, Grid3X3, List, Plus, Building2, Mail, Phone } from "lucide-react";
 import { getInitials } from "@/lib/utils";
-import type { Employee, Department, EmployeeStatus } from "@prisma/client";
+import type { Employee, Department, EmployeeStatus, User, Role } from "@prisma/client";
 
 interface EmployeeListProps {
-  employees: (Employee & { department: Department })[];
+  employees: (Employee & { department: Department; user: User })[];
   departments: Department[];
+  isAdmin?: boolean;
 }
 
 const statusColors: Record<EmployeeStatus, string> = {
@@ -37,10 +38,25 @@ const statusLabels: Record<EmployeeStatus, string> = {
   RESIGNED: "Resigned",
 };
 
-export function EmployeeList({ employees, departments }: EmployeeListProps) {
+const roleColors: Record<Role, string> = {
+  ADMIN: "bg-purple-100 text-purple-800 border-purple-200",
+  HR: "bg-blue-100 text-blue-800 border-blue-200",
+  MANAGER: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  STAFF: "bg-gray-100 text-gray-800 border-gray-200",
+};
+
+const roleLabels: Record<Role, string> = {
+  ADMIN: "Admin",
+  HR: "HR",
+  MANAGER: "Manager",
+  STAFF: "Staff",
+};
+
+export function EmployeeList({ employees, departments, isAdmin = true }: EmployeeListProps) {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
@@ -53,7 +69,10 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
     const matchesDepartment =
       departmentFilter === "all" || employee.departmentId === departmentFilter;
 
-    return matchesSearch && matchesDepartment;
+    const matchesStatus =
+      statusFilter === "all" || employee.status === statusFilter;
+
+    return matchesSearch && matchesDepartment && matchesStatus;
   });
 
   return (
@@ -83,6 +102,18 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
               ))}
             </SelectContent>
           </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="ON_LEAVE">On Leave</SelectItem>
+              <SelectItem value="RESIGNED">Resigned</SelectItem>
+              <SelectItem value="TERMINATED">Terminated</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex items-center gap-2">
@@ -104,12 +135,14 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          <Link href="/employees/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Employee
-            </Button>
-          </Link>
+          {isAdmin && (
+            <Link href="/employees/new">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Employee
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -132,30 +165,35 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-white truncate">
-                          {employee.firstName.substring(0, 3)}...
-                        </h3>
+                      <h3 className="font-semibold text-white mb-2 break-words">
+                        {employee.firstName} {employee.lastName}
+                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge className={statusColors[employee.status]}>
                           {statusLabels[employee.status]}
                         </Badge>
+                        <Badge className={roleColors[employee.user.role]}>
+                          {roleLabels[employee.user.role]}
+                        </Badge>
+                        <Badge variant="outline" className="border-gray-600 text-gray-300">
+                          {employee.position}
+                        </Badge>
                       </div>
-                      <p className="text-sm text-gray-400 truncate">{employee.position}</p>
                     </div>
                   </div>
 
                   <div className="mt-4 space-y-2 text-sm text-gray-400">
                     <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      <span className="truncate">{employee.department.name}</span>
+                      <Building2 className="h-4 w-4 flex-shrink-0" />
+                      <span>{employee.department.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      <span className="truncate">{employee.email.split("@")[0]}@...</span>
+                      <Mail className="h-4 w-4 flex-shrink-0" />
+                      <span className="break-all">{employee.email}</span>
                     </div>
                     {employee.phone && (
                       <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
+                        <Phone className="h-4 w-4 flex-shrink-0" />
                         <span>{employee.phone}</span>
                       </div>
                     )}
@@ -177,15 +215,20 @@ export function EmployeeList({ employees, departments }: EmployeeListProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-white">
-                        {employee.firstName} {employee.lastName}
-                      </p>
+                    <p className="font-medium text-white mb-1">
+                      {employee.firstName} {employee.lastName}
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge className={statusColors[employee.status]}>
                         {statusLabels[employee.status]}
                       </Badge>
+                      <Badge className={roleColors[employee.user.role]}>
+                        {roleLabels[employee.user.role]}
+                      </Badge>
+                      <Badge variant="outline" className="border-gray-600 text-gray-300">
+                        {employee.position}
+                      </Badge>
                     </div>
-                    <p className="text-sm text-gray-400">{employee.position}</p>
                   </div>
                   <div className="hidden sm:block text-sm text-gray-400">
                     {employee.department.name}

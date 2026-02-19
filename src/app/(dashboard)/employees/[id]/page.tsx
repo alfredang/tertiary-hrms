@@ -38,6 +38,7 @@ const statusLabels: Record<EmployeeStatus, string> = {
 
 async function getEmployee(id: string) {
   const currentYear = new Date().getFullYear();
+  const lastYear = currentYear - 1;
 
   const employee = await prisma.employee.findUnique({
     where: { id },
@@ -45,8 +46,26 @@ async function getEmployee(id: string) {
       department: true,
       salaryInfo: true,
       leaveBalances: {
-        where: { year: currentYear },
+        where: {
+          OR: [
+            { year: currentYear },
+            { year: lastYear },
+          ],
+        },
         include: { leaveType: true },
+        orderBy: { year: "desc" },
+      },
+      leaveRequests: {
+        include: {
+          leaveType: true,
+          approver: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
@@ -91,9 +110,10 @@ export default async function EmployeeDetailPage({
   }
 
   // Determine if user can edit (ADMIN, HR, or MANAGER)
+  // Allow editing when SKIP_AUTH is enabled (development mode)
   const canEdit =
-    session?.user &&
-    ["ADMIN", "HR", "MANAGER"].includes(session.user.role);
+    process.env.SKIP_AUTH === "true" ||
+    (session?.user && ["ADMIN", "HR", "MANAGER"].includes(session.user.role));
 
   return (
     <div className="space-y-6">
@@ -314,6 +334,12 @@ export default async function EmployeeDetailPage({
                   })}
                 </p>
               </div>
+              {employee.salaryInfo.payNow && (
+                <div>
+                  <p className="text-sm text-gray-400">PayNow</p>
+                  <p className="font-medium text-white mt-1">{employee.salaryInfo.payNow}</p>
+                </div>
+              )}
               {employee.salaryInfo.cpfApplicable && (
                 <>
                   <div className="pt-2 border-t border-gray-800">
@@ -361,61 +387,183 @@ export default async function EmployeeDetailPage({
 
       {/* Leave Information */}
       {employee.leaveBalances && employee.leaveBalances.length > 0 && (
-        <Card className="bg-gray-950 border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Calendar className="h-5 w-5" />
-              Leave Balance ({new Date().getFullYear()})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {employee.leaveBalances.map((balance) => {
-                const totalBalance = Number(balance.entitlement) + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
-                return (
-                  <div key={balance.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-white">{balance.leaveType.name}</p>
-                      <Badge variant="outline" className="text-gray-400 border-gray-700">
-                        {balance.leaveType.code}
-                      </Badge>
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Entitlement:</span>
-                        <span className="text-white font-medium">{Number(balance.entitlement)} days</span>
-                      </div>
-                      {Number(balance.carriedOver) > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Carried Over:</span>
-                          <span className="text-blue-400 font-medium">+{Number(balance.carriedOver)} days</span>
+        <div className="space-y-6">
+          {/* Current Year Leave Balance */}
+          <Card className="bg-gray-950 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Calendar className="h-5 w-5" />
+                Leave Balance - {new Date().getFullYear()} (Current Year)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {employee.leaveBalances
+                  .filter((balance) => balance.year === new Date().getFullYear())
+                  .map((balance) => {
+                    const totalBalance = Number(balance.entitlement) + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
+                    return (
+                      <div key={balance.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-white">{balance.leaveType.name}</p>
+                          <Badge variant="outline" className="text-gray-400 border-gray-700">
+                            {balance.leaveType.code}
+                          </Badge>
                         </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Used:</span>
-                        <span className="text-orange-400 font-medium">{Number(balance.used)} days</span>
-                      </div>
-                      {Number(balance.pending) > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Pending:</span>
-                          <span className="text-amber-400 font-medium">{Number(balance.pending)} days</span>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Entitlement:</span>
+                            <span className="text-white font-medium">{Number(balance.entitlement)} days</span>
+                          </div>
+                          {Number(balance.carriedOver) > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Carried Over:</span>
+                              <span className="text-blue-400 font-medium">+{Number(balance.carriedOver)} days</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Used:</span>
+                            <span className="text-orange-400 font-medium">{Number(balance.used)} days</span>
+                          </div>
+                          {Number(balance.pending) > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Pending:</span>
+                              <span className="text-amber-400 font-medium">{Number(balance.pending)} days</span>
+                            </div>
+                          )}
+                          <div className="pt-2 border-t border-gray-800">
+                            <div className="flex justify-between">
+                              <span className="text-gray-300 font-medium">Remaining:</span>
+                              <span className={`font-bold ${totalBalance > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {totalBalance} days
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div className="pt-2 border-t border-gray-800">
-                        <div className="flex justify-between">
-                          <span className="text-gray-300 font-medium">Balance:</span>
-                          <span className={`font-bold ${totalBalance > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {totalBalance} days
-                          </span>
-                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Last Year Leave Balance */}
+          {employee.leaveBalances.some((b) => b.year === new Date().getFullYear() - 1) && (
+            <Card className="bg-gray-950 border-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Calendar className="h-5 w-5" />
+                  Leave Balance - {new Date().getFullYear() - 1} (Last Year)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {employee.leaveBalances
+                    .filter((balance) => balance.year === new Date().getFullYear() - 1)
+                    .map((balance) => {
+                      const totalBalance = Number(balance.entitlement) + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
+                      return (
+                        <div key={balance.id} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium text-white">{balance.leaveType.name}</p>
+                            <Badge variant="outline" className="text-gray-400 border-gray-700">
+                              {balance.leaveType.code}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Entitlement:</span>
+                              <span className="text-white font-medium">{Number(balance.entitlement)} days</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Used:</span>
+                              <span className="text-orange-400 font-medium">{Number(balance.used)} days</span>
+                            </div>
+                            <div className="pt-2 border-t border-gray-800">
+                              <div className="flex justify-between">
+                                <span className="text-gray-300 font-medium">Final Balance:</span>
+                                <span className={`font-bold ${totalBalance > 0 ? 'text-green-400' : 'text-gray-400'}`}>
+                                  {totalBalance} days
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Leave History */}
+          {employee.leaveRequests && employee.leaveRequests.length > 0 && (
+            <Card className="bg-gray-950 border-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <FileText className="h-5 w-5" />
+                  Leave History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-800">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Leave Type</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Start Date</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">End Date</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Days</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Status</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Approver</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Applied On</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employee.leaveRequests.map((request) => (
+                        <tr key={request.id} className="border-b border-gray-800">
+                          <td className="py-3 px-4 text-sm text-white">{request.leaveType.name}</td>
+                          <td className="py-3 px-4 text-sm text-gray-400">
+                            {format(new Date(request.startDate), "dd MMM yyyy")}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-400">
+                            {format(new Date(request.endDate), "dd MMM yyyy")}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-white font-medium">
+                            {Number(request.daysRequested)}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              className={
+                                request.status === "APPROVED"
+                                  ? "bg-green-100 text-green-800 border-green-200"
+                                  : request.status === "REJECTED"
+                                  ? "bg-red-100 text-red-800 border-red-200"
+                                  : request.status === "CANCELLED"
+                                  ? "bg-gray-100 text-gray-800 border-gray-200"
+                                  : "bg-amber-100 text-amber-800 border-amber-200"
+                              }
+                            >
+                              {request.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-400">
+                            {request.approver
+                              ? `${request.approver.firstName} ${request.approver.lastName}`
+                              : "-"}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-400">
+                            {format(new Date(request.createdAt), "dd MMM yyyy")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

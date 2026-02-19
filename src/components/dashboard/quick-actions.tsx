@@ -35,7 +35,15 @@ const actions = [
   },
 ];
 
-export function QuickActions() {
+interface QuickActionsProps {
+  isAdmin?: boolean;
+}
+
+export function QuickActions({ isAdmin = true }: QuickActionsProps) {
+  const visibleActions = isAdmin
+    ? actions
+    : actions.filter((a) => a.title !== "Add Employee");
+
   return (
     <Card className="bg-gray-950 border-gray-800">
       <CardHeader>
@@ -43,7 +51,7 @@ export function QuickActions() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {actions.map((action) => (
+          {visibleActions.map((action) => (
             <Link key={action.href} href={action.href}>
               <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-800 hover:border-gray-700 hover:bg-gray-900 transition-all cursor-pointer">
                 <div className={`p-3 rounded-xl ${action.iconBg}`}>

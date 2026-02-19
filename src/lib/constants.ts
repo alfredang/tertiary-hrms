@@ -72,12 +72,13 @@ export const DEPARTMENTS = [
 ] as const;
 
 export const LEAVE_TYPES = [
-  { name: "Annual Leave", code: "AL", defaultDays: 14 },
-  { name: "Sick Leave", code: "SL", defaultDays: 14 },
-  { name: "Medical Leave", code: "MC", defaultDays: 60 },
-  { name: "Compassionate Leave", code: "CL", defaultDays: 3 },
-  { name: "Maternity Leave", code: "ML", defaultDays: 16 * 7 },
-  { name: "Paternity Leave", code: "PL", defaultDays: 14 },
+  { name: "Annual Leave", code: "AL", defaultDays: 14, carryOver: false },
+  { name: "Sick Leave", code: "SL", defaultDays: 14, carryOver: false },
+  { name: "Medical Leave", code: "MC", defaultDays: 14, carryOver: false },
+  { name: "Compassionate Leave", code: "CL", defaultDays: 3, carryOver: false },
+  { name: "Maternity Leave", code: "ML", defaultDays: 16 * 7, carryOver: false },
+  { name: "Paternity Leave", code: "PL", defaultDays: 14, carryOver: false },
+  { name: "No Pay Leave", code: "NPL", defaultDays: 0, carryOver: false },
 ] as const;
 
 export const EXPENSE_CATEGORIES = [

@@ -17,6 +17,13 @@ interface SalaryInfoFormProps {
 
 export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
   const cpfApplicable = form.watch("salaryInfo.cpfApplicable");
+  const basicSalary = form.watch("salaryInfo.basicSalary") || 0;
+  const cpfEmployeeRate = form.watch("salaryInfo.cpfEmployeeRate") || 0;
+  const cpfEmployerRate = form.watch("salaryInfo.cpfEmployerRate") || 0;
+
+  // Calculate CPF amounts
+  const employeeCPF = (basicSalary * cpfEmployeeRate) / 100;
+  const employerCPF = (basicSalary * cpfEmployerRate) / 100;
 
   return (
     <div className="space-y-4">
@@ -88,6 +95,19 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
         </div>
       </div>
 
+      {/* PayNow */}
+      <div className="space-y-2">
+        <Label htmlFor="payNow" className="text-gray-300">
+          PayNow (Phone/NRIC/UEN)
+        </Label>
+        <Input
+          id="payNow"
+          {...form.register("salaryInfo.payNow")}
+          className="bg-gray-900 border-gray-800 text-white"
+          placeholder="e.g. +65 9123 4567"
+        />
+      </div>
+
       {/* CPF Applicable */}
       <div className="space-y-2">
         <Label htmlFor="cpfApplicable" className="text-gray-300">
@@ -125,6 +145,15 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
               })}
               className="bg-gray-900 border-gray-800 text-white"
             />
+            {basicSalary > 0 && cpfEmployeeRate > 0 && (
+              <p className="text-sm text-gray-400">
+                = ${employeeCPF.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                per month
+              </p>
+            )}
             {form.formState.errors.salaryInfo?.cpfEmployeeRate && (
               <p className="text-sm text-red-400">
                 {form.formState.errors.salaryInfo.cpfEmployeeRate.message as string}
@@ -146,6 +175,15 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
               })}
               className="bg-gray-900 border-gray-800 text-white"
             />
+            {basicSalary > 0 && cpfEmployerRate > 0 && (
+              <p className="text-sm text-gray-400">
+                = ${employerCPF.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                per month
+              </p>
+            )}
             {form.formState.errors.salaryInfo?.cpfEmployerRate && (
               <p className="text-sm text-red-400">
                 {form.formState.errors.salaryInfo.cpfEmployerRate.message as string}

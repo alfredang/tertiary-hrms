@@ -43,3 +43,14 @@ android/.gradle
 android/app/build
 android/build
 android/local.properties
+
+# Sensitive data files
+*.xlsx
+*.xls
+staff.xlsx
+
+# Uploaded files
+/public/uploads
+
+# Playwright screenshots
+scripts/*.png

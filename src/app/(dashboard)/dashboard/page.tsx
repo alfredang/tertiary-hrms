@@ -3,39 +3,56 @@ import { prisma } from "@/lib/prisma";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
-import { COMPANY_NAME } from "@/lib/constants";
+import { getViewMode } from "@/lib/view-mode";
+import type { Role } from "@prisma/client";
 
 export const dynamic = 'force-dynamic';
 
-async function getDashboardStats() {
-  const [
-    totalEmployees,
-    activeEmployees,
-    pendingLeaves,
-    pendingExpenses,
-    totalExpensesThisMonth,
-  ] = await Promise.all([
-    prisma.employee.count(),
-    prisma.employee.count({ where: { status: "ACTIVE" } }),
-    prisma.leaveRequest.count({ where: { status: "PENDING" } }),
-    prisma.expenseClaim.count({ where: { status: "PENDING" } }),
-    prisma.expenseClaim.aggregate({
-      _sum: { amount: true },
-      where: {
-        createdAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-        },
-      },
+async function getAdminStats() {
+  const mcLeaveType = await prisma.leaveType.findUnique({ where: { code: "MC" } });
+
+  const [pendingLeaves, pendingMC, pendingClaims] = await Promise.all([
+    prisma.leaveRequest.count({
+      where: { status: "PENDING", ...(mcLeaveType ? { leaveTypeId: { not: mcLeaveType.id } } : {}) },
     }),
+    mcLeaveType
+      ? prisma.leaveRequest.count({ where: { status: "PENDING", leaveTypeId: mcLeaveType.id } })
+      : Promise.resolve(0),
+    prisma.expenseClaim.count({ where: { status: "PENDING" } }),
   ]);
 
-  return {
-    totalEmployees,
-    activeEmployees,
-    pendingLeaves,
-    pendingExpenses,
-    totalExpensesThisMonth: Number(totalExpensesThisMonth._sum.amount || 0),
-  };
+  return { pendingLeaves, pendingMC, pendingClaims };
+}
+
+async function getStaffStats(employeeId: string) {
+  const currentYear = new Date().getFullYear();
+
+  const [alType, mcType] = await Promise.all([
+    prisma.leaveType.findUnique({ where: { code: "AL" } }),
+    prisma.leaveType.findUnique({ where: { code: "MC" } }),
+  ]);
+
+  const [alBalance, mcBalance] = await Promise.all([
+    alType
+      ? prisma.leaveBalance.findUnique({
+          where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alType.id, year: currentYear } },
+        })
+      : null,
+    mcType
+      ? prisma.leaveBalance.findUnique({
+          where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: mcType.id, year: currentYear } },
+        })
+      : null,
+  ]);
+
+  const leaveBalance = alBalance
+    ? Number(alBalance.entitlement) + Number(alBalance.carriedOver) - Number(alBalance.used) - Number(alBalance.pending)
+    : 0;
+  const mcBalanceVal = mcBalance
+    ? Number(mcBalance.entitlement) + Number(mcBalance.carriedOver) - Number(mcBalance.used) - Number(mcBalance.pending)
+    : 0;
+
+  return { leaveBalance, mcBalance: mcBalanceVal };
 }
 
 async function getRecentActivity() {
@@ -58,22 +75,74 @@ async function getRecentActivity() {
     }),
   ]);
 
-  return { recentExpenses, recentLeaves };
+  // Serialize Prisma Decimal/Date objects for client component props
+  return {
+    recentExpenses: recentExpenses.map((e) => ({
+      id: e.id,
+      amount: Number(e.amount),
+      description: e.description,
+      createdAt: e.createdAt.toISOString(),
+      employee: e.employee,
+      category: e.category,
+    })),
+    recentLeaves: recentLeaves.map((l) => ({
+      id: l.id,
+      days: Number(l.days),
+      startDate: l.startDate.toISOString(),
+      endDate: l.endDate.toISOString(),
+      createdAt: l.createdAt.toISOString(),
+      employee: l.employee,
+      leaveType: l.leaveType,
+    })),
+  };
 }
 
 export default async function DashboardPage() {
   const session = await auth();
-  const stats = await getDashboardStats();
+  const viewMode = await getViewMode();
   const activity = await getRecentActivity();
 
-  const firstName = session?.user?.name?.split(" ")[0] || "User";
+  let role: Role = "STAFF";
+  let currentEmployeeId: string | undefined;
+  let displayName = "User";
+
+  if (process.env.SKIP_AUTH === "true") {
+    role = "ADMIN";
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      include: { employee: { select: { id: true, firstName: true, lastName: true } } },
+    });
+    if (adminUser?.employee) {
+      currentEmployeeId = adminUser.employee.id;
+      displayName = `${adminUser.employee.firstName} ${adminUser.employee.lastName}`;
+    }
+  } else if (session?.user) {
+    role = session.user.role;
+    currentEmployeeId = session.user.employeeId;
+    if (currentEmployeeId) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: currentEmployeeId },
+        select: { firstName: true, lastName: true },
+      });
+      if (employee) {
+        displayName = `${employee.firstName} ${employee.lastName}`;
+      }
+    }
+  }
+
+  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const viewAs = isAdmin ? viewMode : "staff";
+
+  // For admin users, fetch both stats so they can toggle views
+  const adminStats = isAdmin ? await getAdminStats() : null;
+  const staffStats = currentEmployeeId ? await getStaffStats(currentEmployeeId) : null;
 
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
       <div>
         <h1 className="text-3xl font-bold text-white">
-          Welcome back, {firstName}.
+          Welcome Back, {displayName}
         </h1>
         <p className="text-gray-400 mt-1">
           Here&apos;s what&apos;s happening in your organization
@@ -81,12 +150,15 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <StatsCards stats={stats} />
+      <StatsCards
+        adminStats={viewAs === "admin" ? adminStats : null}
+        staffStats={viewAs === "staff" ? staffStats : null}
+      />
 
       {/* Quick Actions and Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <QuickActions />
+          <QuickActions isAdmin={viewAs === "admin"} />
         </div>
         <div>
           <RecentActivity

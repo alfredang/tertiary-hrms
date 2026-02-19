@@ -7,18 +7,18 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 interface RecentActivityProps {
   expenses: Array<{
     id: string;
-    amount: any;
+    amount: number;
     description: string;
-    createdAt: Date;
+    createdAt: string;
     employee: { firstName: string; lastName: string };
     category: { name: string };
   }>;
   leaves: Array<{
     id: string;
-    days: any;
-    startDate: Date;
-    endDate: Date;
-    createdAt: Date;
+    days: number;
+    startDate: string;
+    endDate: string;
+    createdAt: string;
     employee: { firstName: string; lastName: string };
     leaveType: { name: string };
   }>;

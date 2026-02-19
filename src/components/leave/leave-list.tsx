@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate, formatDateRange, getInitials } from "@/lib/utils";
 import { Calendar, Clock, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -114,84 +114,133 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredRequests.map((request) => (
-          <Card key={request.id}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10 bg-blue-500">
-                    <AvatarFallback className="bg-blue-500 text-white">
-                      {getInitials(
-                        `${request.employee.firstName} ${request.employee.lastName}`
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {request.employee.firstName} {request.employee.lastName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {request.leaveType.name}
-                    </p>
-                  </div>
-                </div>
-                <Badge className={statusColors[request.status]}>
-                  {request.status}
-                </Badge>
-              </div>
+      {isManager ? (
+        /* Admin Table View */
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-950 border-b border-gray-800">
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Employee Name</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Leave Type</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Start Date</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">End Date</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">No of Days</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Application Date</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Status</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filteredRequests.map((request) => (
+                <tr key={request.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                  <td className="px-4 py-3 text-sm text-white">
+                    {request.employee.firstName} {request.employee.lastName}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {request.leaveType.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatDate(request.startDate)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatDate(request.endDate)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {Number(request.days)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatDate(request.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge className={statusColors[request.status]}>
+                      {request.status}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    {request.status === "PENDING" ? (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => handleApprove(request.id)}
+                          disabled={isLoading === request.id}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReject(request.id)}
+                          disabled={isLoading === request.id}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-500">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    {formatDateRange(request.startDate, request.endDate)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Clock className="h-4 w-4" />
-                  <span>{Number(request.days)} days</span>
-                </div>
-              </div>
+          {filteredRequests.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No leave requests found</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Staff Table View (no Employee Name or Action columns) */
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-950 border-b border-gray-800">
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Leave Type</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Start Date</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">End Date</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">No of Days</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Application Date</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filteredRequests.map((request) => (
+                <tr key={request.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {request.leaveType.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatDate(request.startDate)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatDate(request.endDate)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {Number(request.days)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatDate(request.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge className={statusColors[request.status]}>
+                      {request.status}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-              {request.reason && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                  {request.reason}
-                </div>
-              )}
-
-              {isManager && request.status === "PENDING" && (
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => handleApprove(request.id)}
-                    disabled={isLoading === request.id}
-                    className="flex-1"
-                  >
-                    <Check className="h-4 w-4 mr-1" />
-                    Approve
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleReject(request.id)}
-                    disabled={isLoading === request.id}
-                    className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Reject
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredRequests.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No leave requests found</p>
+          {filteredRequests.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No leave requests found</p>
+            </div>
+          )}
         </div>
       )}
     </div>

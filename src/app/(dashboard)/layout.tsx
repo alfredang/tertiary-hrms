@@ -1,14 +1,19 @@
+import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { UserNav } from "@/components/layout/user-nav";
 import { ChatWidget } from "@/components/chat/chat-widget";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  const role = process.env.SKIP_AUTH === "true" ? "ADMIN" : session?.user?.role;
+  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Sidebar - desktop only */}
@@ -21,7 +26,7 @@ export default function DashboardLayout({
 
       {/* Main content */}
       <div className="lg:pl-72">
-        <Header />
+        <Header isAdmin={isAdmin} />
         <main className="py-6 px-4 pb-20 sm:px-6 lg:px-8 lg:pb-6">
           {children}
         </main>

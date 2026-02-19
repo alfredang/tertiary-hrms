@@ -32,40 +32,26 @@ const educationOptions = [
 export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* First Name */}
-        <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-gray-300">
-            First Name *
-          </Label>
-          <Input
-            id="firstName"
-            {...form.register("personalInfo.firstName")}
-            className="bg-gray-900 border-gray-800 text-white"
-          />
-          {form.formState.errors.personalInfo?.firstName && (
-            <p className="text-sm text-red-400">
-              {form.formState.errors.personalInfo.firstName.message as string}
-            </p>
-          )}
-        </div>
-
-        {/* Last Name */}
-        <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-gray-300">
-            Last Name *
-          </Label>
-          <Input
-            id="lastName"
-            {...form.register("personalInfo.lastName")}
-            className="bg-gray-900 border-gray-800 text-white"
-          />
-          {form.formState.errors.personalInfo?.lastName && (
-            <p className="text-sm text-red-400">
-              {form.formState.errors.personalInfo.lastName.message as string}
-            </p>
-          )}
-        </div>
+      {/* Full Name */}
+      <div className="space-y-2">
+        <Label htmlFor="fullName" className="text-gray-300">
+          Full Name *
+        </Label>
+        <Input
+          id="fullName"
+          {...form.register("personalInfo.fullName")}
+          className="bg-gray-900 border-gray-800 text-white"
+          placeholder="e.g. Alfred Ang"
+        />
+        {(form.formState.errors.personalInfo?.fullName ||
+          form.formState.errors.personalInfo?.firstName ||
+          form.formState.errors.personalInfo?.lastName) && (
+          <p className="text-sm text-red-400">
+            {(form.formState.errors.personalInfo?.fullName?.message ||
+              form.formState.errors.personalInfo?.firstName?.message ||
+              form.formState.errors.personalInfo?.lastName?.message) as string}
+          </p>
+        )}
       </div>
 
       {/* Email */}

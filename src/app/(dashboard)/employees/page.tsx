@@ -2,39 +2,32 @@ import { prisma } from "@/lib/prisma";
 import { EmployeeList } from "@/components/staff/employee-list";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getViewMode } from "@/lib/view-mode";
 
 export const dynamic = 'force-dynamic';
 
-async function getEmployees() {
-  const session = await auth();
-
-  // Development mode: Skip authentication if SKIP_AUTH is enabled
-  if (process.env.SKIP_AUTH !== "true") {
-    if (!session?.user) {
-      redirect("/login");
-    }
-
-    // Staff can only see their own employee record
-    if (session.user.role === "STAFF") {
-      if (!session.user.employeeId) {
-        return [];
-      }
-
-      const employee = await prisma.employee.findUnique({
-        where: { id: session.user.employeeId },
-        include: {
-          department: true,
-        },
-      });
-
-      return employee ? [employee] : [];
-    }
+async function getEmployees(viewAs: "admin" | "staff", currentEmployeeId?: string) {
+  // If viewing as staff, only show own record
+  if (viewAs === "staff" && currentEmployeeId) {
+    const employee = await prisma.employee.findUnique({
+      where: { id: currentEmployeeId },
+      include: {
+        department: true,
+        user: true,
+      },
+    });
+    return employee ? [employee] : [];
   }
 
-  // Admin, HR, and Manager can see all employees
+  if (viewAs === "staff" && !currentEmployeeId) {
+    return [];
+  }
+
+  // Admin view: show all employees
   const employees = await prisma.employee.findMany({
     include: {
       department: true,
+      user: true,
     },
     orderBy: { firstName: "asc" },
   });
@@ -51,8 +44,32 @@ async function getDepartments() {
 }
 
 export default async function EmployeesPage() {
+  const session = await auth();
+  const viewMode = await getViewMode();
+
+  let role = "STAFF";
+  let currentEmployeeId: string | undefined;
+
+  if (process.env.SKIP_AUTH === "true") {
+    role = "ADMIN";
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      include: { employee: { select: { id: true } } },
+    });
+    currentEmployeeId = adminUser?.employee?.id;
+  } else {
+    if (!session?.user) {
+      redirect("/login");
+    }
+    role = session.user.role;
+    currentEmployeeId = session.user.employeeId;
+  }
+
+  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const viewAs = isAdmin ? viewMode : "staff";
+
   const [employees, departments] = await Promise.all([
-    getEmployees(),
+    getEmployees(viewAs, currentEmployeeId),
     getDepartments(),
   ]);
 
@@ -61,11 +78,11 @@ export default async function EmployeesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Employees</h1>
-          <p className="text-gray-400 mt-1">{employees.length} team members</p>
+          <p className="text-gray-400 mt-1">{employees.length} team member{employees.length !== 1 ? "s" : ""}</p>
         </div>
       </div>
 
-      <EmployeeList employees={employees} departments={departments} />
+      <EmployeeList employees={employees} departments={departments} isAdmin={viewAs === "admin"} />
     </div>
   );
 }

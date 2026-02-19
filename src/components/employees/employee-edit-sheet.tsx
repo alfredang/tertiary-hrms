@@ -44,8 +44,7 @@ export function EmployeeEditSheet({
     resolver: zodResolver(updateEmployeeSchema),
     defaultValues: {
       personalInfo: {
-        firstName: employee.firstName,
-        lastName: employee.lastName,
+        fullName: `${employee.firstName} ${employee.lastName}`,
         email: employee.email,
         phone: employee.phone || "",
         dateOfBirth: employee.dateOfBirth.toISOString().split("T")[0],
@@ -69,6 +68,7 @@ export function EmployeeEditSheet({
             allowances: Number(employee.salaryInfo.allowances),
             bankName: employee.salaryInfo.bankName || "",
             bankAccountNumber: employee.salaryInfo.bankAccountNumber || "",
+            payNow: employee.salaryInfo.payNow || employee.phone || "",
             cpfApplicable: employee.salaryInfo.cpfApplicable,
             cpfEmployeeRate: Number(employee.salaryInfo.cpfEmployeeRate),
             cpfEmployerRate: Number(employee.salaryInfo.cpfEmployerRate),
@@ -78,6 +78,7 @@ export function EmployeeEditSheet({
             allowances: 0,
             bankName: "",
             bankAccountNumber: "",
+            payNow: employee.phone || "",
             cpfApplicable: true,
             cpfEmployeeRate: 20.0,
             cpfEmployerRate: 17.0,

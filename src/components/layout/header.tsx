@@ -15,6 +15,7 @@ import {
 import { getInitials } from "@/lib/utils";
 import { LogOut, Settings, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
+import { ViewToggle } from "@/components/dashboard/view-toggle";
 
 const pageNames: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -25,7 +26,11 @@ const pageNames: Record<string, string> = {
   "/calendar": "Calendar",
 };
 
-export function Header() {
+interface HeaderProps {
+  isAdmin?: boolean;
+}
+
+export function Header({ isAdmin = false }: HeaderProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
 
@@ -46,6 +51,7 @@ export function Header() {
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-x-4 lg:gap-x-6">
+          {isAdmin && <ViewToggle />}
           {session?.user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

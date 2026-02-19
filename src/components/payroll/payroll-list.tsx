@@ -50,6 +50,13 @@ const statusColors: Record<PayslipStatus, string> = {
   PAID: "bg-green-100 text-green-800 border-green-200",
 };
 
+function formatPayPeriod(date: Date): string {
+  return new Date(date).toLocaleDateString("en-SG", {
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 export function PayrollList({ payslips, isHR }: PayrollListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -112,81 +119,115 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
         </Select>
       </div>
 
-      {/* Payslip Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPayslips.map((payslip) => (
-          <Card key={payslip.id}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    {new Date(payslip.payPeriodStart).toLocaleDateString("en-SG", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </span>
-                </div>
-                <Badge className={statusColors[payslip.status]}>
-                  {payslip.status}
-                </Badge>
-              </div>
-
-              <h3 className="font-semibold text-gray-900">
-                {payslip.employee.firstName} {payslip.employee.lastName}
-              </h3>
-
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Basic Salary</span>
-                  <span className="font-medium">
-                    {formatCurrency(Number(payslip.basicSalary))}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Allowances</span>
-                  <span className="text-green-600">
-                    +{formatCurrency(Number(payslip.allowances))}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Deductions</span>
-                  <span className="text-red-600">
-                    -{formatCurrency(Number(payslip.totalDeductions))}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tax</span>
-                  <span className="text-red-600">
-                    -{formatCurrency(Number(payslip.incomeTax))}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Net Salary</p>
-                  <p className="text-lg font-bold text-gray-900">
+      {isHR ? (
+        /* Admin Table View */
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-950 border-b border-gray-800">
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Date</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Employee Name</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Gross Pay</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employer</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employee</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Take Home Pay</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Download</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filteredPayslips.map((payslip) => (
+                <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatPayPeriod(payslip.payPeriodStart)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-white">
+                    {payslip.employee.firstName} {payslip.employee.lastName}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
+                    {formatCurrency(Number(payslip.grossSalary))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
+                    {formatCurrency(Number(payslip.cpfEmployer))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
+                    {formatCurrency(Number(payslip.cpfEmployee))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
                     {formatCurrency(Number(payslip.netSalary))}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDownloadPDF(payslip.id)}
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  Payslip
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadPDF(payslip.id)}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Payslip
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-      {filteredPayslips.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No payslips found</p>
+          {filteredPayslips.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No payslips found</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Staff Table View */
+        <div className="rounded-lg border border-gray-800 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-950 border-b border-gray-800">
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Date</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Gross Pay</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employer</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employee</th>
+                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Take Home Pay</th>
+                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Download</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filteredPayslips.map((payslip) => (
+                <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatPayPeriod(payslip.payPeriodStart)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
+                    {formatCurrency(Number(payslip.grossSalary))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
+                    {formatCurrency(Number(payslip.cpfEmployer))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
+                    {formatCurrency(Number(payslip.cpfEmployee))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
+                    {formatCurrency(Number(payslip.netSalary))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadPDF(payslip.id)}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Payslip
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {filteredPayslips.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No payslips found</p>
+            </div>
+          )}
         </div>
       )}
     </div>

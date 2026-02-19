@@ -10,6 +10,7 @@ import {
   Receipt,
   DollarSign,
   Calendar,
+  Settings,
   ChevronRight,
 } from "lucide-react";
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: "Expenses", href: "/expenses", icon: Receipt },
   { name: "Payroll", href: "/payroll", icon: DollarSign },
   { name: "Calendar", href: "/calendar", icon: Calendar },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {

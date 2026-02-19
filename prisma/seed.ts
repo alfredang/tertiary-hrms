@@ -50,15 +50,20 @@ async function main() {
   });
   const medicalLeave = await prisma.leaveType.upsert({
     where: { code: "MC" },
-    update: {},
-    create: { name: "Medical Leave", code: "MC", defaultDays: 60, description: "Extended medical leave" },
+    update: { defaultDays: 14 },
+    create: { name: "Medical Leave", code: "MC", defaultDays: 14, description: "Medical leave", carryOver: false },
   });
   const compassionateLeave = await prisma.leaveType.upsert({
     where: { code: "CL" },
     update: {},
-    create: { name: "Compassionate Leave", code: "CL", defaultDays: 3, description: "Bereavement leave" },
+    create: { name: "Compassionate Leave", code: "CL", defaultDays: 3, description: "Bereavement leave", carryOver: false },
   });
-  const leaveTypes = [annualLeave, sickLeave, medicalLeave, compassionateLeave];
+  const noPayLeave = await prisma.leaveType.upsert({
+    where: { code: "NPL" },
+    update: {},
+    create: { name: "No Pay Leave", code: "NPL", defaultDays: 0, description: "Unpaid leave", paid: false, carryOver: false },
+  });
+  const leaveTypes = [annualLeave, sickLeave, medicalLeave, compassionateLeave, noPayLeave];
   console.log("Created leave types:", leaveTypes.length);
 
   // Create Expense Categories
@@ -114,8 +119,8 @@ async function main() {
     create: {
       userId: adminUser.id,
       employeeId: "EMP001",
-      firstName: "Alfred",
-      lastName: "Ang",
+      firstName: "Ang",
+      lastName: "Chew Hoe",
       email: "admin@tertiaryinfotech.com",
       phone: "+65 9123 4567",
       dateOfBirth: new Date("1985-06-15"),
@@ -137,8 +142,32 @@ async function main() {
       basicSalary: 12000,
       allowances: 1000,
       cpfApplicable: true,
+      payNow: "+65 9123 4567",
     },
   });
+  // Create leave balances for admin employee
+  const currentYear = new Date().getFullYear();
+  for (const leaveType of leaveTypes) {
+    await prisma.leaveBalance.upsert({
+      where: {
+        employeeId_leaveTypeId_year: {
+          employeeId: adminEmployee.id,
+          leaveTypeId: leaveType.id,
+          year: currentYear,
+        },
+      },
+      update: {},
+      create: {
+        employeeId: adminEmployee.id,
+        leaveTypeId: leaveType.id,
+        year: currentYear,
+        entitlement: leaveType.defaultDays,
+        carriedOver: 0,
+        used: 0,
+        pending: 0,
+      },
+    });
+  }
   console.log("Created admin user and employee");
 
   // Create sample employees
@@ -152,7 +181,6 @@ async function main() {
   ];
 
   const createdEmployees: any[] = [];
-  const currentYear = new Date().getFullYear();
 
   for (const emp of sampleEmployees) {
     const user = await prisma.user.upsert({
@@ -199,7 +227,7 @@ async function main() {
       },
     });
 
-    // Create leave balances
+    // Create leave balances (last year carried over = 0, this year allocation = defaultDays)
     for (const leaveType of leaveTypes) {
       await prisma.leaveBalance.upsert({
         where: {
@@ -215,6 +243,9 @@ async function main() {
           leaveTypeId: leaveType.id,
           year: currentYear,
           entitlement: leaveType.defaultDays,
+          carriedOver: 0, // No carry forward from last year
+          used: 0,
+          pending: 0,
         },
       });
     }

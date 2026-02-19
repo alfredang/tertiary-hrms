@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ExpenseList } from "@/components/expenses/expense-list";
+import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, DollarSign } from "lucide-react";
@@ -54,56 +55,88 @@ async function getCategories() {
 
 export default async function ExpensesPage() {
   const session = await auth();
+  const viewMode = await getViewMode();
 
-  // Staff can only see their own expense claims
-  const employeeId =
-    session?.user?.role === "STAFF" ? session.user.employeeId : undefined;
+  let role = "STAFF";
+  let currentEmployeeId: string | undefined;
+
+  if (process.env.SKIP_AUTH === "true") {
+    role = "ADMIN";
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      include: { employee: { select: { id: true } } },
+    });
+    currentEmployeeId = adminUser?.employee?.id;
+  } else {
+    if (!session?.user) {
+      return null;
+    }
+    role = session.user.role;
+    currentEmployeeId = session.user.employeeId;
+  }
+
+  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const viewAs = isAdmin ? viewMode : "staff";
+
+  // Admin view: show all expenses; Staff view: show only own
+  const filterByEmployeeId = viewAs === "staff" ? currentEmployeeId : undefined;
+
+  // Safety: prevent data leak if staff view but no employeeId
+  if (viewAs === "staff" && !currentEmployeeId) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold text-white">Expense Claims</h1>
+        <p className="text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
+      </div>
+    );
+  }
 
   const [stats, claims, categories] = await Promise.all([
-    getExpenseStats(employeeId),
-    getExpenseClaims(employeeId),
+    getExpenseStats(filterByEmployeeId),
+    getExpenseClaims(filterByEmployeeId),
     getCategories(),
   ]);
-
-  const isManager =
-    session?.user?.role === "MANAGER" ||
-    session?.user?.role === "HR" ||
-    session?.user?.role === "ADMIN";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Expense Claims</h1>
-          <p className="text-gray-400 mt-1">Submit and manage expenses</p>
+          <p className="text-gray-400 mt-1">
+            {viewAs === "admin" ? "Manage all employee expenses" : "Submit and manage expenses"}
+          </p>
         </div>
-        <Link href="/expenses/submit">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New Expense
-          </Button>
-        </Link>
+        {viewAs === "staff" && (
+          <Link href="/expenses/submit">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Expense
+            </Button>
+          </Link>
+        )}
       </div>
 
-      {/* Stats Header */}
-      <div className="bg-gray-950 border border-gray-800 text-white rounded-2xl p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400">Total Expenses</p>
-            <p className="text-3xl font-bold mt-1">
-              {formatCurrency(stats.totalExpenses)}
-            </p>
-            <p className="text-sm text-gray-400 mt-1">
-              {stats.claimsCount} claims
-            </p>
-          </div>
-          <div className="p-3 rounded-xl bg-gray-800">
-            <DollarSign className="h-8 w-8 text-gray-400" />
+      {/* Stats Header - only for staff view */}
+      {viewAs === "staff" && (
+        <div className="bg-gray-950 border border-gray-800 text-white rounded-2xl p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-400">Total Expenses</p>
+              <p className="text-3xl font-bold mt-1">
+                {formatCurrency(stats.totalExpenses)}
+              </p>
+              <p className="text-sm text-gray-400 mt-1">
+                {stats.claimsCount} claims
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-gray-800">
+              <DollarSign className="h-8 w-8 text-gray-400" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <ExpenseList claims={claims} categories={categories} isManager={isManager} />
+      <ExpenseList claims={claims} categories={categories} isManager={viewAs === "admin"} />
     </div>
   );
 }

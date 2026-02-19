@@ -7,12 +7,54 @@ import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-async function getCalendarEvents() {
-  const events = await prisma.calendarEvent.findMany({
+async function getCalendarEvents(employeeId?: string) {
+  // Public events (holidays, meetings, training, company events) - visible to everyone
+  const publicEvents = await prisma.calendarEvent.findMany({
+    where: {
+      type: { in: ["HOLIDAY", "MEETING", "TRAINING", "COMPANY_EVENT"] },
+    },
     orderBy: { startDate: "asc" },
   });
 
-  return events.map((event) => ({
+  // Leave events - filtered by employee for staff, all for admin
+  const leaveEvents = await prisma.calendarEvent.findMany({
+    where: {
+      type: "LEAVE",
+      ...(employeeId
+        ? {
+            leaveRequestId: {
+              not: null,
+            },
+          }
+        : {}),
+    },
+    include: employeeId
+      ? {
+          // We need to join with LeaveRequest to filter by employeeId
+          // But since there's no relation defined, we'll fetch leave requests separately
+        }
+      : undefined,
+    orderBy: { startDate: "asc" },
+  });
+
+  // If staff user, we need to filter leave events by their employeeId
+  let filteredLeaveEvents = leaveEvents;
+  if (employeeId) {
+    // Fetch leave request IDs for this employee
+    const userLeaveRequests = await prisma.leaveRequest.findMany({
+      where: { employeeId, status: "APPROVED" },
+      select: { id: true },
+    });
+    const userLeaveRequestIds = new Set(userLeaveRequests.map((lr) => lr.id));
+
+    filteredLeaveEvents = leaveEvents.filter(
+      (event) => event.leaveRequestId && userLeaveRequestIds.has(event.leaveRequestId)
+    );
+  }
+
+  const allEvents = [...publicEvents, ...filteredLeaveEvents];
+
+  return allEvents.map((event) => ({
     id: event.id,
     title: event.title,
     start: event.startDate,
@@ -37,10 +79,28 @@ function getDefaultColor(type: string): string {
 
 export default async function CalendarPage() {
   const session = await auth();
-  const events = await getCalendarEvents();
+
+  // Development mode: Skip authentication if SKIP_AUTH is enabled (act as admin)
+  // Staff can only see their own leave events
+  const isStaff = process.env.SKIP_AUTH !== "true" && session?.user?.role === "STAFF";
+  const employeeId = isStaff ? session?.user?.employeeId : undefined;
+
+  // Safety: prevent data leak if staff but no employeeId
+  if (isStaff && !employeeId) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold text-white">Calendar</h1>
+        <p className="text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
+      </div>
+    );
+  }
+
+  const events = await getCalendarEvents(employeeId);
 
   const isHR =
-    session?.user?.role === "HR" || session?.user?.role === "ADMIN";
+    process.env.SKIP_AUTH === "true" || // Act as HR when auth is skipped
+    session?.user?.role === "HR" ||
+    session?.user?.role === "ADMIN";
 
   return (
     <div className="space-y-6">

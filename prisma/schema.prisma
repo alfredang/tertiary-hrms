@@ -158,23 +158,25 @@ model LeaveBalance {
 }
 
 model LeaveRequest {
-  id              String      @id
-  employeeId      String
-  leaveTypeId     String
-  startDate       DateTime
-  endDate         DateTime
-  days            Decimal     @db.Decimal(5, 2)
-  reason          String?
-  status          LeaveStatus @default(PENDING)
-  approverId      String?
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime
-  approver        Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
-  employee        Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
-  leaveType       LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  id               String      @id
+  employeeId       String
+  leaveTypeId      String
+  startDate        DateTime
+  endDate          DateTime
+  days             Decimal     @db.Decimal(5, 2)
+  reason           String?
+  documentUrl      String?
+  documentFileName String?
+  status           LeaveStatus @default(PENDING)
+  approverId       String?
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime
+  approver         Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
+  employee         Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
+  leaveType        LeaveType   @relation(fields: [leaveTypeId], references: [id])
 }
 
 model LeaveType {
@@ -225,6 +227,7 @@ model SalaryInfo {
   allowances        Decimal  @default(0) @db.Decimal(12, 2)
   bankName          String?
   bankAccountNumber String?
+  payNow            String?
   cpfApplicable     Boolean  @default(true)
   cpfEmployeeRate   Decimal  @default(20.00) @db.Decimal(5, 2)
   cpfEmployerRate   Decimal  @default(17.00) @db.Decimal(5, 2)
@@ -260,6 +263,19 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model CompanySettings {
+  id        String   @id @default("company_settings")
+  name      String   @default("Company Name")
+  uen       String?
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  logo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }
 
 enum EmployeeStatus {

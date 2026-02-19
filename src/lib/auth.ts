@@ -1,8 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import type { Role } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 declare module "next-auth" {
   interface Session {
@@ -11,6 +13,7 @@ declare module "next-auth" {
       email: string;
       role: Role;
       employeeId?: string;
+      needsSetup?: boolean;
       name?: string;
     };
   }
@@ -21,7 +24,6 @@ declare module "next-auth" {
   }
 }
 
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
@@ -30,6 +32,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   providers: [
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            authorization: {
+              params: {
+                prompt: "consent",
+                access_type: "offline",
+                response_type: "code",
+              },
+            },
+          }),
+        ]
+      : []),
     Credentials({
       name: "credentials",
       credentials: {
@@ -72,11 +89,69 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      // Handle Google OAuth sign-in
+      if (account?.provider === "google" && user.email) {
+        try {
+          // Check if user exists
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            include: { employee: true },
+          });
+
+          if (!existingUser) {
+            // Create new user with STAFF role by default
+            // Admin will need to create employee record and assign proper role
+            const newUser = await prisma.user.create({
+              data: {
+                id: randomUUID(),
+                email: user.email,
+                password: "", // No password for OAuth users
+                role: "STAFF",
+                updatedAt: new Date(),
+              },
+            });
+
+            user.id = newUser.id;
+            user.role = "STAFF";
+            user.employeeId = undefined;
+          } else {
+            user.id = existingUser.id;
+            user.role = existingUser.role;
+            user.employeeId = existingUser.employee?.id;
+          }
+
+          return true;
+        } catch (error) {
+          console.error("Error during Google sign-in:", error);
+          return false;
+        }
+      }
+
+      return true;
+    },
     async jwt({ token, user }) {
+      // Initial sign in
       if (user) {
         (token as any).role = user.role;
         (token as any).employeeId = user.employeeId;
+        (token as any).needsSetup = !user.employeeId;
       }
+
+      // Fetch fresh user data on subsequent requests
+      if (token.email && !user) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+          include: { employee: true },
+        });
+
+        if (dbUser) {
+          (token as any).role = dbUser.role;
+          (token as any).employeeId = dbUser.employee?.id;
+          (token as any).needsSetup = !dbUser.employee?.id;
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -84,6 +159,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub!;
         session.user.role = (token as any).role;
         session.user.employeeId = (token as any).employeeId;
+        session.user.needsSetup = (token as any).needsSetup;
       }
       return session;
     },

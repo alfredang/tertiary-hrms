@@ -7,8 +7,9 @@ import {
 } from "@prisma/client";
 
 export const personalInfoSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
+  fullName: z.string().min(1, "Full name is required"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
   dateOfBirth: z.string().refine((date) => !isNaN(Date.parse(date)), {
@@ -44,6 +45,7 @@ export const salaryInfoSchema = z.object({
   allowances: z.number().min(0, "Allowances cannot be negative"),
   bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
+  payNow: z.string().optional(),
   cpfApplicable: z.boolean(),
   cpfEmployeeRate: z
     .number()

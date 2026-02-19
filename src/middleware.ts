@@ -21,6 +21,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
+  // Redirect users without employee records to pending-setup page
+  if (
+    isLoggedIn &&
+    (token as any)?.needsSetup === true &&
+    !pathname.startsWith("/pending-setup") &&
+    !pathname.startsWith("/api/auth") &&
+    !pathname.startsWith("/login")
+  ) {
+    return NextResponse.redirect(new URL("/pending-setup", req.nextUrl));
+  }
+
   // Redirect to dashboard if authenticated and trying to access auth pages
   if (isLoggedIn && (pathname === "/login" || pathname === "/register" || pathname === "/")) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));

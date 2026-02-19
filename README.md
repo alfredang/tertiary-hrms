@@ -9,7 +9,7 @@
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=flat-square&logo=vercel)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
 
-A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. Cross-platform (Web, iOS, Android) with employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, and an intelligent AI chatbot assistant.
+A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. Cross-platform (Web, iOS, Android) with role-based access control, employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, Google OAuth, and an intelligent AI chatbot assistant.
 
 <p align="center">
   <a href="https://ai-hrms.vercel.app"><strong>Live Demo</strong></a> ·
@@ -48,24 +48,37 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 
 ## Features
 
+### Authentication & Authorization
+- **Credentials login** (email/password) with bcrypt password hashing
+- **Google OAuth** social login via NextAuth v5 (Auth.js)
+- Role-based access control: **Admin**, **HR**, **Manager**, **Staff**
+- Admin/Staff **view toggle** — admins can switch between management and personal views
+- JWT-based sessions with automatic role and employee data refresh
+- Middleware-protected routes with `needsSetup` redirect for new OAuth users
+- Dev quick-login buttons for testing (development mode only)
+
 ### Dashboard
-- Real-time overview of HR metrics
-- Pending approvals count (leave requests, expense claims)
-- Employee statistics and departmental breakdown
-- Quick access to common tasks
+- Real-time overview of HR metrics with role-aware stats
+- **Admin view**: pending leave requests, pending MC, pending expense claims
+- **Staff view**: personal leave balance, MC balance
+- Recent activity feed (expenses and leave requests)
+- Quick action cards for common tasks
 
 ### Staff Directory
 - Complete employee database with search and filters
 - Grid and list view options
-- Employee profiles with contact information
+- Inline employee editing via slide-out sheet
+- Personal info, employment details, and salary management
 - Role-based access control (Staff, Manager, HR, Admin)
 - Manager assignment and organizational hierarchy
 
 ### Leave Management
-- Multiple leave types (Annual, Sick, Medical, Compassionate)
-- Leave balance tracking per employee per year
-- Request submission with date picker and reason
-- Approval workflow with email notifications
+- Multiple leave types (Annual Leave, Sick Leave, Medical Certificate, Compassionate)
+- Leave balance tracking per employee per year with carry-over support
+- **Leave request form** with date range picker and reason
+- MC submission with **doctor's certificate upload** (via UploadThing)
+- Pro-rated entitlements for new employees
+- Admin approval/rejection workflow
 - Status filtering (Pending, Approved, Rejected)
 - Automatic balance deduction upon approval
 
@@ -76,27 +89,38 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
   - Age-based rate adjustments
   - Monthly OW ceiling: $8,000
   - Annual wage ceiling: $102,000
+- **Payroll generation** for individual employees or all active staff
 - Monthly payslip generation with PDF download
-- Payment status tracking
+- Payment status tracking (Draft, Finalized, Paid)
+- Admin payroll table with employee details and CPF breakdown
 
 ### Expense Claims
-- Category-based expense submission with receipt upload
-- Approval workflow with email notifications
+- Category-based expense submission (Transport, Meals, Equipment, etc.)
+- **Receipt upload** with file attachment support
+- **Expense submission form** with date, amount, and description
+- Approval workflow for managers and admins
 - Multiple status states (Pending, Approved, Rejected, Paid)
+- Admin and staff views with appropriate filtering
 
 ### Calendar
 - Full calendar view with color-coded events
-- Automatic leave event creation upon approval
+- Leave events displayed with status indicators
+- Admin sees all employees' leave; staff sees own leave
+
+### Settings
+- Company-wide settings management
+- Leave policy configuration
+- System preferences
 
 ### AI Chatbot
-- HR assistant powered by Google Gemini / OpenAI / Anthropic
-- Context-aware responses about HR policies, leave, and CPF
+- HR assistant powered by Google Gemini / OpenAI / Anthropic (via Vercel AI SDK)
+- Context-aware responses about HR policies, leave, CPF, and expenses
 - Floating chat widget accessible from any page
 
 ### Cross-Platform Mobile
-- **PWA** - installable from browser on any device
-- **iOS** - native shell via Capacitor with status bar integration
-- **Android** - native shell via Capacitor with status bar integration
+- **PWA** — installable from browser on any device
+- **iOS** — native shell via Capacitor with status bar integration
+- **Android** — native shell via Capacitor with status bar integration
 - Mobile hamburger menu + bottom tab navigation
 - Safe area support for notched devices
 
@@ -116,16 +140,18 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 
 | Category | Technology |
 |----------|------------|
-| **Framework** | Next.js 14 (App Router) |
+| **Framework** | Next.js 14 (App Router, SSR) |
 | **Language** | TypeScript 5.7 |
 | **Styling** | Tailwind CSS + shadcn/ui |
 | **Database** | Neon PostgreSQL (Serverless) |
 | **ORM** | Prisma 6.2 |
-| **Authentication** | NextAuth v5 (Auth.js) |
+| **Authentication** | NextAuth v5 (Auth.js) — Credentials + Google OAuth |
 | **AI/LLM** | Vercel AI SDK (Gemini, OpenAI, Anthropic) |
+| **File Upload** | UploadThing |
 | **Mobile** | Capacitor 8 (iOS + Android) |
 | **Email** | Resend |
 | **PDF** | jsPDF + jspdf-autotable |
+| **Testing** | Vitest + Playwright |
 | **Deployment** | Vercel |
 
 ---
@@ -137,8 +163,9 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 - Node.js 18+
 - npm
 - [Neon](https://neon.tech) PostgreSQL database
-- [Resend](https://resend.com) account (for emails)
-- AI API key (Google Gemini, OpenAI, or Anthropic)
+- [Google Cloud Console](https://console.cloud.google.com) project (for OAuth)
+- [Resend](https://resend.com) account (for emails, optional)
+- AI API key (Google Gemini, OpenAI, or Anthropic — optional, for chatbot)
 
 ### Installation
 
@@ -165,18 +192,25 @@ DIRECT_URL="your-neon-direct-connection-string"
 AUTH_SECRET="your-secret-key"
 AUTH_URL="http://localhost:3000"
 
+# Google OAuth (for Social Login)
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
 # Email (Resend)
 RESEND_API_KEY="your-resend-api-key"
 EMAIL_FROM="hr@yourcompany.com"
 
-# AI Chatbot (at least one required)
+# UploadThing (for receipt/document uploads)
+UPLOADTHING_TOKEN="your-uploadthing-token"
+
+# AI Chatbot (at least one required for chatbot feature)
 GOOGLE_GENERATIVE_AI_API_KEY=""
 OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""
 
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
-NEXT_PUBLIC_COMPANY_NAME="Tertiary Infotech Academy Pte Ltd"
+NEXT_PUBLIC_COMPANY_NAME="Your Company Name"
 ```
 
 ### Database Setup
@@ -194,11 +228,26 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
-### Default Login
+### Test Accounts
+
+In development mode, use the **Dev Quick Login** buttons on the login page, or enter credentials manually:
 
 | Email | Password | Role |
 |-------|----------|------|
-| admin@tertiaryinfotech.com | ***REMOVED*** | Admin |
+| admin@tertiaryinfotech.com | 123456 | Admin |
+| staff@tertiaryinfotech.com | 123456 | Staff |
+
+---
+
+## Testing
+
+```bash
+# Run unit tests
+npm run test
+
+# Run Playwright login tests
+npx tsx scripts/test-login.ts
+```
 
 ---
 
@@ -226,7 +275,7 @@ Build and run from Android Studio on an emulator or device.
 
 ### Development Workflow
 
-1. Make web changes with `npm run dev` - test in browser
+1. Make web changes with `npm run dev` — test in browser
 2. Run `npm run cap:sync` to sync to native platforms
 3. Build and test in Xcode / Android Studio
 
@@ -239,36 +288,57 @@ Build and run from Android Studio on an emulator or device.
 ```
 tertiary-hrms/
 ├── prisma/
-│   ├── schema.prisma            # Database schema
-│   └── seed.ts                  # Seed data
+│   ├── schema.prisma              # Database schema
+│   └── seed.ts                    # Seed data with test accounts
+├── scripts/
+│   └── test-login.ts              # Playwright login tests
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/              # Login pages
-│   │   ├── (dashboard)/         # Protected dashboard pages
-│   │   └── api/                 # API routes
+│   │   ├── (auth)/                # Login page (dark theme)
+│   │   ├── (dashboard)/           # Protected dashboard pages
+│   │   │   ├── dashboard/         # Main dashboard
+│   │   │   ├── employees/         # Employee directory + profiles
+│   │   │   ├── leave/             # Leave management + request form
+│   │   │   ├── expenses/          # Expense claims + submit form
+│   │   │   ├── payroll/           # Payroll + generation
+│   │   │   ├── calendar/          # Calendar view
+│   │   │   ├── settings/          # System settings
+│   │   │   └── pending-setup/     # OAuth user pending setup page
+│   │   └── api/                   # API routes
+│   │       ├── auth/              # NextAuth endpoints
+│   │       ├── employees/         # Employee CRUD
+│   │       ├── leave/             # Leave request submission
+│   │       ├── expenses/          # Expense claim submission
+│   │       ├── payroll/           # Payroll generation
+│   │       ├── upload/            # File uploads
+│   │       ├── settings/          # Settings API
+│   │       ├── cron/              # Scheduled tasks
+│   │       └── chat/              # AI chatbot
 │   ├── components/
-│   │   ├── ui/                  # shadcn/ui + Sheet components
-│   │   ├── layout/              # Sidebar, Header, MobileNav
-│   │   ├── chat/                # AI chatbot widget
-│   │   ├── dashboard/           # Dashboard components
-│   │   ├── staff/               # Employee components
-│   │   ├── leave/               # Leave components
-│   │   ├── payroll/             # Payroll components
-│   │   ├── expenses/            # Expense components
-│   │   └── calendar/            # Calendar components
-│   └── lib/
-│       ├── auth.ts              # NextAuth config
-│       ├── prisma.ts            # Prisma client
-│       ├── capacitor.ts         # Capacitor utilities
-│       └── cpf-calculator.ts    # CPF calculation logic
-├── ios/                         # Capacitor iOS project
-├── android/                     # Capacitor Android project
+│   │   ├── ui/                    # shadcn/ui components
+│   │   ├── layout/                # Sidebar, Header, MobileNav
+│   │   ├── chat/                  # AI chatbot widget
+│   │   ├── dashboard/             # Stats, Quick Actions, View Toggle
+│   │   ├── staff/                 # Employee list components
+│   │   ├── employees/             # Employee edit forms
+│   │   ├── leave/                 # Leave list + request form
+│   │   ├── payroll/               # Payroll list components
+│   │   ├── expenses/              # Expense list + submit form
+│   │   └── settings/              # Settings components
+│   ├── lib/
+│   │   ├── auth.ts                # NextAuth config (credentials + Google)
+│   │   ├── prisma.ts              # Prisma client
+│   │   ├── view-mode.ts           # Admin/Staff view toggle
+│   │   ├── constants.ts           # App constants
+│   │   └── validations/           # Zod schemas
+│   └── middleware.ts              # Auth guard + needsSetup redirect
+├── ios/                           # Capacitor iOS project
+├── android/                       # Capacitor Android project
 ├── public/
-│   ├── manifest.json            # PWA manifest
-│   ├── sw.js                    # Service worker
-│   └── icons/                   # App icons
-├── capacitor.config.ts          # Capacitor configuration
-└── docs/                        # Documentation
+│   ├── manifest.json              # PWA manifest
+│   ├── sw.js                      # Service worker
+│   └── icons/                     # App icons
+└── capacitor.config.ts            # Capacitor configuration
 ```
 
 ---
@@ -278,13 +348,16 @@ tertiary-hrms/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start development server |
-| `npm run build` | Build for production |
+| `npm run build` | Build for production (includes db push + seed) |
+| `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
+| `npm run test` | Run Vitest unit tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run db:push` | Push Prisma schema to database |
+| `npm run db:seed` | Seed database with sample data |
 | `npm run cap:sync` | Sync web to native platforms |
 | `npm run cap:open:ios` | Open Xcode project |
 | `npm run cap:open:android` | Open Android Studio project |
-| `npm run db:push` | Push Prisma schema to database |
-| `npm run db:seed` | Seed database with sample data |
 
 ---
 
