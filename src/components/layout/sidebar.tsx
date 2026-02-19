@@ -21,11 +21,12 @@ const navigation = [
   { name: "Expenses", href: "/expenses", icon: Receipt },
   { name: "Payroll", href: "/payroll", icon: DollarSign },
   { name: "Calendar", href: "/calendar", icon: Calendar },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Settings", href: "/settings", icon: Settings, adminOnly: true as const },
 ];
 
-export function Sidebar() {
+export function Sidebar({ role }: { role?: string }) {
   const pathname = usePathname();
+  const isAdmin = role === "ADMIN" || role === "HR";
 
   return (
     <div className="flex grow flex-col gap-y-5 px-6 pt-4">
@@ -44,6 +45,8 @@ export function Sidebar() {
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-1">
           {navigation.map((item) => {
+            // Hide admin-only items from non-admin users
+            if ("adminOnly" in item && item.adminOnly && !isAdmin) return null;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <li key={item.name}>

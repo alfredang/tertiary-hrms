@@ -54,3 +54,10 @@ staff.xlsx
 
 # Playwright screenshots
 scripts/*.png
+
+# Playwright test results
+/test-results/
+/playwright-report/
+
+# Claude Code
+.claude/

@@ -19,7 +19,7 @@ export default async function DashboardLayout({
       {/* Sidebar - desktop only */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-800 bg-gray-950">
-          <Sidebar />
+          <Sidebar role={role} />
           <UserNav />
         </div>
       </div>

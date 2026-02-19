@@ -1,0 +1,38 @@
+import { Page, expect } from "@playwright/test";
+
+/** Login as a specific user via the credentials form */
+export async function loginAs(page: Page, email: string, password: string) {
+  await page.goto("/login");
+  await page.waitForLoadState("networkidle");
+  await page.fill('input[id="email"]', email);
+  await page.fill('input[id="password"]', password);
+  await page.click('button[type="submit"]');
+
+  // The login uses fetch() internally then does window.location.href = "/dashboard"
+  // This is a slow multi-step process: CSRF fetch → credentials POST → JS redirect
+  // Wait up to 30s for the redirect to complete
+  await page.waitForURL(/\/dashboard/, { timeout: 30000 });
+}
+
+/** Login as admin */
+export async function loginAsAdmin(page: Page) {
+  await loginAs(page, "admin@tertiaryinfotech.com", "123456");
+  // Wait for dashboard content to actually load
+  await page.waitForLoadState("networkidle");
+}
+
+/** Login as staff */
+export async function loginAsStaff(page: Page) {
+  await loginAs(page, "staff@tertiaryinfotech.com", "123456");
+  await page.waitForLoadState("networkidle");
+}
+
+/** Logout by navigating directly (clears session) */
+export async function logout(page: Page) {
+  await page.goto("/api/auth/signout");
+  const signOutBtn = page.locator('button:has-text("Sign out")');
+  if (await signOutBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await signOutBtn.click();
+  }
+  await page.waitForURL(/\/login/, { timeout: 10000 });
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -11,6 +12,8 @@ import { UserNav } from "./user-nav";
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
 
   // Close sidebar on navigation
   useEffect(() => {
@@ -27,7 +30,7 @@ export function MobileSidebar() {
       </SheetTrigger>
       <SheetContent side="left" className="p-0 bg-gray-950 border-gray-800">
         <div className="flex h-full flex-col overflow-y-auto">
-          <Sidebar />
+          <Sidebar role={role} />
           <UserNav />
         </div>
       </SheetContent>

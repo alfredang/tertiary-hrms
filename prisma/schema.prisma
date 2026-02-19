@@ -9,7 +9,7 @@ datasource db {
 }
 
 model Account {
-  id                String  @id
+  id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
@@ -27,7 +27,7 @@ model Account {
 }
 
 model AuditLog {
-  id        String   @id
+  id        String   @id @default(cuid())
   userId    String?
   action    String
   entity    String
@@ -40,7 +40,7 @@ model AuditLog {
 }
 
 model CalendarEvent {
-  id             String    @id
+  id             String    @id @default(cuid())
   title          String
   description    String?
   startDate      DateTime
@@ -53,22 +53,22 @@ model CalendarEvent {
   recurrenceRule String?
   createdById    String?
   createdAt      DateTime  @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime  @updatedAt
 }
 
 model Department {
-  id          String     @id
+  id          String     @id @default(cuid())
   name        String     @unique
   code        String     @unique
   description String?
   headId      String?
   createdAt   DateTime   @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime   @updatedAt
   employees   Employee[]
 }
 
 model Employee {
-  id                                             String         @id
+  id                                             String         @id @default(cuid())
   userId                                         String         @unique
   employeeId                                     String         @unique
   firstName                                      String
@@ -90,7 +90,7 @@ model Employee {
   managerId                                      String?
   avatarUrl                                      String?
   createdAt                                      DateTime       @default(now())
-  updatedAt                                      DateTime
+  updatedAt                                      DateTime       @updatedAt
   department         Department     @relation(fields: [departmentId], references: [id])
   manager            Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
   subordinates       Employee[]     @relation("EmployeeToEmployee")
@@ -105,19 +105,19 @@ model Employee {
 }
 
 model ExpenseCategory {
-  id              String         @id
+  id              String         @id @default(cuid())
   name            String         @unique
   code            String         @unique
   description     String?
   maxAmount       Decimal?       @db.Decimal(12, 2)
   requiresReceipt Boolean        @default(true)
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
   expenseClaims   ExpenseClaim[]
 }
 
 model ExpenseClaim {
-  id              String          @id
+  id              String          @id @default(cuid())
   employeeId      String
   categoryId      String
   description     String
@@ -134,14 +134,14 @@ model ExpenseClaim {
   paidAt          DateTime?
   paymentReference String?
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
   approver        Employee?       @relation("ExpenseClaim_approverIdToEmployee", fields: [approverId], references: [id])
   category        ExpenseCategory @relation(fields: [categoryId], references: [id])
   employee        Employee        @relation("ExpenseClaim_employeeIdToEmployee", fields: [employeeId], references: [id])
 }
 
 model LeaveBalance {
-  id          String    @id
+  id          String    @id @default(cuid())
   employeeId  String
   leaveTypeId String
   year        Int
@@ -150,7 +150,7 @@ model LeaveBalance {
   pending     Decimal   @default(0) @db.Decimal(5, 2)
   carriedOver Decimal   @default(0) @db.Decimal(5, 2)
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime   @updatedAt
   employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
 
@@ -158,7 +158,7 @@ model LeaveBalance {
 }
 
 model LeaveRequest {
-  id               String      @id
+  id               String      @id @default(cuid())
   employeeId       String
   leaveTypeId      String
   startDate        DateTime
@@ -173,14 +173,14 @@ model LeaveRequest {
   rejectedAt       DateTime?
   rejectionReason  String?
   createdAt        DateTime    @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime  @updatedAt
   approver         Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
   employee         Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
   leaveType        LeaveType   @relation(fields: [leaveTypeId], references: [id])
 }
 
 model LeaveType {
-  id            String         @id
+  id            String         @id @default(cuid())
   name          String         @unique
   code          String         @unique
   description   String?
@@ -189,13 +189,13 @@ model LeaveType {
   maxCarryOver  Int            @default(0)
   paid          Boolean        @default(true)
   createdAt     DateTime       @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime       @updatedAt
   leaveBalances LeaveBalance[]
   leaveRequests LeaveRequest[]
 }
 
 model Payslip {
-  id              String        @id
+  id              String        @id @default(cuid())
   employeeId      String
   payPeriodStart  DateTime
   payPeriodEnd    DateTime
@@ -214,14 +214,14 @@ model Payslip {
   status          PayslipStatus @default(DRAFT)
   pdfUrl          String?
   createdAt       DateTime      @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime  @updatedAt
   employee        Employee      @relation(fields: [employeeId], references: [id])
 
   @@unique([employeeId, payPeriodStart, payPeriodEnd])
 }
 
 model SalaryInfo {
-  id                String   @id
+  id                String   @id @default(cuid())
   employeeId        String   @unique
   basicSalary       Decimal  @db.Decimal(12, 2)
   allowances        Decimal  @default(0) @db.Decimal(12, 2)
@@ -233,12 +233,12 @@ model SalaryInfo {
   cpfEmployerRate   Decimal  @default(17.00) @db.Decimal(5, 2)
   effectiveDate     DateTime @default(now())
   createdAt         DateTime @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model Session {
-  id           String   @id
+  id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
   expires      DateTime
@@ -246,12 +246,12 @@ model Session {
 }
 
 model User {
-  id        String    @id
+  id        String    @id @default(cuid())
   email     String    @unique
-  password  String
+  password  String    @default("")
   role      Role      @default(STAFF)
   createdAt DateTime  @default(now())
-  updatedAt DateTime
+  updatedAt DateTime  @updatedAt
   accounts  Account[]
   employee  Employee?
   sessions  Session[]

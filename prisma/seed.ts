@@ -97,7 +97,7 @@ async function main() {
 
   // Create Admin User
   console.log("Creating admin user...");
-  const hashedPassword = await bcrypt.hash("Tertiary@888", 12);
+  const hashedPassword = await bcrypt.hash("123456", 12);
 
   const adminUser = await prisma.user.upsert({
     where: { email: "admin@tertiaryinfotech.com" },
@@ -169,6 +169,74 @@ async function main() {
     });
   }
   console.log("Created admin user and employee");
+
+  // Create Staff test user (staff@tertiaryinfotech.com / 123456)
+  console.log("Creating staff test user...");
+  const staffUser = await prisma.user.upsert({
+    where: { email: "staff@tertiaryinfotech.com" },
+    update: { password: hashedPassword, role: Role.STAFF },
+    create: {
+      email: "staff@tertiaryinfotech.com",
+      password: hashedPassword,
+      role: Role.STAFF,
+    },
+  });
+
+  const staffEmployee = await prisma.employee.upsert({
+    where: { employeeId: "EMP007" },
+    update: {},
+    create: {
+      userId: staffUser.id,
+      employeeId: "EMP007",
+      firstName: "Test",
+      lastName: "Staff",
+      email: "staff@tertiaryinfotech.com",
+      phone: "+65 9000 0007",
+      dateOfBirth: new Date("1995-03-20"),
+      gender: Gender.FEMALE,
+      nationality: "Singaporean",
+      departmentId: engDept.id,
+      position: "Software Engineer",
+      employmentType: EmploymentType.FULL_TIME,
+      startDate: new Date("2023-06-01"),
+      status: EmployeeStatus.ACTIVE,
+      managerId: adminEmployee.id,
+    },
+  });
+
+  await prisma.salaryInfo.upsert({
+    where: { employeeId: staffEmployee.id },
+    update: {},
+    create: {
+      employeeId: staffEmployee.id,
+      basicSalary: 6000,
+      allowances: 300,
+      cpfApplicable: true,
+    },
+  });
+
+  for (const leaveType of leaveTypes) {
+    await prisma.leaveBalance.upsert({
+      where: {
+        employeeId_leaveTypeId_year: {
+          employeeId: staffEmployee.id,
+          leaveTypeId: leaveType.id,
+          year: currentYear,
+        },
+      },
+      update: { entitlement: leaveType.defaultDays },
+      create: {
+        employeeId: staffEmployee.id,
+        leaveTypeId: leaveType.id,
+        year: currentYear,
+        entitlement: leaveType.defaultDays,
+        carriedOver: 0,
+        used: 0,
+        pending: 0,
+      },
+    });
+  }
+  console.log("Created staff test user: staff@tertiaryinfotech.com");
 
   // Create sample employees
   console.log("Creating sample employees...");
