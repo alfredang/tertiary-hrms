@@ -42,37 +42,30 @@ function LoginForm() {
     setError("");
 
     try {
-      // Fetch CSRF token
+      // Fetch CSRF token (also sets the CSRF cookie)
       const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
       const { csrfToken } = await csrfRes.json();
 
-      // POST to credentials callback
-      await fetch("/api/auth/callback/credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          csrfToken,
-          email,
-          password,
-          callbackUrl: "/dashboard",
-        }).toString(),
-        credentials: "include",
-      });
+      // Use a real form submission (not fetch) — this ensures cookies and
+      // redirects are handled natively by the browser, which is more reliable
+      // behind reverse proxies like Coolify/Traefik
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "/api/auth/callback/credentials";
 
-      // After the callback, check if a session was established
-      // This is more reliable than checking redirect URLs
-      const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
-      const session = await sessionRes.json();
-
-      if (session?.user) {
-        // Login successful — navigate to dashboard
-        window.location.href = "/dashboard";
-      } else {
-        setError("Invalid email or password. Please check your credentials and try again.");
+      const fields = { csrfToken, email, password, callbackUrl: "/dashboard" };
+      for (const [key, value] of Object.entries(fields)) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
       }
+
+      document.body.appendChild(form);
+      form.submit();
     } catch {
       setError("Something went wrong. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -86,26 +79,24 @@ function LoginForm() {
     try {
       const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
       const { csrfToken } = await csrfRes.json();
-      const res = await fetch("/api/auth/callback/credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          csrfToken,
-          email: credentials.email,
-          password: credentials.password,
-          callbackUrl: "/dashboard",
-        }).toString(),
-        credentials: "include",
-      });
-      const finalUrl = res.url;
-      if (finalUrl.includes("error=") || finalUrl.includes("/login")) {
-        setError("Skip login failed. Make sure test accounts exist (run prisma seed).");
-      } else {
-        window.location.href = "/dashboard";
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "/api/auth/callback/credentials";
+
+      const fields = { csrfToken, email: credentials.email, password: credentials.password, callbackUrl: "/dashboard" };
+      for (const [key, value] of Object.entries(fields)) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
       }
+
+      document.body.appendChild(form);
+      form.submit();
     } catch {
       setError("Skip login failed.");
-    } finally {
       setSkipLoadingRole(null);
     }
   };
