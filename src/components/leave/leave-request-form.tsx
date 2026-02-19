@@ -111,6 +111,7 @@ export function LeaveRequestForm({ leaveTypes }: LeaveRequestFormProps) {
       });
 
       router.push("/leave");
+      router.refresh();
     } catch (error) {
       toast({
         title: "Error",

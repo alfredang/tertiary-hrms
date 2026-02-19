@@ -320,6 +320,13 @@ async function main() {
     console.log(`Created employee: ${emp.firstName} ${emp.lastName}`);
   }
 
+  // Clean up existing sample data to prevent duplicates on re-seed
+  console.log("Cleaning up existing sample data...");
+  await prisma.calendarEvent.deleteMany({});
+  await prisma.payslip.deleteMany({});
+  await prisma.expenseClaim.deleteMany({});
+  await prisma.leaveRequest.deleteMany({});
+
   // Create sample leave requests
   console.log("Creating sample leave requests...");
   const jamesEmployee = createdEmployees.find((e) => e.employeeId === "EMP005")!;

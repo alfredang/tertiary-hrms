@@ -97,6 +97,7 @@ export function ExpenseSubmitForm({ categories }: ExpenseSubmitFormProps) {
       });
 
       router.push("/expenses");
+      router.refresh();
     } catch (error) {
       toast({
         title: "Error",
