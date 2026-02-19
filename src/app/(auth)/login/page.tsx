@@ -46,8 +46,8 @@ function LoginForm() {
       const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
       const { csrfToken } = await csrfRes.json();
 
-      // POST to credentials callback — follow redirects to see final URL
-      const res = await fetch("/api/auth/callback/credentials", {
+      // POST to credentials callback
+      await fetch("/api/auth/callback/credentials", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
@@ -59,15 +59,16 @@ function LoginForm() {
         credentials: "include",
       });
 
-      // Check the final URL after redirects
-      // Success: redirects to /dashboard (or callbackUrl)
-      // Failure: redirects to /login?error=CredentialsSignin
-      const finalUrl = res.url;
-      if (finalUrl.includes("error=") || finalUrl.includes("/login")) {
-        setError("Invalid email or password. Please check your credentials and try again.");
-      } else {
+      // After the callback, check if a session was established
+      // This is more reliable than checking redirect URLs
+      const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
+      const session = await sessionRes.json();
+
+      if (session?.user) {
         // Login successful — navigate to dashboard
         window.location.href = "/dashboard";
+      } else {
+        setError("Invalid email or password. Please check your credentials and try again.");
       }
     } catch {
       setError("Something went wrong. Please try again.");
