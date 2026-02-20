@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { calculatePayroll } from "@/lib/cpf-calculator";
 
 // Auto-generate payroll on the 28th of each month
-// Can be triggered by Vercel Cron, external scheduler, or manually
+// Can be triggered by external scheduler or manually
 export async function GET(req: NextRequest) {
   try {
     // Verify cron secret if configured

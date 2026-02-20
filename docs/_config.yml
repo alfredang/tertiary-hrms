@@ -10,7 +10,7 @@ aux_links:
   "GitHub Repository":
     - "https://github.com/alfredang/tertiary-hrms"
   "Live Demo":
-    - "https://ai-hrms.vercel.app"
+    - ""
 
 # Navigation structure
 nav_sort: case_insensitive

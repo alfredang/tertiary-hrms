@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "HR Portal",
   webDir: "out",
   server: {
-    url: "https://ai-hrms.vercel.app",
+    url: "http://localhost:3000",
     cleartext: false,
   },
   ios: {

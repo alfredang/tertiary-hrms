@@ -6,7 +6,7 @@
 [![Prisma](https://img.shields.io/badge/Prisma-6.2-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8.0-119EFF?style=flat-square&logo=capacitorjs)](https://capacitorjs.com/)
-[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=flat-square&logo=vercel)](https://vercel.com/)
+[![Coolify](https://img.shields.io/badge/Coolify-Self--Hosted-purple?style=flat-square)](https://coolify.io/)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
 
 A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. Cross-platform (Web, iOS, Android) with role-based access control, employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, Google OAuth, and an intelligent AI chatbot assistant.
@@ -23,7 +23,7 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   Vercel (Cloud)                     │
+│               Coolify (Self-Hosted)                  │
 │  ┌───────────────────────────────────────────────┐  │
 │  │           Next.js 14 (SSR + API)              │  │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │  │
@@ -42,7 +42,7 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
    └─────────┘  └──────────┘  └─────────┘
 ```
 
-The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sharing a **single codebase** across all platforms.
+The native apps load the deployed URL inside a WebView via Capacitor, sharing a **single codebase** across all platforms.
 
 ---
 
@@ -113,7 +113,7 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 - System preferences
 
 ### AI Chatbot
-- HR assistant powered by Google Gemini / OpenAI / Anthropic (via Vercel AI SDK)
+- HR assistant powered by Google Gemini / OpenAI / Anthropic (via AI SDK)
 - Context-aware responses about HR policies, leave, CPF, and expenses
 - Floating chat widget accessible from any page
 
@@ -146,13 +146,12 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 | **Database** | PostgreSQL (Coolify) |
 | **ORM** | Prisma 6.2 |
 | **Authentication** | NextAuth v5 (Auth.js) — Credentials + Google OAuth |
-| **AI/LLM** | Vercel AI SDK (Gemini, OpenAI, Anthropic) |
+| **AI/LLM** | AI SDK (Gemini, OpenAI, Anthropic) |
 | **File Upload** | Local filesystem (UploadThing installed, not wired) |
 | **Mobile** | Capacitor 8 (iOS + Android) |
-| **Email** | Resend (installed, not implemented) |
 | **PDF** | jsPDF + jspdf-autotable |
 | **Testing** | Vitest + Playwright |
-| **Deployment** | Vercel + Coolify (self-hosted) |
+| **Deployment** | Coolify (self-hosted) |
 
 ---
 
@@ -164,7 +163,6 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 - npm
 - PostgreSQL database (via Coolify)
 - [Google Cloud Console](https://console.cloud.google.com) project (for OAuth)
-- [Resend](https://resend.com) account (for emails, optional)
 - AI API key (Google Gemini, OpenAI, or Anthropic — optional, for chatbot)
 
 ### Installation
@@ -195,10 +193,6 @@ AUTH_URL="http://localhost:3000"
 # Google OAuth (for Social Login)
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
-
-# Email (Resend)
-RESEND_API_KEY="your-resend-api-key"
-EMAIL_FROM="hr@yourcompany.com"
 
 # UploadThing (for receipt/document uploads)
 UPLOADTHING_TOKEN="your-uploadthing-token"
@@ -236,13 +230,8 @@ In development mode, use the **Dev Quick Login** buttons on the login page, or e
 
 | Email | Password | Role | Employee |
 |-------|----------|------|----------|
-| admin@tertiaryinfotech.com | 123456 | Admin | Ang Chew Hoe (EMP001, HR Director) |
-| staff@tertiaryinfotech.com | 123456 | Staff | Test Staff (EMP007, Software Engineer) |
-| sarah.johnson@tertiaryinfotech.com | 123456 | Staff | EMP002, Senior Software Engineer |
-| michael.chen@tertiaryinfotech.com | 123456 | Staff | EMP003, Marketing Manager |
-| emily.rodriguez@tertiaryinfotech.com | 123456 | Staff | EMP004, HR Coordinator |
-| james.williams@tertiaryinfotech.com | 123456 | Staff | EMP005, Sales Representative |
-| lisa.park@tertiaryinfotech.com | 123456 | Staff | EMP006, Financial Analyst |
+| admin@tertiaryinfotech.com | 123456 | Admin | TEST ADMIN (EMP098) |
+| staff@tertiaryinfotech.com | 123456 | Staff | TEST STAFF (EMP099) |
 
 ---
 
@@ -286,7 +275,7 @@ Build and run from Android Studio on an emulator or device.
 2. Run `npm run cap:sync` to sync to native platforms
 3. Build and test in Xcode / Android Studio
 
-> **Note:** The native apps load the live Vercel deployment URL by default. For local development, temporarily update `server.url` in `capacitor.config.ts` to your local IP.
+> **Note:** The native apps load the configured server URL by default. For local development, update `server.url` in `capacitor.config.ts` to your local IP.
 
 ---
 
@@ -370,13 +359,9 @@ tertiary-hrms/
 
 ## Deployment
 
-### Web (Vercel)
-
-The app auto-deploys to Vercel on push to `main`. Visit [https://ai-hrms.vercel.app](https://ai-hrms.vercel.app).
-
 ### Web (Coolify — Self-Hosted)
 
-Also deployed on Coolify with Traefik reverse proxy at [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech). Auto-deploys on `git push` to `main`. Database is external (Neon) so data persists across redeployments.
+Deployed on Coolify with Traefik reverse proxy at [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech). Auto-deploys on `git push` to `main`. Database is PostgreSQL on Coolify.
 
 ### iOS (App Store)
 
@@ -395,7 +380,6 @@ Also deployed on Coolify with Traefik reverse proxy at [https://hrms.tertiaryinf
 ## Links
 
 - **Live (Coolify)**: [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech)
-- **Live (Vercel)**: [https://ai-hrms.vercel.app](https://ai-hrms.vercel.app)
 - **Documentation**: [https://alfredang.github.io/tertiary-hrms/](https://alfredang.github.io/tertiary-hrms/)
 - **Repository**: [https://github.com/alfredang/tertiary-hrms](https://github.com/alfredang/tertiary-hrms)
 
