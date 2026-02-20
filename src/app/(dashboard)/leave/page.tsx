@@ -141,14 +141,18 @@ export default async function LeavePage() {
 
       {/* Leave Balance Summary - only show for staff view */}
       {viewAs === "staff" && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-5">
             <p className="text-sm text-gray-400 mb-1">Balance from Last Year</p>
             <p className="text-2xl font-bold text-white">{leaveBalance.carriedOver}</p>
           </div>
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-5">
-            <p className="text-sm text-gray-400 mb-1">Allocation This Year</p>
+            <p className="text-sm text-gray-400 mb-1">Entitlement</p>
             <p className="text-2xl font-bold text-blue-400">{leaveBalance.allocation}</p>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-5">
+            <p className="text-sm text-gray-400 mb-1">Allocation (Pro-rated)</p>
+            <p className="text-2xl font-bold text-cyan-400">{leaveBalance.proRated}</p>
           </div>
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-5">
             <p className="text-sm text-gray-400 mb-1">Leave Taken</p>
@@ -159,8 +163,8 @@ export default async function LeavePage() {
             <p className="text-2xl font-bold text-red-400">{leaveBalance.rejected}</p>
           </div>
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-5">
-            <p className="text-sm text-gray-400 mb-1">Balance (Pro-rate)</p>
-            <p className="text-2xl font-bold text-green-400">{leaveBalance.proRated}</p>
+            <p className="text-sm text-gray-400 mb-1">Remaining Balance</p>
+            <p className="text-2xl font-bold text-green-400">{leaveBalance.proRated - leaveBalance.taken}</p>
           </div>
         </div>
       )}

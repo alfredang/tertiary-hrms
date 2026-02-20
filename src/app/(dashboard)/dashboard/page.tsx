@@ -26,13 +26,14 @@ async function getAdminStats() {
 
 async function getStaffStats(employeeId: string) {
   const currentYear = new Date().getFullYear();
+  const yearStart = new Date(`${currentYear}-01-01`);
 
   const [alType, mcType] = await Promise.all([
     prisma.leaveType.findUnique({ where: { code: "AL" } }),
     prisma.leaveType.findUnique({ where: { code: "MC" } }),
   ]);
 
-  const [alBalance, mcBalance] = await Promise.all([
+  const [alBalance, mcBalance, expenseClaims] = await Promise.all([
     alType
       ? prisma.leaveBalance.findUnique({
           where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alType.id, year: currentYear } },
@@ -43,6 +44,14 @@ async function getStaffStats(employeeId: string) {
           where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: mcType.id, year: currentYear } },
         })
       : null,
+    prisma.expenseClaim.findMany({
+      where: {
+        employeeId,
+        createdAt: { gte: yearStart },
+        status: { in: ["APPROVED", "PENDING"] },
+      },
+      select: { amount: true },
+    }),
   ]);
 
   const leaveBalance = alBalance
@@ -51,14 +60,18 @@ async function getStaffStats(employeeId: string) {
   const mcBalanceVal = mcBalance
     ? Number(mcBalance.entitlement) + Number(mcBalance.carriedOver) - Number(mcBalance.used) - Number(mcBalance.pending)
     : 0;
+  const expenseClaimAmount = expenseClaims.reduce((sum, c) => sum + Number(c.amount), 0);
 
-  return { leaveBalance, mcBalance: mcBalanceVal };
+  return { leaveBalance, mcBalance: mcBalanceVal, expenseClaimAmount };
 }
 
-async function getRecentActivity() {
+async function getRecentActivity(employeeId?: string) {
+  const employeeFilter = employeeId ? { employeeId } : {};
+
   const [recentExpenses, recentLeaves] = await Promise.all([
     prisma.expenseClaim.findMany({
       take: 5,
+      where: employeeFilter,
       orderBy: { createdAt: "desc" },
       include: {
         employee: { select: { name: true } },
@@ -67,6 +80,7 @@ async function getRecentActivity() {
     }),
     prisma.leaveRequest.findMany({
       take: 5,
+      where: employeeFilter,
       orderBy: { createdAt: "desc" },
       include: {
         employee: { select: { name: true } },
@@ -100,7 +114,6 @@ async function getRecentActivity() {
 export default async function DashboardPage() {
   const session = await auth();
   const viewMode = await getViewMode();
-  const activity = await getRecentActivity();
 
   let role: Role = "STAFF";
   let currentEmployeeId: string | undefined;
@@ -132,6 +145,10 @@ export default async function DashboardPage() {
 
   const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
   const viewAs = isAdmin ? viewMode : "staff";
+
+  // For staff view: filter recent activity by own employee ID
+  const activityEmployeeId = viewAs === "staff" ? currentEmployeeId : undefined;
+  const activity = await getRecentActivity(activityEmployeeId);
 
   // For admin users, fetch both stats so they can toggle views
   const adminStats = isAdmin ? await getAdminStats() : null;

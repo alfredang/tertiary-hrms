@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, Stethoscope, Receipt, CalendarDays } from "lucide-react";
+import { Clock, Stethoscope, Receipt, CalendarDays, DollarSign } from "lucide-react";
 
 interface AdminStats {
   pendingLeaves: number;
@@ -12,6 +12,7 @@ interface AdminStats {
 interface StaffStats {
   leaveBalance: number;
   mcBalance: number;
+  expenseClaimAmount: number;
 }
 
 interface StatsCardsProps {
@@ -21,7 +22,7 @@ interface StatsCardsProps {
 
 interface CardItem {
   title: string;
-  value: number;
+  value: string;
   icon: React.ComponentType<{ className?: string }>;
   iconBg: string;
   iconColor: string;
@@ -32,14 +33,21 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
 
   if (adminStats) {
     cards.push(
-      { title: "Pending Leave Approval", value: adminStats.pendingLeaves, icon: Clock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
-      { title: "Pending MC Approval", value: adminStats.pendingMC, icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
-      { title: "Pending Claim Approval", value: adminStats.pendingClaims, icon: Receipt, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+      { title: "Pending Leave Approval", value: String(adminStats.pendingLeaves), icon: Clock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+      { title: "Pending MC Approval", value: String(adminStats.pendingMC), icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
+      { title: "Pending Claim Approval", value: String(adminStats.pendingClaims), icon: Receipt, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
     );
   } else if (staffStats) {
     cards.push(
-      { title: "Leave Balance", value: staffStats.leaveBalance, icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-      { title: "MC Balance", value: staffStats.mcBalance, icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
+      { title: "Leave Balance", value: String(staffStats.leaveBalance), icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+      { title: "MC Balance", value: String(staffStats.mcBalance), icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
+      {
+        title: "Expense Claims (YTD)",
+        value: `$${staffStats.expenseClaimAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        icon: DollarSign,
+        iconBg: "bg-green-100",
+        iconColor: "text-green-600",
+      },
     );
   }
 

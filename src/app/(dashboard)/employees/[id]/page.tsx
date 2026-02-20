@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { EmployeeStatus } from "@prisma/client";
 import { EmployeeEditSheet } from "@/components/employees/employee-edit-sheet";
+import { getViewMode } from "@/lib/view-mode";
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,8 @@ export default async function EmployeeDetailPage({
     }
   }
 
+  const viewMode = await getViewMode();
+
   const [employee, departments] = await Promise.all([
     getEmployee(id),
     getDepartments(),
@@ -108,11 +111,12 @@ export default async function EmployeeDetailPage({
     notFound();
   }
 
-  // Determine if user can edit (ADMIN, HR, or MANAGER)
-  // Allow editing when SKIP_AUTH is enabled (development mode)
-  const canEdit =
-    process.env.SKIP_AUTH === "true" ||
-    (session?.user && ["ADMIN", "HR", "MANAGER"].includes(session.user.role));
+  // Determine role
+  const role = process.env.SKIP_AUTH === "true" ? "ADMIN" : (session?.user?.role || "STAFF");
+  const isAdmin = role === "ADMIN";
+
+  // Only ADMIN can edit, and respect the view toggle
+  const canEdit = isAdmin && viewMode === "admin";
 
   return (
     <div className="space-y-6">
@@ -400,11 +404,13 @@ export default async function EmployeeDetailPage({
                 {employee.leaveBalances
                   .filter((balance) => balance.year === new Date().getFullYear())
                   .map((balance) => {
+                    const fullEntitlement = Number(balance.entitlement);
                     // AL is prorated based on employee start date; others use full entitlement
-                    const effectiveEntitlement = balance.leaveType.code === "AL"
-                      ? prorateLeave(Number(balance.entitlement), employee.startDate)
-                      : Number(balance.entitlement);
-                    const totalBalance = effectiveEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
+                    const isAL = balance.leaveType.code === "AL";
+                    const allocation = isAL
+                      ? prorateLeave(fullEntitlement, employee.startDate)
+                      : fullEntitlement;
+                    const totalBalance = allocation + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
                     return (
                       <div key={balance.id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -417,12 +423,17 @@ export default async function EmployeeDetailPage({
                           <div className="flex justify-between">
                             <span className="text-gray-400">Entitlement:</span>
                             <span className="text-white font-medium">
-                              {effectiveEntitlement} days
-                              {balance.leaveType.code === "AL" && effectiveEntitlement !== Number(balance.entitlement) && (
-                                <span className="text-gray-500 text-xs ml-1">(prorated)</span>
-                              )}
+                              {fullEntitlement} days
                             </span>
                           </div>
+                          {isAL && allocation !== fullEntitlement && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Allocation:</span>
+                              <span className="text-cyan-400 font-medium">
+                                {allocation} days <span className="text-gray-500 text-xs">(prorated)</span>
+                              </span>
+                            </div>
+                          )}
                           {Number(balance.carriedOver) > 0 && (
                             <div className="flex justify-between">
                               <span className="text-gray-400">Carried Over:</span>

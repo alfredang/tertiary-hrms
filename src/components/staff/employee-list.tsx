@@ -77,74 +77,74 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-1 gap-4 w-full sm:w-auto">
-          <div className="relative flex-1 sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search employees..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+      {/* Filters - only show for admin view */}
+      {isAdmin && (
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex flex-1 gap-4 w-full sm:w-auto">
+            <div className="relative flex-1 sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search employees..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="ON_LEAVE">On Leave</SelectItem>
+                <SelectItem value="RESIGNED">Resigned</SelectItem>
+                <SelectItem value="TERMINATED">Terminated</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Departments" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {departments.map((dept) => (
-                <SelectItem key={dept.id} value={dept.id}>
-                  {dept.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="ON_LEAVE">On Leave</SelectItem>
-              <SelectItem value="RESIGNED">Resigned</SelectItem>
-              <SelectItem value="TERMINATED">Terminated</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center border rounded-lg p-1">
-            <Button
-              variant={view === "grid" ? "secondary" : "ghost"}
-              size="icon"
-              onClick={() => setView("grid")}
-              className="h-8 w-8"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={view === "list" ? "secondary" : "ghost"}
-              size="icon"
-              onClick={() => setView("list")}
-              className="h-8 w-8"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-          {isAdmin && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center border rounded-lg p-1">
+              <Button
+                variant={view === "grid" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setView("grid")}
+                className="h-8 w-8"
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={view === "list" ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setView("list")}
+                className="h-8 w-8"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
             <Link href="/employees/new">
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Employee
               </Button>
             </Link>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Employee Grid/List */}
       {view === "grid" ? (

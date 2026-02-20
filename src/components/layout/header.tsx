@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -34,6 +35,30 @@ export function Header({ isAdmin = false }: HeaderProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+  const [viewAs, setViewAs] = useState<string>("admin");
+
+  useEffect(() => {
+    const cookie = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("viewAs="));
+    if (cookie) {
+      setViewAs(cookie.split("=")[1]);
+    }
+  }, []);
+
+  // Listen for cookie changes (when ViewToggle is clicked, it calls router.refresh)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cookie = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("viewAs="));
+      const val = cookie ? cookie.split("=")[1] : "admin";
+      setViewAs(val);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const showAdminFeatures = isAdmin && viewAs === "admin";
 
   const currentPage = Object.entries(pageNames).find(([path]) =>
     pathname.startsWith(path)
@@ -79,10 +104,12 @@ export function Header({ isAdmin = false }: HeaderProps) {
                   <User className="mr-2 h-4 w-4" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/settings")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
+                {showAdminFeatures && (
+                  <DropdownMenuItem onClick={() => router.push("/settings")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                   <LogOut className="mr-2 h-4 w-4" />

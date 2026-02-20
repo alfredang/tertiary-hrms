@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { redirect } from "next/navigation";
+import { getViewMode } from "@/lib/view-mode";
 
 export const dynamic = 'force-dynamic';
 
@@ -30,9 +31,15 @@ async function getCompanySettings() {
 
 export default async function SettingsPage() {
   const session = await auth();
+  const viewMode = await getViewMode();
 
   const role = process.env.SKIP_AUTH === "true" ? "ADMIN" : (session?.user?.role || "STAFF");
-  const canEdit = ["ADMIN", "HR"].includes(role);
+  const isAdmin = role === "ADMIN";
+
+  // Only admin can access settings; redirect staff away
+  if (!isAdmin || viewMode === "staff") {
+    redirect("/dashboard");
+  }
 
   const settings = await getCompanySettings();
 
@@ -40,12 +47,10 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-white">Company Settings</h1>
-        <p className="text-gray-400 mt-1">
-          {canEdit ? "Manage your company information" : "View company information"}
-        </p>
+        <p className="text-gray-400 mt-1">Manage your company information</p>
       </div>
 
-      <CompanySettingsForm settings={settings} readOnly={!canEdit} />
+      <CompanySettingsForm settings={settings} />
     </div>
   );
 }

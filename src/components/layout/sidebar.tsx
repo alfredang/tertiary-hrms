@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,29 @@ const navigation = [
 
 export function Sidebar({ role }: { role?: string }) {
   const pathname = usePathname();
-  const isAdmin = role === "ADMIN" || role === "HR";
+  const [viewAs, setViewAs] = useState<string>("admin");
+
+  useEffect(() => {
+    const cookie = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("viewAs="));
+    if (cookie) {
+      setViewAs(cookie.split("=")[1]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const cookie = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("viewAs="));
+      const val = cookie ? cookie.split("=")[1] : "admin";
+      setViewAs(val);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isAdmin = (role === "ADMIN" || role === "HR") && viewAs === "admin";
 
   return (
     <div className="flex grow flex-col gap-y-5 px-6 pt-4">
