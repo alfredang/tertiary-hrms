@@ -44,18 +44,18 @@ export function calculateDaysBetween(start: Date, end: Date): number {
 }
 
 /**
- * Round a number to the nearest 0.5
- * e.g., 3.2 → 3.0, 3.3 → 3.5, 3.7 → 3.5, 3.8 → 4.0
+ * Round a number DOWN to the nearest 0.5
+ * e.g., 3.2 → 3.0, 3.7 → 3.5, 3.8 → 3.5, 4.0 → 4.0
  */
 export function roundToHalf(value: number): number {
-  return Math.round(value * 2) / 2;
+  return Math.floor(value * 2) / 2;
 }
 
 /**
  * Calculate prorated leave allocation for the year.
  * - If employee started before Jan 1 of current year → full entitlement
  * - If employee started mid-year → prorated by remaining months / 12
- * Rounded to nearest 0.5 day.
+ * Rounded down to nearest 0.5 day.
  */
 export function prorateLeave(annualEntitlement: number, employeeStartDate?: Date | string): number {
   const now = new Date();
