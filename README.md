@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![Prisma](https://img.shields.io/badge/Prisma-6.2-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791?style=flat-square&logo=postgresql)](https://neon.tech/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8.0-119EFF?style=flat-square&logo=capacitorjs)](https://capacitorjs.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=flat-square&logo=vercel)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
@@ -143,7 +143,7 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 | **Framework** | Next.js 14 (App Router, SSR) |
 | **Language** | TypeScript 5.7 |
 | **Styling** | Tailwind CSS + shadcn/ui |
-| **Database** | Neon PostgreSQL (Serverless) |
+| **Database** | PostgreSQL (Coolify) |
 | **ORM** | Prisma 6.2 |
 | **Authentication** | NextAuth v5 (Auth.js) — Credentials + Google OAuth |
 | **AI/LLM** | Vercel AI SDK (Gemini, OpenAI, Anthropic) |
@@ -162,7 +162,7 @@ The native apps load the Vercel-deployed URL inside a WebView via Capacitor, sha
 
 - Node.js 18+
 - npm
-- [Neon](https://neon.tech) PostgreSQL database
+- PostgreSQL database (via Coolify)
 - [Google Cloud Console](https://console.cloud.google.com) project (for OAuth)
 - [Resend](https://resend.com) account (for emails, optional)
 - AI API key (Google Gemini, OpenAI, or Anthropic — optional, for chatbot)
@@ -184,9 +184,9 @@ cp .env.example .env.local
 Edit `.env.local` with your credentials:
 
 ```env
-# Database (Neon Postgres)
-DATABASE_URL="your-neon-connection-string"
-DIRECT_URL="your-neon-direct-connection-string"
+# Database (PostgreSQL)
+DATABASE_URL="postgresql://user:password@host:5432/database"
+DIRECT_URL="postgresql://user:password@host:5432/database"
 
 # NextAuth
 AUTH_SECRET="your-secret-key"

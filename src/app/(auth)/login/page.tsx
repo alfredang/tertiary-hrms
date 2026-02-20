@@ -74,8 +74,8 @@ function LoginForm() {
     setError("");
     setSkipLoadingRole(role);
     const credentials = role === "admin"
-      ? { email: "admin@tertiaryinfotech.com", password: "123456" }
-      : { email: "staff@tertiaryinfotech.com", password: "123456" };
+      ? { email: "admin@tertiaryinfotech.com", password: "Tertiary@888" }
+      : { email: "sarah.johnson@tertiaryinfotech.com", password: "Tertiary@888" };
     try {
       const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
       const { csrfToken } = await csrfRes.json();

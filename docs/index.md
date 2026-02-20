@@ -61,7 +61,7 @@ AI-HRM is developed for Tertiary Infotech Academy Pte Ltd to modernize HR operat
 
 - Next.js 14 with App Router
 - TypeScript & Tailwind CSS
-- Neon Postgres with Prisma ORM
+- PostgreSQL with Prisma ORM
 - NextAuth v5 for authentication
 - Vercel AI SDK with Gemini
 - Resend for email notifications
