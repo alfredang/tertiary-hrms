@@ -52,10 +52,17 @@ export function roundToHalf(value: number): number {
 }
 
 /**
- * Calculate prorated leave allocation for the year.
- * - If employee started before Jan 1 of current year → full entitlement
- * - If employee started mid-year → prorated by remaining months / 12
+ * Calculate prorated leave allocation (monthly accrual).
+ * Allocation = annualEntitlement * elapsedMonths / 12
+ * - elapsedMonths = months from effective start to current month (inclusive)
+ * - If employee started before Jan 1 of current year → effective start = Jan 1
+ * - If employee started mid-year → effective start = their start month
  * Rounded down to nearest 0.5 day.
+ *
+ * Examples (entitlement = 14):
+ * - Existing employee in Feb → 14 * 2/12 = 2.33 → 2
+ * - Existing employee in Dec → 14 * 12/12 = 14
+ * - New employee starting Mar, now in May → 14 * 3/12 = 3.5
  */
 export function prorateLeave(annualEntitlement: number, employeeStartDate?: Date | string): number {
   const now = new Date();
@@ -73,10 +80,11 @@ export function prorateLeave(annualEntitlement: number, employeeStartDate?: Date
   // If employee hasn't started yet, no leave
   if (effectiveStart > now) return 0;
 
-  // Calculate remaining months from effective start month to end of year
+  // Calculate elapsed months from effective start to current month (inclusive)
+  const currentMonth = now.getMonth(); // 0-indexed (Jan=0, Feb=1, ...)
   const startMonth = effectiveStart.getMonth(); // 0-indexed
-  const remainingMonths = 12 - startMonth;
+  const elapsedMonths = currentMonth - startMonth + 1;
 
-  const prorated = (annualEntitlement * remainingMonths) / 12;
+  const prorated = (annualEntitlement * elapsedMonths) / 12;
   return roundToHalf(prorated);
 }
