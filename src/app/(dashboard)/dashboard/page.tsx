@@ -108,8 +108,8 @@ export default async function DashboardPage() {
 
   if (process.env.SKIP_AUTH === "true") {
     role = "ADMIN";
-    const adminUser = await prisma.user.findFirst({
-      where: { role: "ADMIN" },
+    const adminUser = await prisma.user.findUnique({
+      where: { email: "admin@tertiaryinfotech.com" },
       include: { employee: { select: { id: true, name: true } } },
     });
     if (adminUser?.employee) {

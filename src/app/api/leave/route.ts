@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
       employeeId = session.user.employeeId;
     } else {
       // Dev mode: use admin employee as default
-      const adminUser = await prisma.user.findFirst({
-        where: { role: "ADMIN" },
+      const adminUser = await prisma.user.findUnique({
+        where: { email: "admin@tertiaryinfotech.com" },
         include: { employee: true },
       });
       employeeId = adminUser?.employee?.id;
