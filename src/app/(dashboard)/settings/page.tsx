@@ -31,13 +31,8 @@ async function getCompanySettings() {
 export default async function SettingsPage() {
   const session = await auth();
 
-  // Only ADMIN and HR can access settings
-  if (
-    process.env.SKIP_AUTH !== "true" &&
-    !["ADMIN", "HR"].includes(session?.user?.role || "")
-  ) {
-    redirect("/dashboard");
-  }
+  const role = process.env.SKIP_AUTH === "true" ? "ADMIN" : (session?.user?.role || "STAFF");
+  const canEdit = ["ADMIN", "HR"].includes(role);
 
   const settings = await getCompanySettings();
 
@@ -45,10 +40,12 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-white">Company Settings</h1>
-        <p className="text-gray-400 mt-1">Manage your company information</p>
+        <p className="text-gray-400 mt-1">
+          {canEdit ? "Manage your company information" : "View company information"}
+        </p>
       </div>
 
-      <CompanySettingsForm settings={settings} />
+      <CompanySettingsForm settings={settings} readOnly={!canEdit} />
     </div>
   );
 }

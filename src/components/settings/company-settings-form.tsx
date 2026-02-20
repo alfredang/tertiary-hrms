@@ -29,9 +29,10 @@ type CompanySettingsFormData = z.infer<typeof companySettingsSchema>;
 
 interface CompanySettingsFormProps {
   settings: CompanySettings;
+  readOnly?: boolean;
 }
 
-export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
+export function CompanySettingsForm({ settings, readOnly = false }: CompanySettingsFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -139,8 +140,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               <Input
                 id="name"
                 {...form.register("name")}
-                className="bg-gray-900 border-gray-700 text-white"
+                className="bg-gray-900 border-gray-700 text-white disabled:opacity-60"
                 placeholder="Enter company name"
+                disabled={readOnly}
               />
               {form.formState.errors.name && (
                 <p className="text-sm text-red-400">
@@ -157,8 +159,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               <Input
                 id="uen"
                 {...form.register("uen")}
-                className="bg-gray-900 border-gray-700 text-white"
+                className="bg-gray-900 border-gray-700 text-white disabled:opacity-60"
                 placeholder="e.g., 201234567A"
+                disabled={readOnly}
               />
               {form.formState.errors.uen && (
                 <p className="text-sm text-red-400">
@@ -175,8 +178,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               <Input
                 id="phone"
                 {...form.register("phone")}
-                className="bg-gray-900 border-gray-700 text-white"
+                className="bg-gray-900 border-gray-700 text-white disabled:opacity-60"
                 placeholder="+65 1234 5678"
+                disabled={readOnly}
               />
               {form.formState.errors.phone && (
                 <p className="text-sm text-red-400">
@@ -194,8 +198,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
                 id="email"
                 type="email"
                 {...form.register("email")}
-                className="bg-gray-900 border-gray-700 text-white"
+                className="bg-gray-900 border-gray-700 text-white disabled:opacity-60"
                 placeholder="info@company.com"
+                disabled={readOnly}
               />
               {form.formState.errors.email && (
                 <p className="text-sm text-red-400">
@@ -212,8 +217,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               <Input
                 id="website"
                 {...form.register("website")}
-                className="bg-gray-900 border-gray-700 text-white"
+                className="bg-gray-900 border-gray-700 text-white disabled:opacity-60"
                 placeholder="https://www.company.com"
+                disabled={readOnly}
               />
               {form.formState.errors.website && (
                 <p className="text-sm text-red-400">
@@ -231,8 +237,9 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
             <Textarea
               id="address"
               {...form.register("address")}
-              className="bg-gray-900 border-gray-700 text-white min-h-[100px]"
+              className="bg-gray-900 border-gray-700 text-white min-h-[100px] disabled:opacity-60"
               placeholder="Enter company address"
+              disabled={readOnly}
             />
             {form.formState.errors.address && (
               <p className="text-sm text-red-400">
@@ -266,13 +273,15 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
                   className="border-primary/50 text-primary bg-primary/10 px-3 py-1.5 text-sm"
                 >
                   {email}
-                  <button
-                    type="button"
-                    onClick={() => removeApprovalEmail(email)}
-                    className="ml-2 hover:text-red-400 transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeApprovalEmail(email)}
+                      className="ml-2 hover:text-red-400 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </Badge>
               ))}
             </div>
@@ -285,54 +294,58 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
           )}
 
           {/* Add new email */}
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Input
-                type="email"
-                value={newEmail}
-                onChange={(e) => {
-                  setNewEmail(e.target.value);
-                  setEmailError("");
-                }}
-                onKeyDown={handleEmailKeyDown}
-                className="bg-gray-900 border-gray-700 text-white"
-                placeholder="Enter approver email address"
-              />
-              {emailError && (
-                <p className="text-sm text-red-400 mt-1">{emailError}</p>
-              )}
+          {!readOnly && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => {
+                    setNewEmail(e.target.value);
+                    setEmailError("");
+                  }}
+                  onKeyDown={handleEmailKeyDown}
+                  className="bg-gray-900 border-gray-700 text-white"
+                  placeholder="Enter approver email address"
+                />
+                {emailError && (
+                  <p className="text-sm text-red-400 mt-1">{emailError}</p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addApprovalEmail}
+                className="border-gray-700 hover:bg-gray-800"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addApprovalEmail}
-              className="border-gray-700 hover:bg-gray-800"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
+          )}
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            form.reset();
-            setApprovalEmails(settings.approvalEmails || []);
-          }}
-          disabled={isLoading}
-          className="border-gray-700 hover:bg-gray-800"
-        >
-          Reset
-        </Button>
-        <Button type="submit" disabled={isLoading}>
-          <Save className="h-4 w-4 mr-2" />
-          {isLoading ? "Saving..." : "Save Changes"}
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              form.reset();
+              setApprovalEmails(settings.approvalEmails || []);
+            }}
+            disabled={isLoading}
+            className="border-gray-700 hover:bg-gray-800"
+          >
+            Reset
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            <Save className="h-4 w-4 mr-2" />
+            {isLoading ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
