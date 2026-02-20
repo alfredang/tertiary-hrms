@@ -265,16 +265,17 @@ model VerificationToken {
 }
 
 model CompanySettings {
-  id        String   @id @default("company_settings")
-  name      String   @default("Company Name")
-  uen       String?
-  address   String?
-  phone     String?
-  email     String?
-  website   String?
-  logo      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  id             String   @id @default("company_settings")
+  name           String   @default("Company Name")
+  uen            String?
+  address        String?
+  phone          String?
+  email          String?
+  website        String?
+  logo           String?
+  approvalEmails String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
 }
 
 enum EmployeeStatus {

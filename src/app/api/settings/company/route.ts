@@ -10,6 +10,7 @@ const companySettingsSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
+  approvalEmails: z.array(z.string().email()).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
