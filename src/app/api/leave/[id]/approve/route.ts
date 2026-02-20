@@ -65,7 +65,7 @@ export async function POST(
     // Create calendar event for approved leave
     await prisma.calendarEvent.create({
       data: {
-        title: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} - ${leaveRequest.leaveType.name}`,
+        title: `${leaveRequest.employee.name} - ${leaveRequest.leaveType.name}`,
         startDate: leaveRequest.startDate,
         endDate: leaveRequest.endDate,
         allDay: true,

@@ -82,7 +82,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           employeeId: user.employee?.id,
           name: user.employee
-            ? `${user.employee.firstName} ${user.employee.lastName}`
+            ? user.employee.name
             : user.email,
         };
       },

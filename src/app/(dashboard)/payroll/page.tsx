@@ -54,14 +54,13 @@ async function getPayslips(employeeId?: string) {
       employee: {
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
+          name: true,
           employeeId: true,
           department: { select: { name: true } },
         },
       },
     },
-    orderBy: [{ payPeriodStart: "desc" }, { employee: { firstName: "asc" } }],
+    orderBy: [{ payPeriodStart: "desc" }, { employee: { name: "asc" } }],
   });
 
   return payslips;

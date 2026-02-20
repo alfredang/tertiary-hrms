@@ -32,8 +32,7 @@ interface Payslip {
   status: PayslipStatus;
   employee: {
     id: string;
-    firstName: string;
-    lastName: string;
+    name: string;
     employeeId: string;
     department: { name: string };
   };
@@ -63,7 +62,7 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
 
   const filteredPayslips = payslips.filter((payslip) => {
     const matchesSearch =
-      `${payslip.employee.firstName} ${payslip.employee.lastName}`
+      payslip.employee.name
         .toLowerCase()
         .includes(search.toLowerCase()) ||
       payslip.employee.employeeId.toLowerCase().includes(search.toLowerCase());
@@ -141,7 +140,7 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
                     {formatPayPeriod(payslip.payPeriodStart)}
                   </td>
                   <td className="px-4 py-3 text-sm text-white">
-                    {payslip.employee.firstName} {payslip.employee.lastName}
+                    {payslip.employee.name}
                   </td>
                   <td className="px-4 py-3 text-sm text-white text-right font-medium">
                     {formatCurrency(Number(payslip.grossSalary))}

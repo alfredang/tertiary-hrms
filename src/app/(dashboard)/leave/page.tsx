@@ -56,13 +56,12 @@ async function getLeaveRequests(employeeId?: string) {
       employee: {
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
+          name: true,
           department: { select: { name: true } },
         },
       },
       leaveType: { select: { name: true, code: true } },
-      approver: { select: { firstName: true, lastName: true } },
+      approver: { select: { name: true } },
     },
     orderBy: { createdAt: "desc" },
   });

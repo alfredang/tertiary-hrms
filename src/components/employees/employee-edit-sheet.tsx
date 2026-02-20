@@ -44,7 +44,7 @@ export function EmployeeEditSheet({
     resolver: zodResolver(updateEmployeeSchema),
     defaultValues: {
       personalInfo: {
-        fullName: `${employee.firstName} ${employee.lastName}`,
+        fullName: employee.name,
         email: employee.email,
         phone: employee.phone || "",
         dateOfBirth: employee.dateOfBirth.toISOString().split("T")[0],
@@ -137,7 +137,7 @@ export function EmployeeEditSheet({
           <div>
             <h2 className="text-2xl font-bold text-white">Edit Employee</h2>
             <p className="text-gray-400 mt-1">
-              Update {employee.firstName} {employee.lastName}'s information
+              Update {employee.name}&apos;s information
             </p>
           </div>
 

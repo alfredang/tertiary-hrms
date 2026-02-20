@@ -87,7 +87,7 @@ describe("Leave Submission (POST /api/leave)", () => {
       reason: "Family trip",
       status: "PENDING",
       leaveType: { name: "Annual Leave" },
-      employee: { firstName: "John", lastName: "Doe" },
+      employee: { name: "John Doe" },
     };
     mockPrisma.leaveRequest.create.mockResolvedValue(createdRequest);
     mockPrisma.leaveBalance.update.mockResolvedValue({});
@@ -243,7 +243,7 @@ describe("Leave Approval (POST /api/leave/[id]/approve)", () => {
       endDate: new Date("2026-03-04"),
       days: 3,
       status: "PENDING",
-      employee: { firstName: "John", lastName: "Doe" },
+      employee: { name: "John Doe" },
       leaveType: { name: "Annual Leave" },
     };
 
@@ -304,7 +304,7 @@ describe("Leave Approval (POST /api/leave/[id]/approve)", () => {
     mockPrisma.leaveRequest.findUnique.mockResolvedValue({
       id: LEAVE_REQUEST_ID,
       status: "APPROVED", // Already approved
-      employee: { firstName: "John", lastName: "Doe" },
+      employee: { name: "John Doe" },
       leaveType: { name: "Annual Leave" },
     });
 
@@ -519,7 +519,7 @@ describe("Leave Balance & Forecast", () => {
       status: "PENDING",
       startDate: new Date("2026-04-01"),
       endDate: new Date("2026-04-03"),
-      employee: { firstName: "John", lastName: "Doe" },
+      employee: { name: "John Doe" },
       leaveType: { name: "Annual Leave" },
     });
     mockPrisma.leaveRequest.update.mockResolvedValue({ status: "APPROVED" });

@@ -60,7 +60,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
-      `${employee.firstName} ${employee.lastName}`
+      employee.name
         .toLowerCase()
         .includes(search.toLowerCase()) ||
       employee.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -157,7 +157,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                     <div className="relative">
                       <Avatar className="h-12 w-12 bg-primary">
                         <AvatarFallback className="bg-primary text-white">
-                          {getInitials(`${employee.firstName} ${employee.lastName}`)}
+                          {getInitials(employee.name)}
                         </AvatarFallback>
                       </Avatar>
                       {employee.status === "ACTIVE" && (
@@ -166,7 +166,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-white mb-2 break-words">
-                        {employee.firstName} {employee.lastName}
+                        {employee.name}
                       </h3>
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge className={statusColors[employee.status]}>
@@ -211,12 +211,12 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                 <div className="flex items-center gap-4 p-4 hover:bg-gray-900 transition-colors cursor-pointer">
                   <Avatar className="h-10 w-10 bg-primary">
                     <AvatarFallback className="bg-primary text-white text-sm">
-                      {getInitials(`${employee.firstName} ${employee.lastName}`)}
+                      {getInitials(employee.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-white mb-1">
-                      {employee.firstName} {employee.lastName}
+                      {employee.name}
                     </p>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge className={statusColors[employee.status]}>

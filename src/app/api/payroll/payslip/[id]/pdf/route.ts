@@ -41,7 +41,7 @@ export async function GET(
 
     const pdfData = generatePayslipPDF({
       employee: {
-        name: `${payslip.employee.firstName} ${payslip.employee.lastName}`,
+        name: payslip.employee.name,
         id: payslip.employee.employeeId,
         department: payslip.employee.department.name,
         position: payslip.employee.position,

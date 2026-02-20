@@ -8,8 +8,6 @@ import {
 
 export const personalInfoSchema = z.object({
   fullName: z.string().min(1, "Full name is required"),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
   dateOfBirth: z.string().refine((date) => !isNaN(Date.parse(date)), {

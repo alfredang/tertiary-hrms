@@ -27,11 +27,10 @@ interface ExpenseClaim {
   createdAt: Date;
   employee: {
     id: string;
-    firstName: string;
-    lastName: string;
+    name: string;
   };
   category: { name: string; code: string };
-  approver: { firstName: string; lastName: string } | null;
+  approver: { name: string } | null;
 }
 
 interface ExpenseListProps {
@@ -67,7 +66,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const filteredClaims = claims.filter((claim) => {
     const matchesSearch =
       claim.description.toLowerCase().includes(search.toLowerCase()) ||
-      `${claim.employee.firstName} ${claim.employee.lastName}`
+      claim.employee.name
         .toLowerCase()
         .includes(search.toLowerCase());
 
@@ -195,7 +194,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               {filteredClaims.map((claim) => (
                 <tr key={claim.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
                   <td className="px-4 py-3 text-sm text-white">
-                    {claim.employee.firstName} {claim.employee.lastName}
+                    {claim.employee.name}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-300 max-w-[250px] truncate">
                     {claim.description}

@@ -61,7 +61,7 @@ async function getRecentActivity() {
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {
-        employee: { select: { firstName: true, lastName: true } },
+        employee: { select: { name: true } },
         category: { select: { name: true } },
       },
     }),
@@ -69,7 +69,7 @@ async function getRecentActivity() {
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {
-        employee: { select: { firstName: true, lastName: true } },
+        employee: { select: { name: true } },
         leaveType: { select: { name: true } },
       },
     }),
@@ -110,11 +110,11 @@ export default async function DashboardPage() {
     role = "ADMIN";
     const adminUser = await prisma.user.findFirst({
       where: { role: "ADMIN" },
-      include: { employee: { select: { id: true, firstName: true, lastName: true } } },
+      include: { employee: { select: { id: true, name: true } } },
     });
     if (adminUser?.employee) {
       currentEmployeeId = adminUser.employee.id;
-      displayName = `${adminUser.employee.firstName} ${adminUser.employee.lastName}`;
+      displayName = adminUser.employee.name;
     }
   } else if (session?.user) {
     role = session.user.role;
@@ -122,10 +122,10 @@ export default async function DashboardPage() {
     if (currentEmployeeId) {
       const employee = await prisma.employee.findUnique({
         where: { id: currentEmployeeId },
-        select: { firstName: true, lastName: true },
+        select: { name: true },
       });
       if (employee) {
-        displayName = `${employee.firstName} ${employee.lastName}`;
+        displayName = employee.name;
       }
     }
   }

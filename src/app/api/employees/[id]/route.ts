@@ -60,19 +60,10 @@ export async function PATCH(
       // Prepare employee update data
       const employeeData: any = {};
       if (personalInfo) {
-        const { fullName, firstName, lastName, ...restPersonal } = personalInfo;
-        // Split fullName into firstName and lastName
-        let derivedFirstName = firstName;
-        let derivedLastName = lastName;
-        if (fullName) {
-          const parts = fullName.trim().split(/\s+/);
-          derivedFirstName = parts[0];
-          derivedLastName = parts.slice(1).join(" ") || parts[0];
-        }
+        const { fullName, ...restPersonal } = personalInfo;
         Object.assign(employeeData, {
           ...restPersonal,
-          ...(derivedFirstName && { firstName: derivedFirstName }),
-          ...(derivedLastName && { lastName: derivedLastName }),
+          ...(fullName && { name: fullName.toUpperCase() }),
           dateOfBirth: restPersonal.dateOfBirth
             ? new Date(restPersonal.dateOfBirth)
             : undefined,

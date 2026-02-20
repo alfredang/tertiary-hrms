@@ -45,13 +45,9 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
           className="bg-gray-900 border-gray-800 text-white"
           placeholder="e.g. Alfred Ang"
         />
-        {(errors?.fullName ||
-          errors?.firstName ||
-          errors?.lastName) && (
+        {errors?.fullName && (
           <p className="text-sm text-red-400">
-            {(errors?.fullName?.message ||
-              errors?.firstName?.message ||
-              errors?.lastName?.message) as string}
+            {errors?.fullName?.message as string}
           </p>
         )}
       </div>

@@ -60,8 +60,7 @@ async function getEmployee(id: string) {
           leaveType: true,
           approver: {
             select: {
-              firstName: true,
-              lastName: true,
+              name: true,
             },
           },
         },
@@ -123,7 +122,7 @@ export default async function EmployeeDetailPage({
           <div className="relative">
             <Avatar className="h-20 w-20 bg-primary">
               <AvatarFallback className="bg-primary text-white text-2xl">
-                {getInitials(`${employee.firstName} ${employee.lastName}`)}
+                {getInitials(employee.name)}
               </AvatarFallback>
             </Avatar>
             {employee.status === "ACTIVE" && (
@@ -132,7 +131,7 @@ export default async function EmployeeDetailPage({
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white">
-              {employee.firstName} {employee.lastName}
+              {employee.name}
             </h1>
             <p className="text-gray-400 mt-1">{employee.position}</p>
             <div className="flex items-center gap-2 mt-2">
@@ -549,7 +548,7 @@ export default async function EmployeeDetailPage({
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-400">
                             {request.approver
-                              ? `${request.approver.firstName} ${request.approver.lastName}`
+                              ? request.approver.name
                               : "-"}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-400">

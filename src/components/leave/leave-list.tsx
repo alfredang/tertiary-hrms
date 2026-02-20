@@ -21,12 +21,11 @@ interface LeaveRequest {
   createdAt: Date;
   employee: {
     id: string;
-    firstName: string;
-    lastName: string;
+    name: string;
     department: { name: string };
   };
   leaveType: { name: string; code: string };
-  approver: { firstName: string; lastName: string } | null;
+  approver: { name: string } | null;
 }
 
 interface LeaveListProps {
@@ -134,7 +133,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
               {filteredRequests.map((request) => (
                 <tr key={request.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
                   <td className="px-4 py-3 text-sm text-white">
-                    {request.employee.firstName} {request.employee.lastName}
+                    {request.employee.name}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-300">
                     {request.leaveType.name}

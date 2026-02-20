@@ -34,12 +34,11 @@ async function getExpenseClaims(employeeId?: string) {
       employee: {
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
+          name: true,
         },
       },
       category: { select: { name: true, code: true } },
-      approver: { select: { firstName: true, lastName: true } },
+      approver: { select: { name: true } },
     },
     orderBy: { createdAt: "desc" },
   });

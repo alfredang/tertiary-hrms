@@ -29,7 +29,7 @@ async function getEmployees(viewAs: "admin" | "staff", currentEmployeeId?: strin
       department: true,
       user: true,
     },
-    orderBy: { firstName: "asc" },
+    orderBy: { name: "asc" },
   });
 
   return employees;

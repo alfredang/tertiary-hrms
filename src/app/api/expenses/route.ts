@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       include: {
         category: true,
         employee: {
-          select: { firstName: true, lastName: true },
+          select: { name: true },
         },
       },
     });

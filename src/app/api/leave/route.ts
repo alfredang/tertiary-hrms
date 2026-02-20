@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       include: {
         leaveType: true,
         employee: {
-          select: { firstName: true, lastName: true },
+          select: { name: true },
         },
       },
     });

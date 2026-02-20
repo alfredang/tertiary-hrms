@@ -10,7 +10,7 @@ interface RecentActivityProps {
     amount: number;
     description: string;
     createdAt: string;
-    employee: { firstName: string; lastName: string };
+    employee: { name: string };
     category: { name: string };
   }>;
   leaves: Array<{
@@ -19,7 +19,7 @@ interface RecentActivityProps {
     startDate: string;
     endDate: string;
     createdAt: string;
-    employee: { firstName: string; lastName: string };
+    employee: { name: string };
     leaveType: { name: string };
   }>;
 }
@@ -44,7 +44,7 @@ export function RecentActivity({ expenses }: RecentActivityProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">
-                    {expense.employee.firstName} {expense.employee.lastName.charAt(0)}.
+                    {expense.employee.name}
                   </p>
                   <p className="text-xs text-gray-400">
                     {formatCurrency(Number(expense.amount))} - {expense.category.name}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,28 +43,18 @@ function LoginForm() {
     setError("");
 
     try {
-      // Fetch CSRF token (also sets the CSRF cookie)
-      const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
-      const { csrfToken } = await csrfRes.json();
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-      // Use a real form submission (not fetch) — this ensures cookies and
-      // redirects are handled natively by the browser, which is more reliable
-      // behind reverse proxies like Coolify/Traefik
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = "/api/auth/callback/credentials";
-
-      const fields = { csrfToken, email, password, callbackUrl: "/dashboard" };
-      for (const [key, value] of Object.entries(fields)) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
+      if (result?.error) {
+        setError("Invalid email or password.");
+        setIsLoading(false);
+      } else {
+        window.location.href = "/dashboard";
       }
-
-      document.body.appendChild(form);
-      form.submit();
     } catch {
       setError("Something went wrong. Please try again.");
       setIsLoading(false);
@@ -74,27 +65,21 @@ function LoginForm() {
     setError("");
     setSkipLoadingRole(role);
     const credentials = role === "admin"
-      ? { email: "admin@tertiaryinfotech.com", password: "Tertiary@888" }
-      : { email: "sarah.johnson@tertiaryinfotech.com", password: "Tertiary@888" };
+      ? { email: "admin@tertiaryinfotech.com", password: "123456" }
+      : { email: "staff@tertiaryinfotech.com", password: "123456" };
+
     try {
-      const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
-      const { csrfToken } = await csrfRes.json();
+      const result = await signIn("credentials", {
+        ...credentials,
+        redirect: false,
+      });
 
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = "/api/auth/callback/credentials";
-
-      const fields = { csrfToken, email: credentials.email, password: credentials.password, callbackUrl: "/dashboard" };
-      for (const [key, value] of Object.entries(fields)) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
+      if (result?.error) {
+        setError("Invalid credentials. Make sure test accounts exist (run prisma seed).");
+        setSkipLoadingRole(null);
+      } else {
+        window.location.href = "/dashboard";
       }
-
-      document.body.appendChild(form);
-      form.submit();
     } catch {
       setError("Skip login failed.");
       setSkipLoadingRole(null);
@@ -105,30 +90,7 @@ function LoginForm() {
     setError("");
     setIsGoogleLoading(true);
     try {
-      // Step 1: Fetch CSRF token — this also sets the authjs.csrf-token cookie
-      const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
-      const { csrfToken } = await csrfRes.json();
-
-      // Step 2: Submit form POST — browser natively follows the 302 redirect to Google
-      // Form submissions always include cookies, so the CSRF cookie from step 1 is sent
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = "/api/auth/signin/google";
-
-      const csrfInput = document.createElement("input");
-      csrfInput.type = "hidden";
-      csrfInput.name = "csrfToken";
-      csrfInput.value = csrfToken;
-      form.appendChild(csrfInput);
-
-      const callbackInput = document.createElement("input");
-      callbackInput.type = "hidden";
-      callbackInput.name = "callbackUrl";
-      callbackInput.value = "/dashboard";
-      form.appendChild(callbackInput);
-
-      document.body.appendChild(form);
-      form.submit();
+      await signIn("google", { callbackUrl: "/dashboard" });
     } catch {
       setError("Google sign-in failed. Please try again.");
       setIsGoogleLoading(false);

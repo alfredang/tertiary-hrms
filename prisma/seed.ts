@@ -130,8 +130,7 @@ async function main() {
       id: randomUUID(),
       userId: adminUser.id,
       employeeId: "EMP001",
-      firstName: "Ang",
-      lastName: "Chew Hoe",
+      name: "ANG CHEW HOE",
       email: "admin@tertiaryinfotech.com",
       phone: "+65 9123 4567",
       dateOfBirth: new Date("1985-06-15"),
@@ -201,8 +200,7 @@ async function main() {
     create: {
       userId: staffUser.id,
       employeeId: "EMP007",
-      firstName: "Test",
-      lastName: "Staff",
+      name: "STAFF TEST",
       email: "staff@tertiaryinfotech.com",
       phone: "+65 9000 0007",
       dateOfBirth: new Date("1995-03-20"),
@@ -254,11 +252,11 @@ async function main() {
   // Create sample employees
   console.log("Creating sample employees...");
   const sampleEmployees = [
-    { email: "sarah.johnson@tertiaryinfotech.com", firstName: "Sarah", lastName: "Johnson", employeeId: "EMP002", position: "Senior Software Engineer", dept: engDept, salary: 8500, allowances: 500 },
-    { email: "michael.chen@tertiaryinfotech.com", firstName: "Michael", lastName: "Chen", employeeId: "EMP003", position: "Marketing Manager", dept: mktDept, salary: 7200, allowances: 300 },
-    { email: "emily.rodriguez@tertiaryinfotech.com", firstName: "Emily", lastName: "Rodriguez", employeeId: "EMP004", position: "HR Coordinator", dept: hrDept, salary: 5500, allowances: 200 },
-    { email: "james.williams@tertiaryinfotech.com", firstName: "James", lastName: "Williams", employeeId: "EMP005", position: "Sales Representative", dept: salesDept, salary: 5000, allowances: 400 },
-    { email: "lisa.park@tertiaryinfotech.com", firstName: "Lisa", lastName: "Park", employeeId: "EMP006", position: "Financial Analyst", dept: finDept, salary: 6500, allowances: 250 },
+    { email: "sarah.johnson@tertiaryinfotech.com", name: "JOHNSON SARAH", employeeId: "EMP002", position: "Senior Software Engineer", dept: engDept, salary: 8500, allowances: 500 },
+    { email: "michael.chen@tertiaryinfotech.com", name: "CHEN MICHAEL", employeeId: "EMP003", position: "Marketing Manager", dept: mktDept, salary: 7200, allowances: 300 },
+    { email: "emily.rodriguez@tertiaryinfotech.com", name: "RODRIGUEZ EMILY", employeeId: "EMP004", position: "HR Coordinator", dept: hrDept, salary: 5500, allowances: 200 },
+    { email: "james.williams@tertiaryinfotech.com", name: "WILLIAMS JAMES", employeeId: "EMP005", position: "Sales Representative", dept: salesDept, salary: 5000, allowances: 400 },
+    { email: "lisa.park@tertiaryinfotech.com", name: "PARK LISA", employeeId: "EMP006", position: "Financial Analyst", dept: finDept, salary: 6500, allowances: 250 },
   ];
 
   const createdEmployees: any[] = [];
@@ -282,8 +280,7 @@ async function main() {
         id: randomUUID(),
         userId: user.id,
         employeeId: emp.employeeId,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
+        name: emp.name,
         email: emp.email,
         phone: "+65 9" + Math.floor(Math.random() * 10000000).toString().padStart(7, "0"),
         dateOfBirth: new Date(1990, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
@@ -334,7 +331,7 @@ async function main() {
         },
       });
     }
-    console.log(`Created employee: ${emp.firstName} ${emp.lastName}`);
+    console.log(`Created employee: ${emp.name}`);
   }
 
   // Clean up existing sample data to prevent duplicates on re-seed
