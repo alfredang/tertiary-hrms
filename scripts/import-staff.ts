@@ -99,10 +99,9 @@ async function main() {
   // Ensure leave types exist
   const ltData = [
     { code: "AL", name: "Annual Leave", defaultDays: 14, description: "Paid annual leave" },
-    { code: "SL", name: "Sick Leave", defaultDays: 14, description: "Paid sick leave" },
     { code: "MC", name: "Medical Leave", defaultDays: 14, description: "Medical leave" },
     { code: "CL", name: "Compassionate Leave", defaultDays: 3, description: "Bereavement leave" },
-    { code: "NPL", name: "No Pay Leave", defaultDays: 0, description: "Unpaid leave", paid: false },
+    { code: "NPL", name: "No Pay Leave", defaultDays: 14, description: "Unpaid leave", paid: false },
   ];
   for (const lt of ltData) {
     await prisma.leaveType.upsert({

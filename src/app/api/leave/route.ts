@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateDaysBetween, roundToHalf } from "@/lib/utils";
+import { calculateDaysBetween, roundToHalf, prorateLeave } from "@/lib/utils";
 import * as z from "zod";
 
 const leaveRequestSchema = z.object({
@@ -84,8 +84,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get leave type code and employee start date for proration
+    const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { startDate: true },
+    });
+
+    let effectiveEntitlement = Number(balance.entitlement);
+
+    // Annual Leave: prorated based on employee start date
+    // No Pay Leave, MC, CL: full entitlement (no proration)
+    if (leaveType?.code === "AL" && employee?.startDate) {
+      effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate);
+    }
+
     const available =
-      Number(balance.entitlement) -
+      effectiveEntitlement +
+      Number(balance.carriedOver) -
       Number(balance.used) -
       Number(balance.pending);
 

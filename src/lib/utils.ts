@@ -52,15 +52,31 @@ export function roundToHalf(value: number): number {
 }
 
 /**
- * Calculate prorated leave based on days worked this year.
- * Formula: allocation * days_worked / 365
+ * Calculate prorated leave allocation for the year.
+ * - If employee started before Jan 1 of current year → full entitlement
+ * - If employee started mid-year → prorated by remaining months / 12
  * Rounded to nearest 0.5 day.
  */
-export function prorateLeave(annualEntitlement: number): number {
+export function prorateLeave(annualEntitlement: number, employeeStartDate?: Date | string): number {
   const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const daysWorked = Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysWorked === 0) return 0;
-  const prorated = (annualEntitlement * daysWorked) / 365;
+  const currentYear = now.getFullYear();
+  const yearStart = new Date(currentYear, 0, 1);
+
+  let effectiveStart = yearStart;
+  if (employeeStartDate) {
+    const startDate = typeof employeeStartDate === "string" ? new Date(employeeStartDate) : employeeStartDate;
+    if (startDate > yearStart) {
+      effectiveStart = startDate;
+    }
+  }
+
+  // If employee hasn't started yet, no leave
+  if (effectiveStart > now) return 0;
+
+  // Calculate remaining months from effective start month to end of year
+  const startMonth = effectiveStart.getMonth(); // 0-indexed
+  const remainingMonths = 12 - startMonth;
+
+  const prorated = (annualEntitlement * remainingMonths) / 12;
   return roundToHalf(prorated);
 }

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getInitials } from "@/lib/utils";
+import { getInitials, prorateLeave } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   Building2,
@@ -400,7 +400,11 @@ export default async function EmployeeDetailPage({
                 {employee.leaveBalances
                   .filter((balance) => balance.year === new Date().getFullYear())
                   .map((balance) => {
-                    const totalBalance = Number(balance.entitlement) + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
+                    // AL is prorated based on employee start date; others use full entitlement
+                    const effectiveEntitlement = balance.leaveType.code === "AL"
+                      ? prorateLeave(Number(balance.entitlement), employee.startDate)
+                      : Number(balance.entitlement);
+                    const totalBalance = effectiveEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
                     return (
                       <div key={balance.id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -412,7 +416,12 @@ export default async function EmployeeDetailPage({
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-400">Entitlement:</span>
-                            <span className="text-white font-medium">{Number(balance.entitlement)} days</span>
+                            <span className="text-white font-medium">
+                              {effectiveEntitlement} days
+                              {balance.leaveType.code === "AL" && effectiveEntitlement !== Number(balance.entitlement) && (
+                                <span className="text-gray-500 text-xs ml-1">(prorated)</span>
+                              )}
+                            </span>
                           </div>
                           {Number(balance.carriedOver) > 0 && (
                             <div className="flex justify-between">

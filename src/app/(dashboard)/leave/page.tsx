@@ -30,6 +30,12 @@ async function getLeaveBalance(employeeId: string) {
     },
   });
 
+  // Get employee start date for proration
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { startDate: true },
+  });
+
   const rejectedCount = await prisma.leaveRequest.count({
     where: {
       employeeId,
@@ -42,7 +48,7 @@ async function getLeaveBalance(employeeId: string) {
   const allocation = balance ? Number(balance.entitlement) : annualLeaveType.defaultDays;
   const carriedOver = balance ? Number(balance.carriedOver) : 0;
   const taken = balance ? Number(balance.used) : 0;
-  const proRated = prorateLeave(allocation);
+  const proRated = prorateLeave(allocation, employee?.startDate);
 
   return { carriedOver, allocation, taken, rejected: rejectedCount, proRated };
 }
