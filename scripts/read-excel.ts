@@ -11,5 +11,5 @@ console.log(JSON.stringify(data.slice(0, 3), null, 2));
 
 console.log("\nColumn headers:");
 if (data.length > 0) {
-  console.log(Object.keys(data[0]));
+  console.log(Object.keys(data[0] as Record<string, unknown>));
 }

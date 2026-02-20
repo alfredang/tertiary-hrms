@@ -49,20 +49,18 @@ async function updateAdmin() {
     console.log("Password: ***REMOVED***");
 
     // Also update the employee record if needed
-    if (user.employeeId) {
-      const employee = await prisma.employee.findUnique({
-        where: { id: user.employeeId },
-      });
+    const employee = await prisma.employee.findUnique({
+      where: { userId: user.id },
+    });
 
-      if (employee && employee.email !== user.email) {
-        await prisma.employee.update({
-          where: { id: user.employeeId },
-          data: {
-            email: "angch@tertiaryinfotech.com",
-          },
-        });
-        console.log("✓ Employee email updated too!");
-      }
+    if (employee && employee.email !== user.email) {
+      await prisma.employee.update({
+        where: { userId: user.id },
+        data: {
+          email: "angch@tertiaryinfotech.com",
+        },
+      });
+      console.log("✓ Employee email updated too!");
     }
 
     console.log("\n✅ All done! You can now login with:");
