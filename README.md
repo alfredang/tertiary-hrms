@@ -9,7 +9,7 @@
 [![Coolify](https://img.shields.io/badge/Coolify-Self--Hosted-purple?style=flat-square)](https://coolify.io/)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
 
-A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. Cross-platform (Web, iOS, Android) with role-based access control, employee management, leave tracking, payroll processing with Singapore CPF calculations, expense claims, Google OAuth, and an intelligent AI chatbot assistant.
+A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. Cross-platform (Web, iOS, Android) with role-based access control, employee management, leave tracking with monthly accrual proration, payroll processing with Singapore CPF calculations, expense claims, Google OAuth, and an intelligent AI chatbot assistant.
 
 <p align="center">
   <a href="https://hrms.tertiaryinfo.tech"><strong>Live Demo</strong></a> ·
@@ -57,41 +57,53 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Middleware-protected routes with `needsSetup` redirect for new OAuth users
 - Dev quick-login buttons for testing (development mode only)
 
+### RBAC (Role-Based Access Control)
+- **Admin view**: full access to all employees, leave requests, expenses, payroll, and settings
+- **Staff view**: can only see own leave, expenses, payslips, and personal profile
+- View toggle lets admins preview the staff experience
+- Settings page restricted to admin view only
+- Employee list filters and edit buttons hidden in staff view
+- All API routes enforce role-based permissions
+
 ### Dashboard
 - Real-time overview of HR metrics with role-aware stats
 - **Admin view**: pending leave requests, pending MC, pending expense claims
-- **Staff view**: personal leave balance, MC balance
-- Recent activity feed (expenses and leave requests)
+- **Staff view**: personal leave balance, MC balance, expense claims (YTD)
+- Recent activity feed (expenses and leave requests), filtered by role
 - Quick action cards for common tasks
 
 ### Staff Directory
 - Complete employee database with search and filters
 - Grid and list view options
-- Inline employee editing via slide-out sheet
+- Inline employee editing via slide-out sheet (admin only)
 - Personal info, employment details, and salary management
-- Role-based access control (Staff, Manager, HR, Admin)
 - Manager assignment and organizational hierarchy
 
 ### Leave Management
-- Multiple leave types (Annual Leave, Sick Leave, Medical Certificate, Compassionate)
+- **Leave types**: Annual Leave (AL: 14 days), Medical Certificate (MC: 14 days), Compassionate Leave (CL: 3 days), No-Pay Leave (NPL: 14 days)
+- **Monthly accrual proration** for Annual Leave — allocation = entitlement x elapsed months / 12, rounded down to nearest 0.5 day
 - Leave balance tracking per employee per year with carry-over support
+- Dashboard shows Entitlement, Allocation (pro-rated), Balance from Last Year, Leave Taken, Leave Rejected, and Remaining Balance
 - **Leave request form** with date range picker and reason
 - MC submission with **doctor's certificate upload**
-- Pro-rated entitlements for new employees
 - Admin approval/rejection workflow
 - Status filtering (Pending, Approved, Rejected)
 - Automatic balance deduction upon approval
+- Calendar sync — approved leave/MC events automatically appear on the calendar
 
 ### Payroll
-- Singapore CPF contribution calculations
-  - Employee contribution: 20% (age ≤55)
-  - Employer contribution: 17% (age ≤55)
-  - Age-based rate adjustments
+- Singapore CPF contribution calculations using `decimal.js` for precision
+  - Employee contribution: 20% (age ≤55), with age-based rate adjustments
+  - Employer contribution: 17% (age ≤55), with age-based rate adjustments
   - Monthly OW ceiling: $8,000
   - Annual wage ceiling: $102,000
-- **Payroll generation** for individual employees or all active staff
+- **Excel upload** — admin can upload an Excel file with salary and CPF data; payslips are auto-generated or overwritten for the selected month
+  - Flexible column matching (supports "Basic Salary", "BasicSalary", "Basic", etc.)
+  - Employee matching by Employee ID or Name
+  - Detailed upload results with per-row error reporting
+- **Auto-generate payroll** from employee salary data with CPF calculations
 - Monthly payslip generation with PDF download
-- Payment status tracking (Draft, Finalized, Paid)
+- Payment status tracking (Generated, Finalized, Paid)
 - Admin payroll table with employee details and CPF breakdown
 
 ### Expense Claims
@@ -100,16 +112,19 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - **Expense submission form** with date, amount, and description
 - Approval workflow for managers and admins
 - Multiple status states (Pending, Approved, Rejected, Paid)
+- YTD expense claim amount displayed on staff dashboard
 - Admin and staff views with appropriate filtering
 
 ### Calendar
 - Full calendar view with color-coded events
 - Leave events displayed with status indicators
+- Approved leave/MC automatically synced as calendar events
 - Admin sees all employees' leave; staff sees own leave
 
-### Settings
+### Settings (Admin Only)
 - Company-wide settings management
 - Leave policy configuration
+- Approval email routing for leave/expense/MC notifications
 - System preferences
 
 ### AI Chatbot
@@ -147,7 +162,8 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 | **ORM** | Prisma 6.2 |
 | **Authentication** | NextAuth v5 (Auth.js) — Credentials + Google OAuth |
 | **AI/LLM** | AI SDK (Gemini, OpenAI, Anthropic) |
-| **File Upload** | Local filesystem (UploadThing installed, not wired) |
+| **CPF Calculator** | decimal.js for precise Singapore CPF calculations |
+| **Excel Parsing** | xlsx (SheetJS) for payroll upload |
 | **Mobile** | Capacitor 8 (iOS + Android) |
 | **PDF** | jsPDF + jspdf-autotable |
 | **Testing** | Vitest + Playwright |
@@ -161,7 +177,7 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 
 - Node.js 18+
 - npm
-- PostgreSQL database (via Coolify)
+- PostgreSQL database (via Coolify or local)
 - [Google Cloud Console](https://console.cloud.google.com) project (for OAuth)
 - AI API key (Google Gemini, OpenAI, or Anthropic — optional, for chatbot)
 
@@ -194,9 +210,6 @@ AUTH_URL="http://localhost:3000"
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
-# UploadThing (for receipt/document uploads)
-UPLOADTHING_TOKEN="your-uploadthing-token"
-
 # AI Chatbot (at least one required for chatbot feature)
 GOOGLE_GENERATIVE_AI_API_KEY=""
 OPENAI_API_KEY=""
@@ -205,16 +218,17 @@ ANTHROPIC_API_KEY=""
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_COMPANY_NAME="Your Company Name"
+
+# Development (skip auth for quick testing)
+SKIP_AUTH="false"
 ```
 
 ### Database Setup
 
 ```bash
 npx prisma db push
-npx tsx prisma/seed.ts --confirm
+npx tsx scripts/import-staff.ts
 ```
-
-> **Warning:** The seed script deletes all leave requests, expenses, payslips, and calendar events before re-creating sample data. The `--confirm` flag is required to prevent accidental data wipe.
 
 ### Run Development Server
 
@@ -230,8 +244,9 @@ In development mode, use the **Dev Quick Login** buttons on the login page, or e
 
 | Email | Password | Role | Employee |
 |-------|----------|------|----------|
-| admin@tertiaryinfotech.com | 123456 | Admin | TEST ADMIN (EMP098) |
+| admin@tertiaryinfotech.com | 123456 | Admin | TAN SOIK CHING (EMP001) |
 | staff@tertiaryinfotech.com | 123456 | Staff | TEST STAFF (EMP099) |
+| staff2@tertiaryinfotech.com | 123456 | Staff | CHONG KAH YOONG (EMP002) |
 
 ---
 
@@ -287,6 +302,7 @@ tertiary-hrms/
 │   ├── schema.prisma              # Database schema
 │   └── seed.ts                    # Seed data with test accounts
 ├── scripts/
+│   ├── import-staff.ts            # Import staff from Excel + create test accounts
 │   └── test-login.ts              # Playwright login tests
 ├── src/
 │   ├── app/
@@ -296,16 +312,16 @@ tertiary-hrms/
 │   │   │   ├── employees/         # Employee directory + profiles
 │   │   │   ├── leave/             # Leave management + request form
 │   │   │   ├── expenses/          # Expense claims + submit form
-│   │   │   ├── payroll/           # Payroll + generation
+│   │   │   ├── payroll/           # Payroll + generation + Excel upload
 │   │   │   ├── calendar/          # Calendar view
-│   │   │   ├── settings/          # System settings
+│   │   │   ├── settings/          # System settings (admin only)
 │   │   │   └── pending-setup/     # OAuth user pending setup page
 │   │   └── api/                   # API routes
 │   │       ├── auth/              # NextAuth endpoints
 │   │       ├── employees/         # Employee CRUD
-│   │       ├── leave/             # Leave request submission
-│   │       ├── expenses/          # Expense claim submission
-│   │       ├── payroll/           # Payroll generation
+│   │       ├── leave/             # Leave request + approval
+│   │       ├── expenses/          # Expense claim + approval
+│   │       ├── payroll/           # Payroll generation + Excel upload
 │   │       ├── upload/            # File uploads
 │   │       ├── settings/          # Settings API
 │   │       ├── cron/              # Scheduled tasks
@@ -324,6 +340,8 @@ tertiary-hrms/
 │   ├── lib/
 │   │   ├── auth.ts                # NextAuth config (credentials + Google)
 │   │   ├── prisma.ts              # Prisma client
+│   │   ├── cpf-calculator.ts      # Singapore CPF calculations (decimal.js)
+│   │   ├── utils.ts               # Formatting, leave proration, helpers
 │   │   ├── view-mode.ts           # Admin/Staff view toggle
 │   │   ├── constants.ts           # App constants
 │   │   └── validations/           # Zod schemas
@@ -344,7 +362,7 @@ tertiary-hrms/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start development server |
-| `npm run build` | Build for production (includes db push + seed) |
+| `npm run build` | Build for production |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run Vitest unit tests |
