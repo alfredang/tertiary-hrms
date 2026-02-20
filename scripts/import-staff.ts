@@ -43,7 +43,26 @@ function generateEmail(fullName: string): string {
 }
 
 async function main() {
-  console.log("=== Staff Import from staff.xlsx ===\n");
+  // Check for --force flag to do a clean import (destructive)
+  const forceMode = process.argv.includes("--force");
+
+  console.log("=== Staff Import from staff.xlsx ===");
+  console.log(`Mode: ${forceMode ? "FORCE (will delete existing data)" : "SAFE (upsert, preserves existing data)"}\n`);
+
+  if (forceMode) {
+    console.log("⚠️  FORCE MODE: Clearing all existing data...");
+    await prisma.calendarEvent.deleteMany({});
+    await prisma.payslip.deleteMany({});
+    await prisma.leaveRequest.deleteMany({});
+    await prisma.leaveBalance.deleteMany({});
+    await prisma.expenseClaim.deleteMany({});
+    await prisma.salaryInfo.deleteMany({});
+    await prisma.employee.deleteMany({});
+    await prisma.account.deleteMany({});
+    await prisma.session.deleteMany({});
+    await prisma.user.deleteMany({});
+    console.log("Done clearing data\n");
+  }
 
   // Read Excel
   const workbook = XLSX.readFile("staff.xlsx");
@@ -59,21 +78,7 @@ async function main() {
   const empCpfCol = colKeys.find(k => k.includes("Employee") && k.includes("CPF"))!;
   const erCpfCol = colKeys.find(k => k.includes("Employer") && k.includes("CPF"))!;
 
-  // Clear ALL existing data (respect FK order)
-  console.log("Clearing all existing data...");
-  await prisma.calendarEvent.deleteMany({});
-  await prisma.payslip.deleteMany({});
-  await prisma.leaveRequest.deleteMany({});
-  await prisma.leaveBalance.deleteMany({});
-  await prisma.expenseClaim.deleteMany({});
-  await prisma.salaryInfo.deleteMany({});
-  await prisma.employee.deleteMany({});
-  await prisma.account.deleteMany({});
-  await prisma.session.deleteMany({});
-  await prisma.user.deleteMany({});
-  console.log("Done\n");
-
-  // Ensure departments exist
+  // Ensure departments exist (upsert — won't overwrite your manual renames)
   const deptData = [
     { code: "ENG", name: "Engineering", description: "Software Development Team" },
     { code: "MKT", name: "Marketing", description: "Marketing and Communications" },
@@ -85,32 +90,28 @@ async function main() {
   for (const d of deptData) {
     departments[d.code] = await prisma.department.upsert({
       where: { code: d.code },
-      update: {},
+      update: {}, // Don't overwrite existing department names/descriptions
       create: { id: randomUUID(), name: d.name, code: d.code, description: d.description },
     });
   }
   console.log("Departments ready\n");
 
   // Ensure leave types exist
-  let leaveTypes = await prisma.leaveType.findMany();
-  if (leaveTypes.length === 0) {
-    console.log("Creating leave types...");
-    const ltData = [
-      { code: "AL", name: "Annual Leave", defaultDays: 14, description: "Paid annual leave" },
-      { code: "SL", name: "Sick Leave", defaultDays: 14, description: "Paid sick leave" },
-      { code: "MC", name: "Medical Leave", defaultDays: 14, description: "Medical leave" },
-      { code: "CL", name: "Compassionate Leave", defaultDays: 3, description: "Bereavement leave" },
-      { code: "NPL", name: "No Pay Leave", defaultDays: 0, description: "Unpaid leave", paid: false },
-    ];
-    for (const lt of ltData) {
-      await prisma.leaveType.upsert({
-        where: { code: lt.code },
-        update: {},
-        create: { id: randomUUID(), ...lt },
-      });
-    }
-    leaveTypes = await prisma.leaveType.findMany();
+  const ltData = [
+    { code: "AL", name: "Annual Leave", defaultDays: 14, description: "Paid annual leave" },
+    { code: "SL", name: "Sick Leave", defaultDays: 14, description: "Paid sick leave" },
+    { code: "MC", name: "Medical Leave", defaultDays: 14, description: "Medical leave" },
+    { code: "CL", name: "Compassionate Leave", defaultDays: 3, description: "Bereavement leave" },
+    { code: "NPL", name: "No Pay Leave", defaultDays: 0, description: "Unpaid leave", paid: false },
+  ];
+  for (const lt of ltData) {
+    await prisma.leaveType.upsert({
+      where: { code: lt.code },
+      update: {},
+      create: { id: randomUUID(), ...lt },
+    });
   }
+  const leaveTypes = await prisma.leaveType.findMany();
   console.log(`Leave types ready: ${leaveTypes.length}\n`);
 
   // Ensure expense categories exist
@@ -132,7 +133,7 @@ async function main() {
   const hashedPassword = await bcrypt.hash("123456", 12);
   const currentYear = new Date().getFullYear();
 
-  console.log("Importing 13 real staff:\n");
+  console.log("Importing 13 real staff (upsert mode):\n");
 
   let adminEmployee: any = null;
 
@@ -152,9 +153,11 @@ async function main() {
     const email = meta.emailOverride || generateEmail(fullName);
     const employeeId = `EMP${String(row["/N"]).padStart(3, "0")}`;
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
+    // Upsert user (by email) — won't overwrite existing data
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {}, // Don't overwrite — preserve any manual changes
+      create: {
         id: randomUUID(),
         email,
         password: hashedPassword,
@@ -162,9 +165,11 @@ async function main() {
       },
     });
 
-    // Create employee with single name field (LASTNAME FIRSTNAME format from Excel)
-    const employee = await prisma.employee.create({
-      data: {
+    // Upsert employee (by email) — won't overwrite existing data
+    const employee = await prisma.employee.upsert({
+      where: { email },
+      update: {}, // Don't overwrite — preserve any manual changes
+      create: {
         id: randomUUID(),
         userId: user.id,
         employeeId,
@@ -187,12 +192,14 @@ async function main() {
       adminEmployee = employee;
     }
 
-    // Create salary info
+    // Upsert salary info
     const empRate = wages > 0 ? Math.round((employeeCpf / wages) * 10000) / 100 : 20;
     const erRate = wages > 0 ? Math.round((employerCpf / wages) * 10000) / 100 : 17;
 
-    await prisma.salaryInfo.create({
-      data: {
+    await prisma.salaryInfo.upsert({
+      where: { employeeId: employee.id },
+      update: {}, // Don't overwrite — preserve any manual changes
+      create: {
         id: randomUUID(),
         employeeId: employee.id,
         basicSalary: wages,
@@ -203,10 +210,18 @@ async function main() {
       },
     });
 
-    // Create leave balances
+    // Upsert leave balances
     for (const lt of leaveTypes) {
-      await prisma.leaveBalance.create({
-        data: {
+      await prisma.leaveBalance.upsert({
+        where: {
+          employeeId_leaveTypeId_year: {
+            employeeId: employee.id,
+            leaveTypeId: lt.id,
+            year: currentYear,
+          },
+        },
+        update: {}, // Don't overwrite — preserve any manual changes
+        create: {
           id: randomUUID(),
           employeeId: employee.id,
           leaveTypeId: lt.id,
@@ -222,20 +237,24 @@ async function main() {
     console.log(`  ${employeeId} ${fullName.padEnd(30)} ${meta.role.padEnd(6)} ${meta.dept.padEnd(6)} $${String(wages).padStart(6)} ${email}`);
   }
 
-  // Create test accounts for dev quick login
-  console.log("\nCreating test accounts for dev quick login...");
+  // Create test accounts for dev quick login (upsert)
+  console.log("\nCreating test accounts for dev quick login (upsert)...");
 
   // TEST ADMIN
-  const adminTestUser = await prisma.user.create({
-    data: {
+  const adminTestUser = await prisma.user.upsert({
+    where: { email: "admin@tertiaryinfotech.com" },
+    update: {},
+    create: {
       id: randomUUID(),
       email: "admin@tertiaryinfotech.com",
       password: hashedPassword,
       role: "ADMIN",
     },
   });
-  const adminTestEmp = await prisma.employee.create({
-    data: {
+  const adminTestEmp = await prisma.employee.upsert({
+    where: { email: "admin@tertiaryinfotech.com" },
+    update: {},
+    create: {
       id: randomUUID(),
       userId: adminTestUser.id,
       employeeId: "EMP098",
@@ -251,9 +270,18 @@ async function main() {
       status: "ACTIVE",
     },
   });
+  // Upsert leave balances for test admin
   for (const lt of leaveTypes) {
-    await prisma.leaveBalance.create({
-      data: {
+    await prisma.leaveBalance.upsert({
+      where: {
+        employeeId_leaveTypeId_year: {
+          employeeId: adminTestEmp.id,
+          leaveTypeId: lt.id,
+          year: currentYear,
+        },
+      },
+      update: {},
+      create: {
         id: randomUUID(),
         employeeId: adminTestEmp.id,
         leaveTypeId: lt.id,
@@ -268,16 +296,20 @@ async function main() {
   console.log("  EMP098 TEST ADMIN (dev login)  admin@tertiaryinfotech.com");
 
   // TEST STAFF
-  const staffTestUser = await prisma.user.create({
-    data: {
+  const staffTestUser = await prisma.user.upsert({
+    where: { email: "staff@tertiaryinfotech.com" },
+    update: {},
+    create: {
       id: randomUUID(),
       email: "staff@tertiaryinfotech.com",
       password: hashedPassword,
       role: "STAFF",
     },
   });
-  const staffTestEmp = await prisma.employee.create({
-    data: {
+  const staffTestEmp = await prisma.employee.upsert({
+    where: { email: "staff@tertiaryinfotech.com" },
+    update: {},
+    create: {
       id: randomUUID(),
       userId: staffTestUser.id,
       employeeId: "EMP099",
@@ -294,9 +326,18 @@ async function main() {
       managerId: adminTestEmp.id,
     },
   });
+  // Upsert leave balances for test staff
   for (const lt of leaveTypes) {
-    await prisma.leaveBalance.create({
-      data: {
+    await prisma.leaveBalance.upsert({
+      where: {
+        employeeId_leaveTypeId_year: {
+          employeeId: staffTestEmp.id,
+          leaveTypeId: lt.id,
+          year: currentYear,
+        },
+      },
+      update: {},
+      create: {
         id: randomUUID(),
         employeeId: staffTestEmp.id,
         leaveTypeId: lt.id,
@@ -319,6 +360,8 @@ async function main() {
   console.log(`\nLogin credentials (password: 123456):`);
   console.log(`  Admin: admin@tertiaryinfotech.com (TEST ADMIN)`);
   console.log(`  Staff: staff@tertiaryinfotech.com (TEST STAFF)`);
+  console.log(`\n💡 To do a clean re-import (deletes all data), run:`);
+  console.log(`   npx tsx scripts/import-staff.ts --force`);
 }
 
 main()
