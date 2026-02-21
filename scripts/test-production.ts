@@ -2,6 +2,7 @@ import { chromium } from "playwright";
 
 const PROD_URL = "https://hrms.tertiaryinfo.tech";
 const LOCAL_URL = "http://localhost:3000";
+const TEST_PASSWORD = process.env.TEST_PASSWORD || "123456";
 
 interface TestResult {
   name: string;
@@ -155,7 +156,7 @@ async function testDashboardPages(baseUrl: string, label: string) {
     // Login first
     await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle", timeout: 30000 });
     await page.fill('input[id="email"]', "admin@tertiaryinfotech.com");
-    await page.fill('input[id="password"]', "123456");
+    await page.fill('input[id="password"]', TEST_PASSWORD);
     await Promise.all([
       page.waitForURL("**/dashboard**", { timeout: 20000 }).catch(() => null),
       page.click('button[type="submit"]'),
@@ -214,12 +215,12 @@ async function main() {
   await testLoginPage(LOCAL_URL, "LOCAL");
 
   // Admin login
-  await testCredentialsLogin(PROD_URL, "PROD", "admin@tertiaryinfotech.com", "123456", true);
-  await testCredentialsLogin(LOCAL_URL, "LOCAL", "admin@tertiaryinfotech.com", "123456", true);
+  await testCredentialsLogin(PROD_URL, "PROD", "admin@tertiaryinfotech.com", TEST_PASSWORD, true);
+  await testCredentialsLogin(LOCAL_URL, "LOCAL", "admin@tertiaryinfotech.com", TEST_PASSWORD, true);
 
   // Staff login
-  await testCredentialsLogin(PROD_URL, "PROD", "staff@tertiaryinfotech.com", "123456", true);
-  await testCredentialsLogin(LOCAL_URL, "LOCAL", "staff@tertiaryinfotech.com", "123456", true);
+  await testCredentialsLogin(PROD_URL, "PROD", "staff@tertiaryinfotech.com", TEST_PASSWORD, true);
+  await testCredentialsLogin(LOCAL_URL, "LOCAL", "staff@tertiaryinfotech.com", TEST_PASSWORD, true);
 
   // Wrong password
   await testCredentialsLogin(PROD_URL, "PROD", "admin@tertiaryinfotech.com", "wrongpass", false);

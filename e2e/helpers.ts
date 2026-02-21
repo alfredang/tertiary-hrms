@@ -1,5 +1,7 @@
 import { Page, expect } from "@playwright/test";
 
+const TEST_PASSWORD = process.env.TEST_PASSWORD || "123456";
+
 /** Login as a specific user via the credentials form */
 export async function loginAs(page: Page, email: string, password: string) {
   await page.goto("/login");
@@ -16,14 +18,14 @@ export async function loginAs(page: Page, email: string, password: string) {
 
 /** Login as admin */
 export async function loginAsAdmin(page: Page) {
-  await loginAs(page, "admin@tertiaryinfotech.com", "123456");
+  await loginAs(page, "admin@tertiaryinfotech.com", TEST_PASSWORD);
   // Wait for dashboard content to actually load
   await page.waitForLoadState("networkidle");
 }
 
 /** Login as staff */
 export async function loginAsStaff(page: Page) {
-  await loginAs(page, "staff@tertiaryinfotech.com", "123456");
+  await loginAs(page, "staff@tertiaryinfotech.com", TEST_PASSWORD);
   await page.waitForLoadState("networkidle");
 }
 

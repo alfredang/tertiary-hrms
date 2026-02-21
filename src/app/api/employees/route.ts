@@ -59,7 +59,8 @@ export async function POST(req: NextRequest) {
       : 0;
     const employeeId = `EMP${String(lastNum + 1).padStart(3, "0")}`;
 
-    const hashedPassword = await bcrypt.hash(password || "123456", 12);
+    const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || "123456";
+    const hashedPassword = await bcrypt.hash(password || defaultPassword, 12);
 
     const result = await prisma.$transaction(async (tx) => {
       // Create user

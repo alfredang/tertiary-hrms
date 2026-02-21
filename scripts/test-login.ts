@@ -1,5 +1,7 @@
 import { chromium } from "playwright";
 
+const TEST_PASSWORD = process.env.TEST_PASSWORD || "123456";
+
 async function testLogin(email: string, password: string, role: string) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
@@ -168,8 +170,8 @@ async function main() {
 
   await testSkipLogin("admin");
   await testSkipLogin("staff");
-  await testLogin("admin@tertiaryinfotech.com", "123456", "admin");
-  await testLogin("staff@tertiaryinfotech.com", "123456", "staff");
+  await testLogin("admin@tertiaryinfotech.com", TEST_PASSWORD, "admin");
+  await testLogin("staff@tertiaryinfotech.com", TEST_PASSWORD, "staff");
   await testWrongPassword();
 
   console.log("\n=== Tests Complete ===");

@@ -26,8 +26,12 @@ async function createAdmin() {
       console.log("✓ Created HR department");
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash("***REMOVED***", 10);
+    // Hash password from environment variable
+    const password = process.env.ADMIN_PASSWORD;
+    if (!password) {
+      throw new Error("ADMIN_PASSWORD environment variable is required");
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user first
     const user = await prisma.user.create({
@@ -65,7 +69,6 @@ async function createAdmin() {
 
     console.log("\n✅ Admin user created successfully!");
     console.log("Email: angch@tertiaryinfotech.com");
-    console.log("Password: ***REMOVED***");
     console.log("Role: ADMIN");
     console.log("Employee ID: EMP001");
   } catch (error) {

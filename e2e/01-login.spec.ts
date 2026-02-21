@@ -27,7 +27,7 @@ test.describe("Login Tests", () => {
   test("Login with non-existent user shows error", async ({ page }) => {
     await page.goto("/login");
     await page.fill('input[id="email"]', "nobody@tertiaryinfotech.com");
-    await page.fill('input[id="password"]', "123456");
+    await page.fill('input[id="password"]', "somepassword");
     await page.click('button[type="submit"]');
     await page.waitForTimeout(5000);
     await expect(page).toHaveURL(/\/login/);

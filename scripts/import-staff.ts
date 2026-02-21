@@ -129,7 +129,8 @@ async function main() {
     });
   }
 
-  const hashedPassword = await bcrypt.hash("123456", 12);
+  const seedPassword = process.env.SEED_PASSWORD || "123456";
+  const hashedPassword = await bcrypt.hash(seedPassword, 12);
   const currentYear = new Date().getFullYear();
 
   console.log("Importing 13 real staff (upsert mode):\n");
@@ -356,7 +357,7 @@ async function main() {
   console.log(`\n=== Import Complete ===`);
   console.log(`Total employees: ${totalEmployees}`);
   console.log(`Total users: ${totalUsers}`);
-  console.log(`\nLogin credentials (password: 123456):`);
+  console.log(`\nLogin credentials (password: ${seedPassword}):`);
   console.log(`  Admin: admin@tertiaryinfotech.com (TEST ADMIN)`);
   console.log(`  Staff: staff@tertiaryinfotech.com (TEST STAFF)`);
   console.log(`\n💡 To do a clean re-import (deletes all data), run:`);

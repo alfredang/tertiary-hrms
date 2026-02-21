@@ -64,9 +64,10 @@ function LoginForm() {
   const handleSkipLogin = async (role: "admin" | "staff") => {
     setError("");
     setSkipLoadingRole(role);
+    const testPassword = process.env.NEXT_PUBLIC_TEST_PASSWORD || "123456";
     const credentials = role === "admin"
-      ? { email: "admin@tertiaryinfotech.com", password: "123456" }
-      : { email: "staff@tertiaryinfotech.com", password: "123456" };
+      ? { email: "admin@tertiaryinfotech.com", password: testPassword }
+      : { email: "staff@tertiaryinfotech.com", password: testPassword };
 
     try {
       const result = await signIn("credentials", {

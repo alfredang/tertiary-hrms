@@ -1,5 +1,7 @@
 import { chromium } from "playwright";
 
+const TEST_PASSWORD = process.env.TEST_PASSWORD || "123456";
+
 async function debugDashboard() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
@@ -92,7 +94,7 @@ async function debugDashboard() {
 
   await page2.goto("http://localhost:3000/login", { waitUntil: "networkidle" });
   await page2.fill('input[id="email"]', "angch@tertiaryinfotech.com");
-  await page2.fill('input[id="password"]', "123456");
+  await page2.fill('input[id="password"]', TEST_PASSWORD);
   await page2.click('button[type="submit"]');
 
   await page2.waitForURL("**/*", { timeout: 15000 }).catch(() => null);

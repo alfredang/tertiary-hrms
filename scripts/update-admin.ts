@@ -28,8 +28,12 @@ async function updateAdmin() {
       console.log("✓ Old user removed");
     }
 
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash("***REMOVED***", 10);
+    // Hash the new password from environment variable
+    const password = process.env.ADMIN_PASSWORD;
+    if (!password) {
+      throw new Error("ADMIN_PASSWORD environment variable is required");
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Update the user with email admin@tertiaryinfotech.com
     const user = await prisma.user.update({
@@ -46,7 +50,6 @@ async function updateAdmin() {
     console.log("✓ User updated successfully!");
     console.log("Email:", user.email);
     console.log("Role:", user.role);
-    console.log("Password: ***REMOVED***");
 
     // Also update the employee record if needed
     const employee = await prisma.employee.findUnique({
@@ -65,7 +68,6 @@ async function updateAdmin() {
 
     console.log("\n✅ All done! You can now login with:");
     console.log("Email: angch@tertiaryinfotech.com");
-    console.log("Password: ***REMOVED***");
     console.log("Role: ADMIN");
   } catch (error) {
     console.error("Error updating admin:", error);
