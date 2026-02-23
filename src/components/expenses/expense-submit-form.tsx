@@ -187,6 +187,7 @@ export function ExpenseSubmitForm({ categories }: ExpenseSubmitFormProps) {
                 value={expenseDate}
                 onChange={(e) => setExpenseDate(e.target.value)}
                 className="bg-gray-900 border-gray-700 text-white"
+                max={new Date().toISOString().split('T')[0]}
                 required
               />
             </div>

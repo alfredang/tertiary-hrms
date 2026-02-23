@@ -16,7 +16,6 @@ interface SalaryInfoFormProps {
 }
 
 export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formErrors = form.formState.errors.salaryInfo as Record<string, any> | undefined;
   const cpfApplicable = form.watch("salaryInfo.cpfApplicable");
   const basicSalary = form.watch("salaryInfo.basicSalary") || 0;

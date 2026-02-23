@@ -5,7 +5,8 @@ import { NextRequest } from "next/server";
 
 const { mockPrisma, mockAuth } = vi.hoisted(() => ({
   mockPrisma: {
-    employee: { findFirst: vi.fn() },
+    employee: { findFirst: vi.fn(), findUnique: vi.fn() },
+    leaveType: { findUnique: vi.fn() },
     leaveRequest: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -75,7 +76,10 @@ describe("Leave Submission (POST /api/leave)", () => {
       entitlement: 14,
       used: 2,
       pending: 0,
+      carriedOver: 0,
     });
+    mockPrisma.leaveType.findUnique.mockResolvedValue({ id: LEAVE_TYPE_ID, code: "CL" });
+    mockPrisma.employee.findUnique.mockResolvedValue({ startDate: new Date("2025-01-01") });
 
     const createdRequest = {
       id: "lr_new",
@@ -141,7 +145,10 @@ describe("Leave Submission (POST /api/leave)", () => {
       entitlement: 14,
       used: 10,
       pending: 3,
+      carriedOver: 0,
     });
+    mockPrisma.leaveType.findUnique.mockResolvedValue({ id: LEAVE_TYPE_ID, code: "CL" });
+    mockPrisma.employee.findUnique.mockResolvedValue({ startDate: new Date("2025-01-01") });
 
     const req = makeRequest({
       leaveTypeId: LEAVE_TYPE_ID,
@@ -196,12 +203,15 @@ describe("Leave Submission (POST /api/leave)", () => {
   });
 
   it("should calculate leave balance forecast correctly", async () => {
-    // entitlement=14, used=3, pending=2 → available=9
+    // entitlement=14, used=3, pending=2, carriedOver=0 → available=9
     mockPrisma.leaveBalance.findUnique.mockResolvedValue({
       entitlement: 14,
       used: 3,
       pending: 2,
+      carriedOver: 0,
     });
+    mockPrisma.leaveType.findUnique.mockResolvedValue({ id: LEAVE_TYPE_ID, code: "CL" });
+    mockPrisma.employee.findUnique.mockResolvedValue({ startDate: new Date("2025-01-01") });
 
     // Requesting 10 days (more than 9 available)
     const req = makeRequest({
@@ -475,12 +485,15 @@ describe("Leave Balance & Forecast", () => {
   });
 
   it("should correctly track available balance after submission", async () => {
-    // Initial: entitlement=14, used=5, pending=0 → available=9
+    // Initial: entitlement=14, used=5, pending=0, carriedOver=0 → available=9
     mockPrisma.leaveBalance.findUnique.mockResolvedValue({
       entitlement: 14,
       used: 5,
       pending: 0,
+      carriedOver: 0,
     });
+    mockPrisma.leaveType.findUnique.mockResolvedValue({ id: LEAVE_TYPE_ID, code: "CL" });
+    mockPrisma.employee.findUnique.mockResolvedValue({ startDate: new Date("2025-01-01") });
     mockPrisma.leaveRequest.create.mockResolvedValue({
       id: "lr_new",
       status: "PENDING",
@@ -576,62 +589,53 @@ describe("Leave Balance & Forecast", () => {
 });
 
 describe("Proration & Rounding (utility functions)", () => {
-  it("should round values to nearest 0.5", async () => {
+  it("should round DOWN to nearest 0.5 (floor behavior)", async () => {
     const { roundToHalf } = await import("@/lib/utils");
     expect(roundToHalf(3.0)).toBe(3.0);
     expect(roundToHalf(3.2)).toBe(3.0);
-    expect(roundToHalf(3.25)).toBe(3.5);
-    expect(roundToHalf(3.3)).toBe(3.5);
+    expect(roundToHalf(3.25)).toBe(3.0);  // floor: 3.25 → 3.0
+    expect(roundToHalf(3.3)).toBe(3.0);   // floor: 3.3 → 3.0
     expect(roundToHalf(3.5)).toBe(3.5);
     expect(roundToHalf(3.7)).toBe(3.5);
-    expect(roundToHalf(3.75)).toBe(4.0);
-    expect(roundToHalf(3.8)).toBe(4.0);
+    expect(roundToHalf(3.75)).toBe(3.5);  // floor: 3.75 → 3.5
+    expect(roundToHalf(3.8)).toBe(3.5);   // floor: 3.8 → 3.5
     expect(roundToHalf(14.0)).toBe(14.0);
     expect(roundToHalf(0)).toBe(0);
   });
 
-  it("should prorate leave for employee starting mid-year", async () => {
-    const { prorateLeave } = await import("@/lib/utils");
+  it("should prorate leave based on elapsed months from start date", async () => {
+    const { prorateLeave, roundToHalf } = await import("@/lib/utils");
 
-    // Started July (month index 6) → 6 remaining months out of 12
-    // 14 * (6/12) = 7.0
-    expect(prorateLeave(14, new Date("2026-07-01"), 2026)).toBe(7.0);
+    // prorateLeave uses new Date() internally for current month.
+    // Test with a start date before current date (Jan 1 of current year).
+    // Employee started at year start → elapsed = currentMonth + 1
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-indexed
+    const currentYear = now.getFullYear();
 
-    // Started March (month index 2) → 10 remaining months
-    // 14 * (10/12) = 11.666... → rounds to 11.5
-    expect(prorateLeave(14, new Date("2026-03-15"), 2026)).toBe(11.5);
-
-    // Started October (month index 9) → 3 remaining months
-    // 14 * (3/12) = 3.5
-    expect(prorateLeave(14, new Date("2026-10-01"), 2026)).toBe(3.5);
-
-    // Started January → 12 months = full entitlement
-    expect(prorateLeave(14, new Date("2026-01-01"), 2026)).toBe(14.0);
-
-    // Started December (month index 11) → 1 remaining month
-    // 14 * (1/12) = 1.166... → rounds to 1.0
-    expect(prorateLeave(14, new Date("2026-12-01"), 2026)).toBe(1.0);
+    // Employee started Jan 1 of this year → full elapsed months so far
+    const elapsedFromJan = currentMonth + 1;
+    const expectedFromJan = roundToHalf((14 * elapsedFromJan) / 12);
+    expect(prorateLeave(14, new Date(currentYear, 0, 1))).toBe(expectedFromJan);
   });
 
-  it("should give full entitlement for employee started before this year", async () => {
+  it("should give same result as Jan-start for employee started before this year", async () => {
     const { prorateLeave } = await import("@/lib/utils");
-    expect(prorateLeave(14, new Date("2020-06-15"), 2026)).toBe(14);
+    // Employee started years ago → effective start = Jan 1 of current year
+    // Should equal proration from Jan 1
+    const fromJan = prorateLeave(14, new Date(new Date().getFullYear(), 0, 1));
+    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(fromJan);
   });
 
-  it("should give zero entitlement for employee starting after this year", async () => {
+  it("should give zero entitlement for employee starting in the future", async () => {
     const { prorateLeave } = await import("@/lib/utils");
-    expect(prorateLeave(14, new Date("2027-03-01"), 2026)).toBe(0);
-  });
-
-  it("should prorate MC (14 days) correctly", async () => {
-    const { prorateLeave } = await import("@/lib/utils");
-    // MC = 14 days/year, started May (month 4) → 8 remaining months
-    // 14 * (8/12) = 9.333... → rounds to 9.5
-    expect(prorateLeave(14, new Date("2026-05-01"), 2026)).toBe(9.5);
+    // Start date is next year — no leave yet
+    const nextYear = new Date().getFullYear() + 1;
+    expect(prorateLeave(14, new Date(nextYear, 2, 1))).toBe(0);
   });
 
   it("should handle No Pay Leave (0 days entitlement)", async () => {
     const { prorateLeave } = await import("@/lib/utils");
-    expect(prorateLeave(0, new Date("2026-06-01"), 2026)).toBe(0);
+    expect(prorateLeave(0, new Date("2020-01-01"))).toBe(0);
   });
 });

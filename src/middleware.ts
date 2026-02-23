@@ -53,6 +53,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
+  // HR management routes (admin, HR, manager only)
+  const hrManagementRoutes = ["/payroll/generate", "/settings"];
+  const isHRRoute = hrManagementRoutes.some((route) => pathname.startsWith(route));
+  const hrAllowedRoles = ["ADMIN", "HR", "MANAGER"];
+
+  if (isHRRoute && !hrAllowedRoles.includes(token?.role as string)) {
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+  }
+
   return NextResponse.next();
 }
 

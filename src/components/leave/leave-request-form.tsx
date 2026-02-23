@@ -178,6 +178,7 @@ export function LeaveRequestForm({ leaveTypes }: LeaveRequestFormProps) {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="bg-gray-900 border-gray-700 text-white"
+                min={startDate}
                 required
               />
             </div>

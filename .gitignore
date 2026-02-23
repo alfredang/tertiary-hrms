@@ -61,3 +61,5 @@ scripts/*.png
 
 # Claude Code
 .claude/
+CLAUDE.md
+.agents/

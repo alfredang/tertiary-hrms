@@ -93,9 +93,9 @@ export async function POST(req: NextRequest) {
 
     let effectiveEntitlement = Number(balance.entitlement);
 
-    // Annual Leave: prorated based on employee start date
-    // No Pay Leave, MC, CL: full entitlement (no proration)
-    if (leaveType?.code === "AL" && employee?.startDate) {
+    // Annual Leave & Medical Leave: prorated based on employee start date
+    // No Pay Leave, CL: full entitlement (no proration)
+    if ((leaveType?.code === "AL" || leaveType?.code === "MC") && employee?.startDate) {
       effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate);
     }
 

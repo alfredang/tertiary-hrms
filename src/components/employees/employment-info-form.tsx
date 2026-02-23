@@ -36,7 +36,6 @@ export function EmploymentInfoForm({
   form,
   departments,
 }: EmploymentInfoFormProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const errors = form.formState.errors.employmentInfo as Record<string, any> | undefined;
   return (
     <div className="space-y-4">

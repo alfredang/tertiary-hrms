@@ -55,6 +55,7 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Admin/Staff **view toggle** — admins can switch between management and personal views
 - JWT-based sessions with automatic role and employee data refresh
 - Middleware-protected routes with `needsSetup` redirect for new OAuth users
+- HR management routes (`/payroll/generate`, `/settings`) restricted to ADMIN/HR/MANAGER via middleware
 - Dev quick-login buttons for testing (development mode only)
 
 ### RBAC (Role-Based Access Control)
@@ -81,7 +82,7 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 
 ### Leave Management
 - **Leave types**: Annual Leave (AL: 14 days), Medical Certificate (MC: 14 days), Compassionate Leave (CL: 3 days), No-Pay Leave (NPL: 14 days)
-- **Monthly accrual proration** for Annual Leave — allocation = entitlement x elapsed months / 12, rounded down to nearest 0.5 day
+- **Monthly accrual proration** for Annual Leave and Medical Leave — allocation = entitlement x elapsed months / 12, rounded down to nearest 0.5 day
 - Leave balance tracking per employee per year with carry-over support
 - Dashboard shows Entitlement, Allocation (pro-rated), Balance from Last Year, Leave Taken, Leave Rejected, and Remaining Balance
 - **Leave request form** with date range picker and reason
@@ -109,7 +110,7 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 ### Expense Claims
 - Category-based expense submission (Transport, Meals, Equipment, etc.)
 - **Receipt upload** with file attachment support
-- **Expense submission form** with date, amount, and description
+- **Expense submission form** with date, amount, and description (future dates blocked)
 - Approval workflow for managers and admins
 - Multiple status states (Pending, Approved, Rejected, Paid)
 - YTD expense claim amount displayed on staff dashboard
@@ -252,13 +253,48 @@ In development mode, use the **Dev Quick Login** buttons on the login page, or e
 
 ## Testing
 
-```bash
-# Run unit tests
-npm run test
+### Unit Tests
 
-# Run Playwright login tests
-npx tsx scripts/test-login.ts
+```bash
+npm run test
 ```
+
+### E2E Tests (Playwright)
+
+39 end-to-end tests covering login, RBAC, leave, expenses, payroll, calendar, view toggle, profile, and employee directory.
+
+```bash
+# Run all e2e tests against local dev server (auto-starts npm run dev)
+npx playwright test
+
+# Run all e2e tests against production
+TEST_ENV=production npx playwright test
+
+# Run a specific test file
+npx playwright test e2e/01-login.spec.ts
+```
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `01-login.spec.ts` | 10 | Auth (admin/staff/wrong pw/non-existent), RBAC, Google OAuth button |
+| `02-leave.spec.ts` | 5 | Leave 1/2/0.5 day, approve/reject, MC submission |
+| `03-expense.spec.ts` | 2 | Expense submit + admin approve |
+| `04-payroll.spec.ts` | 5 | Payroll generate, admin/staff list view, access control |
+| `05-calendar.spec.ts` | 5 | Calendar load (admin/staff), month/year, navigation, legend |
+| `06-multi-staff.spec.ts` | 6 | staff2 login, leave, expense, RBAC, admin sees both |
+| `07-view-toggle.spec.ts` | 6 | View toggle, profile page, employee directory |
+
+### Utility Scripts
+
+```bash
+# Verify database state (read-only, safe for production)
+npx dotenv-cli -e .env.local -- npx tsx scripts/verify-db.ts
+
+# Create salary info for test accounts (safe, only touches test employees)
+npx dotenv-cli -e .env.local -- npx tsx scripts/setup-test-salary.ts
+```
+
+> **Note:** Prisma doesn't auto-load `.env.local` on Windows — use the `dotenv-cli -e .env.local --` prefix for scripts.
 
 ---
 
@@ -301,9 +337,19 @@ tertiary-hrms/
 ├── prisma/
 │   ├── schema.prisma              # Database schema
 │   └── seed.ts                    # Seed data with test accounts
+├── e2e/
+│   ├── helpers.ts                 # Login/logout utilities for all tests
+│   ├── 01-login.spec.ts           # Auth + RBAC tests
+│   ├── 02-leave.spec.ts           # Leave management tests
+│   ├── 03-expense.spec.ts         # Expense claim tests
+│   ├── 04-payroll.spec.ts         # Payroll tests
+│   ├── 05-calendar.spec.ts        # Calendar tests
+│   ├── 06-multi-staff.spec.ts     # Multi-user isolation tests
+│   └── 07-view-toggle.spec.ts     # Admin view toggle + profile tests
 ├── scripts/
 │   ├── import-staff.ts            # Import staff from Excel + create test accounts
-│   └── test-login.ts              # Playwright login tests
+│   ├── verify-db.ts               # Read-only database verification
+│   └── setup-test-salary.ts       # Create salary info for test accounts
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/                # Login page (dark theme)
@@ -367,6 +413,8 @@ tertiary-hrms/
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run Vitest unit tests |
 | `npm run test:watch` | Run tests in watch mode |
+| `npx playwright test` | Run e2e tests (local dev server) |
+| `TEST_ENV=production npx playwright test` | Run e2e tests against production |
 | `npm run db:push` | Push Prisma schema to database |
 | `npm run db:seed` | Seed database with sample data |
 | `npm run cap:sync` | Sync web to native platforms |

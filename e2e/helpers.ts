@@ -5,7 +5,7 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || "123456";
 /** Login as a specific user via the credentials form */
 export async function loginAs(page: Page, email: string, password: string) {
   await page.goto("/login");
-  await page.waitForLoadState("networkidle");
+  await page.waitForSelector('input[id="email"]', { state: "visible", timeout: 15000 });
   await page.fill('input[id="email"]', email);
   await page.fill('input[id="password"]', password);
   await page.click('button[type="submit"]');
@@ -19,14 +19,20 @@ export async function loginAs(page: Page, email: string, password: string) {
 /** Login as admin */
 export async function loginAsAdmin(page: Page) {
   await loginAs(page, "admin@tertiaryinfotech.com", TEST_PASSWORD);
-  // Wait for dashboard content to actually load
-  await page.waitForLoadState("networkidle");
+  // Wait for dashboard content to actually render (not networkidle which can hang in dev)
+  await expect(page.locator("body")).toContainText("Welcome", { timeout: 15000 });
 }
 
 /** Login as staff */
 export async function loginAsStaff(page: Page) {
   await loginAs(page, "staff@tertiaryinfotech.com", TEST_PASSWORD);
-  await page.waitForLoadState("networkidle");
+  await expect(page.locator("body")).toContainText("Welcome", { timeout: 15000 });
+}
+
+/** Login as staff2 */
+export async function loginAsStaff2(page: Page) {
+  await loginAs(page, "staff2@tertiaryinfotech.com", TEST_PASSWORD);
+  await expect(page.locator("body")).toContainText("Welcome", { timeout: 15000 });
 }
 
 /** Logout by navigating directly (clears session) */

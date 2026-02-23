@@ -30,7 +30,6 @@ const educationOptions = [
 ];
 
 export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const errors = form.formState.errors.personalInfo as Record<string, any> | undefined;
   return (
     <div className="space-y-4">

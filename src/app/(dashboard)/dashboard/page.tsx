@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { prorateLeave } from "@/lib/utils";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
@@ -54,11 +55,28 @@ async function getStaffStats(employeeId: string) {
     }),
   ]);
 
+  // Fetch employee start date for leave proration
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { startDate: true },
+  });
+
+  const alEntitlement = alBalance
+    ? (employee?.startDate
+        ? prorateLeave(Number(alBalance.entitlement), employee.startDate)
+        : Number(alBalance.entitlement))
+    : 0;
   const leaveBalance = alBalance
-    ? Number(alBalance.entitlement) + Number(alBalance.carriedOver) - Number(alBalance.used) - Number(alBalance.pending)
+    ? alEntitlement + Number(alBalance.carriedOver) - Number(alBalance.used) - Number(alBalance.pending)
+    : 0;
+
+  const mcEntitlement = mcBalance
+    ? (employee?.startDate
+        ? prorateLeave(Number(mcBalance.entitlement), employee.startDate)
+        : Number(mcBalance.entitlement))
     : 0;
   const mcBalanceVal = mcBalance
-    ? Number(mcBalance.entitlement) + Number(mcBalance.carriedOver) - Number(mcBalance.used) - Number(mcBalance.pending)
+    ? mcEntitlement + Number(mcBalance.carriedOver) - Number(mcBalance.used) - Number(mcBalance.pending)
     : 0;
   const expenseClaimAmount = expenseClaims.reduce((sum, c) => sum + Number(c.amount), 0);
 

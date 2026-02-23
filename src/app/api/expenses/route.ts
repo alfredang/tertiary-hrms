@@ -49,6 +49,32 @@ export async function POST(req: NextRequest) {
     const { categoryId, description, amount, expenseDate, receiptUrl, receiptFileName } =
       validation.data;
 
+    // Reject future dates
+    const expenseDateObj = new Date(expenseDate);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    if (expenseDateObj > todayEnd) {
+      return NextResponse.json(
+        { error: "Expense date cannot be in the future" },
+        { status: 400 }
+      );
+    }
+
+    // Check category maxAmount
+    const category = await prisma.expenseCategory.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (category?.maxAmount && amount > Number(category.maxAmount)) {
+      return NextResponse.json(
+        {
+          error: `Amount exceeds category limit of $${Number(category.maxAmount).toFixed(2)}`,
+          maxAmount: Number(category.maxAmount),
+        },
+        { status: 400 }
+      );
+    }
+
     const expenseClaim = await prisma.expenseClaim.create({
       data: {
         id: `exp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
