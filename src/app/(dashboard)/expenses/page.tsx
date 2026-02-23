@@ -10,7 +10,10 @@ import { formatCurrency } from "@/lib/utils";
 export const dynamic = 'force-dynamic';
 
 async function getExpenseStats(employeeId?: string) {
-  const where = employeeId ? { employeeId } : {};
+  const where = {
+    ...(employeeId ? { employeeId } : {}),
+    status: "APPROVED" as const,
+  };
 
   const totalExpenses = await prisma.expenseClaim.aggregate({
     where,

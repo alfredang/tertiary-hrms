@@ -7,13 +7,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/chat",
+    keepLastMessageOnError: true,
+    onError: () => {
+      toast({
+        title: "Chat unavailable",
+        description: "The AI assistant is not configured yet. Please try again later.",
+        variant: "destructive",
+      });
+    },
   });
 
   const scrollToBottom = () => {
@@ -30,16 +40,16 @@ export function ChatWidget() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed right-6 z-50 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary/90 transition-all bottom-20 lg:bottom-6"
+          className="fixed right-4 sm:right-6 z-50 bg-primary text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-primary/90 transition-all bottom-[4.5rem] lg:bottom-6"
           style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
-          <MessageCircle className="h-6 w-6" />
+          <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
       )}
 
       {/* Chat Window */}
       {isOpen && (
-        <Card className="fixed right-6 z-50 w-96 max-w-[calc(100vw-48px)] shadow-2xl bottom-20 lg:bottom-6" style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <Card className="fixed right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-96 shadow-2xl bottom-[4.5rem] lg:bottom-6" style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}>
           <CardHeader className="bg-primary text-white rounded-t-xl flex flex-row items-center justify-between py-4">
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />

@@ -46,39 +46,46 @@ export async function POST(req: NextRequest) {
 
     if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       try {
-        result = streamText({
+        result = await streamText({
           model: google("gemini-1.5-flash"),
           system: systemPrompt,
           messages,
         });
       } catch (error) {
-        console.error("Gemini error, trying OpenAI:", error);
+        console.error("Gemini error:", error);
+        result = null;
       }
     }
 
     if (!result && process.env.OPENAI_API_KEY) {
       try {
-        result = streamText({
+        result = await streamText({
           model: openai("gpt-4o-mini"),
           system: systemPrompt,
           messages,
         });
       } catch (error) {
-        console.error("OpenAI error, trying Anthropic:", error);
+        console.error("OpenAI error:", error);
+        result = null;
       }
     }
 
     if (!result && process.env.ANTHROPIC_API_KEY) {
-      result = streamText({
-        model: anthropic("claude-3-haiku-20240307"),
-        system: systemPrompt,
-        messages,
-      });
+      try {
+        result = await streamText({
+          model: anthropic("claude-3-haiku-20240307"),
+          system: systemPrompt,
+          messages,
+        });
+      } catch (error) {
+        console.error("Anthropic error:", error);
+        result = null;
+      }
     }
 
     if (!result) {
       return new Response(
-        JSON.stringify({ error: "No AI provider configured" }),
+        JSON.stringify({ error: "No AI provider available. Please configure an API key." }),
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
@@ -86,7 +93,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return (await result).toDataStreamResponse();
+    return result.toDataStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {

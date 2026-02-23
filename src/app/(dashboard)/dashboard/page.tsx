@@ -49,7 +49,7 @@ async function getStaffStats(employeeId: string) {
       where: {
         employeeId,
         createdAt: { gte: yearStart },
-        status: { in: ["APPROVED", "PENDING"] },
+        status: "APPROVED",
       },
       select: { amount: true },
     }),

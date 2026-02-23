@@ -95,9 +95,9 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         {isHR && (
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Search by employee name..."
@@ -108,7 +108,7 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
           </div>
         )}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
@@ -121,115 +121,202 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
       </div>
 
       {isHR ? (
-        /* Admin Table View */
-        <div className="rounded-lg border border-gray-800 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-950 border-b border-gray-800">
-                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Date</th>
-                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Employee Name</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Gross Pay</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employer</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employee</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Take Home Pay</th>
-                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Download</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {filteredPayslips.map((payslip) => (
-                <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
-                  <td className="px-4 py-3 text-sm text-gray-300">
-                    {formatPayPeriod(payslip.payPeriodStart)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-white">
-                    {payslip.employee.name}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
-                    {formatCurrency(Number(payslip.grossSalary))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
-                    {formatCurrency(Number(payslip.cpfEmployer))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
-                    {formatCurrency(Number(payslip.cpfEmployee))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
-                    {formatCurrency(Number(payslip.netSalary))}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownloadPDF(payslip.id)}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Payslip
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        /* Admin View */
+        <>
+          {/* Mobile Cards */}
+          <div className="sm:hidden space-y-3">
+            {filteredPayslips.map((payslip) => (
+              <div key={payslip.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-white">{payslip.employee.name}</span>
+                  <span className="text-xs text-gray-400">{formatPayPeriod(payslip.payPeriodStart)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-gray-500">Gross</span>
+                    <p className="text-sm font-medium text-white">{formatCurrency(Number(payslip.grossSalary))}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-gray-500">Net Pay</span>
+                    <p className="text-sm font-semibold text-white">{formatCurrency(Number(payslip.netSalary))}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>CPF (ER): {formatCurrency(Number(payslip.cpfEmployer))}</span>
+                  <span>CPF (EE): {formatCurrency(Number(payslip.cpfEmployee))}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownloadPDF(payslip.id)}
+                  className="w-full h-8 text-xs"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Download Payslip
+                </Button>
+              </div>
+            ))}
+            {filteredPayslips.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No payslips found</p>
+              </div>
+            )}
+          </div>
 
-          {filteredPayslips.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No payslips found</p>
-            </div>
-          )}
-        </div>
+          {/* Desktop Table */}
+          <div className="hidden sm:block rounded-lg border border-gray-800 overflow-x-auto">
+            <table className="w-full min-w-[650px]">
+              <thead>
+                <tr className="bg-gray-950 border-b border-gray-800">
+                  <th className="text-left text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Date</th>
+                  <th className="text-left text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Employee</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Gross</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (ER)</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (EE)</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Net Pay</th>
+                  <th className="text-left text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">PDF</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {filteredPayslips.map((payslip) => (
+                  <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                    <td className="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">
+                      {formatPayPeriod(payslip.payPeriodStart)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-white whitespace-nowrap">
+                      {payslip.employee.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
+                      {formatCurrency(Number(payslip.grossSalary))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
+                      {formatCurrency(Number(payslip.cpfEmployer))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
+                      {formatCurrency(Number(payslip.cpfEmployee))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
+                      {formatCurrency(Number(payslip.netSalary))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadPDF(payslip.id)}
+                        className="h-8 px-3 text-sm"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Payslip
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {filteredPayslips.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No payslips found</p>
+              </div>
+            )}
+          </div>
+        </>
       ) : (
-        /* Staff Table View */
-        <div className="rounded-lg border border-gray-800 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-950 border-b border-gray-800">
-                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Date</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Gross Pay</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employer</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">CPF Employee</th>
-                <th className="text-right text-sm font-medium text-gray-400 px-4 py-3">Take Home Pay</th>
-                <th className="text-left text-sm font-medium text-gray-400 px-4 py-3">Download</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {filteredPayslips.map((payslip) => (
-                <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
-                  <td className="px-4 py-3 text-sm text-gray-300">
-                    {formatPayPeriod(payslip.payPeriodStart)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
-                    {formatCurrency(Number(payslip.grossSalary))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
-                    {formatCurrency(Number(payslip.cpfEmployer))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-300 text-right">
-                    {formatCurrency(Number(payslip.cpfEmployee))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-white text-right font-medium">
-                    {formatCurrency(Number(payslip.netSalary))}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownloadPDF(payslip.id)}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Payslip
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        /* Staff View */
+        <>
+          {/* Mobile Cards */}
+          <div className="sm:hidden space-y-3">
+            {filteredPayslips.map((payslip) => (
+              <div key={payslip.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-white">{formatPayPeriod(payslip.payPeriodStart)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-gray-500">Gross</span>
+                    <p className="text-sm font-medium text-white">{formatCurrency(Number(payslip.grossSalary))}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-gray-500">Net Pay</span>
+                    <p className="text-sm font-semibold text-white">{formatCurrency(Number(payslip.netSalary))}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>CPF (ER): {formatCurrency(Number(payslip.cpfEmployer))}</span>
+                  <span>CPF (EE): {formatCurrency(Number(payslip.cpfEmployee))}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownloadPDF(payslip.id)}
+                  className="w-full h-8 text-xs"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Download Payslip
+                </Button>
+              </div>
+            ))}
+            {filteredPayslips.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No payslips found</p>
+              </div>
+            )}
+          </div>
 
-          {filteredPayslips.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No payslips found</p>
-            </div>
-          )}
-        </div>
+          {/* Desktop Table */}
+          <div className="hidden sm:block rounded-lg border border-gray-800 overflow-x-auto">
+            <table className="w-full min-w-[500px]">
+              <thead>
+                <tr className="bg-gray-950 border-b border-gray-800">
+                  <th className="text-left text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Date</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Gross</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (ER)</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (EE)</th>
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Net Pay</th>
+                  <th className="text-left text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">PDF</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {filteredPayslips.map((payslip) => (
+                  <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                    <td className="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">
+                      {formatPayPeriod(payslip.payPeriodStart)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
+                      {formatCurrency(Number(payslip.grossSalary))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
+                      {formatCurrency(Number(payslip.cpfEmployer))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
+                      {formatCurrency(Number(payslip.cpfEmployee))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
+                      {formatCurrency(Number(payslip.netSalary))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadPDF(payslip.id)}
+                        className="h-8 px-3 text-sm"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Payslip
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {filteredPayslips.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No payslips found</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

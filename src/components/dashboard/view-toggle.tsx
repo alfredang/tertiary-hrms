@@ -26,23 +26,25 @@ export function ViewToggle() {
     <div className="flex items-center gap-1 bg-gray-900 rounded-lg p-1 border border-gray-800">
       <button
         onClick={() => handleToggle("admin")}
-        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+        className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
           currentView === "admin"
             ? "bg-primary text-white"
             : "text-gray-400 hover:text-white"
         }`}
       >
-        Show as Admin
+        <span className="sm:hidden">Admin</span>
+        <span className="hidden sm:inline">Show as Admin</span>
       </button>
       <button
         onClick={() => handleToggle("staff")}
-        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+        className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
           currentView === "staff"
             ? "bg-primary text-white"
             : "text-gray-400 hover:text-white"
         }`}
       >
-        Show as Staff
+        <span className="sm:hidden">Staff</span>
+        <span className="hidden sm:inline">Show as Staff</span>
       </button>
     </div>
   );

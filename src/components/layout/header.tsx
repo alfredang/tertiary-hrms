@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getInitials } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { LogOut, Settings, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
@@ -73,7 +73,7 @@ export function Header({ isAdmin = false }: HeaderProps) {
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex items-center gap-x-3">
           <MobileSidebar />
-          <h1 className="text-lg font-semibold text-white">{currentPage}</h1>
+          <h1 className={cn("text-lg font-semibold text-white", isAdmin && "hidden sm:block")}>{currentPage}</h1>
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-x-4 lg:gap-x-6">

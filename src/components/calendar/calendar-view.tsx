@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -30,6 +31,7 @@ const eventTypeLabels: Record<string, { label: string; color: string }> = {
 };
 
 export function CalendarView({ events }: CalendarViewProps) {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const { daysInMonth, firstDayOfMonth, monthName, year } = useMemo(() => {
@@ -70,6 +72,13 @@ export function CalendarView({ events }: CalendarViewProps) {
     });
   };
 
+  const handleDayClick = (day: number) => {
+    const y = currentDate.getFullYear();
+    const m = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const d = String(day).padStart(2, "0");
+    router.push(`/calendar/day/${y}-${m}-${d}`);
+  };
+
   const isToday = (day: number) => {
     const today = new Date();
     return (
@@ -92,7 +101,7 @@ export function CalendarView({ events }: CalendarViewProps) {
             {Object.entries(eventTypeLabels).map(([type, { label, color }]) => (
               <div key={type} className="flex items-center gap-2">
                 <div className={cn("w-3 h-3 rounded-full", color)} />
-                <span className="text-sm text-gray-600">{label}</span>
+                <span className="text-sm text-gray-400">{label}</span>
               </div>
             ))}
           </div>
@@ -125,20 +134,21 @@ export function CalendarView({ events }: CalendarViewProps) {
             {days.map((day) => (
               <div
                 key={day}
-                className="text-center text-sm font-medium text-gray-500 py-2"
+                className="text-center text-xs sm:text-sm font-medium text-gray-500 py-2"
               >
-                {day}
+                <span className="sm:hidden">{day[0]}</span>
+                <span className="hidden sm:inline">{day}</span>
               </div>
             ))}
           </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-7 gap-px bg-gray-700 border border-gray-700 rounded-lg overflow-hidden">
             {/* Blank days */}
             {blanks.map((_, index) => (
               <div
                 key={`blank-${index}`}
-                className="bg-gray-50 min-h-[100px] p-2"
+                className="bg-gray-900 min-h-[60px] sm:min-h-[100px] p-1 sm:p-2"
               />
             ))}
 
@@ -150,9 +160,13 @@ export function CalendarView({ events }: CalendarViewProps) {
               return (
                 <div
                   key={day}
+                  onClick={() => handleDayClick(day)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleDayClick(day); }}
                   className={cn(
-                    "bg-white min-h-[100px] p-2",
-                    isCurrentDay && "bg-blue-50"
+                    "bg-gray-950 min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors",
+                    isCurrentDay ? "bg-blue-950/50 hover:bg-blue-950/70" : "hover:bg-gray-900"
                   )}
                 >
                   <div
@@ -160,25 +174,25 @@ export function CalendarView({ events }: CalendarViewProps) {
                       "text-sm font-medium mb-1",
                       isCurrentDay
                         ? "text-white bg-blue-600 w-7 h-7 rounded-full flex items-center justify-center"
-                        : "text-gray-900"
+                        : "text-gray-200"
                     )}
                   >
                     {day}
                   </div>
                   <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((event) => (
+                    {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className="text-xs px-1.5 py-0.5 rounded truncate text-white"
+                        className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 rounded truncate text-white"
                         style={{ backgroundColor: event.color }}
                         title={event.title}
                       >
                         {event.title}
                       </div>
                     ))}
-                    {dayEvents.length > 3 && (
-                      <div className="text-xs text-gray-500 px-1">
-                        +{dayEvents.length - 3} more
+                    {dayEvents.length > 2 && (
+                      <div className="text-[10px] sm:text-xs text-gray-400 px-1">
+                        +{dayEvents.length - 2} more
                       </div>
                     )}
                   </div>

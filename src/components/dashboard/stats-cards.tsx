@@ -52,17 +52,17 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
   }
 
   return (
-    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {cards.map((card, index) => (
         <Card key={index} className="border border-gray-800 bg-gray-950">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">{card.title}</p>
-                <p className="text-2xl font-bold text-white mt-1">{card.value}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-400 truncate">{card.title}</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{card.value}</p>
               </div>
-              <div className={`p-3 rounded-xl ${card.iconBg}`}>
-                <card.icon className={`h-6 w-6 ${card.iconColor}`} />
+              <div className={`p-2 sm:p-3 rounded-xl flex-shrink-0 ml-2 ${card.iconBg}`}>
+                <card.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${card.iconColor}`} />
               </div>
             </div>
           </CardContent>

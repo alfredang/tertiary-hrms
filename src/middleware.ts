@@ -54,7 +54,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // HR management routes (admin, HR, manager only)
-  const hrManagementRoutes = ["/payroll/generate", "/settings"];
+  const hrManagementRoutes = ["/payroll/generate", "/settings", "/calendar/new"];
   const isHRRoute = hrManagementRoutes.some((route) => pathname.startsWith(route));
   const hrAllowedRoles = ["ADMIN", "HR", "MANAGER"];
 
