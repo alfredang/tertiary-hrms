@@ -133,6 +133,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       // Initial sign in
       if (user) {
+        // Explicitly set token.sub since NextAuth v5 beta may not auto-set it for credentials
+        if (user.id) token.sub = user.id;
         (token as any).role = user.role;
         (token as any).employeeId = user.employeeId;
         (token as any).needsSetup = !user.employeeId;

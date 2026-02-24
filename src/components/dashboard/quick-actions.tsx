@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Clock, DollarSign, Calendar, ChevronRight } from "lucide-react";
 
-const actions = [
+const adminActions = [
   {
     title: "Add Employee",
     description: "Register new team member",
@@ -12,6 +12,30 @@ const actions = [
     icon: Users,
     iconBg: "bg-blue-500",
   },
+  {
+    title: "Manage Leaves",
+    description: "Review leave requests",
+    href: "/leave",
+    icon: Clock,
+    iconBg: "bg-amber-500",
+  },
+  {
+    title: "Manage Expense Claims",
+    description: "Review expense claims",
+    href: "/expenses",
+    icon: DollarSign,
+    iconBg: "bg-green-500",
+  },
+  {
+    title: "View Calendar",
+    description: "Check upcoming events",
+    href: "/calendar",
+    icon: Calendar,
+    iconBg: "bg-red-500",
+  },
+];
+
+const staffActions = [
   {
     title: "Request Leave",
     description: "Submit time off request",
@@ -40,9 +64,7 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({ isAdmin = true }: QuickActionsProps) {
-  const visibleActions = isAdmin
-    ? actions
-    : actions.filter((a) => a.title !== "Add Employee");
+  const visibleActions = isAdmin ? adminActions : staffActions;
 
   return (
     <Card className="bg-gray-950 border-gray-800">

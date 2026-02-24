@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateDaysBetween, roundToHalf, prorateLeave } from "@/lib/utils";
+import { calculateDaysBetween, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
 import * as z from "zod";
 
 const leaveRequestSchema = z.object({
@@ -65,6 +65,39 @@ export async function POST(req: NextRequest) {
       ? roundToHalf(submittedDays)
       : roundToHalf(calculateDaysBetween(start, end));
 
+    // Get leave type code and employee start date (needed for overlap check + proration)
+    const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { startDate: true },
+    });
+
+    // Check for overlapping leave requests
+    const overlappingLeaves = await prisma.leaveRequest.findMany({
+      where: {
+        employeeId,
+        status: { in: ["PENDING", "APPROVED"] },
+        startDate: { lte: end },
+        endDate: { gte: start },
+      },
+      select: { startDate: true, endDate: true, days: true, leaveType: { select: { code: true } } },
+    });
+
+    if (overlappingLeaves.length > 0) {
+      const conflictDates = getLeaveConflictDates(
+        start, end, days, leaveType?.code || "",
+        overlappingLeaves.map(l => ({ startDate: l.startDate, endDate: l.endDate, days: Number(l.days), leaveTypeCode: l.leaveType.code }))
+      );
+      if (conflictDates.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Leave overlaps with existing request on: ${conflictDates.join(", ")}. Please choose different dates or use a half-day (0.5) if applying for a medical leave on the same day.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check leave balance
     const currentYear = new Date().getFullYear();
     const balance = await prisma.leaveBalance.findUnique({
@@ -83,13 +116,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Get leave type code and employee start date for proration
-    const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
-    const employee = await prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: { startDate: true },
-    });
 
     let effectiveEntitlement = Number(balance.entitlement);
 

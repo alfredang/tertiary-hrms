@@ -15,14 +15,14 @@ const calendarEventSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    let currentUserId: string | null = null;
+
     if (process.env.SKIP_AUTH !== "true") {
       const session = await auth();
       if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      if (!["ADMIN", "HR"].includes(session.user.role)) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
+      currentUserId = session.user.id;
     }
 
     const body = await req.json();
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         allDay,
         type,
         color: color || null,
+        createdById: currentUserId,
       },
     });
 

@@ -1,21 +1,15 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { cn, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, Users } from "lucide-react";
+import { CalendarEventCard } from "@/components/calendar/calendar-event-card";
 
 export const dynamic = "force-dynamic";
-
-const eventTypeLabels: Record<string, { label: string; dotColor: string; badgeClass: string }> = {
-  HOLIDAY: { label: "Holiday", dotColor: "bg-red-500", badgeClass: "bg-red-500/20 text-red-400 border-red-500/30" },
-  MEETING: { label: "Meeting", dotColor: "bg-blue-500", badgeClass: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  TRAINING: { label: "Training", dotColor: "bg-purple-500", badgeClass: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
-  COMPANY_EVENT: { label: "Company Event", dotColor: "bg-green-500", badgeClass: "bg-green-500/20 text-green-400 border-green-500/30" },
-};
 
 function isValidDate(dateStr: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
@@ -98,6 +92,7 @@ export default async function CalendarDayPage({
   const session = await auth();
   let role = "STAFF";
   let currentEmployeeId: string | undefined;
+  let currentUserId: string | null = null;
 
   if (process.env.SKIP_AUTH === "true") {
     role = "ADMIN";
@@ -107,6 +102,7 @@ export default async function CalendarDayPage({
     }
     role = session.user.role;
     currentEmployeeId = session.user.employeeId;
+    currentUserId = session.user.id;
   }
 
   const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
@@ -222,35 +218,14 @@ export default async function CalendarDayPage({
         <CardContent>
           {hasEvents ? (
             <div className="space-y-3">
-              {events.map((event) => {
-                const typeInfo = eventTypeLabels[event.type] || {
-                  label: event.type,
-                  dotColor: "bg-gray-500",
-                  badgeClass: "bg-gray-500/20 text-gray-400 border-gray-500/30",
-                };
-                return (
-                  <div
-                    key={event.id}
-                    className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={cn("w-3 h-3 rounded-full", typeInfo.dotColor)} />
-                        <span className="font-medium text-white">{event.title}</span>
-                      </div>
-                      <Badge className={typeInfo.badgeClass}>
-                        {typeInfo.label}
-                      </Badge>
-                    </div>
-                    {event.description && (
-                      <p className="text-sm text-gray-400 pl-5">{event.description}</p>
-                    )}
-                    <div className="text-sm text-gray-400 pl-5">
-                      {formatDate(event.startDate)} — {formatDate(event.endDate)}
-                    </div>
-                  </div>
-                );
-              })}
+              {events.map((event) => (
+                <CalendarEventCard
+                  key={event.id}
+                  event={event}
+                  currentUserId={currentUserId}
+                  isAdmin={isAdmin}
+                />
+              ))}
             </div>
           ) : (
             <p className="text-gray-500 text-sm py-4 text-center">

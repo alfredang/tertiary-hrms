@@ -304,6 +304,7 @@ enum ExpenseStatus {
   PENDING
   APPROVED
   REJECTED
+  CANCELLED
   PAID
 }
 

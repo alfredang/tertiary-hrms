@@ -9,6 +9,7 @@ const { mockPrisma, mockAuth } = vi.hoisted(() => ({
     leaveType: { findUnique: vi.fn() },
     leaveRequest: {
       create: vi.fn(),
+      findMany: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
     },
@@ -64,6 +65,8 @@ describe("Leave Submission (POST /api/leave)", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user_001", email: "staff@test.com", role: "STAFF", employeeId: EMPLOYEE_ID },
     });
+    // Default: no overlapping leaves
+    mockPrisma.leaveRequest.findMany.mockResolvedValue([]);
   });
 
   it("should create a PENDING leave request and increment pending balance", async () => {
@@ -482,6 +485,8 @@ describe("Leave Balance & Forecast", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user_001", email: "staff@test.com", role: "STAFF", employeeId: EMPLOYEE_ID },
     });
+    // Default: no overlapping leaves
+    mockPrisma.leaveRequest.findMany.mockResolvedValue([]);
   });
 
   it("should correctly track available balance after submission", async () => {

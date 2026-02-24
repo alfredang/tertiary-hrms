@@ -24,24 +24,40 @@ const EVENT_TYPES = [
   { value: "COMPANY_EVENT", label: "Company Event" },
 ];
 
-export function CalendarEventForm() {
+interface CalendarEventFormProps {
+  initialData?: {
+    title: string;
+    description: string;
+    startDate: string; // "YYYY-MM-DD"
+    endDate: string;   // "YYYY-MM-DD"
+    allDay: boolean;
+    type: string;
+  };
+  eventId?: string; // If provided → PATCH (edit) mode
+}
+
+export function CalendarEventForm({ initialData, eventId }: CalendarEventFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const isEditMode = !!eventId;
+
   const [isLoading, setIsLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [allDay, setAllDay] = useState(true);
-  const [eventType, setEventType] = useState("");
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [title, setTitle] = useState(initialData?.title ?? "");
+  const [description, setDescription] = useState(initialData?.description ?? "");
+  const [startDate, setStartDate] = useState(initialData?.startDate ?? "");
+  const [endDate, setEndDate] = useState(initialData?.endDate ?? "");
+  const [allDay, setAllDay] = useState(initialData?.allDay ?? true);
+  const [eventType, setEventType] = useState(initialData?.type ?? "");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSave = async () => {
     setIsLoading(true);
-
     try {
-      const res = await fetch("/api/calendar", {
-        method: "POST",
+      const url = isEditMode ? `/api/calendar/${eventId}` : "/api/calendar";
+      const method = isEditMode ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
@@ -56,26 +72,42 @@ export function CalendarEventForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to create event");
+        throw new Error(data.error || (isEditMode ? "Failed to update event" : "Failed to create event"));
       }
 
       toast({
-        title: "Event created",
-        description: "The calendar event has been created successfully.",
+        title: isEditMode ? "Event updated" : "Event created",
+        description: isEditMode
+          ? "The calendar event has been updated successfully."
+          : "The calendar event has been created successfully.",
       });
 
-      router.push("/calendar");
+      if (isEditMode) {
+        router.push(`/calendar/day/${startDate}`);
+      } else {
+        router.push("/calendar");
+      }
       router.refresh();
     } catch (error) {
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to create event",
+          error instanceof Error ? error.message : (isEditMode ? "Failed to update event" : "Failed to create event"),
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isEditMode) {
+      // In edit mode, never save from form submit — only show confirmation
+      setConfirmSave(true);
+      return;
+    }
+    doSave();
   };
 
   return (
@@ -84,7 +116,9 @@ export function CalendarEventForm() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            <CardTitle className="text-white">New Calendar Event</CardTitle>
+            <CardTitle className="text-white">
+              {isEditMode ? "Edit Calendar Event" : "New Calendar Event"}
+            </CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -179,22 +213,51 @@ export function CalendarEventForm() {
           </div>
 
           <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isLoading}
-              className="border-gray-700 hover:bg-gray-800"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !title || !startDate || !eventType}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              {isLoading ? "Creating..." : "Create Event"}
-            </Button>
+            {isEditMode && confirmSave ? (
+              <>
+                <span className="text-sm text-amber-400 self-center">Save changes?</span>
+                <Button
+                  type="button"
+                  onClick={doSave}
+                  disabled={isLoading}
+                  className="h-8 px-3 text-sm"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isLoading ? "Saving..." : "Confirm"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirmSave(false)}
+                  disabled={isLoading}
+                  className="border-gray-700 hover:bg-gray-800 h-8 px-3 text-sm"
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                  disabled={isLoading}
+                  className="border-gray-700 hover:bg-gray-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type={isEditMode ? "button" : "submit"}
+                  onClick={isEditMode ? () => setConfirmSave(true) : undefined}
+                  disabled={isLoading || !title || !startDate || !eventType}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isLoading
+                    ? (isEditMode ? "Saving..." : "Creating...")
+                    : (isEditMode ? "Save Changes" : "Create Event")}
+                </Button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
