@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -31,7 +31,6 @@ const eventTypeLabels: Record<string, { label: string; color: string }> = {
 };
 
 export function CalendarView({ events }: CalendarViewProps) {
-  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const { daysInMonth, firstDayOfMonth, monthName, year } = useMemo(() => {
@@ -72,11 +71,11 @@ export function CalendarView({ events }: CalendarViewProps) {
     });
   };
 
-  const handleDayClick = (day: number) => {
+  const getDayHref = (day: number) => {
     const y = currentDate.getFullYear();
     const m = String(currentDate.getMonth() + 1).padStart(2, "0");
     const d = String(day).padStart(2, "0");
-    router.push(`/calendar/day/${y}-${m}-${d}`);
+    return `/calendar/day/${y}-${m}-${d}`;
   };
 
   const isToday = (day: number) => {
@@ -158,14 +157,11 @@ export function CalendarView({ events }: CalendarViewProps) {
               const isCurrentDay = isToday(day);
 
               return (
-                <div
+                <Link
                   key={day}
-                  onClick={() => handleDayClick(day)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleDayClick(day); }}
+                  href={getDayHref(day)}
                   className={cn(
-                    "bg-gray-950 min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors",
+                    "block bg-gray-950 min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors",
                     isCurrentDay ? "bg-blue-950/50 hover:bg-blue-950/70" : "hover:bg-gray-900"
                   )}
                 >
@@ -196,7 +192,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                       </div>
                     )}
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
