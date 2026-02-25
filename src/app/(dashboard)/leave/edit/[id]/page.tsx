@@ -26,7 +26,7 @@ export default async function LeaveEditPage({
   const leaveRequest = await prisma.leaveRequest.findUnique({
     where: { id },
     include: {
-      leaveType: { select: { name: true } },
+      leaveType: { select: { name: true, code: true } },
     },
   });
 
@@ -100,12 +100,15 @@ export default async function LeaveEditPage({
       <LeaveEditForm
         leaveId={id}
         leaveTypeName={leaveRequest.leaveType.name}
+        leaveTypeCode={leaveRequest.leaveType.code}
         initialData={{
           startDate,
           endDate,
           reason: leaveRequest.reason ?? "",
           documentUrl: leaveRequest.documentUrl,
           documentFileName: leaveRequest.documentFileName,
+          dayType: leaveRequest.dayType,
+          halfDayPosition: leaveRequest.halfDayPosition,
         }}
       />
     </div>

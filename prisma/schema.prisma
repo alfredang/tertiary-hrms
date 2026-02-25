@@ -163,6 +163,8 @@ model LeaveRequest {
   startDate        DateTime
   endDate          DateTime
   days             Decimal     @db.Decimal(5, 2)
+  dayType          DayType     @default(FULL_DAY)
+  halfDayPosition  String?     // "first" or "last" for multi-day leaves
   reason           String?
   documentUrl      String?
   documentFileName String?
@@ -319,6 +321,12 @@ enum EducationLevel {
   DEGREE
   MASTER
   PHD
+}
+
+enum DayType {
+  FULL_DAY
+  AM_HALF
+  PM_HALF
 }
 
 enum LeaveStatus {

@@ -231,6 +231,56 @@ describe("Leave Submission (POST /api/leave)", () => {
     expect(data.available).toBe(9); // 14 - 3 - 2 = 9
     expect(data.requested).toBe(10);
   });
+
+  it("should force FULL_DAY for non-AL leave type even if AM_HALF is sent", async () => {
+    // MC leave type — half-day not allowed
+    mockPrisma.leaveBalance.findUnique.mockResolvedValue({
+      entitlement: 14,
+      used: 0,
+      pending: 0,
+      carriedOver: 0,
+    });
+    mockPrisma.leaveType.findUnique.mockResolvedValue({ id: LEAVE_TYPE_ID, code: "MC" });
+    mockPrisma.employee.findUnique.mockResolvedValue({ startDate: new Date("2025-01-01") });
+    mockPrisma.leaveRequest.create.mockResolvedValue({
+      id: "lr_mc",
+      status: "PENDING",
+      days: 1,
+      dayType: "FULL_DAY",
+      halfDayPosition: null,
+      leaveType: { name: "Medical Leave" },
+      employee: { name: "John Doe" },
+    });
+    mockPrisma.leaveBalance.update.mockResolvedValue({});
+
+    const req = makeRequest({
+      leaveTypeId: LEAVE_TYPE_ID,
+      startDate: "2026-03-02",
+      endDate: "2026-03-02",
+      dayType: "AM_HALF", // Client sends AM_HALF but MC should be forced to FULL_DAY
+    });
+
+    const res = await submitLeave(req);
+    expect(res.status).toBe(201);
+
+    // Verify: dayType forced to FULL_DAY, days = 1 (not 0.5)
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          dayType: "FULL_DAY",
+          halfDayPosition: null,
+          days: 1,
+        }),
+      })
+    );
+
+    // Verify: pending incremented by 1 (not 0.5)
+    expect(mockPrisma.leaveBalance.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { pending: { increment: 1 } },
+      })
+    );
+  });
 });
 
 describe("Leave Approval (POST /api/leave/[id]/approve)", () => {
@@ -700,5 +750,99 @@ describe("Proration & Rounding (utility functions)", () => {
   it("should handle No Pay Leave (0 days entitlement)", async () => {
     const { prorateLeave } = await import("@/lib/utils");
     expect(prorateLeave(0, new Date("2020-01-01"))).toBe(0);
+  });
+});
+
+describe("Overlap Detection with AM/PM slots", () => {
+  it("should allow AM + PM on same day (no conflict)", async () => {
+    const { getLeaveConflictDates } = await import("@/lib/utils");
+    const conflicts = getLeaveConflictDates(
+      new Date("2026-04-01"), new Date("2026-04-01"), 0.5, "AL",
+      "PM_HALF", null,
+      [{
+        startDate: new Date("2026-04-01"), endDate: new Date("2026-04-01"),
+        days: 0.5, leaveTypeCode: "AL", dayType: "AM_HALF", halfDayPosition: null,
+      }]
+    );
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it("should conflict when both AM on same day", async () => {
+    const { getLeaveConflictDates } = await import("@/lib/utils");
+    const conflicts = getLeaveConflictDates(
+      new Date("2026-04-01"), new Date("2026-04-01"), 0.5, "AL",
+      "AM_HALF", null,
+      [{
+        startDate: new Date("2026-04-01"), endDate: new Date("2026-04-01"),
+        days: 0.5, leaveTypeCode: "AL", dayType: "AM_HALF", halfDayPosition: null,
+      }]
+    );
+    expect(conflicts).toHaveLength(1);
+  });
+
+  it("should conflict when half-day overlaps with full-day", async () => {
+    const { getLeaveConflictDates } = await import("@/lib/utils");
+    const conflicts = getLeaveConflictDates(
+      new Date("2026-04-01"), new Date("2026-04-01"), 0.5, "AL",
+      "AM_HALF", null,
+      [{
+        startDate: new Date("2026-04-01"), endDate: new Date("2026-04-01"),
+        days: 1, leaveTypeCode: "AL", dayType: "FULL_DAY", halfDayPosition: null,
+      }]
+    );
+    expect(conflicts).toHaveLength(1);
+  });
+
+  it("should allow same-slot half-days if one is medical (exception)", async () => {
+    const { getLeaveConflictDates } = await import("@/lib/utils");
+    const conflicts = getLeaveConflictDates(
+      new Date("2026-04-01"), new Date("2026-04-01"), 0.5, "MC",
+      "AM_HALF", null,
+      [{
+        startDate: new Date("2026-04-01"), endDate: new Date("2026-04-01"),
+        days: 0.5, leaveTypeCode: "AL", dayType: "AM_HALF", halfDayPosition: null,
+      }]
+    );
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it("should handle multi-day with halfDayPosition='last'", async () => {
+    const { getLeaveConflictDates } = await import("@/lib/utils");
+    // Existing: multi-day Apr 1-2, half on last day (Apr 2 = AM slot)
+    // New: full day on Apr 1 → should conflict on Apr 1 (existing is FULL on Apr 1)
+    const conflicts = getLeaveConflictDates(
+      new Date("2026-04-01"), new Date("2026-04-01"), 1, "AL",
+      "FULL_DAY", null,
+      [{
+        startDate: new Date("2026-04-01"), endDate: new Date("2026-04-02"),
+        days: 1.5, leaveTypeCode: "AL", dayType: "FULL_DAY", halfDayPosition: "last",
+      }]
+    );
+    expect(conflicts).toHaveLength(1);
+  });
+
+  it("should not conflict on the half-day date of multi-day if different slot", async () => {
+    const { getLeaveConflictDates } = await import("@/lib/utils");
+    // Existing: multi-day Apr 1-2, half on last day (Apr 2 = AM slot, occupies AM only)
+    // New: PM half on Apr 2 → should NOT conflict (different slot)
+    const conflicts = getLeaveConflictDates(
+      new Date("2026-04-02"), new Date("2026-04-02"), 0.5, "AL",
+      "PM_HALF", null,
+      [{
+        startDate: new Date("2026-04-01"), endDate: new Date("2026-04-02"),
+        days: 1.5, leaveTypeCode: "AL", dayType: "FULL_DAY", halfDayPosition: "last",
+      }]
+    );
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it("should return no conflicts when no existing leaves", async () => {
+    const { getLeaveConflictDates } = await import("@/lib/utils");
+    const conflicts = getLeaveConflictDates(
+      new Date("2026-04-01"), new Date("2026-04-03"), 3, "AL",
+      "FULL_DAY", null,
+      []
+    );
+    expect(conflicts).toHaveLength(0);
   });
 });

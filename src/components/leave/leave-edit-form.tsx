@@ -13,48 +13,68 @@ import { Calendar, Send, Upload, X } from "lucide-react";
 interface LeaveEditFormProps {
   leaveId: string;
   leaveTypeName: string;
+  leaveTypeCode: string;
   initialData: {
     startDate: string; // "YYYY-MM-DD"
     endDate: string;
     reason: string;
     documentUrl: string | null;
     documentFileName: string | null;
+    dayType: string;
+    halfDayPosition: string | null;
   };
 }
 
-function calculateBusinessDays(start: string, end: string): number {
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  if (endDate < startDate) return 0;
-
-  let count = 0;
-  const current = new Date(startDate);
-  while (current <= endDate) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) count++;
-    current.setDate(current.getDate() + 1);
-  }
-  return Math.max(count, 0.5);
-}
-
-export function LeaveEditForm({ leaveId, leaveTypeName, initialData }: LeaveEditFormProps) {
+export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialData }: LeaveEditFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [startDate, setStartDate] = useState(initialData.startDate);
   const [endDate, setEndDate] = useState(initialData.endDate);
-  const [days, setDays] = useState(
-    String(calculateBusinessDays(initialData.startDate, initialData.endDate))
+  const [days, setDays] = useState("");
+  const [dayType, setDayType] = useState<"FULL_DAY" | "AM_HALF" | "PM_HALF">(
+    (initialData.dayType as "FULL_DAY" | "AM_HALF" | "PM_HALF") || "FULL_DAY"
+  );
+  const [halfDayPosition, setHalfDayPosition] = useState<"first" | "last" | null>(
+    (initialData.halfDayPosition as "first" | "last" | null) || null
   );
   const [reason, setReason] = useState(initialData.reason);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [existingDocumentFileName] = useState(initialData.documentFileName);
 
-  // Auto-recalculate days when dates change
+  const isAL = leaveTypeCode === "AL";
+  const isSingleDay = startDate && endDate && startDate === endDate;
+  const isMultiDay = startDate && endDate && startDate < endDate;
+
+  // Auto-calculate days when dates, dayType, or halfDayPosition change
   useEffect(() => {
     if (startDate && endDate) {
-      const calculated = calculateBusinessDays(startDate, endDate);
-      setDays(String(calculated));
+      if (startDate === endDate) {
+        setDays(dayType === "FULL_DAY" ? "1" : "0.5");
+      } else if (startDate < endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        if (halfDayPosition) {
+          setDays(String(totalDays - 0.5));
+        } else {
+          setDays(String(totalDays));
+        }
+      } else {
+        setDays("");
+      }
+    }
+  }, [startDate, endDate, dayType, halfDayPosition]);
+
+  // Reset dayType/halfDayPosition when switching between single/multi day
+  useEffect(() => {
+    if (startDate && endDate) {
+      if (startDate === endDate) {
+        setHalfDayPosition(null);
+      } else {
+        setDayType("FULL_DAY");
+      }
     }
   }, [startDate, endDate]);
 
@@ -66,7 +86,6 @@ export function LeaveEditForm({ leaveId, leaveTypeName, initialData }: LeaveEdit
       let documentUrl: string | undefined;
       let documentFileName: string | undefined;
 
-      // Upload new document if provided
       if (documentFile) {
         const formData = new FormData();
         formData.append("file", documentFile);
@@ -93,6 +112,8 @@ export function LeaveEditForm({ leaveId, leaveTypeName, initialData }: LeaveEdit
           startDate,
           endDate,
           days: parseFloat(days),
+          dayType: isSingleDay ? dayType : "FULL_DAY",
+          halfDayPosition: isMultiDay ? halfDayPosition : null,
           reason,
           ...(documentUrl ? { documentUrl, documentFileName } : {}),
         }),
@@ -121,6 +142,92 @@ export function LeaveEditForm({ leaveId, leaveTypeName, initialData }: LeaveEdit
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const renderDayTypeSelector = () => {
+    if (!startDate || !endDate) return null;
+
+    if (isSingleDay) {
+      return (
+        <div className="space-y-2">
+          <Label className="text-white">Day Type *</Label>
+          <div className="flex gap-2">
+            {([
+              { value: "FULL_DAY" as const, label: "Full Day" },
+              { value: "AM_HALF" as const, label: "AM Half" },
+              { value: "PM_HALF" as const, label: "PM Half" },
+            ]).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setDayType(option.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  dayType === option.value
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">
+            {dayType === "AM_HALF" ? "Morning half (e.g. 8am–1pm)" :
+             dayType === "PM_HALF" ? "Afternoon half (e.g. 1pm–6pm)" :
+             "Full working day"}
+          </p>
+        </div>
+      );
+    }
+
+    if (isMultiDay) {
+      return (
+        <div className="space-y-2">
+          <Label className="text-white">Include a half-day?</Label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setHalfDayPosition(halfDayPosition ? null : "first")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                halfDayPosition
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+              }`}
+            >
+              {halfDayPosition ? "Yes" : "No — all full days"}
+            </button>
+          </div>
+          {halfDayPosition && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setHalfDayPosition("first")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  halfDayPosition === "first"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+                }`}
+              >
+                Half on first day ({startDate})
+              </button>
+              <button
+                type="button"
+                onClick={() => setHalfDayPosition("last")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  halfDayPosition === "last"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+                }`}
+              >
+                Half on last day ({endDate})
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -171,24 +278,14 @@ export function LeaveEditForm({ leaveId, leaveTypeName, initialData }: LeaveEdit
             </div>
           </div>
 
+          {isAL && renderDayTypeSelector()}
+
           <div className="space-y-2">
-            <Label htmlFor="days" className="text-white">
-              Number of Days *
-            </Label>
-            <Input
-              id="days"
-              type="number"
-              min="0.5"
-              step="0.5"
-              value={days}
-              onChange={(e) => setDays(e.target.value)}
-              className="bg-gray-900 border-gray-700 text-white"
-              placeholder="Auto-calculated from dates"
-              required
-            />
-            <p className="text-xs text-gray-500">
-              Auto-calculated from dates. Adjust for half-day leave (min 0.5 days).
-            </p>
+            <Label className="text-white">Number of Days</Label>
+            <div className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white text-sm">
+              {days || "—"} {days ? (Number(days) === 1 ? "day" : "days") : ""}
+            </div>
+            <p className="text-xs text-gray-500">Auto-calculated from dates and day type.</p>
           </div>
 
           <div className="space-y-2">

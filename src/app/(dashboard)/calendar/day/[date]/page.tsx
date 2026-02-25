@@ -232,7 +232,14 @@ export default async function CalendarDayPage({
                     <span>
                       {formatDate(request.startDate)} — {formatDate(request.endDate)}
                     </span>
-                    <span>{Number(request.days)} day{Number(request.days) !== 1 ? "s" : ""}</span>
+                    <span>
+                      {Number(request.days)} day{Number(request.days) !== 1 ? "s" : ""}
+                      {request.dayType === "AM_HALF" && <span className="text-amber-400"> (AM)</span>}
+                      {request.dayType === "PM_HALF" && <span className="text-amber-400"> (PM)</span>}
+                      {request.halfDayPosition && Number(request.days) % 1 !== 0 && (
+                        <span className="text-amber-400"> (half on {request.halfDayPosition} day)</span>
+                      )}
+                    </span>
                     {request.employee.department && (
                       <span className="text-gray-500">
                         {request.employee.department.name}

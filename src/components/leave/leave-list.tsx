@@ -24,6 +24,8 @@ interface LeaveRequest {
   startDate: Date;
   endDate: Date;
   days: any;
+  dayType: string;
+  halfDayPosition: string | null;
   reason: string | null;
   status: LeaveStatus;
   createdAt: Date;
@@ -351,6 +353,26 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
     );
   };
 
+  const renderDaysDisplay = (request: LeaveRequest) => {
+    const numDays = Number(request.days);
+    const dayLabel = numDays === 1 ? "day" : "days";
+
+    if (request.dayType === "AM_HALF") {
+      return <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(AM)</span></>;
+    }
+    if (request.dayType === "PM_HALF") {
+      return <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(PM)</span></>;
+    }
+    if (request.halfDayPosition && numDays % 1 !== 0) {
+      const halfDate = request.halfDayPosition === "first"
+        ? formatDate(request.startDate)
+        : formatDate(request.endDate);
+      return <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(half on {halfDate})</span></>;
+    }
+
+    return <>{numDays} {dayLabel}</>;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
@@ -424,7 +446,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="border-gray-700 text-gray-300">{request.leaveType.name}</Badge>
-                  <span className="text-xs text-gray-400">{Number(request.days)} day{Number(request.days) !== 1 ? "s" : ""}</span>
+                  <span className="text-xs text-gray-400">{renderDaysDisplay(request)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Calendar className="h-3 w-3" />
@@ -476,7 +498,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       {formatDate(request.endDate)}
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300">
-                      {Number(request.days)}
+                      {renderDaysDisplay(request)}
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                       {formatDate(request.createdAt)}
@@ -522,7 +544,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                   <span>{formatDate(request.startDate)} — {formatDate(request.endDate)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>{Number(request.days)} day{Number(request.days) !== 1 ? "s" : ""}</span>
+                  <span>{renderDaysDisplay(request)}</span>
                   <span>Applied {formatDate(request.createdAt)}</span>
                 </div>
                 {request.status === "PENDING" && renderStaffActions(request.id)}
@@ -562,7 +584,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       {formatDate(request.endDate)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-300">
-                      {Number(request.days)}
+                      {renderDaysDisplay(request)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">
                       {formatDate(request.createdAt)}

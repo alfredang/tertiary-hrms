@@ -8,6 +8,8 @@ const leaveEditSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   days: z.number().min(0.5, "Minimum 0.5 days").optional(),
+  dayType: z.enum(["FULL_DAY", "AM_HALF", "PM_HALF"]).default("FULL_DAY"),
+  halfDayPosition: z.enum(["first", "last"]).nullable().optional(),
   reason: z.string().optional(),
   documentUrl: z.string().optional(),
   documentFileName: z.string().optional(),
@@ -54,7 +56,7 @@ export async function PATCH(
       );
     }
 
-    const { startDate, endDate, days: submittedDays, reason, documentUrl, documentFileName } =
+    const { startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason, documentUrl, documentFileName } =
       validation.data;
 
     const newStart = new Date(startDate);
@@ -67,9 +69,19 @@ export async function PATCH(
       );
     }
 
-    const newDays = submittedDays
-      ? roundToHalf(submittedDays)
-      : roundToHalf(calculateDaysBetween(newStart, newEnd));
+    // Calculate days based on dayType and halfDayPosition
+    const isSingleDay = startDate === endDate;
+    let newDays: number;
+
+    if (isSingleDay) {
+      newDays = dayType === "FULL_DAY" ? 1 : 0.5;
+    } else if (halfDayPosition) {
+      newDays = roundToHalf(calculateDaysBetween(newStart, newEnd) - 0.5);
+    } else {
+      newDays = submittedDays
+        ? roundToHalf(submittedDays)
+        : roundToHalf(calculateDaysBetween(newStart, newEnd));
+    }
 
     const oldDays = Number(leaveRequest.days);
 
@@ -77,6 +89,18 @@ export async function PATCH(
     const leaveType = await prisma.leaveType.findUnique({
       where: { id: leaveRequest.leaveTypeId },
     });
+
+    // Only AL supports half-day — force FULL_DAY for all other types
+    const isAL = leaveType?.code === "AL";
+    const effectiveDayType = isAL ? (isSingleDay ? dayType : "FULL_DAY") : "FULL_DAY";
+    const effectiveHalfDayPosition = isAL ? (isSingleDay ? null : (halfDayPosition ?? null)) : null;
+
+    // Recalculate days with effective values (non-AL always gets full days)
+    if (!isAL) {
+      newDays = submittedDays
+        ? roundToHalf(submittedDays)
+        : roundToHalf(calculateDaysBetween(newStart, newEnd));
+    }
 
     // Check for overlapping leave requests (exclude self)
     const overlappingLeaves = await prisma.leaveRequest.findMany({
@@ -87,18 +111,28 @@ export async function PATCH(
         startDate: { lte: newEnd },
         endDate: { gte: newStart },
       },
-      select: { startDate: true, endDate: true, days: true, leaveType: { select: { code: true } } },
+      select: {
+        startDate: true, endDate: true, days: true,
+        dayType: true, halfDayPosition: true,
+        leaveType: { select: { code: true } },
+      },
     });
 
     if (overlappingLeaves.length > 0) {
       const conflictDates = getLeaveConflictDates(
         newStart, newEnd, newDays, leaveType?.code || "",
-        overlappingLeaves.map(l => ({ startDate: l.startDate, endDate: l.endDate, days: Number(l.days), leaveTypeCode: l.leaveType.code }))
+        effectiveDayType,
+        effectiveHalfDayPosition,
+        overlappingLeaves.map(l => ({
+          startDate: l.startDate, endDate: l.endDate,
+          days: Number(l.days), leaveTypeCode: l.leaveType.code,
+          dayType: l.dayType, halfDayPosition: l.halfDayPosition,
+        }))
       );
       if (conflictDates.length > 0) {
         return NextResponse.json(
           {
-            error: `Leave overlaps with existing request on: ${conflictDates.join(", ")}. Please choose different dates or use a half-day (0.5) if applying for a medical leave on the same day.`,
+            error: `Leave overlaps with existing request on: ${conflictDates.join(", ")}. Please choose different dates or use a half-day if applying for a medical leave on the same day.`,
           },
           { status: 400 }
         );
@@ -163,6 +197,8 @@ export async function PATCH(
           startDate: newStart,
           endDate: newEnd,
           days: newDays,
+          dayType: effectiveDayType,
+          halfDayPosition: effectiveHalfDayPosition,
           reason: reason ?? leaveRequest.reason,
           documentUrl: documentUrl !== undefined ? documentUrl : leaveRequest.documentUrl,
           documentFileName:

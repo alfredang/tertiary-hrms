@@ -63,9 +63,18 @@ export async function POST(
     });
 
     // Create calendar event for approved leave
+    let eventTitle = `${leaveRequest.employee.name} - ${leaveRequest.leaveType.name}`;
+    if (leaveRequest.dayType === "AM_HALF") {
+      eventTitle += " (AM Half)";
+    } else if (leaveRequest.dayType === "PM_HALF") {
+      eventTitle += " (PM Half)";
+    } else if (leaveRequest.halfDayPosition) {
+      eventTitle += ` (half on ${leaveRequest.halfDayPosition} day)`;
+    }
+
     await prisma.calendarEvent.create({
       data: {
-        title: `${leaveRequest.employee.name} - ${leaveRequest.leaveType.name}`,
+        title: eventTitle,
         startDate: leaveRequest.startDate,
         endDate: leaveRequest.endDate,
         allDay: true,

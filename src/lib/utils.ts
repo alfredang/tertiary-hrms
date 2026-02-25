@@ -52,69 +52,130 @@ export function roundToHalf(value: number): number {
 }
 
 /**
- * Check for leave date conflicts.
- * Returns an array of formatted date strings where the total allocation exceeds 1.0 day.
+ * Determine which slot (AM, PM, or FULL) a leave occupies on a specific date.
+ */
+function getSlotForDate(
+  dateKey: string,
+  leaveStartKey: string,
+  leaveEndKey: string,
+  dayType: string,
+  halfDayPosition: string | null,
+): "AM" | "PM" | "FULL" {
+  const isSingleDay = leaveStartKey === leaveEndKey;
+
+  if (isSingleDay) {
+    if (dayType === "AM_HALF") return "AM";
+    if (dayType === "PM_HALF") return "PM";
+    return "FULL";
+  }
+
+  // Multi-day: halfDayPosition indicates which day is the half day
+  // "first" → first day is half-day (PM slot — work morning, leave afternoon)
+  // "last" → last day is half-day (AM slot — leave morning, work afternoon)
+  if (halfDayPosition === "first" && dateKey === leaveStartKey) return "PM";
+  if (halfDayPosition === "last" && dateKey === leaveEndKey) return "AM";
+  return "FULL";
+}
+
+/**
+ * Check for leave date conflicts with AM/PM slot awareness.
+ * Returns an array of formatted date strings where slots overlap.
  *
  * Rules:
- * - Each date can have max 1.0 day of leave total
- * - A single-day request (startDate === endDate) allocates `days` to that date (0.5 or 1.0)
- * - A multi-day request allocates 1.0 to each date in the range
- * - Half-day exception: two half-day leaves on the same day are allowed ONLY if
- *   they are different leave types AND at least one is medical (MC or SL)
+ * - FULL_DAY occupies both AM and PM slots
+ * - AM_HALF occupies AM slot only; PM_HALF occupies PM slot only
+ * - Two half-day leaves on the same date are allowed if they use different slots (AM vs PM)
+ * - Same-slot conflict: allowed only if different leave types AND at least one is medical (MC/SL)
+ * - Multi-day with halfDayPosition="first": first day = PM half, rest = FULL
+ * - Multi-day with halfDayPosition="last": last day = AM half, rest = FULL
  */
 export function getLeaveConflictDates(
   newStart: Date,
   newEnd: Date,
   newDays: number,
   newLeaveTypeCode: string,
-  existingLeaves: Array<{ startDate: Date; endDate: Date; days: number; leaveTypeCode: string }>
+  newDayType: string,
+  newHalfDayPosition: string | null,
+  existingLeaves: Array<{
+    startDate: Date;
+    endDate: Date;
+    days: number;
+    leaveTypeCode: string;
+    dayType: string;
+    halfDayPosition: string | null;
+  }>
 ): string[] {
   const MEDICAL_CODES = ["MC", "SL"];
 
-  // Build a map of date → list of existing allocations with type info
-  const dateMap = new Map<string, Array<{ perDay: number; code: string }>>();
+  // Build a map of date → list of existing slot allocations
+  type SlotEntry = { slot: "AM" | "PM" | "FULL"; code: string };
+  const dateSlots = new Map<string, SlotEntry[]>();
 
   for (const leave of existingLeaves) {
     const lStart = new Date(leave.startDate);
     const lEnd = new Date(leave.endDate);
-    const isSingleDay = lStart.toISOString().split("T")[0] === lEnd.toISOString().split("T")[0];
-    const perDay = isSingleDay ? leave.days : 1.0;
+    const lStartKey = lStart.toISOString().split("T")[0];
+    const lEndKey = lEnd.toISOString().split("T")[0];
 
     const cursor = new Date(lStart);
     while (cursor <= lEnd) {
       const key = cursor.toISOString().split("T")[0];
-      const entries = dateMap.get(key) || [];
-      entries.push({ perDay, code: leave.leaveTypeCode });
-      dateMap.set(key, entries);
+      const slot = getSlotForDate(key, lStartKey, lEndKey, leave.dayType, leave.halfDayPosition);
+      const entries = dateSlots.get(key) || [];
+      entries.push({ slot, code: leave.leaveTypeCode });
+      dateSlots.set(key, entries);
       cursor.setDate(cursor.getDate() + 1);
     }
   }
 
-  // Determine per-day allocation for the new request
-  const newIsSingleDay = newStart.toISOString().split("T")[0] === newEnd.toISOString().split("T")[0];
-  const newPerDay = newIsSingleDay ? newDays : 1.0;
-
   // Check each date in the new request's range
+  const newStartKey = newStart.toISOString().split("T")[0];
+  const newEndKey = newEnd.toISOString().split("T")[0];
   const conflicts: string[] = [];
   const cursor = new Date(newStart);
+
   while (cursor <= newEnd) {
     const key = cursor.toISOString().split("T")[0];
-    const entries = dateMap.get(key) || [];
-    const existingTotal = entries.reduce((sum, e) => sum + e.perDay, 0);
+    const newSlot = getSlotForDate(key, newStartKey, newEndKey, newDayType, newHalfDayPosition);
+    const existingEntries = dateSlots.get(key) || [];
 
-    if (existingTotal + newPerDay > 1.0) {
-      // Check half-day exception: exactly one existing half-day + new half-day,
-      // different types, and at least one is medical
-      const isException =
-        entries.length === 1 &&
-        entries[0].perDay === 0.5 &&
-        newPerDay === 0.5 &&
-        entries[0].code !== newLeaveTypeCode &&
-        (MEDICAL_CODES.includes(entries[0].code) || MEDICAL_CODES.includes(newLeaveTypeCode));
+    let hasConflict = false;
 
-      if (!isException) {
-        conflicts.push(formatDate(new Date(key)));
+    for (const existing of existingEntries) {
+      // FULL vs anything = conflict (unless medical exception for half + full)
+      if (existing.slot === "FULL" || newSlot === "FULL") {
+        hasConflict = true;
+        break;
       }
+
+      // Same slot (both AM or both PM) = conflict
+      if (existing.slot === newSlot) {
+        // Medical exception: different types, at least one is medical
+        const isMedicalException =
+          existing.code !== newLeaveTypeCode &&
+          (MEDICAL_CODES.includes(existing.code) || MEDICAL_CODES.includes(newLeaveTypeCode));
+        if (!isMedicalException) {
+          hasConflict = true;
+          break;
+        }
+      }
+      // Different slots (AM vs PM) = no conflict
+    }
+
+    // Also check total allocation doesn't exceed 1.0
+    if (!hasConflict && existingEntries.length > 0) {
+      const existingTotal = existingEntries.reduce(
+        (sum, e) => sum + (e.slot === "FULL" ? 1.0 : 0.5),
+        0
+      );
+      const newAlloc = newSlot === "FULL" ? 1.0 : 0.5;
+      if (existingTotal + newAlloc > 1.0) {
+        hasConflict = true;
+      }
+    }
+
+    if (hasConflict) {
+      conflicts.push(formatDate(new Date(key)));
     }
     cursor.setDate(cursor.getDate() + 1);
   }
