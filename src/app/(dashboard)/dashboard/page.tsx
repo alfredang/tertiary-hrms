@@ -34,7 +34,7 @@ async function getStaffStats(employeeId: string) {
     prisma.leaveType.findUnique({ where: { code: "MC" } }),
   ]);
 
-  const [alBalance, mcBalance, expenseClaims] = await Promise.all([
+  const [alBalance, mcBalance, expenseClaims, employee] = await Promise.all([
     alType
       ? prisma.leaveBalance.findUnique({
           where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alType.id, year: currentYear } },
@@ -53,31 +53,26 @@ async function getStaffStats(employeeId: string) {
       },
       select: { amount: true },
     }),
+    prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { startDate: true },
+    }),
   ]);
 
-  // Fetch employee start date for leave proration
-  const employee = await prisma.employee.findUnique({
-    where: { id: employeeId },
-    select: { startDate: true },
-  });
+  // Fall back to leave type default if no balance record exists (same as leave page)
+  const alAllocation = alBalance ? Number(alBalance.entitlement) : (alType?.defaultDays ?? 0);
+  const alEntitlement = prorateLeave(alAllocation, employee?.startDate);
+  const alCarriedOver = alBalance ? Number(alBalance.carriedOver) : 0;
+  const alUsed = alBalance ? Number(alBalance.used) : 0;
+  const alPending = alBalance ? Number(alBalance.pending) : 0;
+  const leaveBalance = alEntitlement + alCarriedOver - alUsed - alPending;
 
-  const alEntitlement = alBalance
-    ? (employee?.startDate
-        ? prorateLeave(Number(alBalance.entitlement), employee.startDate)
-        : Number(alBalance.entitlement))
-    : 0;
-  const leaveBalance = alBalance
-    ? alEntitlement + Number(alBalance.carriedOver) - Number(alBalance.used) - Number(alBalance.pending)
-    : 0;
-
-  const mcEntitlement = mcBalance
-    ? (employee?.startDate
-        ? prorateLeave(Number(mcBalance.entitlement), employee.startDate)
-        : Number(mcBalance.entitlement))
-    : 0;
-  const mcBalanceVal = mcBalance
-    ? mcEntitlement + Number(mcBalance.carriedOver) - Number(mcBalance.used) - Number(mcBalance.pending)
-    : 0;
+  const mcAllocation = mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0);
+  const mcEntitlement = prorateLeave(mcAllocation, employee?.startDate);
+  const mcCarriedOver = mcBalance ? Number(mcBalance.carriedOver) : 0;
+  const mcUsed = mcBalance ? Number(mcBalance.used) : 0;
+  const mcPending = mcBalance ? Number(mcBalance.pending) : 0;
+  const mcBalanceVal = mcEntitlement + mcCarriedOver - mcUsed - mcPending;
   const expenseClaimAmount = expenseClaims.reduce((sum, c) => sum + Number(c.amount), 0);
 
   return { leaveBalance, mcBalance: mcBalanceVal, expenseClaimAmount };

@@ -375,18 +375,37 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search leaves..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+      <div className="space-y-3">
+        {/* Row 1: Search + Date range */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search leaves..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full sm:w-[160px]"
+            />
+            <span className="text-gray-400 text-sm">to</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full sm:w-[160px]"
+            />
+          </div>
         </div>
+        {/* Row 2: Status filter */}
         {/* Mobile/Zoom: Select dropdown */}
-        <div className="lg:hidden w-full">
+        <div className="md:hidden">
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
             <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
               <SelectValue />
@@ -401,7 +420,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           </Select>
         </div>
         {/* Desktop: Pill buttons */}
-        <div className="hidden lg:flex flex-wrap gap-1">
+        <div className="hidden md:flex flex-wrap gap-1">
           {(["all", "PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const).map((v) => (
             <button
               key={v}
@@ -415,21 +434,6 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
               {v === "all" ? "All" : v.charAt(0) + v.slice(1).toLowerCase()}
             </button>
           ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="w-full sm:w-[160px]"
-          />
-          <span className="text-gray-400 text-sm">to</span>
-          <Input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="w-full sm:w-[160px]"
-          />
         </div>
       </div>
 

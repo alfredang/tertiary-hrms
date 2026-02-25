@@ -117,10 +117,11 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Admin and staff views with appropriate filtering
 
 ### Calendar
-- Full calendar view with color-coded events
-- Leave events displayed with status indicators
+- **Personal planner** — each user's events are fully private (admins cannot see other employees' events)
+- Full calendar view with color-coded event types (Holiday, Meeting, Training, Company Event, Leave)
 - Approved leave/MC automatically synced as calendar events
-- Admin sees all employees' leave; staff sees own leave
+- **Leave visibility**: admin view shows all employees' leave; "Show as Staff" mode and staff role see only own leave
+- Day detail view, add/edit/delete events — owner-only access
 
 ### Settings (Admin Only)
 - Company-wide settings management

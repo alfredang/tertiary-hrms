@@ -4,51 +4,52 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { getViewMode } from "@/lib/view-mode";
+import type { Role } from "@prisma/client";
 
 export const dynamic = 'force-dynamic';
 
-async function getCalendarEvents(employeeId?: string) {
-  // Public events (holidays, meetings, training, company events) - visible to everyone
-  const publicEvents = await prisma.calendarEvent.findMany({
+async function getCalendarEvents(userId: string, employeeId?: string, showAllLeaves = false) {
+  // 1. Personal events — only events created by this user (fully private)
+  const ownEvents = await prisma.calendarEvent.findMany({
     where: {
+      createdById: userId,
       type: { in: ["HOLIDAY", "MEETING", "TRAINING", "COMPANY_EVENT"] },
     },
     orderBy: { startDate: "asc" },
   });
 
-  // Leave events - filtered by employee for staff, all for admin
-  const leaveEvents = await prisma.calendarEvent.findMany({
-    where: {
-      type: "LEAVE",
-      ...(employeeId
-        ? {
-            leaveRequestId: {
-              not: null,
-            },
-          }
-        : {}),
-    },
-    orderBy: { startDate: "asc" },
-  });
-
-  // If staff user, we need to filter leave events by their employeeId
-  let filteredLeaveEvents = leaveEvents;
-  if (employeeId) {
-    // Fetch leave request IDs for this employee
+  // 2. Leave events — admin view: all employees; staff view: own only
+  let leaveEvents: typeof ownEvents = [];
+  if (showAllLeaves) {
+    leaveEvents = await prisma.calendarEvent.findMany({
+      where: { type: "LEAVE", leaveRequestId: { not: null } },
+      orderBy: { startDate: "asc" },
+    });
+  } else if (employeeId) {
     const userLeaveRequests = await prisma.leaveRequest.findMany({
       where: { employeeId, status: "APPROVED" },
       select: { id: true },
     });
     const userLeaveRequestIds = new Set(userLeaveRequests.map((lr) => lr.id));
 
-    filteredLeaveEvents = leaveEvents.filter(
+    const allLeaveEvents = await prisma.calendarEvent.findMany({
+      where: { type: "LEAVE", leaveRequestId: { not: null } },
+      orderBy: { startDate: "asc" },
+    });
+
+    leaveEvents = allLeaveEvents.filter(
       (event) => event.leaveRequestId && userLeaveRequestIds.has(event.leaveRequestId)
     );
   }
 
-  const allEvents = [...publicEvents, ...filteredLeaveEvents];
+  // Deduplicate in case a leave event was also created by this user
+  const eventMap = new Map<string, (typeof ownEvents)[0]>();
+  for (const event of [...ownEvents, ...leaveEvents]) {
+    eventMap.set(event.id, event);
+  }
 
-  return allEvents.map((event) => ({
+  return Array.from(eventMap.values()).map((event) => ({
     id: event.id,
     title: event.title,
     start: event.startDate,
@@ -73,23 +74,41 @@ function getDefaultColor(type: string): string {
 
 export default async function CalendarPage() {
   const session = await auth();
+  const viewMode = await getViewMode();
 
-  // Development mode: Skip authentication if SKIP_AUTH is enabled (act as admin)
-  // Staff can only see their own leave events
-  const isStaff = process.env.SKIP_AUTH !== "true" && session?.user?.role === "STAFF";
-  const employeeId = isStaff ? session?.user?.employeeId : undefined;
+  let role: Role = "STAFF";
+  let currentUserId: string | undefined;
+  let currentEmployeeId: string | undefined;
 
-  // Safety: prevent data leak if staff but no employeeId
-  if (isStaff && !employeeId) {
+  if (process.env.SKIP_AUTH === "true") {
+    role = "ADMIN";
+    const adminUser = await prisma.user.findUnique({
+      where: { email: "admin@tertiaryinfotech.com" },
+      include: { employee: { select: { id: true } } },
+    });
+    currentUserId = adminUser?.id;
+    currentEmployeeId = adminUser?.employee?.id;
+  } else if (session?.user) {
+    role = session.user.role;
+    currentUserId = session.user.id;
+    currentEmployeeId = session.user.employeeId;
+  }
+
+  if (!currentUserId) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Calendar</h1>
-        <p className="text-sm sm:text-base text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
+        <p className="text-sm sm:text-base text-gray-400">Your profile has not been set up yet. Please contact HR.</p>
       </div>
     );
   }
 
-  const events = await getCalendarEvents(employeeId);
+  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const viewAs = isAdmin ? viewMode : "staff";
+
+  // Admin view: see all employees' leaves; Staff view: see only own leaves
+  const showAllLeaves = viewAs === "admin";
+  const events = await getCalendarEvents(currentUserId, currentEmployeeId, showAllLeaves);
 
   return (
     <div className="space-y-6">

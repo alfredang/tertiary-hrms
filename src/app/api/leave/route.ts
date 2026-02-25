@@ -131,9 +131,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check leave balance
+    // Check leave balance — auto-create if missing (e.g. new year, new employee)
     const currentYear = new Date().getFullYear();
-    const balance = await prisma.leaveBalance.findUnique({
+    let balance = await prisma.leaveBalance.findUnique({
       where: {
         employeeId_leaveTypeId_year: {
           employeeId,
@@ -142,6 +142,20 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    if (!balance && leaveType) {
+      balance = await prisma.leaveBalance.create({
+        data: {
+          employeeId,
+          leaveTypeId,
+          year: currentYear,
+          entitlement: leaveType.defaultDays,
+          used: 0,
+          pending: 0,
+          carriedOver: 0,
+        },
+      });
+    }
 
     if (!balance) {
       return NextResponse.json(

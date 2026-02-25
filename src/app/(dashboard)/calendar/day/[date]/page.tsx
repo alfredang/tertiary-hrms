@@ -46,13 +46,15 @@ async function getLeaveForDate(dateStr: string, staffEmployeeId?: string) {
   });
 }
 
-async function getEventsForDate(dateStr: string) {
+async function getEventsForDate(dateStr: string, userId: string) {
   const dayStart = new Date(dateStr + "T00:00:00");
   const dayEnd = new Date(dateStr + "T23:59:59.999");
 
+  // Events are fully personal — only show events created by this user
   return prisma.calendarEvent.findMany({
     where: {
       type: { in: ["HOLIDAY", "MEETING", "TRAINING", "COMPANY_EVENT"] },
+      createdById: userId,
       startDate: { lte: dayEnd },
       endDate: { gte: dayStart },
     },
@@ -96,6 +98,12 @@ export default async function CalendarDayPage({
 
   if (process.env.SKIP_AUTH === "true") {
     role = "ADMIN";
+    const adminUser = await prisma.user.findUnique({
+      where: { email: "admin@tertiaryinfotech.com" },
+      include: { employee: { select: { id: true } } },
+    });
+    currentUserId = adminUser?.id ?? null;
+    currentEmployeeId = adminUser?.employee?.id;
   } else {
     if (!session?.user) {
       return null;
@@ -127,13 +135,17 @@ export default async function CalendarDayPage({
     );
   }
 
+  if (!currentUserId) {
+    return null;
+  }
+
   // Determine who can see leave: admin sees all, staff sees own
   const staffFilter = viewAs === "staff" ? currentEmployeeId : undefined;
 
   // Fetch data in parallel
   const [leaveRequests, rawEvents] = await Promise.all([
     getLeaveForDate(date, staffFilter),
-    getEventsForDate(date),
+    getEventsForDate(date, currentUserId),
   ]);
 
   // Sort meetings first, then by start date

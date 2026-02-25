@@ -198,7 +198,7 @@ export function getLeaveConflictDates(
  * Rounded down to nearest 0.5 day.
  *
  * Examples (entitlement = 14, current month = Feb):
- * - Existing employee → 14 * 2/12 = 2.33 → 2
+ * - Existing employee → 14 * 2/12 = 2.33 → 2 (+ carry-over from last year)
  * - New hire joined Feb → 0 completed months → 0
  * - New hire joined Jan → 1 completed month → 14 * 1/12 = 1.17 → 1
  */
