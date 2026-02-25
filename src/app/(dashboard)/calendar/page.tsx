@@ -83,8 +83,8 @@ export default async function CalendarPage() {
   if (isStaff && !employeeId) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-white">Calendar</h1>
-        <p className="text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Calendar</h1>
+        <p className="text-sm sm:text-base text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
       </div>
     );
   }
@@ -93,15 +93,15 @@ export default async function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Calendar</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Calendar</h1>
+          <p className="text-sm sm:text-base text-gray-400 mt-1">
             Events, holidays & leave schedule
           </p>
         </div>
-        <Link href="/calendar/new">
-          <Button>
+        <Link href="/calendar/new" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Add Event
           </Button>

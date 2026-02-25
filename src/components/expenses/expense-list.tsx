@@ -374,7 +374,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             <button
               key={v}
               onClick={() => setStatusFilter(v)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium transition-colors ${
                 statusFilter === v
                   ? "bg-white text-gray-900"
                   : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"

@@ -43,8 +43,8 @@ export default async function ProfilePage() {
   if (!user || !user.employee) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-white">My Profile</h1>
-        <p className="text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">My Profile</h1>
+        <p className="text-sm sm:text-base text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
       </div>
     );
   }
@@ -54,23 +54,23 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">My Profile</h1>
-        <p className="text-gray-400 mt-1">Your personal information</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">My Profile</h1>
+        <p className="text-sm sm:text-base text-gray-400 mt-1">Your personal information</p>
       </div>
 
       {/* Profile Header */}
       <Card className="bg-gray-950 border-gray-800">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-6">
-            <Avatar className="h-20 w-20 bg-primary">
-              <AvatarFallback className="bg-primary text-white text-2xl">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 bg-primary">
+              <AvatarFallback className="bg-primary text-white text-xl sm:text-2xl">
                 {getInitials(emp.name)}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h2 className="text-2xl font-bold text-white">{emp.name}</h2>
+            <div className="text-center sm:text-left">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">{emp.name}</h2>
               <p className="text-gray-400">{emp.position}</p>
-              <div className="flex gap-2 mt-2">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
                 <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
                   {emp.status}
                 </Badge>

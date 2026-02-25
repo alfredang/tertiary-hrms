@@ -75,11 +75,9 @@ export default async function EmployeesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Employees</h1>
-          <p className="text-gray-400 mt-1">{employees.length} team member{employees.length !== 1 ? "s" : ""}</p>
-        </div>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Employees</h1>
+        <p className="text-sm sm:text-base text-gray-400 mt-1">{employees.length} team member{employees.length !== 1 ? "s" : ""}</p>
       </div>
 
       <EmployeeList employees={employees} departments={departments} isAdmin={viewAs === "admin"} />

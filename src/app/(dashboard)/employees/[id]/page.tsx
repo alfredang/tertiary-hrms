@@ -121,11 +121,11 @@ export default async function EmployeeDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
           <div className="relative">
-            <Avatar className="h-20 w-20 bg-primary">
-              <AvatarFallback className="bg-primary text-white text-2xl">
+            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 bg-primary">
+              <AvatarFallback className="bg-primary text-white text-xl sm:text-2xl">
                 {getInitials(employee.name)}
               </AvatarFallback>
             </Avatar>
@@ -133,12 +133,12 @@ export default async function EmployeeDetailPage({
               <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
             )}
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">
+          <div className="text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">
               {employee.name}
             </h1>
             <p className="text-gray-400 mt-1">{employee.position}</p>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 mt-2">
               <Badge className={statusColors[employee.status]}>
                 {statusLabels[employee.status]}
               </Badge>
@@ -529,29 +529,29 @@ export default async function EmployeeDetailPage({
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-800">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Leave Type</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Start Date</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">End Date</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Days</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Status</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Approver</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Applied On</th>
+                        <th className="text-left py-3 px-2 sm:px-4 text-sm font-medium text-gray-400">Leave Type</th>
+                        <th className="text-left py-3 px-2 sm:px-4 text-sm font-medium text-gray-400">Start Date</th>
+                        <th className="text-left py-3 px-2 sm:px-4 text-sm font-medium text-gray-400">End Date</th>
+                        <th className="text-left py-3 px-2 sm:px-4 text-sm font-medium text-gray-400">Days</th>
+                        <th className="text-left py-3 px-2 sm:px-4 text-sm font-medium text-gray-400">Status</th>
+                        <th className="text-left py-3 px-2 sm:px-4 text-sm font-medium text-gray-400">Approver</th>
+                        <th className="text-left py-3 px-2 sm:px-4 text-sm font-medium text-gray-400">Applied On</th>
                       </tr>
                     </thead>
                     <tbody>
                       {employee.leaveRequests.map((request) => (
                         <tr key={request.id} className="border-b border-gray-800">
-                          <td className="py-3 px-4 text-sm text-white">{request.leaveType.name}</td>
-                          <td className="py-3 px-4 text-sm text-gray-400">
+                          <td className="py-3 px-2 sm:px-4 text-sm text-white">{request.leaveType.name}</td>
+                          <td className="py-3 px-2 sm:px-4 text-sm text-gray-400">
                             {format(new Date(request.startDate), "dd MMM yyyy")}
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-400">
+                          <td className="py-3 px-2 sm:px-4 text-sm text-gray-400">
                             {format(new Date(request.endDate), "dd MMM yyyy")}
                           </td>
-                          <td className="py-3 px-4 text-sm text-white font-medium">
+                          <td className="py-3 px-2 sm:px-4 text-sm text-white font-medium">
                             {Number(request.days)}
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-2 sm:px-4">
                             <Badge
                               className={
                                 request.status === "APPROVED"
@@ -566,12 +566,12 @@ export default async function EmployeeDetailPage({
                               {request.status}
                             </Badge>
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-400">
+                          <td className="py-3 px-2 sm:px-4 text-sm text-gray-400">
                             {request.approver
                               ? request.approver.name
                               : "-"}
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-400">
+                          <td className="py-3 px-2 sm:px-4 text-sm text-gray-400">
                             {format(new Date(request.createdAt), "dd MMM yyyy")}
                           </td>
                         </tr>

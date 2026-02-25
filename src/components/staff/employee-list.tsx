@@ -79,8 +79,8 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
     <div className="space-y-4">
       {/* Filters - only show for admin view */}
       {isAdmin && (
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex flex-1 gap-4 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
+          <div className="flex flex-col sm:flex-row flex-1 gap-3 sm:gap-4 w-full sm:w-auto">
             <div className="relative flex-1 sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
@@ -90,34 +90,36 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                 className="pl-9"
               />
             </div>
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Departments" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {departments.map((dept) => (
-                  <SelectItem key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="ON_LEAVE">On Leave</SelectItem>
-                <SelectItem value="RESIGNED">Resigned</SelectItem>
-                <SelectItem value="TERMINATED">Terminated</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-3">
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="All Departments" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="ON_LEAVE">On Leave</SelectItem>
+                  <SelectItem value="RESIGNED">Resigned</SelectItem>
+                  <SelectItem value="TERMINATED">Terminated</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-between sm:justify-end">
             <div className="flex items-center border rounded-lg p-1">
               <Button
                 variant={view === "grid" ? "secondary" : "ghost"}
@@ -136,8 +138,8 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                 <List className="h-4 w-4" />
               </Button>
             </div>
-            <Link href="/employees/new">
-              <Button>
+            <Link href="/employees/new" className="flex-1 sm:flex-none">
+              <Button className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Employee
               </Button>
@@ -152,7 +154,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
           {filteredEmployees.map((employee) => (
             <Link key={employee.id} href={`/employees/${employee.id}`}>
               <Card className="hover:border-primary/50 transition-colors cursor-pointer bg-gray-950 border-gray-800">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start gap-4">
                     <div className="relative">
                       <Avatar className="h-12 w-12 bg-primary">

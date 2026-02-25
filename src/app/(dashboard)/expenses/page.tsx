@@ -87,8 +87,8 @@ export default async function ExpensesPage() {
   if (viewAs === "staff" && !currentEmployeeId) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-white">Expense Claims</h1>
-        <p className="text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Expense Claims</h1>
+        <p className="text-sm sm:text-base text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
       </div>
     );
   }
@@ -101,16 +101,16 @@ export default async function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Expense Claims</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Expense Claims</h1>
+          <p className="text-sm sm:text-base text-gray-400 mt-1">
             {viewAs === "admin" ? "Manage all employee expenses" : "Submit and manage expenses"}
           </p>
         </div>
         {viewAs === "staff" && (
-          <Link href="/expenses/submit">
-            <Button>
+          <Link href="/expenses/submit" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               New Expense
             </Button>
@@ -120,11 +120,11 @@ export default async function ExpensesPage() {
 
       {/* Stats Header - only for staff view */}
       {viewAs === "staff" && (
-        <div className="bg-gray-950 border border-gray-800 text-white rounded-2xl p-6">
+        <div className="bg-gray-950 border border-gray-800 text-white rounded-2xl p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-400">Total Expenses</p>
-              <p className="text-3xl font-bold mt-1">
+              <p className="text-2xl sm:text-3xl font-bold mt-1">
                 {formatCurrency(stats.totalExpenses)}
               </p>
               <p className="text-sm text-gray-400 mt-1">
