@@ -141,29 +141,29 @@ export default async function LeavePage() {
 
       {/* Leave Balance Summary - only show for staff view */}
       {viewAs === "staff" && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-5">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Balance from Last Year</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Carried Over</p>
             <p className="text-xl sm:text-2xl font-bold text-white">{leaveBalance.carriedOver}</p>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-5">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Entitlement</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Entitlement</p>
             <p className="text-xl sm:text-2xl font-bold text-blue-400">{leaveBalance.allocation}</p>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-5">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Allocation (Pro-rated)</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Pro-rated Allocation</p>
             <p className="text-xl sm:text-2xl font-bold text-cyan-400">{leaveBalance.proRated}</p>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-5">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Leave Taken</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Leave Taken</p>
             <p className="text-xl sm:text-2xl font-bold text-amber-400">{leaveBalance.taken}</p>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-5">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Leave Rejected</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Rejected</p>
             <p className="text-xl sm:text-2xl font-bold text-red-400">{leaveBalance.rejected}</p>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-5">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Remaining Balance</p>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Remaining</p>
             <p className="text-xl sm:text-2xl font-bold text-green-400">{leaveBalance.proRated - leaveBalance.taken}</p>
           </div>
         </div>

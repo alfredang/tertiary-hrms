@@ -99,8 +99,8 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4 py-8">
+      <div className="w-full max-w-md space-y-6">
         {/* Logo + Header */}
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-4">
@@ -288,8 +288,8 @@ function LoginForm() {
 
 function LoginSkeleton() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4 py-8">
+      <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-4">
             <div className="w-14 h-14 bg-gray-800 rounded-2xl animate-pulse" />

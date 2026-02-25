@@ -114,26 +114,28 @@ export function CalendarEventCard({ event, currentUserId, isAdmin }: CalendarEve
           )}
 
           {confirmState === "confirmDelete" && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="space-y-2">
               <span className="text-xs text-red-400">Delete this event?</span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDelete}
-                disabled={isLoading}
-                className="h-7 px-3 text-xs border-red-800 text-red-400 hover:text-red-300 hover:bg-red-950/30"
-              >
-                {isLoading ? "Deleting..." : "Yes, Delete"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setConfirmState("idle")}
-                disabled={isLoading}
-                className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
-              >
-                Cancel
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                  className="h-7 px-3 text-xs border-red-800 text-red-400 hover:text-red-300 hover:bg-red-950/30"
+                >
+                  {isLoading ? "Deleting..." : "Yes, Delete"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmState("idle")}
+                  disabled={isLoading}
+                  className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Search, Calendar, Check, X, Pencil, RotateCcw, ChevronUp, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -369,12 +376,29 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             className="pl-9"
           />
         </div>
-        <div className="flex flex-wrap gap-1">
+        {/* Mobile: Select dropdown */}
+        <div className="sm:hidden w-full">
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              <SelectItem value="PAID">Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Desktop: Pill buttons */}
+        <div className="hidden sm:flex flex-wrap gap-1">
           {(["all", "PENDING", "APPROVED", "REJECTED", "CANCELLED", "PAID"] as const).map((v) => (
             <button
               key={v}
               onClick={() => setStatusFilter(v)}
-              className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                 statusFilter === v
                   ? "bg-white text-gray-900"
                   : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"

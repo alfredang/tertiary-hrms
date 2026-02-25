@@ -120,7 +120,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
           </div>
 
           <div className="flex items-center gap-2 justify-between sm:justify-end">
-            <div className="flex items-center border rounded-lg p-1">
+            <div className="hidden sm:flex items-center border rounded-lg p-1">
               <Button
                 variant={view === "grid" ? "secondary" : "ghost"}
                 size="icon"
