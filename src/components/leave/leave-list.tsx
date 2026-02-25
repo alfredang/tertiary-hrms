@@ -363,8 +363,8 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
             className="pl-9"
           />
         </div>
-        {/* Mobile: Select dropdown */}
-        <div className="sm:hidden w-full">
+        {/* Mobile/Zoom: Select dropdown */}
+        <div className="lg:hidden w-full">
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
             <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
               <SelectValue />
@@ -379,7 +379,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           </Select>
         </div>
         {/* Desktop: Pill buttons */}
-        <div className="hidden sm:flex flex-wrap gap-1">
+        <div className="hidden lg:flex flex-wrap gap-1">
           {(["all", "PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const).map((v) => (
             <button
               key={v}

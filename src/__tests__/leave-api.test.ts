@@ -608,28 +608,86 @@ describe("Proration & Rounding (utility functions)", () => {
     expect(roundToHalf(0)).toBe(0);
   });
 
-  it("should prorate leave based on elapsed months from start date", async () => {
+  it("should prorate leave for Jan-1 start same as pre-year employee (inclusive months)", async () => {
     const { prorateLeave, roundToHalf } = await import("@/lib/utils");
 
-    // prorateLeave uses new Date() internally for current month.
-    // Test with a start date before current date (Jan 1 of current year).
-    // Employee started at year start → elapsed = currentMonth + 1
+    // Jan 1 of this year: effectiveStart == yearStart → startedThisYear = false
+    // → inclusive months: currentMonth + 1
     const now = new Date();
-    const currentMonth = now.getMonth(); // 0-indexed
+    const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Employee started Jan 1 of this year → full elapsed months so far
-    const elapsedFromJan = currentMonth + 1;
-    const expectedFromJan = roundToHalf((14 * elapsedFromJan) / 12);
-    expect(prorateLeave(14, new Date(currentYear, 0, 1))).toBe(expectedFromJan);
+    const inclusiveMonths = currentMonth + 1;
+    const expected = roundToHalf((14 * inclusiveMonths) / 12);
+    expect(prorateLeave(14, new Date(currentYear, 0, 1))).toBe(expected);
+
+    // Pre-year employee → same result (both use inclusive)
+    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(expected);
   });
 
-  it("should give same result as Jan-start for employee started before this year", async () => {
+  it("should use completed months for mid-year new hire (join month excluded)", async () => {
+    const { prorateLeave, roundToHalf } = await import("@/lib/utils");
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Mid-year hire: startedThisYear = true (start > yearStart) → completed months (no +1)
+    // Note: Jan 1 == yearStart so NOT startedThisYear. Need Feb+ start.
+    if (currentMonth >= 2) {
+      // Employee started on the 1st of THIS month → 0 completed months
+      expect(prorateLeave(14, new Date(currentYear, currentMonth, 1))).toBe(0);
+
+      // Employee started previous month (Feb+) → 1 completed month
+      const result = prorateLeave(14, new Date(currentYear, currentMonth - 1, 1));
+      const expected = roundToHalf((14 * 1) / 12); // 1.17 → 1
+      expect(result).toBe(expected);
+    } else if (currentMonth >= 1) {
+      // In Feb: only test that current-month hire gets 0
+      // (Previous month is Jan = yearStart, not treated as mid-year hire)
+      expect(prorateLeave(14, new Date(currentYear, currentMonth, 1))).toBe(0);
+    }
+  });
+
+  it("should give DIFFERENT results for mid-year hire vs pre-year employee", async () => {
     const { prorateLeave } = await import("@/lib/utils");
-    // Employee started years ago → effective start = Jan 1 of current year
-    // Should equal proration from Jan 1
-    const fromJan = prorateLeave(14, new Date(new Date().getFullYear(), 0, 1));
-    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(fromJan);
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+
+    if (currentMonth >= 1) {
+      // Mid-year hire (started this month) → 0 completed months → 0 leave
+      const midYearHire = prorateLeave(14, new Date(currentYear, currentMonth, 1));
+      // Pre-year employee → inclusive → currentMonth + 1 months
+      const existing = prorateLeave(14, new Date("2020-06-15"));
+
+      expect(midYearHire).toBe(0);
+      expect(existing).toBeGreaterThan(0);
+    }
+  });
+
+  it("should give new hire in join month 0 leave", async () => {
+    const { prorateLeave } = await import("@/lib/utils");
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Only meaningful if we're past Jan (start date must be > yearStart)
+    if (currentMonth >= 1) {
+      expect(prorateLeave(14, new Date(currentYear, currentMonth, 1))).toBe(0);
+    }
+  });
+
+  it("should give new hire after 1 completed month prorated leave", async () => {
+    const { prorateLeave, roundToHalf } = await import("@/lib/utils");
+    const now = new Date();
+    const currentMonth = now.getMonth();
+
+    // Only test if we're past January (need a previous month that is > yearStart)
+    if (currentMonth >= 2) {
+      // Start date = previous month → completed = currentMonth - (currentMonth-1) = 1
+      const result = prorateLeave(14, new Date(now.getFullYear(), currentMonth - 1, 1));
+      const expected = roundToHalf((14 * 1) / 12); // 1.17 → 1
+      expect(result).toBe(expected);
+    }
   });
 
   it("should give zero entitlement for employee starting in the future", async () => {

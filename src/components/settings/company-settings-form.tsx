@@ -12,7 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Save, ShieldCheck, Plus, X } from "lucide-react";
+import { Building2, Save, ShieldCheck, Plus, X, RotateCcw } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { CompanySettings } from "@prisma/client";
 
 const companySettingsSchema = z.object({
@@ -41,6 +48,13 @@ export function CompanySettingsForm({ settings, readOnly = false }: CompanySetti
   );
   const [newEmail, setNewEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [rolloverYear, setRolloverYear] = useState(String(new Date().getFullYear() - 1));
+  const [rolloverLoading, setRolloverLoading] = useState(false);
+  const [rolloverResults, setRolloverResults] = useState<{
+    totalCarried: number;
+    employeesProcessed: number;
+    summary: Array<{ employee: string; employeeId: string; leaveType: string; unused: number; carried: number; warning?: string }>;
+  } | null>(null);
 
   const form = useForm<CompanySettingsFormData>({
     resolver: zodResolver(companySettingsSchema),
@@ -120,6 +134,117 @@ export function CompanySettingsForm({ settings, readOnly = false }: CompanySetti
       setIsLoading(false);
     }
   };
+
+  const handleRollover = async () => {
+    const year = parseInt(rolloverYear, 10);
+    if (!window.confirm(`Are you sure you want to roll over unused annual leave from ${year} to ${year + 1}? This will update leave balances for all active employees.`)) {
+      return;
+    }
+    setRolloverLoading(true);
+    setRolloverResults(null);
+    try {
+      const res = await fetch("/api/leave/rollover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromYear: year }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Rollover failed");
+      }
+      const data = await res.json();
+      setRolloverResults(data);
+      toast({
+        title: "Rollover complete",
+        description: `${data.totalCarried} days carried over for ${data.employeesProcessed} employees.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Rollover failed",
+        variant: "destructive",
+      });
+    } finally {
+      setRolloverLoading(false);
+    }
+  };
+
+  const renderRolloverSection = () => (
+    <Card className="bg-gray-950 border-gray-800">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <RotateCcw className="h-5 w-5 text-amber-400" />
+          <CardTitle className="text-white">Leave Year-End Rollover</CardTitle>
+        </div>
+        <p className="text-sm text-gray-400 mt-1">
+          Carry forward unused annual leave to the next year. MC, CL, and NPL do not carry over.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="space-y-2">
+            <Label className="text-white">Roll over from year</Label>
+            <Select value={rolloverYear} onValueChange={setRolloverYear}>
+              <SelectTrigger className="w-[140px] bg-gray-900 border-gray-700 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((y) => (
+                  <SelectItem key={y} value={String(y)}>{y} → {y + 1}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="button"
+            onClick={handleRollover}
+            disabled={rolloverLoading || readOnly}
+            className="bg-amber-600 hover:bg-amber-500 text-white"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            {rolloverLoading ? "Running..." : "Run Rollover"}
+          </Button>
+        </div>
+
+        {rolloverResults && (
+          <div className="bg-gray-900 rounded-lg p-4 space-y-3">
+            <p className="text-sm text-white font-medium">
+              Rollover complete: {rolloverResults.totalCarried} total days carried over ({rolloverResults.employeesProcessed} employees)
+            </p>
+            {rolloverResults.summary.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-700 text-gray-400">
+                      <th className="text-left py-1 pr-3">Employee</th>
+                      <th className="text-left py-1 pr-3">Type</th>
+                      <th className="text-right py-1 pr-3">Unused</th>
+                      <th className="text-right py-1 pr-3">Carried</th>
+                      <th className="text-left py-1">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rolloverResults.summary.map((row, i) => (
+                      <tr key={i} className="border-b border-gray-800 text-gray-300">
+                        <td className="py-1 pr-3">{row.employee}</td>
+                        <td className="py-1 pr-3">{row.leaveType}</td>
+                        <td className="py-1 pr-3 text-right">{row.unused}</td>
+                        <td className="py-1 pr-3 text-right font-medium text-green-400">{row.carried}</td>
+                        <td className="py-1 text-amber-400">{row.warning || ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {rolloverResults.summary.length === 0 && (
+              <p className="text-sm text-gray-500">No carry-over eligible balances found for this year.</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -325,6 +450,8 @@ export function CompanySettingsForm({ settings, readOnly = false }: CompanySetti
           )}
         </CardContent>
       </Card>
+
+      {renderRolloverSection()}
 
       {!readOnly && (
         <div className="flex justify-end gap-3">

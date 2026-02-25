@@ -5,7 +5,7 @@ import { LeaveList } from "@/components/leave/leave-list";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
 
@@ -139,20 +139,30 @@ export default async function LeavePage() {
         )}
       </div>
 
+      {/* Expiring carry-over leave warning — show in Q4 (Oct-Dec) */}
+      {viewAs === "staff" && leaveBalance.carriedOver > 0 && new Date().getMonth() >= 9 && (
+        <div className="bg-amber-900/20 border border-amber-700/50 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-200">
+            You have <span className="font-semibold text-amber-100">{leaveBalance.carriedOver} days</span> of carried-over annual leave expiring on 31 Dec {new Date().getFullYear()}. Please clear them before they are forfeited.
+          </p>
+        </div>
+      )}
+
       {/* Leave Balance Summary - only show for staff view */}
       {viewAs === "staff" && (
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Carried Over</p>
-            <p className="text-xl sm:text-2xl font-bold text-white">{leaveBalance.carriedOver}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Entitlement</p>
-            <p className="text-xl sm:text-2xl font-bold text-blue-400">{leaveBalance.allocation}</p>
+            <p className="text-xs text-gray-400 mb-1">Balance</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-400">{leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken}</p>
           </div>
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
             <p className="text-xs text-gray-400 mb-1">Pro-rated Allocation</p>
             <p className="text-xl sm:text-2xl font-bold text-cyan-400">{leaveBalance.proRated}</p>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+            <p className="text-xs text-gray-400 mb-1">Carry-over</p>
+            <p className="text-xl sm:text-2xl font-bold text-purple-400">{leaveBalance.carriedOver}</p>
           </div>
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
             <p className="text-xs text-gray-400 mb-1">Leave Taken</p>
@@ -163,8 +173,8 @@ export default async function LeavePage() {
             <p className="text-xl sm:text-2xl font-bold text-red-400">{leaveBalance.rejected}</p>
           </div>
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Remaining</p>
-            <p className="text-xl sm:text-2xl font-bold text-green-400">{leaveBalance.proRated - leaveBalance.taken}</p>
+            <p className="text-xs text-gray-400 mb-1">Yearly Entitlement</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-400">{leaveBalance.allocation}</p>
           </div>
         </div>
       )}

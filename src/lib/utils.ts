@@ -125,15 +125,21 @@ export function getLeaveConflictDates(
 /**
  * Calculate prorated leave allocation (monthly accrual).
  * Allocation = annualEntitlement * elapsedMonths / 12
- * - elapsedMonths = months from effective start to current month (inclusive)
- * - If employee started before Jan 1 of current year → effective start = Jan 1
- * - If employee started mid-year → effective start = their start month
+ *
+ * For existing employees (started before this year):
+ * - effectiveStart = Jan 1 → inclusive months (Jan=1, Feb=2, ...)
+ *
+ * For new hires (started this year):
+ * - Uses completed months only (join month does NOT count)
+ * - MOM formula: (completed months of service ÷ 12) × entitlement
+ * - Note: MOM requires 3-month eligibility — we skip that (boss decision)
+ *
  * Rounded down to nearest 0.5 day.
  *
- * Examples (entitlement = 14):
- * - Existing employee in Feb → 14 * 2/12 = 2.33 → 2
- * - Existing employee in Dec → 14 * 12/12 = 14
- * - New employee starting Mar, now in May → 14 * 3/12 = 3.5
+ * Examples (entitlement = 14, current month = Feb):
+ * - Existing employee → 14 * 2/12 = 2.33 → 2
+ * - New hire joined Feb → 0 completed months → 0
+ * - New hire joined Jan → 1 completed month → 14 * 1/12 = 1.17 → 1
  */
 export function prorateLeave(annualEntitlement: number, employeeStartDate?: Date | string): number {
   const now = new Date();
@@ -151,10 +157,17 @@ export function prorateLeave(annualEntitlement: number, employeeStartDate?: Date
   // If employee hasn't started yet, no leave
   if (effectiveStart > now) return 0;
 
-  // Calculate elapsed months from effective start to current month (inclusive)
   const currentMonth = now.getMonth(); // 0-indexed (Jan=0, Feb=1, ...)
   const startMonth = effectiveStart.getMonth(); // 0-indexed
-  const elapsedMonths = currentMonth - startMonth + 1;
+
+  // Existing employees (started before this year): inclusive months from Jan
+  // New hires (started this year): completed months only (join month doesn't count)
+  const startedThisYear = effectiveStart > yearStart;
+  const elapsedMonths = startedThisYear
+    ? currentMonth - startMonth       // completed months (join month excluded)
+    : currentMonth - startMonth + 1;  // inclusive (Jan=1, Feb=2, etc.)
+
+  if (elapsedMonths <= 0) return 0;
 
   const prorated = (annualEntitlement * elapsedMonths) / 12;
   return roundToHalf(prorated);
