@@ -147,7 +147,7 @@ export function CalendarView({ events }: CalendarViewProps) {
             {blanks.map((_, index) => (
               <div
                 key={`blank-${index}`}
-                className="bg-gray-900 min-h-[60px] sm:min-h-[100px] p-1 sm:p-2"
+                className="bg-gray-900 h-[60px] sm:h-[100px] p-1 sm:p-2"
               />
             ))}
 
@@ -161,7 +161,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                   key={day}
                   href={getDayHref(day)}
                   className={cn(
-                    "block bg-gray-950 min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors",
+                    "block bg-gray-950 h-[60px] sm:h-[100px] p-1 sm:p-2 cursor-pointer transition-colors overflow-hidden",
                     isCurrentDay ? "bg-blue-950/50 hover:bg-blue-950/70" : "hover:bg-gray-900"
                   )}
                 >

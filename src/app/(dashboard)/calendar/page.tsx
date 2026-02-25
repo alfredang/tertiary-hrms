@@ -91,11 +91,6 @@ export default async function CalendarPage() {
 
   const events = await getCalendarEvents(employeeId);
 
-  const isHR =
-    process.env.SKIP_AUTH === "true" || // Act as HR when auth is skipped
-    session?.user?.role === "HR" ||
-    session?.user?.role === "ADMIN";
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -105,14 +100,12 @@ export default async function CalendarPage() {
             Events, holidays & leave schedule
           </p>
         </div>
-        {isHR && (
-          <Link href="/calendar/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Event
-            </Button>
-          </Link>
-        )}
+        <Link href="/calendar/new">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Event
+          </Button>
+        </Link>
       </div>
 
       <CalendarView events={events} />

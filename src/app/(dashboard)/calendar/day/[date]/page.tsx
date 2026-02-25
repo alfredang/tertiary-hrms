@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, Users } from "lucide-react";
+import { ArrowLeft, Calendar, Plus, Users } from "lucide-react";
 import { CalendarEventCard } from "@/components/calendar/calendar-event-card";
 
 export const dynamic = "force-dynamic";
@@ -131,10 +131,17 @@ export default async function CalendarDayPage({
   const staffFilter = viewAs === "staff" ? currentEmployeeId : undefined;
 
   // Fetch data in parallel
-  const [leaveRequests, events] = await Promise.all([
+  const [leaveRequests, rawEvents] = await Promise.all([
     getLeaveForDate(date, staffFilter),
     getEventsForDate(date),
   ]);
+
+  // Sort meetings first, then by start date
+  const events = rawEvents.sort((a, b) => {
+    if (a.type === "MEETING" && b.type !== "MEETING") return -1;
+    if (a.type !== "MEETING" && b.type === "MEETING") return 1;
+    return a.startDate.getTime() - b.startDate.getTime();
+  });
 
   const hasLeave = leaveRequests.length > 0;
   const hasEvents = events.length > 0;
@@ -150,23 +157,59 @@ export default async function CalendarDayPage({
       </Link>
 
       {/* Date header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">
-          {formatDayHeader(date)}
-        </h1>
-        <p className="text-gray-400 mt-1">
-          {hasLeave || hasEvents
-            ? `${leaveRequests.length} leave${leaveRequests.length !== 1 ? "s" : ""}, ${events.length} event${events.length !== 1 ? "s" : ""}`
-            : "Nothing scheduled"}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            {formatDayHeader(date)}
+          </h1>
+          <p className="text-gray-400 mt-1">
+            {hasLeave || hasEvents
+              ? `${events.length} event${events.length !== 1 ? "s" : ""}, ${leaveRequests.length} leave${leaveRequests.length !== 1 ? "s" : ""}`
+              : "Nothing scheduled"}
+          </p>
+        </div>
+        <Link href={`/calendar/new?date=${date}`}>
+          <Button size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Event
+          </Button>
+        </Link>
       </div>
 
-      {/* People on Leave */}
+      {/* Events */}
+      <Card className="bg-gray-950 border-gray-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Calendar className="h-5 w-5 text-blue-500" />
+            Events
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {hasEvents ? (
+            <div className="space-y-3">
+              {events.map((event) => (
+                <CalendarEventCard
+                  key={event.id}
+                  event={event}
+                  currentUserId={currentUserId}
+                  isAdmin={isAdmin}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm py-4 text-center">
+              No events scheduled
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Leave */}
       <Card className="bg-gray-950 border-gray-800">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Users className="h-5 w-5 text-amber-500" />
-            People on Leave
+            {viewAs === "staff" ? "My Leaves" : "People on Leave"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -201,35 +244,7 @@ export default async function CalendarDayPage({
             </div>
           ) : (
             <p className="text-gray-500 text-sm py-4 text-center">
-              No one is on leave
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Events */}
-      <Card className="bg-gray-950 border-gray-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Calendar className="h-5 w-5 text-blue-500" />
-            Events
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {hasEvents ? (
-            <div className="space-y-3">
-              {events.map((event) => (
-                <CalendarEventCard
-                  key={event.id}
-                  event={event}
-                  currentUserId={currentUserId}
-                  isAdmin={isAdmin}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm py-4 text-center">
-              No events scheduled
+              {viewAs === "staff" ? "You have no leave on this day" : "No one is on leave"}
             </p>
           )}
         </CardContent>

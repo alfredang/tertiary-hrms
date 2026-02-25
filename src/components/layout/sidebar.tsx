@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
+  User,
   Clock,
   Receipt,
   DollarSign,
@@ -17,7 +18,8 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Employees", href: "/employees", icon: Users },
+  { name: "My Profile", href: "/profile", icon: User },
+  { name: "Employees", href: "/employees", icon: Users, adminOnly: true as const },
   { name: "Leave", href: "/leave", icon: Clock },
   { name: "Expenses", href: "/expenses", icon: Receipt },
   { name: "Payroll", href: "/payroll", icon: DollarSign },

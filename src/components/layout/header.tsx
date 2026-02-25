@@ -20,6 +20,7 @@ import { ViewToggle } from "@/components/dashboard/view-toggle";
 
 const pageNames: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/profile": "My Profile",
   "/employees": "Employees",
   "/leave": "Leave",
   "/expenses": "Expenses",
