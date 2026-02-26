@@ -24,7 +24,7 @@ import type {
 interface EmployeeEditSheetProps {
   employee: Employee & {
     salaryInfo: SalaryInfo | null;
-    department: Department;
+    department: Department | null;
     leaveBalances: (LeaveBalance & { leaveType: LeaveType })[];
   };
   departments: Department[];
@@ -47,7 +47,7 @@ export function EmployeeEditSheet({
         fullName: employee.name,
         email: employee.email,
         phone: employee.phone || "",
-        dateOfBirth: employee.dateOfBirth.toISOString().split("T")[0],
+        dateOfBirth: employee.dateOfBirth?.toISOString().split("T")[0] ?? "",
         gender: employee.gender,
         nationality: employee.nationality,
         nric: employee.nric || "",
@@ -55,10 +55,10 @@ export function EmployeeEditSheet({
         educationLevel: employee.educationLevel,
       },
       employmentInfo: {
-        departmentId: employee.departmentId,
-        position: employee.position,
+        departmentId: employee.departmentId ?? "",
+        position: employee.position ?? "",
         employmentType: employee.employmentType,
-        startDate: employee.startDate.toISOString().split("T")[0],
+        startDate: employee.startDate?.toISOString().split("T")[0] ?? "",
         endDate: employee.endDate?.toISOString().split("T")[0] || "",
         status: employee.status,
       },

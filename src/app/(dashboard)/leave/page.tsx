@@ -48,7 +48,7 @@ async function getLeaveBalance(employeeId: string) {
   const allocation = balance ? Number(balance.entitlement) : annualLeaveType.defaultDays;
   const carriedOver = balance ? Number(balance.carriedOver) : 0;
   const taken = balance ? Number(balance.used) : 0;
-  const proRated = prorateLeave(allocation, employee?.startDate);
+  const proRated = prorateLeave(allocation, employee?.startDate ?? undefined);
 
   return { carriedOver, allocation, taken, rejected: rejectedCount, proRated };
 }

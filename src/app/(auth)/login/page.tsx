@@ -26,7 +26,6 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [skipLoadingRole, setSkipLoadingRole] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   // Read OAuth error from URL query params
@@ -58,32 +57,6 @@ function LoginForm() {
     } catch {
       setError("Something went wrong. Please try again.");
       setIsLoading(false);
-    }
-  };
-
-  const handleSkipLogin = async (role: "admin" | "staff") => {
-    setError("");
-    setSkipLoadingRole(role);
-    const testPassword = process.env.NEXT_PUBLIC_TEST_PASSWORD || "123456";
-    const credentials = role === "admin"
-      ? { email: "admin@tertiaryinfotech.com", password: testPassword }
-      : { email: "staff@tertiaryinfotech.com", password: testPassword };
-
-    try {
-      const result = await signIn("credentials", {
-        ...credentials,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError("Invalid credentials. Make sure test accounts exist (run prisma seed).");
-        setSkipLoadingRole(null);
-      } else {
-        window.location.href = "/dashboard";
-      }
-    } catch {
-      setError("Skip login failed.");
-      setSkipLoadingRole(null);
     }
   };
 
@@ -239,43 +212,6 @@ function LoginForm() {
             )}
           </Button>
         </div>
-
-        {/* Dev Skip Login */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="bg-yellow-950/30 border border-yellow-800/50 rounded-2xl p-4 space-y-3">
-            <p className="text-xs text-yellow-500 font-medium text-center uppercase tracking-wide">
-              Dev Quick Login
-            </p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs"
-                onClick={() => handleSkipLogin("admin")}
-                disabled={skipLoadingRole !== null}
-              >
-                {skipLoadingRole === "admin" ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  "Login as Admin"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs"
-                onClick={() => handleSkipLogin("staff")}
-                disabled={skipLoadingRole !== null}
-              >
-                {skipLoadingRole === "staff" ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  "Login as Staff"
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-600">

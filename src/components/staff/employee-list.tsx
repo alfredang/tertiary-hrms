@@ -19,7 +19,7 @@ import { getInitials } from "@/lib/utils";
 import type { Employee, Department, EmployeeStatus, User, Role } from "@prisma/client";
 
 interface EmployeeListProps {
-  employees: (Employee & { department: Department; user: User })[];
+  employees: (Employee & { department: Department | null; user: User })[];
   departments: Department[];
   isAdmin?: boolean;
 }
@@ -29,6 +29,7 @@ const statusColors: Record<EmployeeStatus, string> = {
   ON_LEAVE: "bg-amber-100 text-amber-800 border-amber-200",
   TERMINATED: "bg-red-100 text-red-800 border-red-200",
   RESIGNED: "bg-gray-100 text-gray-800 border-gray-200",
+  INACTIVE: "bg-slate-100 text-slate-800 border-slate-200",
 };
 
 const statusLabels: Record<EmployeeStatus, string> = {
@@ -36,6 +37,7 @@ const statusLabels: Record<EmployeeStatus, string> = {
   ON_LEAVE: "On Leave",
   TERMINATED: "Terminated",
   RESIGNED: "Resigned",
+  INACTIVE: "Inactive",
 };
 
 const roleColors: Record<Role, string> = {
@@ -64,7 +66,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
         .toLowerCase()
         .includes(search.toLowerCase()) ||
       employee.email.toLowerCase().includes(search.toLowerCase()) ||
-      employee.position.toLowerCase().includes(search.toLowerCase());
+      (employee.position ?? "").toLowerCase().includes(search.toLowerCase());
 
     const matchesDepartment =
       departmentFilter === "all" || employee.departmentId === departmentFilter;
@@ -114,6 +116,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                   <SelectItem value="ON_LEAVE">On Leave</SelectItem>
                   <SelectItem value="RESIGNED">Resigned</SelectItem>
                   <SelectItem value="TERMINATED">Terminated</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -187,7 +190,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                   <div className="mt-4 space-y-2 text-sm text-gray-400">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 flex-shrink-0" />
-                      <span>{employee.department.name}</span>
+                      <span>{employee.department?.name ?? "—"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 flex-shrink-0" />
@@ -233,7 +236,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                     </div>
                   </div>
                   <div className="hidden sm:block text-sm text-gray-400">
-                    {employee.department.name}
+                    {employee.department?.name ?? "—"}
                   </div>
                   <div className="hidden md:block text-sm text-gray-400">
                     {employee.email}

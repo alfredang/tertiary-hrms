@@ -43,8 +43,8 @@ export async function GET(
       employee: {
         name: payslip.employee.name,
         id: payslip.employee.employeeId,
-        department: payslip.employee.department.name,
-        position: payslip.employee.position,
+        department: payslip.employee.department?.name ?? "—",
+        position: payslip.employee.position ?? "—",
       },
       payPeriod: {
         start: payslip.payPeriodStart,

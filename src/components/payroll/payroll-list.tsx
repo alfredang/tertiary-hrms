@@ -34,7 +34,7 @@ interface Payslip {
     id: string;
     name: string;
     employeeId: string;
-    department: { name: string };
+    department: { name: string } | null;
   };
 }
 

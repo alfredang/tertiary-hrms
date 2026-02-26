@@ -116,7 +116,7 @@ export default async function ProfilePage() {
               <Calendar className="h-4 w-4 text-gray-400" />
               <div>
                 <p className="text-sm text-gray-400">Date of Birth</p>
-                <p className="text-white">{format(emp.dateOfBirth, "d MMM yyyy")}</p>
+                <p className="text-white">{emp.dateOfBirth ? format(emp.dateOfBirth, "d MMM yyyy") : "—"}</p>
               </div>
             </div>
             <div>
@@ -143,7 +143,7 @@ export default async function ProfilePage() {
               <Building2 className="h-4 w-4 text-gray-400" />
               <div>
                 <p className="text-sm text-gray-400">Department</p>
-                <p className="text-white">{emp.department.name}</p>
+                <p className="text-white">{emp.department?.name ?? "—"}</p>
               </div>
             </div>
             <div>
@@ -156,7 +156,7 @@ export default async function ProfilePage() {
             </div>
             <div>
               <p className="text-sm text-gray-400">Start Date</p>
-              <p className="text-white">{format(emp.startDate, "d MMM yyyy")}</p>
+              <p className="text-white">{emp.startDate ? format(emp.startDate, "d MMM yyyy") : "—"}</p>
             </div>
           </CardContent>
         </Card>

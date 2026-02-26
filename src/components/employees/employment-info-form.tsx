@@ -30,6 +30,7 @@ const statusOptions = [
   { value: "ON_LEAVE", label: "On Leave" },
   { value: "RESIGNED", label: "Resigned" },
   { value: "TERMINATED", label: "Terminated" },
+  { value: "INACTIVE", label: "Inactive" },
 ];
 
 export function EmploymentInfoForm({
@@ -42,7 +43,7 @@ export function EmploymentInfoForm({
       {/* Department */}
       <div className="space-y-2">
         <Label htmlFor="departmentId" className="text-gray-300">
-          Department *
+          Department
         </Label>
         <Select
           value={form.watch("employmentInfo.departmentId")}
@@ -71,7 +72,7 @@ export function EmploymentInfoForm({
       {/* Position */}
       <div className="space-y-2">
         <Label htmlFor="position" className="text-gray-300">
-          Position *
+          Position
         </Label>
         <Input
           id="position"
@@ -88,7 +89,7 @@ export function EmploymentInfoForm({
       {/* Employment Type */}
       <div className="space-y-2">
         <Label htmlFor="employmentType" className="text-gray-300">
-          Employment Type *
+          Employment Type
         </Label>
         <Select
           value={form.watch("employmentInfo.employmentType")}
@@ -113,7 +114,7 @@ export function EmploymentInfoForm({
         {/* Start Date */}
         <div className="space-y-2">
           <Label htmlFor="startDate" className="text-gray-300">
-            Start Date *
+            Start Date
           </Label>
           <Input
             id="startDate"
@@ -150,7 +151,7 @@ export function EmploymentInfoForm({
       {/* Status */}
       <div className="space-y-2">
         <Label htmlFor="status" className="text-gray-300">
-          Status *
+          Status
         </Label>
         <Select
           value={form.watch("employmentInfo.status")}

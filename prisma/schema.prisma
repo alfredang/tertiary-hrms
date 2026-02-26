@@ -74,23 +74,23 @@ model Employee {
   name                                           String
   email                                          String         @unique
   phone                                          String?
-  dateOfBirth                                    DateTime
-  gender                                         Gender
+  dateOfBirth                                    DateTime?
+  gender                                         Gender         @default(MALE)
   nationality                                    String         @default("Singaporean")
   nric                                           String?        @unique
   address                                        String?
   educationLevel                                 EducationLevel @default(DIPLOMA)
-  departmentId                                   String
-  position                                       String
+  departmentId                                   String?
+  position                                       String?
   employmentType                                 EmploymentType @default(FULL_TIME)
-  startDate                                      DateTime
+  startDate                                      DateTime?
   endDate                                        DateTime?
   status                                         EmployeeStatus @default(ACTIVE)
   managerId                                      String?
   avatarUrl                                      String?
   createdAt                                      DateTime       @default(now())
   updatedAt                                      DateTime       @updatedAt
-  department         Department     @relation(fields: [departmentId], references: [id])
+  department         Department?    @relation(fields: [departmentId], references: [id])
   manager            Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
   subordinates       Employee[]     @relation("EmployeeToEmployee")
   user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -285,6 +285,7 @@ enum EmployeeStatus {
   ON_LEAVE
   TERMINATED
   RESIGNED
+  INACTIVE
 }
 
 enum EmploymentType {

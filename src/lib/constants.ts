@@ -13,6 +13,7 @@ export const EMPLOYEE_STATUS = {
   ON_LEAVE: "ON_LEAVE",
   TERMINATED: "TERMINATED",
   RESIGNED: "RESIGNED",
+  INACTIVE: "INACTIVE",
 } as const;
 
 export const LEAVE_STATUS = {

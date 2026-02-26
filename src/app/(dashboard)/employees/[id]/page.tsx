@@ -28,6 +28,7 @@ const statusColors: Record<EmployeeStatus, string> = {
   ON_LEAVE: "bg-amber-100 text-amber-800 border-amber-200",
   TERMINATED: "bg-red-100 text-red-800 border-red-200",
   RESIGNED: "bg-gray-100 text-gray-800 border-gray-200",
+  INACTIVE: "bg-slate-100 text-slate-800 border-slate-200",
 };
 
 const statusLabels: Record<EmployeeStatus, string> = {
@@ -35,6 +36,7 @@ const statusLabels: Record<EmployeeStatus, string> = {
   ON_LEAVE: "On Leave",
   TERMINATED: "Terminated",
   RESIGNED: "Resigned",
+  INACTIVE: "Inactive",
 };
 
 async function getEmployee(id: string) {
@@ -183,7 +185,7 @@ export default async function EmployeeDetailPage({
               <p className="text-sm text-gray-400">Date of Birth</p>
               <div className="flex items-center gap-2 mt-1">
                 <Calendar className="h-4 w-4 text-gray-400" />
-                <p className="font-medium text-white">{format(new Date(employee.dateOfBirth), "PPP")}</p>
+                <p className="font-medium text-white">{employee.dateOfBirth ? format(new Date(employee.dateOfBirth), "PPP") : "—"}</p>
               </div>
             </div>
             <div>
@@ -262,7 +264,7 @@ export default async function EmployeeDetailPage({
               <p className="text-sm text-gray-400">Department</p>
               <div className="flex items-center gap-2 mt-1">
                 <Building2 className="h-4 w-4 text-gray-400" />
-                <p className="font-medium text-white">{employee.department.name}</p>
+                <p className="font-medium text-white">{employee.department?.name ?? "—"}</p>
               </div>
             </div>
             <div>
@@ -277,7 +279,7 @@ export default async function EmployeeDetailPage({
               <p className="text-sm text-gray-400">Start Date</p>
               <div className="flex items-center gap-2 mt-1">
                 <Calendar className="h-4 w-4 text-gray-400" />
-                <p className="font-medium">{format(new Date(employee.startDate), "PPP")}</p>
+                <p className="font-medium">{employee.startDate ? format(new Date(employee.startDate), "PPP") : "—"}</p>
               </div>
             </div>
             {employee.endDate && (
@@ -408,7 +410,7 @@ export default async function EmployeeDetailPage({
                     // AL is prorated based on employee start date; others use full entitlement
                     const isAL = balance.leaveType.code === "AL";
                     const allocation = isAL
-                      ? prorateLeave(fullEntitlement, employee.startDate)
+                      ? prorateLeave(fullEntitlement, employee.startDate ?? undefined)
                       : fullEntitlement;
                     const totalBalance = allocation + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
                     return (

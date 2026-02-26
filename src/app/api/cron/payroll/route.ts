@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
         const payroll = calculatePayroll(
           Number(salary.basicSalary),
           Number(salary.allowances),
-          employee.dateOfBirth
+          employee.dateOfBirth ?? new Date()
         );
 
         await prisma.payslip.create({

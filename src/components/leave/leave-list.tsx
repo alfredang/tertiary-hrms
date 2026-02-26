@@ -34,7 +34,7 @@ interface LeaveRequest {
   employee: {
     id: string;
     name: string;
-    department: { name: string };
+    department: { name: string } | null;
   };
   leaveType: { name: string; code: string };
   approver: { name: string } | null;

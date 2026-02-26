@@ -76,6 +76,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        // Block INACTIVE employees from logging in
+        if (user.employee?.status === "INACTIVE") {
+          return null;
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -98,6 +103,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             where: { email: user.email },
             include: { employee: true },
           });
+
+          // Block INACTIVE employees from Google sign-in
+          if (existingUser?.employee?.status === "INACTIVE") {
+            return false;
+          }
 
           if (!existingUser) {
             // Create new user with STAFF role by default

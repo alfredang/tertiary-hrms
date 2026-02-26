@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { personalInfoSchema, employmentInfoSchema, salaryInfoSchema } from "@/lib/validations/employee";
+import { createEmployeeSchema } from "@/lib/validations/employee";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
-
-const createEmployeeSchema = z.object({
-  personalInfo: personalInfoSchema,
-  employmentInfo: employmentInfoSchema,
-  salaryInfo: salaryInfoSchema,
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,7 +28,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { personalInfo, employmentInfo, salaryInfo, password } = validation.data;
+    const { personalInfo, employmentInfo, salaryInfo } = validation.data;
 
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
@@ -60,7 +52,7 @@ export async function POST(req: NextRequest) {
     const employeeId = `EMP${String(lastNum + 1).padStart(3, "0")}`;
 
     const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || "123456";
-    const hashedPassword = await bcrypt.hash(password || defaultPassword, 12);
+    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
     const result = await prisma.$transaction(async (tx) => {
       // Create user
@@ -72,7 +64,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Create employee
+      // Create employee with partial data
       const employee = await tx.employee.create({
         data: {
           userId: user.id,
@@ -80,36 +72,45 @@ export async function POST(req: NextRequest) {
           name: personalInfo.fullName.toUpperCase(),
           email: personalInfo.email,
           phone: personalInfo.phone || null,
-          dateOfBirth: new Date(personalInfo.dateOfBirth),
-          gender: personalInfo.gender,
-          nationality: personalInfo.nationality,
+          dateOfBirth: personalInfo.dateOfBirth
+            ? new Date(personalInfo.dateOfBirth)
+            : null,
+          gender: personalInfo.gender || undefined,
+          nationality: personalInfo.nationality || undefined,
           nric: personalInfo.nric || null,
           address: personalInfo.address || null,
-          educationLevel: personalInfo.educationLevel,
-          departmentId: employmentInfo.departmentId,
-          position: employmentInfo.position,
-          employmentType: employmentInfo.employmentType,
-          startDate: new Date(employmentInfo.startDate),
-          endDate: employmentInfo.endDate ? new Date(employmentInfo.endDate) : null,
-          status: employmentInfo.status,
+          educationLevel: personalInfo.educationLevel || undefined,
+          // Employment info (all optional with DB defaults)
+          departmentId: employmentInfo?.departmentId || null,
+          position: employmentInfo?.position || null,
+          employmentType: employmentInfo?.employmentType || undefined,
+          startDate: employmentInfo?.startDate
+            ? new Date(employmentInfo.startDate)
+            : null,
+          endDate: employmentInfo?.endDate
+            ? new Date(employmentInfo.endDate)
+            : null,
+          status: employmentInfo?.status || undefined,
         },
         include: { department: true },
       });
 
-      // Create salary info
-      await tx.salaryInfo.create({
-        data: {
-          employeeId: employee.id,
-          basicSalary: salaryInfo.basicSalary,
-          allowances: salaryInfo.allowances,
-          bankName: salaryInfo.bankName || null,
-          bankAccountNumber: salaryInfo.bankAccountNumber || null,
-          payNow: salaryInfo.payNow || null,
-          cpfApplicable: salaryInfo.cpfApplicable,
-          cpfEmployeeRate: salaryInfo.cpfEmployeeRate,
-          cpfEmployerRate: salaryInfo.cpfEmployerRate,
-        },
-      });
+      // Create salary info if provided
+      if (salaryInfo && (salaryInfo.basicSalary || salaryInfo.basicSalary === 0)) {
+        await tx.salaryInfo.create({
+          data: {
+            employeeId: employee.id,
+            basicSalary: salaryInfo.basicSalary ?? 0,
+            allowances: salaryInfo.allowances ?? 0,
+            bankName: salaryInfo.bankName || null,
+            bankAccountNumber: salaryInfo.bankAccountNumber || null,
+            payNow: salaryInfo.payNow || null,
+            cpfApplicable: salaryInfo.cpfApplicable ?? true,
+            cpfEmployeeRate: salaryInfo.cpfEmployeeRate ?? 20.0,
+            cpfEmployerRate: salaryInfo.cpfEmployerRate ?? 17.0,
+          },
+        });
+      }
 
       // Create leave balances for current year
       const leaveTypes = await tx.leaveType.findMany();
