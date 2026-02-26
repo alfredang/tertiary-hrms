@@ -82,13 +82,18 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 
 ### Leave Management
 - **Leave types**: Annual Leave (AL: 14 days), Medical Certificate (MC: 14 days), Compassionate Leave (CL: 3 days), No-Pay Leave (NPL: 14 days)
-- **Monthly accrual proration** for Annual Leave and Medical Leave — allocation = entitlement x elapsed months / 12, rounded down to nearest 0.5 day
+- **Half-day leave** (AM/PM) — available for Annual Leave only, single-day or multi-day with first/last day half
+- **Monthly accrual proration** for Annual Leave and Medical Leave — allocation = entitlement x completed months / 12, rounded down to nearest 0.5 day (join month excluded)
+- **Year-end rollover** — admin triggers via Settings page; Annual Leave carries forward (no cap), MC/CL/NPL reset
 - Leave balance tracking per employee per year with carry-over support
-- Dashboard shows Entitlement, Allocation (pro-rated), Balance from Last Year, Leave Taken, Leave Rejected, and Remaining Balance
-- **Leave request form** with date range picker and reason
+- Dashboard shows Entitlement, Allocation (pro-rated), Carry-over, Leave Taken, Leave Rejected, and Remaining Balance
+- **Leave request form** with date range picker, day type selector (Full Day / AM Half / PM Half), and reason
 - MC submission with **doctor's certificate upload**
-- Admin approval/rejection workflow
-- Status filtering (Pending, Approved, Rejected)
+- Admin approval/rejection workflow with optional rejection reason
+- **Admin reset** — reset approved/rejected leave back to pending (with audit log)
+- Staff can **edit** (change dates/reason) or **cancel** pending leave requests
+- **Overlap prevention** — server-side detection blocks conflicting dates (two half-days on same day allowed)
+- Status filtering (Pending, Approved, Rejected, Cancelled) with sortable columns
 - Automatic balance deduction upon approval
 - Calendar sync — approved leave/MC events automatically appear on the calendar
 
@@ -111,17 +116,23 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Category-based expense submission (Transport, Meals, Equipment, etc.)
 - **Receipt upload** with file attachment support
 - **Expense submission form** with date, amount, and description (future dates blocked)
-- Approval workflow for managers and admins
-- Multiple status states (Pending, Approved, Rejected, Paid)
+- Staff can **edit** or **cancel** pending expense claims
+- Approval workflow for managers and admins with optional rejection reason
+- **Admin reset** — reset approved/rejected expenses back to pending (with audit log)
+- Multiple status states (Pending, Approved, Rejected, Cancelled, Paid)
+- Status filtering with sortable columns
 - YTD expense claim amount displayed on staff dashboard
 - Admin and staff views with appropriate filtering
 
 ### Calendar
 - **Personal planner** — each user's events are fully private (admins cannot see other employees' events)
-- Full calendar view with color-coded event types (Holiday, Meeting, Training, Company Event, Leave)
+- Full calendar month view with color-coded event types (Holiday, Meeting, Training, Company Event, Leave)
 - Approved leave/MC automatically synced as calendar events
 - **Leave visibility**: admin view shows all employees' leave; "Show as Staff" mode and staff role see only own leave
-- Day detail view, add/edit/delete events — owner-only access
+- Day detail view with event cards showing title, type, and time
+- Add/edit/delete events with ownership enforcement
+- Event type legend with color indicators
+- Month navigation (prev/next) and Today button
 
 ### Settings (Admin Only)
 - Company-wide settings management
@@ -246,9 +257,9 @@ In development mode, use the **Dev Quick Login** buttons on the login page, or e
 
 | Email | Password | Role | Employee |
 |-------|----------|------|----------|
-| admin@tertiaryinfotech.com | 123456 | Admin | TAN SOIK CHING (EMP001) |
+| admin@tertiaryinfotech.com | 123456 | Admin | TEST ADMIN (EMP098) |
 | staff@tertiaryinfotech.com | 123456 | Staff | TEST STAFF (EMP099) |
-| staff2@tertiaryinfotech.com | 123456 | Staff | CHONG KAH YOONG (EMP002) |
+| staff2@tertiaryinfotech.com | 123456 | Staff | TEST STAFF 2 (EMP097) |
 
 ---
 
@@ -262,7 +273,7 @@ npm run test
 
 ### E2E Tests (Playwright)
 
-39 end-to-end tests covering login, RBAC, leave, expenses, payroll, calendar, view toggle, profile, and employee directory.
+48 end-to-end tests across 10 files covering auth, RBAC, dashboard, leave (full/half-day/MC), expenses, calendar CRUD, payroll, employees, settings, and view toggle. All write tests self-clean (cancel/delete created data).
 
 ```bash
 # Run all e2e tests against local dev server (auto-starts npm run dev)
@@ -272,18 +283,21 @@ npx playwright test
 TEST_ENV=production npx playwright test
 
 # Run a specific test file
-npx playwright test e2e/01-login.spec.ts
+npx playwright test e2e/01-auth.spec.ts
 ```
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
-| `01-login.spec.ts` | 10 | Auth (admin/staff/wrong pw/non-existent), RBAC, Google OAuth button |
-| `02-leave.spec.ts` | 5 | Leave 1/2/0.5 day, approve/reject, MC submission |
-| `03-expense.spec.ts` | 2 | Expense submit + admin approve |
-| `04-payroll.spec.ts` | 5 | Payroll generate, admin/staff list view, access control |
-| `05-calendar.spec.ts` | 5 | Calendar load (admin/staff), month/year, navigation, legend |
-| `06-multi-staff.spec.ts` | 6 | staff2 login, leave, expense, RBAC, admin sees both |
-| `07-view-toggle.spec.ts` | 6 | View toggle, profile page, employee directory |
+| `01-auth.spec.ts` | 8 | Login (admin/staff/wrong pw/non-existent), Google OAuth button, RBAC nav |
+| `02-dashboard.spec.ts` | 6 | Admin/staff stats, view toggle, Settings visibility |
+| `03-leave-request.spec.ts` | 5 | 1-day, 2-day, half-day AM, MC leave + balance cards |
+| `04-leave-actions.spec.ts` | 4 | Edit, cancel, admin approve+reset, admin reject+reset |
+| `05-expense-submit.spec.ts` | 3 | Submit expense, stats display, future date block |
+| `06-expense-actions.spec.ts` | 4 | Edit, cancel, admin approve+reset, admin reject+reset |
+| `07-calendar.spec.ts` | 7 | Month view, navigation, legend, CRUD (create/edit/delete), staff access |
+| `08-payroll.spec.ts` | 4 | Admin generate page, payroll list, staff view, staff RBAC block |
+| `09-employees.spec.ts` | 4 | Employee directory, detail page, admin/staff profile |
+| `10-settings.spec.ts` | 3 | Admin access, staff RBAC block, company name field |
 
 ### Utility Scripts
 
@@ -339,14 +353,17 @@ tertiary-hrms/
 │   ├── schema.prisma              # Database schema
 │   └── seed.ts                    # Seed data with test accounts
 ├── e2e/
-│   ├── helpers.ts                 # Login/logout utilities for all tests
-│   ├── 01-login.spec.ts           # Auth + RBAC tests
-│   ├── 02-leave.spec.ts           # Leave management tests
-│   ├── 03-expense.spec.ts         # Expense claim tests
-│   ├── 04-payroll.spec.ts         # Payroll tests
-│   ├── 05-calendar.spec.ts        # Calendar tests
-│   ├── 06-multi-staff.spec.ts     # Multi-user isolation tests
-│   └── 07-view-toggle.spec.ts     # Admin view toggle + profile tests
+│   ├── helpers.ts                 # Login/logout, date utils, view toggle helpers
+│   ├── 01-auth.spec.ts            # Auth + RBAC tests
+│   ├── 02-dashboard.spec.ts       # Dashboard + view toggle tests
+│   ├── 03-leave-request.spec.ts   # Leave request flows (full/half-day/MC)
+│   ├── 04-leave-actions.spec.ts   # Leave edit, cancel, approve, reject, reset
+│   ├── 05-expense-submit.spec.ts  # Expense submit + validation
+│   ├── 06-expense-actions.spec.ts # Expense edit, cancel, approve, reject, reset
+│   ├── 07-calendar.spec.ts        # Calendar view + CRUD + privacy
+│   ├── 08-payroll.spec.ts         # Payroll view + RBAC
+│   ├── 09-employees.spec.ts       # Employee directory + profile
+│   └── 10-settings.spec.ts        # Company settings + RBAC
 ├── scripts/
 │   ├── import-staff.ts            # Import staff from Excel + create test accounts
 │   ├── verify-db.ts               # Read-only database verification
@@ -357,10 +374,10 @@ tertiary-hrms/
 │   │   ├── (dashboard)/           # Protected dashboard pages
 │   │   │   ├── dashboard/         # Main dashboard
 │   │   │   ├── employees/         # Employee directory + profiles
-│   │   │   ├── leave/             # Leave management + request form
-│   │   │   ├── expenses/          # Expense claims + submit form
+│   │   │   ├── leave/             # Leave management + request + edit
+│   │   │   ├── expenses/          # Expense claims + submit + edit
 │   │   │   ├── payroll/           # Payroll + generation + Excel upload
-│   │   │   ├── calendar/          # Calendar view
+│   │   │   ├── calendar/          # Calendar view + day detail + add/edit
 │   │   │   ├── settings/          # System settings (admin only)
 │   │   │   └── pending-setup/     # OAuth user pending setup page
 │   │   └── api/                   # API routes
