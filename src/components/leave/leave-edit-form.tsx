@@ -40,7 +40,8 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
   );
   const [reason, setReason] = useState(initialData.reason);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
-  const [existingDocumentFileName] = useState(initialData.documentFileName);
+  const [existingDocumentFileName, setExistingDocumentFileName] = useState(initialData.documentFileName);
+  const [removeDocument, setRemoveDocument] = useState(false);
 
   const isAL = leaveTypeCode === "AL";
   const isSingleDay = startDate && endDate && startDate === endDate;
@@ -115,7 +116,11 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
           dayType: isSingleDay ? dayType : "FULL_DAY",
           halfDayPosition: isMultiDay ? halfDayPosition : null,
           reason,
-          ...(documentUrl ? { documentUrl, documentFileName } : {}),
+          ...(documentUrl
+            ? { documentUrl, documentFileName }
+            : removeDocument
+              ? { documentUrl: null, documentFileName: null }
+              : {}),
         }),
       });
 
@@ -304,10 +309,20 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
           {/* Document upload — show existing file name if any */}
           <div className="space-y-2">
             <Label className="text-white">Supporting Document (optional)</Label>
-            {existingDocumentFileName && !documentFile && (
+            {existingDocumentFileName && !documentFile && !removeDocument && (
               <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
                 <Upload className="h-4 w-4 shrink-0" />
-                <span className="truncate">Current: {existingDocumentFileName}</span>
+                <span className="truncate flex-1">Current: {existingDocumentFileName}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setRemoveDocument(true); setExistingDocumentFileName(null); }}
+                  className="text-gray-400 hover:text-red-400 shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="ml-1 text-xs">Remove</span>
+                </Button>
               </div>
             )}
             {documentFile ? (
@@ -337,7 +352,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
                 <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-700 rounded-lg hover:border-gray-500 transition-colors">
                   <Upload className="h-5 w-5 text-gray-400" />
                   <span className="text-sm text-gray-400">
-                    {existingDocumentFileName ? "Replace document" : "Upload document"} (Image or PDF, max 5MB)
+                    {existingDocumentFileName && !removeDocument ? "Replace document" : "Upload document"} (Image or PDF, max 5MB)
                   </span>
                 </div>
               </div>

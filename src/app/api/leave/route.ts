@@ -122,6 +122,22 @@ export async function POST(req: NextRequest) {
         }))
       );
       if (conflictDates.length > 0) {
+        // Check if this is a complementary half-day scenario (AM+PM same day)
+        if (isSingleDay && effectiveDayType !== "FULL_DAY") {
+          const complementaryType = effectiveDayType === "AM_HALF" ? "PM_HALF" : "AM_HALF";
+          const hasComplementary = overlappingLeaves.some(l => {
+            const lSingleDay = l.startDate.toISOString().slice(0, 10) === l.endDate.toISOString().slice(0, 10);
+            return lSingleDay && l.dayType === complementaryType;
+          });
+          if (hasComplementary) {
+            return NextResponse.json(
+              {
+                error: `You already have a half-day leave on ${conflictDates[0]}. Please edit the existing request to a full day instead of submitting a separate half-day.`,
+              },
+              { status: 400 }
+            );
+          }
+        }
         return NextResponse.json(
           {
             error: `Leave overlaps with existing request on: ${conflictDates.join(", ")}. Please choose different dates or use a half-day if applying for a medical leave on the same day.`,

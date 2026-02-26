@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -69,9 +68,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
-  const [resetReason, setResetReason] = useState("");
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
   const { toast } = useToast();
 
@@ -124,18 +121,13 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
     }
   };
 
-  const handleReject = async (id: string, reason?: string) => {
+  const handleReject = async (id: string) => {
     setIsLoading(id);
     try {
-      const res = await fetch(`/api/expenses/${id}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: reason?.trim() || undefined }),
-      });
+      const res = await fetch(`/api/expenses/${id}/reject`, { method: "POST" });
       if (!res.ok) throw new Error("Failed to reject");
       toast({ title: "Expense rejected", description: "The expense claim has been rejected." });
       setRejectConfirm(null);
-      setRejectReason("");
       router.refresh();
     } catch {
       toast({ title: "Error", description: "Failed to reject expense", variant: "destructive" });
@@ -169,18 +161,13 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const handleReset = async (id: string) => {
     setIsLoading(id);
     try {
-      const res = await fetch(`/api/expenses/${id}/reset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: resetReason.trim() || undefined }),
-      });
+      const res = await fetch(`/api/expenses/${id}/reset`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to reset");
       }
       toast({ title: "Expense reset to pending", description: "The claim is pending review again." });
       setResetConfirm(null);
-      setResetReason("");
       router.refresh();
     } catch (error) {
       toast({
@@ -197,38 +184,31 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const renderAdminResetActions = (id: string) => (
     <div>
       {resetConfirm === id ? (
-        <div className="space-y-2">
-          <Textarea
-            placeholder="Reason (optional)..."
-            value={resetReason}
-            onChange={(e) => setResetReason(e.target.value)}
-            className="bg-gray-900 border-gray-700 text-white text-xs min-h-[60px]"
-          />
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              size="sm"
-              onClick={() => handleReset(id)}
-              disabled={isLoading === id}
-              className="h-7 px-3 text-xs"
-            >
-              {isLoading === id ? "Resetting..." : "Confirm Reset"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { setResetConfirm(null); setResetReason(""); }}
-              disabled={isLoading === id}
-              className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
-            >
-              Dismiss
-            </Button>
-          </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-amber-400">Reset to pending?</span>
+          <Button
+            size="sm"
+            onClick={() => handleReset(id)}
+            disabled={isLoading === id}
+            className="h-7 px-3 text-xs"
+          >
+            {isLoading === id ? "Resetting..." : "Yes, Reset"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setResetConfirm(null)}
+            disabled={isLoading === id}
+            className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
+          >
+            No
+          </Button>
         </div>
       ) : (
         <Button
           size="sm"
           variant="outline"
-          onClick={() => { setResetConfirm(id); setResetReason(""); setRejectConfirm(null); }}
+          onClick={() => { setResetConfirm(id); setRejectConfirm(null); }}
           className="h-7 w-7 p-0 border-gray-700 text-amber-400 hover:text-amber-300 hover:bg-amber-950/30 hover:border-amber-800"
           title="Reset to Pending"
         >
@@ -242,32 +222,25 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const renderAdminPendingActions = (id: string) => (
     <>
       {rejectConfirm === id ? (
-        <div className="space-y-2">
-          <Textarea
-            placeholder="Rejection reason (optional)..."
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            className="bg-gray-900 border-gray-700 text-white text-xs min-h-[60px]"
-          />
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              size="sm"
-              onClick={() => handleReject(id, rejectReason)}
-              disabled={isLoading === id}
-              className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-white"
-            >
-              {isLoading === id ? "Rejecting..." : "Confirm Reject"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { setRejectConfirm(null); setRejectReason(""); }}
-              disabled={isLoading === id}
-              className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
-            >
-              Cancel
-            </Button>
-          </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-red-400">Reject this expense?</span>
+          <Button
+            size="sm"
+            onClick={() => handleReject(id)}
+            disabled={isLoading === id}
+            className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-white"
+          >
+            {isLoading === id ? "Rejecting..." : "Yes, Reject"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setRejectConfirm(null)}
+            disabled={isLoading === id}
+            className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
+          >
+            No
+          </Button>
         </div>
       ) : (
         <div className="flex gap-2">
@@ -284,7 +257,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { setRejectConfirm(id); setRejectReason(""); setResetConfirm(null); }}
+            onClick={() => { setRejectConfirm(id); setResetConfirm(null); }}
             disabled={isLoading === id}
             className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm"
           >

@@ -11,8 +11,8 @@ const leaveEditSchema = z.object({
   dayType: z.enum(["FULL_DAY", "AM_HALF", "PM_HALF"]).default("FULL_DAY"),
   halfDayPosition: z.enum(["first", "last"]).nullable().optional(),
   reason: z.string().optional(),
-  documentUrl: z.string().optional(),
-  documentFileName: z.string().optional(),
+  documentUrl: z.string().nullable().optional(),
+  documentFileName: z.string().nullable().optional(),
 });
 
 export async function PATCH(

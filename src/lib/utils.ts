@@ -52,50 +52,24 @@ export function roundToHalf(value: number): number {
 }
 
 /**
- * Determine which slot (AM, PM, or FULL) a leave occupies on a specific date.
- */
-function getSlotForDate(
-  dateKey: string,
-  leaveStartKey: string,
-  leaveEndKey: string,
-  dayType: string,
-  halfDayPosition: string | null,
-): "AM" | "PM" | "FULL" {
-  const isSingleDay = leaveStartKey === leaveEndKey;
-
-  if (isSingleDay) {
-    if (dayType === "AM_HALF") return "AM";
-    if (dayType === "PM_HALF") return "PM";
-    return "FULL";
-  }
-
-  // Multi-day: halfDayPosition indicates which day is the half day
-  // "first" → first day is half-day (PM slot — work morning, leave afternoon)
-  // "last" → last day is half-day (AM slot — leave morning, work afternoon)
-  if (halfDayPosition === "first" && dateKey === leaveStartKey) return "PM";
-  if (halfDayPosition === "last" && dateKey === leaveEndKey) return "AM";
-  return "FULL";
-}
-
-/**
  * Check for leave date conflicts with AM/PM slot awareness.
  * Returns an array of formatted date strings where slots overlap.
  *
  * Rules:
  * - FULL_DAY occupies both AM and PM slots
  * - AM_HALF occupies AM slot only; PM_HALF occupies PM slot only
- * - Two half-day leaves on the same date are allowed if they use different slots (AM vs PM)
- * - Same-slot conflict: allowed only if different leave types AND at least one is medical (MC/SL)
+ * - Two half-day leaves on the same date are NOT allowed even if different slots — edit existing to full day instead
+ * - Same-slot or complementary-slot: always conflicts (no stacking half-days on same date)
  * - Multi-day with halfDayPosition="first": first day = PM half, rest = FULL
  * - Multi-day with halfDayPosition="last": last day = AM half, rest = FULL
  */
 export function getLeaveConflictDates(
   newStart: Date,
   newEnd: Date,
-  newDays: number,
-  newLeaveTypeCode: string,
-  newDayType: string,
-  newHalfDayPosition: string | null,
+  _newDays: number,
+  _newLeaveTypeCode: string,
+  _newDayType: string,
+  _newHalfDayPosition: string | null,
   existingLeaves: Array<{
     startDate: Date;
     endDate: Date;
@@ -105,76 +79,27 @@ export function getLeaveConflictDates(
     halfDayPosition: string | null;
   }>
 ): string[] {
-  const MEDICAL_CODES = ["MC", "SL"];
-
-  // Build a map of date → list of existing slot allocations
-  type SlotEntry = { slot: "AM" | "PM" | "FULL"; code: string };
-  const dateSlots = new Map<string, SlotEntry[]>();
+  // Build a set of all dates covered by existing leaves
+  const coveredDates = new Set<string>();
 
   for (const leave of existingLeaves) {
     const lStart = new Date(leave.startDate);
     const lEnd = new Date(leave.endDate);
-    const lStartKey = lStart.toISOString().split("T")[0];
-    const lEndKey = lEnd.toISOString().split("T")[0];
-
     const cursor = new Date(lStart);
     while (cursor <= lEnd) {
-      const key = cursor.toISOString().split("T")[0];
-      const slot = getSlotForDate(key, lStartKey, lEndKey, leave.dayType, leave.halfDayPosition);
-      const entries = dateSlots.get(key) || [];
-      entries.push({ slot, code: leave.leaveTypeCode });
-      dateSlots.set(key, entries);
+      coveredDates.add(cursor.toISOString().split("T")[0]);
       cursor.setDate(cursor.getDate() + 1);
     }
   }
 
-  // Check each date in the new request's range
-  const newStartKey = newStart.toISOString().split("T")[0];
-  const newEndKey = newEnd.toISOString().split("T")[0];
+  // Check each date in the new request's range — any overlap is a conflict
   const conflicts: string[] = [];
   const cursor = new Date(newStart);
 
   while (cursor <= newEnd) {
     const key = cursor.toISOString().split("T")[0];
-    const newSlot = getSlotForDate(key, newStartKey, newEndKey, newDayType, newHalfDayPosition);
-    const existingEntries = dateSlots.get(key) || [];
 
-    let hasConflict = false;
-
-    for (const existing of existingEntries) {
-      // FULL vs anything = conflict (unless medical exception for half + full)
-      if (existing.slot === "FULL" || newSlot === "FULL") {
-        hasConflict = true;
-        break;
-      }
-
-      // Same slot (both AM or both PM) = conflict
-      if (existing.slot === newSlot) {
-        // Medical exception: different types, at least one is medical
-        const isMedicalException =
-          existing.code !== newLeaveTypeCode &&
-          (MEDICAL_CODES.includes(existing.code) || MEDICAL_CODES.includes(newLeaveTypeCode));
-        if (!isMedicalException) {
-          hasConflict = true;
-          break;
-        }
-      }
-      // Different slots (AM vs PM) = no conflict
-    }
-
-    // Also check total allocation doesn't exceed 1.0
-    if (!hasConflict && existingEntries.length > 0) {
-      const existingTotal = existingEntries.reduce(
-        (sum, e) => sum + (e.slot === "FULL" ? 1.0 : 0.5),
-        0
-      );
-      const newAlloc = newSlot === "FULL" ? 1.0 : 0.5;
-      if (existingTotal + newAlloc > 1.0) {
-        hasConflict = true;
-      }
-    }
-
-    if (hasConflict) {
+    if (coveredDates.has(key)) {
       conflicts.push(formatDate(new Date(key)));
     }
     cursor.setDate(cursor.getDate() + 1);

@@ -48,7 +48,8 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
   const [amount, setAmount] = useState(String(initialData.amount));
   const [expenseDate, setExpenseDate] = useState(initialData.expenseDate);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [existingReceiptFileName] = useState(initialData.receiptFileName);
+  const [existingReceiptFileName, setExistingReceiptFileName] = useState(initialData.receiptFileName);
+  const [removeReceipt, setRemoveReceipt] = useState(false);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
 
@@ -90,7 +91,11 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
           description,
           amount: parseFloat(amount),
           expenseDate,
-          ...(receiptUrl ? { receiptUrl, receiptFileName } : {}),
+          ...(receiptUrl
+            ? { receiptUrl, receiptFileName }
+            : removeReceipt
+              ? { receiptUrl: null, receiptFileName: null }
+              : {}),
         }),
       });
 
@@ -204,10 +209,20 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
             <Label className="text-white">
               Receipt {selectedCategory?.requiresReceipt ? "*" : "(optional)"}
             </Label>
-            {existingReceiptFileName && !receiptFile && (
+            {existingReceiptFileName && !receiptFile && !removeReceipt && (
               <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
                 <Upload className="h-4 w-4 shrink-0" />
-                <span className="truncate">Current: {existingReceiptFileName}</span>
+                <span className="truncate flex-1">Current: {existingReceiptFileName}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setRemoveReceipt(true); setExistingReceiptFileName(null); }}
+                  className="text-gray-400 hover:text-red-400 shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="ml-1 text-xs">Remove</span>
+                </Button>
               </div>
             )}
             {receiptFile ? (
@@ -233,12 +248,12 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
                   accept="image/*,.pdf"
                   onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  required={selectedCategory?.requiresReceipt && !existingReceiptFileName}
+                  required={selectedCategory?.requiresReceipt && !existingReceiptFileName && !removeReceipt}
                 />
                 <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-700 rounded-lg hover:border-gray-500 transition-colors">
                   <Upload className="h-5 w-5 text-gray-400" />
                   <span className="text-sm text-gray-400">
-                    {existingReceiptFileName ? "Replace receipt" : "Click to upload receipt"} (Image or PDF, max 5MB)
+                    {existingReceiptFileName && !removeReceipt ? "Replace receipt" : "Click to upload receipt"} (Image or PDF, max 5MB)
                   </span>
                 </div>
               </div>

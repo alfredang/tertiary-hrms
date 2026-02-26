@@ -8,8 +8,8 @@ const expenseEditSchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z.number().positive("Amount must be positive"),
   expenseDate: z.string().min(1, "Expense date is required"),
-  receiptUrl: z.string().optional(),
-  receiptFileName: z.string().optional(),
+  receiptUrl: z.string().nullable().optional(),
+  receiptFileName: z.string().nullable().optional(),
 });
 
 export async function PATCH(

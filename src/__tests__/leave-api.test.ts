@@ -754,7 +754,7 @@ describe("Proration & Rounding (utility functions)", () => {
 });
 
 describe("Overlap Detection with AM/PM slots", () => {
-  it("should allow AM + PM on same day (no conflict)", async () => {
+  it("should conflict when AM + PM on same day (edit to full day instead)", async () => {
     const { getLeaveConflictDates } = await import("@/lib/utils");
     const conflicts = getLeaveConflictDates(
       new Date("2026-04-01"), new Date("2026-04-01"), 0.5, "AL",
@@ -764,7 +764,7 @@ describe("Overlap Detection with AM/PM slots", () => {
         days: 0.5, leaveTypeCode: "AL", dayType: "AM_HALF", halfDayPosition: null,
       }]
     );
-    expect(conflicts).toHaveLength(0);
+    expect(conflicts).toHaveLength(1);
   });
 
   it("should conflict when both AM on same day", async () => {
@@ -793,7 +793,7 @@ describe("Overlap Detection with AM/PM slots", () => {
     expect(conflicts).toHaveLength(1);
   });
 
-  it("should allow same-slot half-days if one is medical (exception)", async () => {
+  it("should conflict even if one is medical (no half-day stacking)", async () => {
     const { getLeaveConflictDates } = await import("@/lib/utils");
     const conflicts = getLeaveConflictDates(
       new Date("2026-04-01"), new Date("2026-04-01"), 0.5, "MC",
@@ -803,7 +803,7 @@ describe("Overlap Detection with AM/PM slots", () => {
         days: 0.5, leaveTypeCode: "AL", dayType: "AM_HALF", halfDayPosition: null,
       }]
     );
-    expect(conflicts).toHaveLength(0);
+    expect(conflicts).toHaveLength(1);
   });
 
   it("should handle multi-day with halfDayPosition='last'", async () => {
@@ -821,10 +821,10 @@ describe("Overlap Detection with AM/PM slots", () => {
     expect(conflicts).toHaveLength(1);
   });
 
-  it("should not conflict on the half-day date of multi-day if different slot", async () => {
+  it("should conflict on the half-day date of multi-day even if different slot", async () => {
     const { getLeaveConflictDates } = await import("@/lib/utils");
     // Existing: multi-day Apr 1-2, half on last day (Apr 2 = AM slot, occupies AM only)
-    // New: PM half on Apr 2 → should NOT conflict (different slot)
+    // New: PM half on Apr 2 → should conflict (no stacking half-days)
     const conflicts = getLeaveConflictDates(
       new Date("2026-04-02"), new Date("2026-04-02"), 0.5, "AL",
       "PM_HALF", null,
@@ -833,7 +833,7 @@ describe("Overlap Detection with AM/PM slots", () => {
         days: 1.5, leaveTypeCode: "AL", dayType: "FULL_DAY", halfDayPosition: "last",
       }]
     );
-    expect(conflicts).toHaveLength(0);
+    expect(conflicts).toHaveLength(1);
   });
 
   it("should return no conflicts when no existing leaves", async () => {
