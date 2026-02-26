@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AddEmployeeForm } from "./add-employee-form";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ async function getDepartments() {
 export default async function AddEmployeePage() {
   const session = await auth();
 
-  if (process.env.SKIP_AUTH !== "true") {
+  if (!isDevAuthSkipped()) {
     if (!session?.user) {
       redirect("/login");
     }

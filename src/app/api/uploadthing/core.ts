@@ -34,6 +34,7 @@
  */
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { auth } from "@/lib/auth";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 const f = createUploadthing();
 
@@ -44,7 +45,7 @@ export const ourFileRouter = {
     pdf: { maxFileSize: "4MB", maxFileCount: 1 },
   })
     .middleware(async () => {
-      if (process.env.SKIP_AUTH === "true") {
+      if (isDevAuthSkipped()) {
         return { userId: "dev-user" };
       }
       const session = await auth();
@@ -61,7 +62,7 @@ export const ourFileRouter = {
     pdf: { maxFileSize: "4MB", maxFileCount: 1 },
   })
     .middleware(async () => {
-      if (process.env.SKIP_AUTH === "true") {
+      if (isDevAuthSkipped()) {
         return { userId: "dev-user" };
       }
       const session = await auth();

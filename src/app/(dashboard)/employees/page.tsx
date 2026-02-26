@@ -3,6 +3,7 @@ import { EmployeeList } from "@/components/staff/employee-list";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getViewMode } from "@/lib/view-mode";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,7 @@ export default async function EmployeesPage() {
   let role = "STAFF";
   let currentEmployeeId: string | undefined;
 
-  if (process.env.SKIP_AUTH === "true") {
+  if (isDevAuthSkipped()) {
     role = "ADMIN";
     const adminUser = await prisma.user.findUnique({
       where: { email: "admin@tertiaryinfotech.com" },

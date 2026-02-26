@@ -5,6 +5,7 @@ import { LeaveEditForm } from "@/components/leave/leave-edit-form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export default async function LeaveEditPage({
 
   const session = await auth();
 
-  if (process.env.SKIP_AUTH !== "true" && !session?.user) {
+  if (!isDevAuthSkipped() && !session?.user) {
     redirect("/login");
   }
 
@@ -48,7 +49,7 @@ export default async function LeaveEditPage({
 
   // Ownership check
   if (
-    process.env.SKIP_AUTH !== "true" &&
+    !isDevAuthSkipped() &&
     leaveRequest.employeeId !== currentEmployeeId
   ) {
     return (

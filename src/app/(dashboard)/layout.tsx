@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/header";
 import { UserNav } from "@/components/layout/user-nav";
 import { ChatWidget } from "@/components/chat/chat-widget";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export default async function DashboardLayout({
   children,
@@ -11,7 +12,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  const role = process.env.SKIP_AUTH === "true" ? "ADMIN" : session?.user?.role;
+  const role = isDevAuthSkipped() ? "ADMIN" : session?.user?.role;
   const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
 
   return (

@@ -2,6 +2,7 @@
 
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -87,11 +88,11 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
           <Label htmlFor="dateOfBirth" className="text-gray-300">
             Date of Birth
           </Label>
-          <Input
+          <DatePicker
             id="dateOfBirth"
-            type="date"
-            {...form.register("personalInfo.dateOfBirth")}
-            className="bg-gray-900 border-gray-800 text-white"
+            value={form.watch("personalInfo.dateOfBirth") || ""}
+            onChange={(val) => form.setValue("personalInfo.dateOfBirth", val)}
+            placeholder="Date of birth"
           />
           {errors?.dateOfBirth && (
             <p className="text-sm text-red-400">

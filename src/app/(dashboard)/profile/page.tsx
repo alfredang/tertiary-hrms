@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { getInitials } from "@/lib/utils";
 import { format } from "date-fns";
 import { Building2, Mail, Phone, Calendar, Briefcase, User } from "lucide-react";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function ProfilePage() {
   const session = await auth();
 
   let user;
-  if (process.env.SKIP_AUTH === "true") {
+  if (isDevAuthSkipped()) {
     user = await prisma.user.findUnique({
       where: { email: "admin@tertiaryinfotech.com" },
       include: {
@@ -69,7 +70,7 @@ export default async function ProfilePage() {
             </Avatar>
             <div className="text-center sm:text-left">
               <h2 className="text-xl sm:text-2xl font-bold text-white">{emp.name}</h2>
-              <p className="text-gray-400">{emp.position}</p>
+              <p className="text-gray-400">{emp.position ?? "—"}</p>
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
                 <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
                   {emp.status}
@@ -148,7 +149,7 @@ export default async function ProfilePage() {
             </div>
             <div>
               <p className="text-sm text-gray-400">Position</p>
-              <p className="text-white">{emp.position}</p>
+              <p className="text-white">{emp.position ?? "—"}</p>
             </div>
             <div>
               <p className="text-sm text-gray-400">Employment Type</p>

@@ -2,6 +2,7 @@
 
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -116,11 +117,11 @@ export function EmploymentInfoForm({
           <Label htmlFor="startDate" className="text-gray-300">
             Start Date
           </Label>
-          <Input
+          <DatePicker
             id="startDate"
-            type="date"
-            {...form.register("employmentInfo.startDate")}
-            className="bg-gray-900 border-gray-800 text-white"
+            value={form.watch("employmentInfo.startDate") || ""}
+            onChange={(val) => form.setValue("employmentInfo.startDate", val)}
+            placeholder="Start date"
           />
           {errors?.startDate && (
             <p className="text-sm text-red-400">
@@ -134,11 +135,11 @@ export function EmploymentInfoForm({
           <Label htmlFor="endDate" className="text-gray-300">
             End Date
           </Label>
-          <Input
+          <DatePicker
             id="endDate"
-            type="date"
-            {...form.register("employmentInfo.endDate")}
-            className="bg-gray-900 border-gray-800 text-white"
+            value={form.watch("employmentInfo.endDate") || ""}
+            onChange={(val) => form.setValue("employmentInfo.endDate", val)}
+            placeholder="End date"
           />
           {errors?.endDate && (
             <p className="text-sm text-red-400">

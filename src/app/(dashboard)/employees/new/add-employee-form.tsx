@@ -168,7 +168,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
     }
   };
 
-  const TabSaveButton = ({ tab }: { tab: string }) => (
+  const renderTabSaveButton = (tab: string) => (
     <div className="flex items-center gap-2">
       {savedTabs[tab] && (
         <span className="flex items-center gap-1 text-sm text-green-400">
@@ -188,8 +188,6 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
           </>
         ) : savedTabs[tab] ? (
           "Update"
-        ) : savedEmployeeId ? (
-          "Save"
         ) : (
           "Save"
         )}
@@ -252,7 +250,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
           <TabsContent value="personal" className="mt-6">
             <PersonalInfoForm form={form} />
             <div className="flex justify-between mt-6">
-              <TabSaveButton tab="personal" />
+              {renderTabSaveButton("personal")}
               <Button
                 type="button"
                 variant="ghost"
@@ -274,7 +272,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
                 >
                   Back
                 </Button>
-                <TabSaveButton tab="employment" />
+                {renderTabSaveButton("employment")}
               </div>
               <Button
                 type="button"
@@ -297,7 +295,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
                 >
                   Back
                 </Button>
-                <TabSaveButton tab="salary" />
+                {renderTabSaveButton("salary")}
               </div>
               {savedEmployeeId && (
                 <Button onClick={handleDone}>

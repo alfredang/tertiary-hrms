@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -370,20 +371,18 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             />
           </div>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <DatePicker
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="flex-1 sm:w-[150px] sm:flex-none"
+              onChange={(val) => setDateFrom(val)}
               placeholder="From"
+              className="flex-1 sm:w-[150px] sm:flex-none"
             />
             <span className="text-gray-400 text-sm">to</span>
-            <Input
-              type="date"
+            <DatePicker
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="flex-1 sm:w-[150px] sm:flex-none"
+              onChange={(val) => setDateTo(val)}
               placeholder="To"
+              className="flex-1 sm:w-[150px] sm:flex-none"
             />
           </div>
         </div>

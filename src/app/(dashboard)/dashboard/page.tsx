@@ -6,6 +6,7 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -132,7 +133,7 @@ export default async function DashboardPage() {
   let currentEmployeeId: string | undefined;
   let displayName = "User";
 
-  if (process.env.SKIP_AUTH === "true") {
+  if (isDevAuthSkipped()) {
     role = "ADMIN";
     const adminUser = await prisma.user.findUnique({
       where: { email: "admin@tertiaryinfotech.com" },

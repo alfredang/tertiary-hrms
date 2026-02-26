@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export async function middleware(req: NextRequest) {
   // Development mode: Skip authentication checks if SKIP_AUTH is enabled
-  if (process.env.SKIP_AUTH === "true") {
+  if (isDevAuthSkipped()) {
     return NextResponse.next();
   }
 

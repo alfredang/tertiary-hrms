@@ -2,15 +2,15 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.tertiaryinfotech.hrportal",
-  appName: "HR Portal",
+  appName: "Tertiary HRMS",
   webDir: "out",
   server: {
-    url: "http://localhost:3000",
+    url: "https://hrms.tertiaryinfo.tech",
     cleartext: false,
   },
   ios: {
     contentInset: "automatic",
-    scheme: "HR Portal",
+    scheme: "Tertiary HRMS",
   },
   android: {
     allowMixedContent: false,

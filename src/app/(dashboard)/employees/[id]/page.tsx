@@ -20,6 +20,7 @@ import {
 import type { EmployeeStatus } from "@prisma/client";
 import { EmployeeEditSheet } from "@/components/employees/employee-edit-sheet";
 import { getViewMode } from "@/lib/view-mode";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -91,7 +92,7 @@ export default async function EmployeeDetailPage({
   const session = await auth();
 
   // Development mode: Skip authentication if SKIP_AUTH is enabled
-  if (process.env.SKIP_AUTH !== "true") {
+  if (!isDevAuthSkipped()) {
     if (!session?.user) {
       redirect("/login");
     }
@@ -114,7 +115,7 @@ export default async function EmployeeDetailPage({
   }
 
   // Determine role
-  const role = process.env.SKIP_AUTH === "true" ? "ADMIN" : (session?.user?.role || "STAFF");
+  const role = isDevAuthSkipped() ? "ADMIN" : (session?.user?.role || "STAFF");
   const isAdmin = role === "ADMIN";
 
   // Only ADMIN can edit, and respect the view toggle
@@ -139,7 +140,7 @@ export default async function EmployeeDetailPage({
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
               {employee.name}
             </h1>
-            <p className="text-gray-400 mt-1">{employee.position}</p>
+            <p className="text-gray-400 mt-1">{employee.position ?? "—"}</p>
             <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 mt-2">
               <Badge className={statusColors[employee.status]}>
                 {statusLabels[employee.status]}
@@ -269,7 +270,7 @@ export default async function EmployeeDetailPage({
             </div>
             <div>
               <p className="text-sm text-gray-400">Position</p>
-              <p className="font-medium text-white mt-1">{employee.position}</p>
+              <p className="font-medium text-white mt-1">{employee.position ?? "—"}</p>
             </div>
             <div>
               <p className="text-sm text-gray-400">Employment Type</p>

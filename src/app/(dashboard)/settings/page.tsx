@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { redirect } from "next/navigation";
 import { getViewMode } from "@/lib/view-mode";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export default async function SettingsPage() {
   const session = await auth();
   const viewMode = await getViewMode();
 
-  const role = process.env.SKIP_AUTH === "true" ? "ADMIN" : (session?.user?.role || "STAFF");
+  const role = isDevAuthSkipped() ? "ADMIN" : (session?.user?.role || "STAFF");
   const isAdmin = role === "ADMIN";
 
   // Only admin can access settings; redirect staff away

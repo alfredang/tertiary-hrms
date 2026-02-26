@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import * as z from "zod";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 const calendarEventSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     let currentUserId: string | null = null;
 
-    if (process.env.SKIP_AUTH !== "true") {
+    if (!isDevAuthSkipped()) {
       const session = await auth();
       if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

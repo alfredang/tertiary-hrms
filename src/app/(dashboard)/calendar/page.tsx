@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +81,7 @@ export default async function CalendarPage() {
   let currentUserId: string | undefined;
   let currentEmployeeId: string | undefined;
 
-  if (process.env.SKIP_AUTH === "true") {
+  if (isDevAuthSkipped()) {
     role = "ADMIN";
     const adminUser = await prisma.user.findUnique({
       where: { email: "admin@tertiaryinfotech.com" },

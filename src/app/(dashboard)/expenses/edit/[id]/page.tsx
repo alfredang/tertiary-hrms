@@ -5,6 +5,7 @@ import { ExpenseEditForm } from "@/components/expenses/expense-edit-form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export default async function ExpenseEditPage({
 
   const session = await auth();
 
-  if (process.env.SKIP_AUTH !== "true" && !session?.user) {
+  if (!isDevAuthSkipped() && !session?.user) {
     redirect("/login");
   }
 
@@ -46,7 +47,7 @@ export default async function ExpenseEditPage({
 
   // Ownership check
   if (
-    process.env.SKIP_AUTH !== "true" &&
+    !isDevAuthSkipped() &&
     expense.employeeId !== currentEmployeeId
   ) {
     return (

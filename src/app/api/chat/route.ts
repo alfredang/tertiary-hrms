@@ -21,10 +21,12 @@ Singapore CPF Information:
 - Annual wage ceiling: $102,000
 
 Leave Policies:
-- Annual Leave: 14 days per year
-- Sick Leave: 14 days per year
-- Medical Leave: Up to 60 days (with MC)
-- Compassionate Leave: 3 days
+- Annual Leave (AL): 14 days per year (prorated for new hires based on completed months, carries forward to next year)
+- Medical Certificate Leave (MC): 14 days per year (requires MC document, resets yearly)
+- Compassionate Leave (CL): 3 days per year (resets yearly)
+- No Pay Leave (NPL): As needed (unpaid, resets yearly)
+- Half-day leave is available for Annual Leave only (AM or PM)
+- Leave is calculated inclusive of start and end dates
 
 Be helpful, professional, and concise in your responses. If you don't know something, suggest the employee contact HR directly.`;
 

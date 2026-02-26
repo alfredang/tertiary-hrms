@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Send, Upload, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface LeaveType {
   id: string;
@@ -277,27 +277,23 @@ export function LeaveRequestForm({ leaveTypes }: LeaveRequestFormProps) {
               <Label htmlFor="startDate" className="text-white">
                 Start Date *
               </Label>
-              <Input
+              <DatePicker
                 id="startDate"
-                type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-gray-900 border-gray-700 text-white"
-                required
+                onChange={(val) => setStartDate(val)}
+                placeholder="Start date"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="endDate" className="text-white">
                 End Date *
               </Label>
-              <Input
+              <DatePicker
                 id="endDate"
-                type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-gray-900 border-gray-700 text-white"
+                onChange={(val) => setEndDate(val)}
                 min={startDate}
-                required
+                placeholder="End date"
               />
             </div>
           </div>

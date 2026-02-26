@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -193,14 +194,12 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
               <Label htmlFor="expenseDate" className="text-white">
                 Expense Date *
               </Label>
-              <Input
+              <DatePicker
                 id="expenseDate"
-                type="date"
                 value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
-                className="bg-gray-900 border-gray-700 text-white"
+                onChange={(val) => setExpenseDate(val)}
                 max={new Date().toISOString().split("T")[0]}
-                required
+                placeholder="Expense date"
               />
             </div>
           </div>

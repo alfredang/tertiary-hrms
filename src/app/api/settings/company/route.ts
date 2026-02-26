@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import * as z from "zod";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 const companySettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -16,7 +17,7 @@ const companySettingsSchema = z.object({
 export async function PATCH(req: NextRequest) {
   try {
     // Authentication check
-    if (process.env.SKIP_AUTH !== "true") {
+    if (!isDevAuthSkipped()) {
       const session = await auth();
       if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
+
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "application/pdf": ".pdf",
+};
 
 export async function POST(req: NextRequest) {
   try {
-    if (process.env.SKIP_AUTH !== "true") {
+    if (!isDevAuthSkipped()) {
       const session = await auth();
       if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,7 +59,7 @@ export async function POST(req: NextRequest) {
     await mkdir(uploadsDir, { recursive: true });
 
     // Generate unique filename
-    const ext = path.extname(file.name);
+    const ext = MIME_TO_EXT[file.type] || ".bin";
     const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}${ext}`;
     const filePath = path.join(uploadsDir, uniqueName);
 

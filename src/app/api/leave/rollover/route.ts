@@ -1,10 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export async function POST(request: Request) {
   // Auth check
-  if (process.env.SKIP_AUTH !== "true") {
+  if (!isDevAuthSkipped()) {
     const session = await auth();
     if (!session?.user || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

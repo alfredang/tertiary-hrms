@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, DollarSign } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,7 @@ export default async function ExpensesPage() {
   let role = "STAFF";
   let currentEmployeeId: string | undefined;
 
-  if (process.env.SKIP_AUTH === "true") {
+  if (isDevAuthSkipped()) {
     role = "ADMIN";
     const adminUser = await prisma.user.findUnique({
       where: { email: "admin@tertiaryinfotech.com" },

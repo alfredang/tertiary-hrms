@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, Plus, Users } from "lucide-react";
 import { CalendarEventCard } from "@/components/calendar/calendar-event-card";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,7 @@ export default async function CalendarDayPage({
   let currentEmployeeId: string | undefined;
   let currentUserId: string | null = null;
 
-  if (process.env.SKIP_AUTH === "true") {
+  if (isDevAuthSkipped()) {
     role = "ADMIN";
     const adminUser = await prisma.user.findUnique({
       where: { email: "admin@tertiaryinfotech.com" },

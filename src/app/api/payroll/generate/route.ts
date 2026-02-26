@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculatePayroll } from "@/lib/cpf-calculator";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export async function POST(req: NextRequest) {
   try {
-    if (process.env.SKIP_AUTH !== "true") {
+    if (!isDevAuthSkipped()) {
       const session = await auth();
       if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -74,11 +75,16 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        if (!employee.dateOfBirth) {
+          results.skipped++;
+          continue;
+        }
+
         const salary = employee.salaryInfo;
         const payroll = calculatePayroll(
           Number(salary.basicSalary),
           Number(salary.allowances),
-          employee.dateOfBirth ?? new Date()
+          employee.dateOfBirth
         );
 
         await prisma.payslip.create({

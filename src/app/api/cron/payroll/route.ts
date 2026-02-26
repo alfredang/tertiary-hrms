@@ -6,8 +6,14 @@ import { calculatePayroll } from "@/lib/cpf-calculator";
 // Can be triggered by external scheduler or manually
 export async function GET(req: NextRequest) {
   try {
-    // Verify cron secret if configured
+    // Verify cron secret — reject in production if not configured
     const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret && process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "CRON_SECRET not configured" },
+        { status: 500 }
+      );
+    }
     if (cronSecret) {
       const authHeader = req.headers.get("authorization");
       if (authHeader !== `Bearer ${cronSecret}`) {
@@ -60,11 +66,16 @@ export async function GET(req: NextRequest) {
       }
 
       try {
+        if (!employee.dateOfBirth) {
+          results.skipped++;
+          continue;
+        }
+
         const salary = employee.salaryInfo;
         const payroll = calculatePayroll(
           Number(salary.basicSalary),
           Number(salary.allowances),
-          employee.dateOfBirth ?? new Date()
+          employee.dateOfBirth
         );
 
         await prisma.payslip.create({

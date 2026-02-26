@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateDaysBetween, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
 import * as z from "zod";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 const leaveRequestSchema = z.object({
   leaveTypeId: z.string().min(1, "Leave type is required"),
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   try {
     let employeeId: string | undefined;
 
-    if (process.env.SKIP_AUTH !== "true") {
+    if (!isDevAuthSkipped()) {
       const session = await auth();
       if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

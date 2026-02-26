@@ -3,10 +3,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createEmployeeSchema } from "@/lib/validations/employee";
 import bcrypt from "bcryptjs";
+import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export async function POST(req: NextRequest) {
   try {
-    if (process.env.SKIP_AUTH !== "true") {
+    if (!isDevAuthSkipped()) {
       const session = await auth();
       if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

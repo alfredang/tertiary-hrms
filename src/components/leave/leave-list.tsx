@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -380,17 +381,17 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Input
-              type="date"
+            <DatePicker
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(val) => setDateFrom(val)}
+              placeholder="From"
               className="w-full sm:w-[160px]"
             />
             <span className="text-gray-400 text-sm">to</span>
-            <Input
-              type="date"
+            <DatePicker
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(val) => setDateTo(val)}
+              placeholder="To"
               className="w-full sm:w-[160px]"
             />
           </div>

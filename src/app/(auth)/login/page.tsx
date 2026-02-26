@@ -10,13 +10,15 @@ import { COMPANY_NAME } from "@/lib/constants";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  OAuthSignin: "Could not start Google sign-in. Please try again.",
-  OAuthCallback: "Google sign-in failed. Please try again.",
-  OAuthCreateAccount: "Could not create account with Google. Please try again.",
-  OAuthAccountNotLinked: "This email is already associated with another sign-in method.",
-  Callback: "Sign-in failed. Please try again.",
+  OAuthSignin: "Could not start Google sign-in. Please try again or use email/password.",
+  OAuthCallback: "Google sign-in was cancelled or failed. Please try again.",
+  OAuthCreateAccount: "Could not create your account via Google. Please contact HR.",
+  OAuthAccountNotLinked:
+    "This email is already registered with a password. Please sign in with your email and password instead.",
+  Callback: "Sign-in was interrupted. Please try again.",
   CredentialsSignin: "Invalid email or password.",
-  Default: "An error occurred during sign-in. Please try again.",
+  AccessDenied: "Your account is inactive. Please contact HR.",
+  Default: "An error occurred during sign-in. Please try again or contact HR.",
 };
 
 function LoginForm() {

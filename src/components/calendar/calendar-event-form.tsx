@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -172,26 +173,23 @@ export function CalendarEventForm({ initialData, eventId }: CalendarEventFormPro
               <Label htmlFor="startDate" className="text-white">
                 Start Date *
               </Label>
-              <Input
+              <DatePicker
                 id="startDate"
-                type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-gray-900 border-gray-700 text-white"
-                required
+                onChange={(val) => setStartDate(val)}
+                placeholder="Start date"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="endDate" className="text-white">
                 End Date
               </Label>
-              <Input
+              <DatePicker
                 id="endDate"
-                type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-gray-900 border-gray-700 text-white"
+                onChange={(val) => setEndDate(val)}
                 min={startDate}
+                placeholder="End date"
               />
               <p className="text-xs text-gray-500">
                 Defaults to start date if not set.
