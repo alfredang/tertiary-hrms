@@ -15,7 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown } from "lucide-react";
+import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
 import { useToast } from "@/hooks/use-toast";
 import type { LeaveStatus } from "@prisma/client";
 
@@ -27,6 +28,8 @@ interface LeaveRequest {
   dayType: string;
   halfDayPosition: string | null;
   reason: string | null;
+  documentUrl: string | null;
+  documentFileName: string | null;
   status: LeaveStatus;
   createdAt: Date;
   employee: {
@@ -62,6 +65,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const [resetReason, setResetReason] = useState("");
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
   const { toast } = useToast();
 
   type LeaveSortKey = "employee" | "type" | "startDate" | "endDate" | "days" | "createdAt" | "status";
@@ -373,6 +377,21 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
     return <>{numDays} {dayLabel}</>;
   };
 
+  const renderDocButton = (request: LeaveRequest) => {
+    if (!request.documentUrl) return null;
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setPreviewDoc({ url: request.documentUrl!, fileName: request.documentFileName || "document" })}
+        className="h-7 w-7 p-0 border-gray-700 text-blue-400 hover:text-blue-300 hover:bg-blue-950/30 hover:border-blue-800"
+        title="View Document"
+      >
+        <Eye className="h-3 w-3" />
+      </Button>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-3">
@@ -460,8 +479,11 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                   <Clock className="h-3 w-3" />
                   <span>Applied {formatDate(request.createdAt)}</span>
                 </div>
-                {request.status === "PENDING" && renderAdminPendingActions(request.id)}
-                {(request.status === "APPROVED" || request.status === "REJECTED") && renderAdminResetActions(request.id)}
+                <div className="flex items-center gap-2">
+                  {renderDocButton(request)}
+                  {request.status === "PENDING" && renderAdminPendingActions(request.id)}
+                  {(request.status === "APPROVED" || request.status === "REJECTED") && renderAdminResetActions(request.id)}
+                </div>
               </div>
             ))}
             {sortedRequests.length === 0 && (
@@ -513,12 +535,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       </Badge>
                     </td>
                     <td className="px-2 sm:px-4 py-3 min-w-[200px]">
-                      {request.status === "PENDING"
-                        ? renderAdminPendingActions(request.id)
-                        : (request.status === "APPROVED" || request.status === "REJECTED")
-                          ? renderAdminResetActions(request.id)
-                          : <span className="text-sm text-gray-500">—</span>
-                      }
+                      <div className="flex items-start gap-2">
+                        {renderDocButton(request)}
+                        {request.status === "PENDING"
+                          ? renderAdminPendingActions(request.id)
+                          : (request.status === "APPROVED" || request.status === "REJECTED")
+                            ? renderAdminResetActions(request.id)
+                            : !request.documentUrl && <span className="text-sm text-gray-500">—</span>
+                        }
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -551,7 +576,10 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                   <span>{renderDaysDisplay(request)}</span>
                   <span>Applied {formatDate(request.createdAt)}</span>
                 </div>
-                {request.status === "PENDING" && renderStaffActions(request.id)}
+                <div className="flex items-center gap-2">
+                  {renderDocButton(request)}
+                  {request.status === "PENDING" && renderStaffActions(request.id)}
+                </div>
               </div>
             ))}
             {sortedRequests.length === 0 && (
@@ -599,11 +627,13 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      {request.status === "PENDING" ? (
-                        renderStaffActions(request.id)
-                      ) : (
-                        <span className="text-sm text-gray-500">—</span>
-                      )}
+                      <div className="flex items-start gap-2">
+                        {renderDocButton(request)}
+                        {request.status === "PENDING"
+                          ? renderStaffActions(request.id)
+                          : !request.documentUrl && <span className="text-sm text-gray-500">—</span>
+                        }
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -617,6 +647,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
             )}
           </div>
         </>
+      )}
+
+      {previewDoc && (
+        <DocumentPreviewModal
+          open={!!previewDoc}
+          onOpenChange={(open) => { if (!open) setPreviewDoc(null); }}
+          url={previewDoc.url}
+          fileName={previewDoc.fileName}
+        />
       )}
     </div>
   );

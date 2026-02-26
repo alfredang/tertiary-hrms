@@ -15,7 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, Calendar, Check, X, Pencil, RotateCcw, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Calendar, Check, X, Pencil, RotateCcw, ChevronUp, ChevronDown, Eye } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
 import { useToast } from "@/hooks/use-toast";
 import type { ExpenseStatus, ExpenseCategory } from "@prisma/client";
 
@@ -26,6 +27,7 @@ interface ExpenseClaim {
   expenseDate: Date;
   status: ExpenseStatus;
   receiptUrl: string | null;
+  receiptFileName: string | null;
   createdAt: Date;
   employee: {
     id: string;
@@ -70,6 +72,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const [resetReason, setResetReason] = useState("");
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
   const { toast } = useToast();
 
   type ExpenseSortKey = "employee" | "description" | "amount" | "expenseDate" | "status" | "createdAt";
@@ -363,6 +366,21 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
     );
   };
 
+  const renderReceiptButton = (claim: ExpenseClaim) => {
+    if (!claim.receiptUrl) return null;
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setPreviewDoc({ url: claim.receiptUrl!, fileName: claim.receiptFileName || "receipt" })}
+        className="h-7 w-7 p-0 border-gray-700 text-blue-400 hover:text-blue-300 hover:bg-blue-950/30 hover:border-blue-800"
+        title="View Receipt"
+      >
+        <Eye className="h-3 w-3" />
+      </Button>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -450,8 +468,11 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                     <span>{formatDate(claim.expenseDate)}</span>
                   </div>
                 </div>
-                {claim.status === "PENDING" && renderAdminPendingActions(claim.id)}
-                {(claim.status === "APPROVED" || claim.status === "REJECTED") && renderAdminResetActions(claim.id)}
+                <div className="flex items-center gap-2">
+                  {renderReceiptButton(claim)}
+                  {claim.status === "PENDING" && renderAdminPendingActions(claim.id)}
+                  {(claim.status === "APPROVED" || claim.status === "REJECTED") && renderAdminResetActions(claim.id)}
+                </div>
               </div>
             ))}
             {sortedClaims.length === 0 && (
@@ -495,12 +516,15 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                       </Badge>
                     </td>
                     <td className="px-4 py-3 min-w-[200px]">
-                      {claim.status === "PENDING"
-                        ? renderAdminPendingActions(claim.id)
-                        : (claim.status === "APPROVED" || claim.status === "REJECTED")
-                          ? renderAdminResetActions(claim.id)
-                          : <span className="text-sm text-gray-500">—</span>
-                      }
+                      <div className="flex items-start gap-2">
+                        {renderReceiptButton(claim)}
+                        {claim.status === "PENDING"
+                          ? renderAdminPendingActions(claim.id)
+                          : (claim.status === "APPROVED" || claim.status === "REJECTED")
+                            ? renderAdminResetActions(claim.id)
+                            : !claim.receiptUrl && <span className="text-sm text-gray-500">—</span>
+                        }
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -532,7 +556,10 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                     <span>{formatDate(claim.expenseDate)}</span>
                   </div>
                 </div>
-                {claim.status === "PENDING" && renderStaffActions(claim.id)}
+                <div className="flex items-center gap-2">
+                  {renderReceiptButton(claim)}
+                  {claim.status === "PENDING" && renderStaffActions(claim.id)}
+                </div>
               </div>
             ))}
             {sortedClaims.length === 0 && (
@@ -572,11 +599,13 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      {claim.status === "PENDING" ? (
-                        renderStaffActions(claim.id)
-                      ) : (
-                        <span className="text-sm text-gray-500">—</span>
-                      )}
+                      <div className="flex items-start gap-2">
+                        {renderReceiptButton(claim)}
+                        {claim.status === "PENDING"
+                          ? renderStaffActions(claim.id)
+                          : !claim.receiptUrl && <span className="text-sm text-gray-500">—</span>
+                        }
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -590,6 +619,15 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             )}
           </div>
         </>
+      )}
+
+      {previewDoc && (
+        <DocumentPreviewModal
+          open={!!previewDoc}
+          onOpenChange={(open) => { if (!open) setPreviewDoc(null); }}
+          url={previewDoc.url}
+          fileName={previewDoc.fileName}
+        />
       )}
     </div>
   );
