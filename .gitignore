@@ -41,6 +41,7 @@ next-env.d.ts
 # Capacitor build artifacts
 ios/App/Pods
 android/.gradle
+android/.idea
 android/app/build
 android/build
 android/local.properties

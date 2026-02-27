@@ -185,7 +185,30 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-xl font-semibold text-white">10. Children&apos;s Privacy</h2>
+            <h2 className="text-xl font-semibold text-white">10. Account Deletion</h2>
+            <p>
+              If you wish to delete your account and associated personal data, please contact
+              your HR administrator or email us at info@tertiaryinfo.tech with the subject line
+              &quot;Account Deletion Request&quot;.
+            </p>
+            <p>Upon receiving your request, we will:</p>
+            <ul className="list-disc list-inside space-y-1 pl-2">
+              <li>Verify your identity</li>
+              <li>Delete your account and personal data within 30 days</li>
+              <li>
+                Retain only data required by law (e.g., CPF contribution records, employment
+                records as required under Singapore&apos;s Employment Act)
+              </li>
+            </ul>
+            <p>
+              Please note that account deletion is irreversible. Any leave balances, expense
+              claims, and payroll history associated with your account will be permanently removed
+              unless retention is legally required.
+            </p>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-xl font-semibold text-white">11. Children&apos;s Privacy</h2>
             <p>
               The Service is intended for use by employees of registered organizations and is
               not directed at individuals under the age of 18. We do not knowingly collect
@@ -194,7 +217,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-xl font-semibold text-white">11. Changes to This Policy</h2>
+            <h2 className="text-xl font-semibold text-white">12. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. We will notify users of any
               material changes by posting the new policy on this page and updating the
@@ -204,7 +227,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-xl font-semibold text-white">12. Contact Us</h2>
+            <h2 className="text-xl font-semibold text-white">13. Contact Us</h2>
             <p>
               If you have questions or concerns about this Privacy Policy or our data practices,
               please contact us:

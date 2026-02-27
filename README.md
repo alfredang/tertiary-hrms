@@ -51,10 +51,12 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 ### Authentication & Authorization
 - **Credentials login** (email/password) with bcrypt password hashing
 - **Google OAuth** social login via NextAuth v5 (Auth.js)
+- **Native mobile Google Sign-In** via Capacitor plugin — verifies Google ID token server-side, creates NextAuth-compatible JWT session
 - Role-based access control: **Admin**, **HR**, **Manager**, **Staff**
 - Admin/Staff **view toggle** — admins can switch between management and personal views
 - JWT-based sessions with automatic role and employee data refresh
 - Middleware-protected routes with `needsSetup` redirect for new OAuth users
+- **Inactive employee blocking** — employees with INACTIVE status are denied login (both credentials and OAuth)
 - HR management routes (`/payroll/generate`, `/settings`) restricted to ADMIN/HR/MANAGER via middleware
 - Dev quick-login buttons for testing (development mode only)
 
@@ -145,10 +147,17 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Context-aware responses about HR policies, leave, CPF, and expenses
 - Floating chat widget accessible from any page
 
+### Privacy Policy
+- Publicly accessible at `/privacy-policy` (no authentication required)
+- Covers data collection, usage, third-party sharing, retention, and account deletion
+- Compliant with Google Play Store and Apple App Store requirements
+- Linked from login page footer
+
 ### Cross-Platform Mobile
 - **PWA** — installable from browser on any device
 - **iOS** — native shell via Capacitor with status bar integration
-- **Android** — native shell via Capacitor with status bar integration
+- **Android** — native shell via Capacitor with status bar integration and Google Auth plugin
+- **Native Google Sign-In** — Capacitor Google Auth plugin for seamless mobile authentication
 - Mobile hamburger menu + bottom tab navigation
 - Safe area support for notched devices
 
@@ -315,7 +324,7 @@ npx dotenv-cli -e .env.local -- npx tsx scripts/setup-test-salary.ts
 
 ## Mobile Development
 
-The native apps use Capacitor to wrap the web app in a native shell.
+The native apps use Capacitor to wrap the web app in a native shell. The Android build includes the Google Auth plugin for native sign-in.
 
 ### iOS
 
@@ -334,6 +343,13 @@ npm run cap:open:android  # Open Android Studio project
 ```
 
 Build and run from Android Studio on an emulator or device.
+
+### Google Auth Plugin (Native Mobile)
+
+The Capacitor Google Auth plugin (`@codetrix-studio/capacitor-google-auth`) is configured in `capacitor.config.ts`. Requires:
+- `GOOGLE_CLIENT_ID` env var (web client ID from Google Cloud Console)
+- Android: SHA-1 fingerprint registered in Google Cloud Console
+- iOS: Bundle ID registered in Google Cloud Console
 
 ### Development Workflow
 
@@ -371,6 +387,7 @@ tertiary-hrms/
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/                # Login page (dark theme)
+│   │   ├── privacy-policy/        # Public privacy policy (no auth)
 │   │   ├── (dashboard)/           # Protected dashboard pages
 │   │   │   ├── dashboard/         # Main dashboard
 │   │   │   ├── employees/         # Employee directory + profiles
@@ -381,7 +398,7 @@ tertiary-hrms/
 │   │   │   ├── settings/          # System settings (admin only)
 │   │   │   └── pending-setup/     # OAuth user pending setup page
 │   │   └── api/                   # API routes
-│   │       ├── auth/              # NextAuth endpoints
+│   │       ├── auth/              # NextAuth endpoints + mobile Google Sign-In
 │   │       ├── employees/         # Employee CRUD
 │   │       ├── leave/             # Leave request + approval
 │   │       ├── expenses/          # Expense claim + approval
