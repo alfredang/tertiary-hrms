@@ -107,6 +107,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // Set the session cookie
+    const isSecure = process.env.AUTH_URL?.startsWith("https://") ?? false;
+    const cookieName = isSecure
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
+
     const token = await encode({
       token: {
         sub: user.id,
@@ -117,14 +123,9 @@ export async function POST(req: Request) {
         name: user.employee?.name || user.email,
       },
       secret,
+      salt: cookieName,
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
-
-    // Set the session cookie
-    const isSecure = process.env.AUTH_URL?.startsWith("https://") ?? false;
-    const cookieName = isSecure
-      ? "__Secure-authjs.session-token"
-      : "authjs.session-token";
 
     const cookieStore = await cookies();
     cookieStore.set(cookieName, token, {
