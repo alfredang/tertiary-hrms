@@ -63,3 +63,8 @@ scripts/*.png
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Android signing keystores
+*.jks
+*.keystore
+key.properties

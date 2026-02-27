@@ -18,6 +18,16 @@ export function CapacitorInit() {
           if (Capacitor.getPlatform() === "android") {
             await StatusBar.setBackgroundColor({ color: "#6366f1" });
           }
+
+          // Initialize Google Auth plugin for native sign-in
+          try {
+            const { GoogleAuth } = await import(
+              "@codetrix-studio/capacitor-google-auth"
+            );
+            GoogleAuth.initialize();
+          } catch {
+            console.warn("Google Auth plugin not available");
+          }
         }
       } catch {
         // Not running in Capacitor - silently ignore

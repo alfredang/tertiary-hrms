@@ -66,9 +66,44 @@ function LoginForm() {
     setError("");
     setIsGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/dashboard" });
-    } catch {
-      setError("Google sign-in failed. Please try again.");
+      // Check if running in native Capacitor app
+      const { Capacitor } = await import("@capacitor/core");
+
+      if (Capacitor.isNativePlatform()) {
+        // Native mobile: use Capacitor Google Auth plugin
+        const { GoogleAuth } = await import(
+          "@codetrix-studio/capacitor-google-auth"
+        );
+        await GoogleAuth.initialize();
+        const result = await GoogleAuth.signIn();
+
+        if (!result.authentication?.idToken) {
+          throw new Error("No ID token received from Google");
+        }
+
+        // Send the ID token to our backend for verification + session creation
+        const res = await fetch("/api/auth/google-mobile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            idToken: result.authentication.idToken,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Authentication failed");
+        }
+
+        window.location.href = "/dashboard";
+      } else {
+        // Web: use standard NextAuth OAuth redirect flow
+        await signIn("google", { callbackUrl: "/dashboard" });
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Google sign-in failed";
+      setError(message + ". Please try again.");
       setIsGoogleLoading(false);
     }
   };
