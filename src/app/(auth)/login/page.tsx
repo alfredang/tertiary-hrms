@@ -251,9 +251,17 @@ function LoginForm() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-600">
-          {COMPANY_NAME} HR Portal
-        </p>
+        <div className="text-center space-y-1">
+          <p className="text-xs text-gray-600">
+            {COMPANY_NAME} HR Portal
+          </p>
+          <a
+            href="/privacy-policy"
+            className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
+          >
+            Privacy Policy
+          </a>
+        </div>
       </div>
     </div>
   );
