@@ -11,10 +11,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut } from "lucide-react";
 
-export function UserNav() {
-  const { data: session } = useSession();
+interface UserNavProps {
+  fallbackName?: string | null;
+  fallbackEmail?: string | null;
+}
 
-  if (!session?.user) return null;
+export function UserNav({ fallbackName, fallbackEmail }: UserNavProps = {}) {
+  const { data: session } = useSession();
+  const displayName = session?.user?.name || fallbackName || "User";
+  const displayEmail = session?.user?.email || fallbackEmail || "";
 
   return (
     <div className="border-t border-gray-800 p-4">
@@ -23,15 +28,15 @@ export function UserNav() {
           <button className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-gray-800 transition-colors">
             <Avatar className="h-10 w-10 bg-primary">
               <AvatarFallback className="bg-primary text-white">
-                {getInitials(session.user.name || session.user.email || "U")}
+                {getInitials(displayName || displayEmail || "U")}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                {session.user.name || "User"}
+                {displayName}
               </p>
               <p className="text-xs text-gray-400 truncate">
-                {session.user.email}
+                {displayEmail}
               </p>
             </div>
           </button>

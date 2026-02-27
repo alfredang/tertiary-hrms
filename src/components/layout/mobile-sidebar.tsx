@@ -9,7 +9,12 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
 import { UserNav } from "./user-nav";
 
-export function MobileSidebar() {
+interface MobileSidebarProps {
+  fallbackName?: string | null;
+  fallbackEmail?: string | null;
+}
+
+export function MobileSidebar({ fallbackName, fallbackEmail }: MobileSidebarProps = {}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -31,7 +36,7 @@ export function MobileSidebar() {
       <SheetContent side="left" className="p-0 bg-gray-950 border-gray-800">
         <div className="flex h-full flex-col overflow-y-auto">
           <Sidebar role={role} />
-          <UserNav />
+          <UserNav fallbackName={fallbackName} fallbackEmail={fallbackEmail} />
         </div>
       </SheetContent>
     </Sheet>
