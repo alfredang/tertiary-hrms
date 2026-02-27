@@ -2,6 +2,7 @@
 
 | Date | File | Summary |
 |------|------|---------|
+| 27 Feb | `2026-02-27-summary.md` | Reactivate test accounts, fix sign-out button missing (SKIP_AUTH fallback), Orion's commits: native Google Sign-In + privacy policy |
 | 26 Feb | `2026-02-26-summary.md` | 5 sessions: E2E rewrite, document preview, half-day stacking, security hardening (5-phase plan + execution), DatePicker component, OAuth improvements |
 | 25 Feb | `2026-02-25-summary.md` | Staff view UX, mobile polish, leave proration/rollover, half-day leave, calendar privacy, balance fixes |
 | 24 Feb | `2026-02-24-summary.md` | Calendar CRUD, leave/expense edit/cancel/reset, overlap prevention, UI polish, column sorting, e2e tests |
