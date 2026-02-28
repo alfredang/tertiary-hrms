@@ -1,0 +1,3 @@
+app_identifier("com.tertiaryinfotech.hrportal")
+apple_id(ENV["APPLE_ID"] || "angchewhoe@gmail.com")
+team_id(ENV["APPLE_TEAM_ID"] || "GU9WTSTX9M")
