@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 const isProduction = process.env.TEST_ENV === "production";
 const baseURL = isProduction
@@ -22,6 +22,17 @@ export default defineConfig({
     {
       name: "chromium",
       use: { browserName: "chromium" },
+    },
+    {
+      name: "mobile-iphone",
+      use: {
+        ...devices["iPhone 14"],
+        browserName: "chromium",
+      },
+    },
+    {
+      name: "mobile-android",
+      use: { ...devices["Pixel 7"] },
     },
   ],
   ...(isProduction

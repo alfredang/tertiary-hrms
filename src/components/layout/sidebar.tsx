@@ -29,16 +29,15 @@ const navigation = [
 
 export function Sidebar({ role }: { role?: string }) {
   const pathname = usePathname();
-  const [viewAs, setViewAs] = useState<string>("admin");
-
-  useEffect(() => {
-    const cookie = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("viewAs="));
-    if (cookie) {
-      setViewAs(cookie.split("=")[1]);
+  const [viewAs, setViewAs] = useState<string>(() => {
+    if (typeof document !== "undefined") {
+      const cookie = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("viewAs="));
+      if (cookie) return cookie.split("=")[1];
     }
-  }, []);
+    return "admin";
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {

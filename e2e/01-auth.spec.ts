@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin, loginAsStaff } from "./helpers";
+import { loginAsAdmin, loginAsStaff, isNavLinkVisible } from "./helpers";
 
 test.describe("Authentication", () => {
   test("Admin login with correct credentials", async ({ page }) => {
@@ -48,12 +48,12 @@ test.describe("Authentication", () => {
 test.describe("RBAC Navigation", () => {
   test("Admin sees Settings and Employees nav links", async ({ page }) => {
     await loginAsAdmin(page);
-    await expect(page.locator('a[href="/settings"]')).toBeVisible();
-    await expect(page.locator('a[href="/employees"]')).toBeVisible();
+    expect(await isNavLinkVisible(page, "/settings")).toBeTruthy();
+    expect(await isNavLinkVisible(page, "/employees")).toBeTruthy();
   });
 
   test("Staff does NOT see Settings nav link", async ({ page }) => {
     await loginAsStaff(page);
-    await expect(page.locator('a[href="/settings"]')).not.toBeVisible();
+    expect(await isNavLinkVisible(page, "/settings")).toBeFalsy();
   });
 });

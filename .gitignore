@@ -61,9 +61,10 @@ scripts/*.png
 /test-results/
 /playwright-report/
 
-# Claude Code
-.claude/
+# Visibility (managed by /toggle-visibility) — custom
 CLAUDE.md
+.claude/
+.mcp.json
 
 # Android signing keystores
 *.jks

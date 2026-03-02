@@ -5,7 +5,10 @@ import {
   logout,
   futureDate,
   testId,
+  fillDatePicker,
   cancelFirstPendingLeave,
+  listScope,
+  selectStatusFilter,
 } from "./helpers";
 
 /** Submit a NPL leave request for a given future date offset */
@@ -26,8 +29,8 @@ async function submitNPLLeave(
   await option.click();
 
   const dateStr = futureDate(dayOffset);
-  await page.locator('input[type="date"]').first().fill(dateStr);
-  await page.locator('input[type="date"]').nth(1).fill(dateStr);
+  await fillDatePicker(page, "startDate", dateStr);
+  await fillDatePicker(page, "endDate", dateStr);
 
   const reasonField = page.locator("textarea");
   if (await reasonField.isVisible().catch(() => false)) {
@@ -35,7 +38,7 @@ async function submitNPLLeave(
   }
 
   await page.click('button[type="submit"]');
-  await page.waitForTimeout(2000);
+  await page.waitForURL(/\/leave$/, { timeout: 15000 });
 }
 
 test.describe("Leave Actions", () => {
@@ -51,12 +54,12 @@ test.describe("Leave Actions", () => {
     await expect(page.locator("body")).toContainText("Leave", {
       timeout: 15000,
     });
-    await page.locator("button").filter({ hasText: /^Pending$/ }).click();
-    await page.waitForTimeout(500);
+    await selectStatusFilter(page, "Pending");
 
-    // Click Edit on first pending leave
-    const editLink = page
-      .locator('table a[href*="/leave/edit/"]')
+    // Click Edit on first pending leave (scope to visible container)
+    const scope = listScope(page);
+    const editLink = scope
+      .locator('a[href*="/leave/edit/"]')
       .first();
     await expect(editLink).toBeVisible({ timeout: 10000 });
     await editLink.click();
@@ -92,18 +95,18 @@ test.describe("Leave Actions", () => {
     await expect(page.locator("body")).toContainText("Leave", {
       timeout: 15000,
     });
-    await page.locator("button").filter({ hasText: /^Pending$/ }).click();
-    await page.waitForTimeout(500);
+    await selectStatusFilter(page, "Pending");
 
-    const cancelBtn = page
-      .locator("table button")
+    const scope = listScope(page);
+    const cancelBtn = scope
+      .locator("button")
       .filter({ hasText: /^Cancel$/ })
       .first();
     await expect(cancelBtn).toBeVisible({ timeout: 10000 });
     await cancelBtn.click();
 
     await expect(page.locator("body")).toContainText("Cancel this leave?");
-    await page.locator('table button:has-text("Yes, Cancel")').click();
+    await scope.locator('button:has-text("Yes, Cancel")').first().click();
     await page.waitForTimeout(2000);
 
     // Verify cancelled
@@ -129,10 +132,10 @@ test.describe("Leave Actions", () => {
       timeout: 15000,
     });
     await page.fill('input[placeholder="Search leaves..."]', marker);
-    await page.waitForTimeout(1000);
 
-    const approveBtn = page
-      .locator('table button:has-text("Approve")')
+    const scope1 = listScope(page);
+    const approveBtn = scope1
+      .locator("button").filter({ hasText: /^Approve$/ })
       .first();
     await expect(approveBtn).toBeVisible({ timeout: 15000 });
     await approveBtn.click();
@@ -145,19 +148,19 @@ test.describe("Leave Actions", () => {
     });
     await page.fill('input[placeholder="Search leaves..."]', marker);
     await page.waitForTimeout(1000);
-    await page.locator("button").filter({ hasText: /^Approved$/ }).click();
-    await page.waitForTimeout(500);
+    await selectStatusFilter(page, "Approved");
 
-    const resetBtn = page
-      .locator('table button[title="Reset to Pending"]')
+    const scope2 = listScope(page);
+    const resetBtn = scope2
+      .locator('button[title="Reset to Pending"]')
       .first();
-    await expect(resetBtn).toBeVisible({ timeout: 10000 });
+    await expect(resetBtn).toBeVisible({ timeout: 15000 });
     await resetBtn.click();
 
-    await expect(page.locator("body")).toContainText("Confirm Reset", {
+    await expect(page.locator("body")).toContainText("Reset to pending?", {
       timeout: 5000,
     });
-    await page.locator('table button:has-text("Confirm Reset")').click();
+    await scope2.locator('button:has-text("Yes, Reset")').first().click();
     await page.waitForTimeout(2000);
 
     // Staff cancels the reset leave
@@ -182,19 +185,19 @@ test.describe("Leave Actions", () => {
       timeout: 15000,
     });
     await page.fill('input[placeholder="Search leaves..."]', marker);
-    await page.waitForTimeout(1000);
 
-    const rejectBtn = page
-      .locator('table button:has-text("Reject")')
+    const scope1 = listScope(page);
+    const rejectBtn = scope1
+      .locator("button").filter({ hasText: /^Reject$/ })
       .first();
     await expect(rejectBtn).toBeVisible({ timeout: 15000 });
     await rejectBtn.click();
 
     // Complete the two-step reject confirmation
-    await expect(page.locator("body")).toContainText("Confirm Reject", {
+    await expect(page.locator("body")).toContainText("Reject this leave?", {
       timeout: 5000,
     });
-    await page.locator('table button:has-text("Confirm Reject")').click();
+    await scope1.locator('button:has-text("Yes, Reject")').first().click();
     await page.waitForTimeout(2000);
 
     // Navigate to Rejected tab, search again, and reset
@@ -204,19 +207,19 @@ test.describe("Leave Actions", () => {
     });
     await page.fill('input[placeholder="Search leaves..."]', marker);
     await page.waitForTimeout(1000);
-    await page.locator("button").filter({ hasText: /^Rejected$/ }).click();
-    await page.waitForTimeout(500);
+    await selectStatusFilter(page, "Rejected");
 
-    const resetBtn = page
-      .locator('table button[title="Reset to Pending"]')
+    const scope2 = listScope(page);
+    const resetBtn = scope2
+      .locator('button[title="Reset to Pending"]')
       .first();
-    await expect(resetBtn).toBeVisible({ timeout: 10000 });
+    await expect(resetBtn).toBeVisible({ timeout: 15000 });
     await resetBtn.click();
 
-    await expect(page.locator("body")).toContainText("Confirm Reset", {
+    await expect(page.locator("body")).toContainText("Reset to pending?", {
       timeout: 5000,
     });
-    await page.locator('table button:has-text("Confirm Reset")').click();
+    await scope2.locator('button:has-text("Yes, Reset")').first().click();
     await page.waitForTimeout(2000);
 
     // Staff cancels the reset leave

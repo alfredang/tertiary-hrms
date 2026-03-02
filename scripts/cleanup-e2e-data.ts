@@ -72,6 +72,59 @@ async function main() {
     console.log("Deleted calendar events:", d.count);
   }
 
+  // Recalculate leave balances for test accounts (pending/used counters
+  // get out of sync when leaves are deleted without going through the API)
+  const testEmails = [
+    "staff@tertiaryinfotech.com",
+    "staff2@tertiaryinfotech.com",
+    "admin@tertiaryinfotech.com",
+  ];
+  for (const email of testEmails) {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { employee: true },
+    });
+    if (!user?.employee) continue;
+
+    const balances = await prisma.leaveBalance.findMany({
+      where: { employeeId: user.employee.id },
+    });
+
+    for (const bal of balances) {
+      // Sum actual pending leaves
+      const pendingAgg = await prisma.leaveRequest.aggregate({
+        where: {
+          employeeId: user.employee.id,
+          leaveTypeId: bal.leaveTypeId,
+          status: "PENDING",
+        },
+        _sum: { days: true },
+      });
+      // Sum actual used (approved) leaves
+      const usedAgg = await prisma.leaveRequest.aggregate({
+        where: {
+          employeeId: user.employee.id,
+          leaveTypeId: bal.leaveTypeId,
+          status: "APPROVED",
+        },
+        _sum: { days: true },
+      });
+
+      const actualPending = Number(pendingAgg._sum.days || 0);
+      const actualUsed = Number(usedAgg._sum.days || 0);
+
+      if (Number(bal.pending) !== actualPending || Number(bal.used) !== actualUsed) {
+        await prisma.leaveBalance.update({
+          where: { id: bal.id },
+          data: { pending: actualPending, used: actualUsed },
+        });
+        console.log(
+          `Fixed ${email} balance: pending ${bal.pending}->${actualPending}, used ${bal.used}->${actualUsed}`
+        );
+      }
+    }
+  }
+
   console.log("Done!");
 }
 

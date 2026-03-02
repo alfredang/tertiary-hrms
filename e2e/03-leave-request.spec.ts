@@ -3,6 +3,7 @@ import {
   loginAsStaff,
   futureDate,
   testId,
+  fillDatePicker,
   cancelFirstPendingLeave,
 } from "./helpers";
 
@@ -29,8 +30,8 @@ test.describe("Leave Request Flows", () => {
     await selectLeaveType(page, "No Pay");
 
     const dateStr = futureDate(20);
-    await page.locator('input[type="date"]').first().fill(dateStr);
-    await page.locator('input[type="date"]').nth(1).fill(dateStr);
+    await fillDatePicker(page, "startDate", dateStr);
+    await fillDatePicker(page, "endDate", dateStr);
 
     const reason = page.locator("textarea");
     if (await reason.isVisible().catch(() => false)) {
@@ -59,8 +60,8 @@ test.describe("Leave Request Flows", () => {
 
     const startStr = futureDate(22);
     const endStr = futureDate(23);
-    await page.locator('input[type="date"]').first().fill(startStr);
-    await page.locator('input[type="date"]').nth(1).fill(endStr);
+    await fillDatePicker(page, "startDate", startStr);
+    await fillDatePicker(page, "endDate", endStr);
 
     const reason = page.locator("textarea");
     if (await reason.isVisible().catch(() => false)) {
@@ -90,8 +91,8 @@ test.describe("Leave Request Flows", () => {
     await selectLeaveType(page, "Annual");
 
     const dateStr = futureDate(25);
-    await page.locator('input[type="date"]').first().fill(dateStr);
-    await page.locator('input[type="date"]').nth(1).fill(dateStr);
+    await fillDatePicker(page, "startDate", dateStr);
+    await fillDatePicker(page, "endDate", dateStr);
 
     // Wait for day type buttons to appear (AL-only feature)
     await page.waitForTimeout(500);
@@ -126,8 +127,8 @@ test.describe("Leave Request Flows", () => {
     await selectLeaveType(page, "Medical");
 
     const dateStr = futureDate(27);
-    await page.locator('input[type="date"]').first().fill(dateStr);
-    await page.locator('input[type="date"]').nth(1).fill(dateStr);
+    await fillDatePicker(page, "startDate", dateStr);
+    await fillDatePicker(page, "endDate", dateStr);
 
     const reason = page.locator("textarea");
     if (await reason.isVisible().catch(() => false)) {

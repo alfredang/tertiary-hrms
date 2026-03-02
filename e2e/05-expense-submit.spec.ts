@@ -4,6 +4,7 @@ import {
   today,
   futureDate,
   testId,
+  fillDatePicker,
   cancelFirstPendingExpense,
 } from "./helpers";
 
@@ -26,7 +27,7 @@ test.describe("Expense Submit", () => {
     // Fill form
     await page.fill("#description", `${testId()} test expense`);
     await page.fill("#amount", "45.50");
-    await page.fill("#expenseDate", today());
+    await fillDatePicker(page, "expenseDate", today());
 
     // Upload a dummy receipt (required for all categories)
     await page.setInputFiles('input[type="file"]', {
@@ -75,17 +76,35 @@ test.describe("Expense Submit", () => {
       timeout: 15000,
     });
 
-    // The expenseDate input has max={today}, so filling a future date
-    // should either be blocked by the browser or rejected by the server
-    const dateInput = page.locator("#expenseDate");
-    const maxAttr = await dateInput.getAttribute("max");
+    // Select category first
+    await page.locator('[role="combobox"]').first().click();
+    await page.waitForTimeout(500);
+    const firstOption = page.locator('[role="option"]').first();
+    await expect(firstOption).toBeVisible({ timeout: 5000 });
+    await firstOption.click();
 
-    // Verify the max attribute is set to today or earlier
-    expect(maxAttr).toBeTruthy();
-    const maxDate = new Date(maxAttr!);
-    const todayDate = new Date(today());
-    expect(maxDate.getTime()).toBeLessThanOrEqual(
-      todayDate.getTime() + 86400000
-    );
+    // Fill form with future date
+    await page.fill("#description", `${testId()} future date test`);
+    await page.fill("#amount", "10.00");
+    await fillDatePicker(page, "expenseDate", futureDate(5));
+
+    // Upload a dummy receipt
+    await page.setInputFiles('input[type="file"]', {
+      name: "test-receipt.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"),
+    });
+    await page.waitForTimeout(500);
+
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(3000);
+
+    // Server should reject with error about future date
+    const bodyText = await page.locator("body").textContent();
+    const blocked =
+      bodyText?.includes("future") ||
+      bodyText?.includes("Error") ||
+      page.url().includes("/expenses/submit");
+    expect(blocked).toBeTruthy();
   });
 });

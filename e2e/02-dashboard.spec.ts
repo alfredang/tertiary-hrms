@@ -4,6 +4,8 @@ import {
   loginAsStaff,
   switchToStaffView,
   switchToAdminView,
+  isNavLinkVisible,
+  isNavLinkHidden,
 } from "./helpers";
 
 test.describe("Dashboard", () => {
@@ -37,13 +39,15 @@ test.describe("Dashboard", () => {
 
   test("Switch to staff view hides Settings link", async ({ page }) => {
     await loginAsAdmin(page);
-    await expect(page.locator('a[href="/settings"]')).toBeVisible();
+    expect(await isNavLinkVisible(page, "/settings")).toBeTruthy();
 
     await switchToStaffView(page);
     // Navigate to force server re-render with updated cookie
     await page.goto("/dashboard");
     await expect(page.locator("body")).toContainText("Welcome", { timeout: 15000 });
-    await expect(page.locator('a[href="/settings"]')).not.toBeVisible();
+    // Wait for sidebar hydration + cookie polling
+    await page.waitForTimeout(1500);
+    expect(await isNavLinkHidden(page, "/settings")).toBeTruthy();
 
     // Cleanup: switch back
     await switchToAdminView(page);
@@ -58,12 +62,14 @@ test.describe("Dashboard", () => {
     await switchToStaffView(page);
     await page.goto("/dashboard");
     await expect(page.locator("body")).toContainText("Welcome", { timeout: 15000 });
-    await expect(page.locator('a[href="/settings"]')).not.toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(await isNavLinkHidden(page, "/settings")).toBeTruthy();
 
     await switchToAdminView(page);
     await page.goto("/dashboard");
     await expect(page.locator("body")).toContainText("Welcome", { timeout: 15000 });
-    await expect(page.locator('a[href="/settings"]')).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(await isNavLinkVisible(page, "/settings")).toBeTruthy();
   });
 
   test("Staff dashboard shows leave balance info", async ({ page }) => {
