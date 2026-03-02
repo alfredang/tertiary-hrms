@@ -21,8 +21,11 @@ jobs:
       FASTLANE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      # App Store Connect API key (base64 encoded p8 file)
       ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+      # Match configuration
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+      MATCH_GIT_URL: https://github.com/alfredang/tertiary-hrms-certificates
 
     steps:
       - name: Checkout code
@@ -57,13 +60,23 @@ jobs:
           echo "$ASC_KEY_CONTENT" | base64 --decode > AuthKey_${{ secrets.ASC_KEY_ID }}.p8
           ls -la AuthKey_*.p8
 
-      - name: Build iOS app with automatic code signing
-        env:
-          MATCH_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      - name: Run Fastlane Match
+        run: |
+          # Create Matchfile
+          cat > fastlane/Matchfile << MATCHFILE
+          git_url("https://github.com/alfredang/tertiary-hrms-certificates")
+          team_id("${{ secrets.APPLE_TEAM_ID }}")
+          app_identifier("com.tertiaryinfotech.hrportal")
+          storage_mode("git")
+          type("appstore")
+          MATCHFILE
+          
+          # Run match to fetch certificates
+          bundle exec match appstore --readonly=false
+
+      - name: Build iOS app
         run: |
           cd ios/App
-          
-          # Run xcodebuild with automatic signing using ASC API
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -sdk iphoneos \
@@ -71,9 +84,7 @@ jobs:
             -archivePath $RUNNER_TEMP/App.xcarchive \
             CODE_SIGN_STYLE=Automatic \
             DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-            CODE_SIGN_IDENTITY=- \
             -allowProvisioningUpdates \
-            -allowProvisioningDeviceRegistration \
             archive
 
       - name: Export IPA

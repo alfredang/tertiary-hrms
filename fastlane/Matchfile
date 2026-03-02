@@ -1,0 +1,28 @@
+# Fastlane Match Configuration
+# https://docs.fastlane.tools/actions/match/
+
+# The repository URL where certificates are stored
+git_url("https://github.com/alfredang/tertiary-hrms-certificates.git")
+
+# Your Apple Developer Team ID
+team_id("GU9WTSTX9M")
+
+# The Bundle Identifier of your app
+app_identifier("com.tertiaryinfotech.hrportal")
+
+# Storage mode: "git" (default), "google_cloud", "s3"
+storage_mode("git")
+
+# Encryption password - MUST match the MATCH_PASSWORD in CI/CD
+# This password encrypts the certificate files
+# You'll be prompted to set this the first time you run match
+
+# For CI/CD, we use environment variables:
+# - MATCH_PASSWORD: the encryption password
+# - MATCH_GIT_BASIC_AUTHORIZATION: base64 encoded credentials for private repo
+
+# Set to true for App Store (set to "development" for TestFlight/development)
+type("appstore")
+
+# Optional: Specify username for Apple ID authentication
+# username("angchewhoe@gmail.com")
