@@ -6,19 +6,17 @@ import { calculatePayroll } from "@/lib/cpf-calculator";
 // Can be triggered by external scheduler or manually
 export async function GET(req: NextRequest) {
   try {
-    // Verify cron secret — reject in production if not configured
+    // Verify cron secret — reject if not configured (any environment)
     const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret && process.env.NODE_ENV === "production") {
+    if (!cronSecret) {
       return NextResponse.json(
         { error: "CRON_SECRET not configured" },
         { status: 500 }
       );
     }
-    if (cronSecret) {
-      const authHeader = req.headers.get("authorization");
-      if (authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    const authHeader = req.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const now = new Date();

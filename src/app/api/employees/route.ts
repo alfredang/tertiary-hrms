@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createEmployeeSchema } from "@/lib/validations/employee";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export async function POST(req: NextRequest) {
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
       : 0;
     const employeeId = `EMP${String(lastNum + 1).padStart(3, "0")}`;
 
-    const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || "123456";
+    const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || randomUUID().slice(0, 12);
     const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -137,10 +138,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Error creating employee:", error);
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Failed to create employee",
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { updateEmployeeSchema } from "@/lib/validations/employee";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
@@ -59,7 +60,7 @@ export async function PATCH(
     // 5. Update in transaction for data consistency
     const updated = await prisma.$transaction(async (tx) => {
       // Prepare employee update data
-      const employeeData: any = {};
+      const employeeData: Prisma.EmployeeUpdateInput = {};
       if (personalInfo) {
         const { fullName, ...restPersonal } = personalInfo;
         Object.assign(employeeData, {
@@ -134,11 +135,7 @@ export async function PATCH(
   } catch (error) {
     console.error("Error updating employee:", error);
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        message:
-          error instanceof Error ? error.message : "Failed to update employee",
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

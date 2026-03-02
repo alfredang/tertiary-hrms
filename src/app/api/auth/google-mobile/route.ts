@@ -34,8 +34,14 @@ export async function POST(req: Request) {
 
     const googleUser = await googleResponse.json();
 
-    // Validate the token audience matches our client ID
-    if (googleUser.aud !== process.env.GOOGLE_CLIENT_ID) {
+    // Validate the token audience matches one of our client IDs (web, iOS, Android)
+    const allowedAudiences = [
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_IOS_CLIENT_ID,
+      process.env.GOOGLE_ANDROID_CLIENT_ID,
+    ].filter(Boolean);
+
+    if (!allowedAudiences.includes(googleUser.aud)) {
       return NextResponse.json(
         { error: "Token audience mismatch" },
         { status: 401 }

@@ -4,6 +4,16 @@ import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
+import * as z from "zod";
+
+const chatSchema = z.object({
+  messages: z.array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().max(4000),
+    })
+  ).max(50),
+});
 
 const systemPrompt = `You are an AI assistant for the Tertiary Infotech HR Portal. You help employees with HR-related questions and tasks.
 
@@ -41,7 +51,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { messages } = await req.json();
+    const body = await req.json();
+    const validation = chatSchema.safeParse(body);
+    if (!validation.success) {
+      return new Response(JSON.stringify({ error: "Invalid message format" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const { messages } = validation.data;
 
     // Try Gemini first, then OpenAI, then Anthropic
     let result;

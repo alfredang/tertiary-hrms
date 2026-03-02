@@ -63,13 +63,7 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error("Error updating company settings:", error);
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to update company settings",
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -77,6 +71,14 @@ export async function PATCH(req: NextRequest) {
 
 export async function GET() {
   try {
+    // Authentication check
+    if (!isDevAuthSkipped()) {
+      const session = await auth();
+      if (!session?.user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
     let settings = await prisma.companySettings.findUnique({
       where: { id: "company_settings" },
     });
@@ -100,13 +102,7 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching company settings:", error);
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch company settings",
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

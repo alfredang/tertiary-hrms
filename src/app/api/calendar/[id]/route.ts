@@ -37,7 +37,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Any authenticated user can delete any event (shared company calendar)
+    // Calendar is personal — only the creator can delete their own events
+    if (!isDevAuthSkipped() && event.createdById !== currentUserId) {
+      return NextResponse.json(
+        { error: "Forbidden - you can only delete your own events" },
+        { status: 403 }
+      );
+    }
 
     await prisma.calendarEvent.delete({ where: { id } });
 
@@ -89,7 +95,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Any authenticated user can edit any event (shared company calendar)
+    // Calendar is personal — only the creator can edit their own events
+    if (!isDevAuthSkipped() && event.createdById !== currentUserId) {
+      return NextResponse.json(
+        { error: "Forbidden - you can only edit your own events" },
+        { status: 403 }
+      );
+    }
 
     const updated = await prisma.calendarEvent.update({
       where: { id },

@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
+const VALID_ROLES = ["ADMIN", "HR", "MANAGER", "STAFF"] as const;
+
 export async function middleware(req: NextRequest) {
   // Development mode: Skip authentication checks if SKIP_AUTH is enabled
   if (isDevAuthSkipped()) {
@@ -21,6 +23,11 @@ export async function middleware(req: NextRequest) {
   const isLoggedIn = !!token;
   const { pathname } = req.nextUrl;
 
+  // Validate role from token against known enum values
+  const tokenRole = typeof token?.role === "string" && (VALID_ROLES as readonly string[]).includes(token.role)
+    ? token.role
+    : null;
+
   // Public routes
   const publicRoutes = ["/login", "/register", "/api/auth", "/api/uploadthing", "/privacy-policy"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
@@ -33,7 +40,7 @@ export async function middleware(req: NextRequest) {
   // Redirect users without employee records to pending-setup page
   if (
     isLoggedIn &&
-    (token as any)?.needsSetup === true &&
+    (token as Record<string, unknown>)?.needsSetup === true &&
     !pathname.startsWith("/pending-setup") &&
     !pathname.startsWith("/api/auth") &&
     !pathname.startsWith("/login")
@@ -46,20 +53,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
-  // Admin-only routes
-  const adminRoutes = ["/admin"];
-  const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route));
-
-  if (isAdminRoute && token?.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
-  }
-
   // HR management routes (admin, HR, manager only)
   const hrManagementRoutes = ["/employees", "/payroll/generate", "/settings"];
   const isHRRoute = hrManagementRoutes.some((route) => pathname.startsWith(route));
   const hrAllowedRoles = ["ADMIN", "HR", "MANAGER"];
 
-  if (isHRRoute && !hrAllowedRoles.includes(token?.role as string)) {
+  if (isHRRoute && (!tokenRole || !hrAllowedRoles.includes(tokenRole))) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
