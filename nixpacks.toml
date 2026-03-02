@@ -1,0 +1,2 @@
+# Only use Node.js provider — ignore Gemfile (used by Fastlane in CI only)
+providers = ["node"]
