@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       try {
-        result = await streamText({
+        result = streamText({
           model: google("gemini-1.5-flash"),
           system: systemPrompt,
           messages,
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     if (!result && process.env.OPENAI_API_KEY) {
       try {
-        result = await streamText({
+        result = streamText({
           model: openai("gpt-4o-mini"),
           system: systemPrompt,
           messages,
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     if (!result && process.env.ANTHROPIC_API_KEY) {
       try {
-        result = await streamText({
+        result = streamText({
           model: anthropic("claude-3-haiku-20240307"),
           system: systemPrompt,
           messages,
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useChat } from "ai/react";
+import { useChat } from "@ai-sdk/react";
+import { TextStreamChatTransport } from "ai";
+import type { UIMessage } from "ai";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,12 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/chat",
-    keepLastMessageOnError: true,
+  const { messages, sendMessage, status } = useChat({
+    transport: new TextStreamChatTransport({ api: "/api/chat" }),
     onError: () => {
       toast({
         title: "Chat unavailable",
@@ -25,6 +27,16 @@ export function ChatWidget() {
       });
     },
   });
+
+  const isLoading = status === "submitted" || status === "streaming";
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isLoading) return;
+    const text = inputValue;
+    setInputValue("");
+    await sendMessage({ text });
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,7 +88,7 @@ export function ChatWidget() {
                 </div>
               )}
 
-              {messages.map((message) => (
+              {messages.map((message: UIMessage) => (
                 <div
                   key={message.id}
                   className={cn(
@@ -97,7 +109,7 @@ export function ChatWidget() {
                         : "bg-gray-100 text-gray-900 rounded-tl-none"
                     )}
                   >
-                    {message.content}
+                    {message.parts.find((p): p is { type: "text"; text: string } => p.type === "text")?.text ?? ""}
                   </div>
                   {message.role === "user" && (
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -127,17 +139,17 @@ export function ChatWidget() {
 
             {/* Input */}
             <form
-              onSubmit={handleSubmit}
+              onSubmit={handleSend}
               className="border-t p-4 flex gap-2"
             >
               <Input
-                value={input}
-                onChange={handleInputChange}
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
                 placeholder="Ask a question..."
                 disabled={isLoading}
                 className="flex-1"
               />
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+              <Button type="submit" size="icon" disabled={isLoading || !inputValue.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
             </form>
