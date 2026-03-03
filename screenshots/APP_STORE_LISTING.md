@@ -117,8 +117,11 @@ https://hrms.tertiaryinfo.tech
 | 3 | `07-dashboard-staff.png` | Staff personal dashboard |
 | 4 | `03-leave-admin.png` | Leave management (admin) |
 | 5 | `08-leave-staff.png` | Leave balances & requests (staff) |
-| 6 | `09-expenses.png` | Expense claims tracking |
-| 7 | `10-calendar.png` | Personal calendar |
+| 6 | `04-employees.png` | Staff directory |
+| 7 | `05-profile.png` | Employee profile |
+| 8 | `06-payroll.png` | Payroll & payslips |
+| 9 | `09-expenses.png` | Expense claims tracking |
+| 10 | `10-calendar.png` | Personal calendar |
 
 > Use files from `with-headers/` for marketing screenshots, `raw/` for clean versions.
 
