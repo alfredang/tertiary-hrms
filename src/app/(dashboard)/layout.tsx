@@ -6,6 +6,7 @@ import { UserNav } from "@/components/layout/user-nav";
 import { ChatWidget } from "@/components/chat/chat-widget";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { hasAdminAccess } from "@/lib/utils";
 
 export default async function DashboardLayout({
   children,
@@ -14,7 +15,7 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
   const role = isDevAuthSkipped() ? "ADMIN" : session?.user?.role;
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = hasAdminAccess(role);
 
   // Resolve user info for header/sidebar (works even with SKIP_AUTH and no session)
   let userName = session?.user?.name;

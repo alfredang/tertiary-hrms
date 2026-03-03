@@ -108,6 +108,11 @@ export function getLeaveConflictDates(
   return conflicts;
 }
 
+/** True for any supervisory role that can access admin views and features. */
+export function hasAdminAccess(role: string | null | undefined): boolean {
+  return role === "ADMIN" || role === "HR" || role === "MANAGER";
+}
+
 /**
  * Calculate prorated leave allocation (monthly accrual).
  * Allocation = annualEntitlement * elapsedMonths / 12

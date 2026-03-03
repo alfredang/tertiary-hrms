@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatDate } from "@/lib/utils";
+import { formatDate, hasAdminAccess } from "@/lib/utils";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -114,7 +114,7 @@ export default async function CalendarDayPage({
     currentUserId = session.user.id;
   }
 
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = hasAdminAccess(role);
   const viewMode = await getViewMode();
   const viewAs = isAdmin ? viewMode : "staff";
 

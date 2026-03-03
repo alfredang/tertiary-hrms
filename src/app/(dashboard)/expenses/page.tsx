@@ -5,7 +5,7 @@ import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, DollarSign } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, hasAdminAccess } from "@/lib/utils";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
@@ -78,7 +78,7 @@ export default async function ExpensesPage() {
     currentEmployeeId = session.user.employeeId;
   }
 
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
 
   // Admin view: show all expenses; Staff view: show only own

@@ -50,7 +50,8 @@ export function Sidebar({ role }: { role?: string }) {
     return () => clearInterval(interval);
   }, []);
 
-  const isAdmin = (role === "ADMIN" || role === "HR") && viewAs === "admin";
+  // Inline (not hasAdminAccess) because this also requires the viewAs cookie check
+  const isAdmin = (role === "ADMIN" || role === "HR" || role === "MANAGER") && viewAs === "admin";
 
   return (
     <div className="flex grow flex-col gap-y-5 px-6 pt-4">

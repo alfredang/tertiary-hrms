@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { hasAdminAccess } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -104,7 +105,7 @@ export default async function CalendarPage() {
     );
   }
 
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
 
   // Admin view: see all employees' leaves; Staff view: see only own leaves

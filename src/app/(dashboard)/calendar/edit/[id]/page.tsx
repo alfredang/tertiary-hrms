@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { hasAdminAccess } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function CalendarEditPage({
 
   const currentUserId = session?.user?.id ?? null;
   const currentUserRole = session?.user?.role;
-  const isAdmin = currentUserRole === "ADMIN" || currentUserRole === "HR" || currentUserRole === "MANAGER";
+  const isAdmin = hasAdminAccess(currentUserRole);
 
   // Ownership check: only the creator OR admin can edit their event
   if (!isDevAuthSkipped() && !isAdmin && event.createdById !== currentUserId) {

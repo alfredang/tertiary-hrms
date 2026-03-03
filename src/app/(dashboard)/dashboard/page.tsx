@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { prorateLeave } from "@/lib/utils";
+import { prorateLeave, hasAdminAccess } from "@/lib/utils";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
@@ -157,7 +157,7 @@ export default async function DashboardPage() {
     }
   }
 
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
 
   // For staff view: filter recent activity by own employee ID

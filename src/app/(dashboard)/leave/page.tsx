@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { prorateLeave } from "@/lib/utils";
+import { prorateLeave, hasAdminAccess } from "@/lib/utils";
 import { LeaveList } from "@/components/leave/leave-list";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
@@ -98,7 +98,7 @@ export default async function LeavePage() {
     currentEmployeeId = session.user.employeeId;
   }
 
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
 
   // Admin view: show all leaves; Staff view: show only own leaves

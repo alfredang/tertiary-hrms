@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getViewMode } from "@/lib/view-mode";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { hasAdminAccess } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +67,7 @@ export default async function EmployeesPage() {
     currentEmployeeId = session.user.employeeId;
   }
 
-  const isAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
 
   const [employees, departments] = await Promise.all([
