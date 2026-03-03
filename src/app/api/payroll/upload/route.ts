@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export async function POST(req: NextRequest) {
@@ -30,10 +30,36 @@ export async function POST(req: NextRequest) {
 
     // Read Excel file
     const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer as ArrayBuffer);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      return NextResponse.json(
+        { error: "Excel file has no worksheets" },
+        { status: 400 }
+      );
+    }
+
+    // Build header map from row 1
+    const headers: Record<number, string> = {};
+    worksheet.getRow(1).eachCell((cell, col) => {
+      headers[col] = String(cell.value ?? "").trim();
+    });
+
+    // Convert rows to Record<string, unknown>[]
+    const rows: Record<string, unknown>[] = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // skip header
+      const rowData: Record<string, unknown> = {};
+      row.eachCell({ includeEmpty: true }, (cell, col) => {
+        if (headers[col]) {
+          rowData[headers[col]] = typeof cell.value === "number"
+            ? cell.value
+            : cell.text || cell.value;
+        }
+      });
+      rows.push(rowData);
+    });
 
     if (rows.length === 0) {
       return NextResponse.json(

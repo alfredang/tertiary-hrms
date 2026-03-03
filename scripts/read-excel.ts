@@ -1,9 +1,23 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
-const workbook = XLSX.readFile("staff.xlsx");
-const sheetName = workbook.SheetNames[0];
-const worksheet = workbook.Sheets[sheetName];
-const data = XLSX.utils.sheet_to_json(worksheet);
+const workbook = new ExcelJS.Workbook();
+await workbook.xlsx.readFile("staff.xlsx");
+const worksheet = workbook.worksheets[0];
+
+const headers: Record<number, string> = {};
+worksheet.getRow(1).eachCell((cell, col) => {
+  headers[col] = String(cell.value ?? "").trim();
+});
+
+const data: Record<string, unknown>[] = [];
+worksheet.eachRow((row, rowNumber) => {
+  if (rowNumber === 1) return;
+  const obj: Record<string, unknown> = {};
+  row.eachCell({ includeEmpty: true }, (cell, col) => {
+    if (headers[col]) obj[headers[col]] = cell.text || cell.value;
+  });
+  data.push(obj);
+});
 
 console.log("Total rows:", data.length);
 console.log("\nFirst 3 rows:");

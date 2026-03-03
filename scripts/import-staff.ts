@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();
@@ -65,9 +65,24 @@ async function main() {
   }
 
   // Read Excel
-  const workbook = XLSX.readFile("staff.xlsx");
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<StaffRow>(sheet);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile("staff.xlsx");
+  const worksheet = workbook.worksheets[0];
+  const excelHeaders: Record<number, string> = {};
+  worksheet.getRow(1).eachCell((cell, col) => {
+    excelHeaders[col] = String(cell.value ?? "").trim();
+  });
+  const rows: StaffRow[] = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const obj: StaffRow = { "/N": 0 };
+    row.eachCell({ includeEmpty: true }, (cell, col) => {
+      if (excelHeaders[col]) {
+        obj[excelHeaders[col]] = typeof cell.value === "number" ? cell.value : (cell.text || cell.value);
+      }
+    });
+    rows.push(obj);
+  });
   console.log(`Found ${rows.length} staff records\n`);
 
   // Find column names (they have \r\n in them from Excel)
