@@ -61,10 +61,11 @@ scripts/*.png
 /test-results/
 /playwright-report/
 
-# Visibility (managed by /toggle-visibility) — custom
+# Visibility (managed by /toggle-visibility) — stealth
 CLAUDE.md
 .claude/
 .mcp.json
+.agents/
 
 # Android signing keystores
 *.jks
