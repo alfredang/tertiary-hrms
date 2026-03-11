@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
             Tertiary HRMS — Human Resources Management System
           </p>
           <p className="text-gray-500 text-sm">
-            Last updated: 27 February 2026
+            Last updated: 11 March 2026
           </p>
         </div>
 
@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-xl font-semibold text-white">2. Information We Collect</h2>
 
             <h3 className="text-lg font-medium text-gray-200">2.1 Personal Information</h3>
-            <p>When your employer registers you on the Service, we may collect:</p>
+            <p>Your employer registers you on the Service. Upon registration, we collect:</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
               <li>Full name</li>
               <li>Email address</li>
@@ -185,7 +185,12 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-xl font-semibold text-white">10. Account Deletion</h2>
+            <h2 className="text-xl font-semibold text-white">10. Account Management and Deletion</h2>
+            <p>
+              User accounts in the Service are created and managed by company HR administrators.
+              Employees do not self-register — accounts are provisioned by the employer. Upon
+              termination or resignation, your account will be deactivated by your HR administrator.
+            </p>
             <p>
               If you wish to delete your account and associated personal data, please contact
               your HR administrator or email us at info@tertiaryinfo.tech with the subject line
