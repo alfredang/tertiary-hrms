@@ -262,7 +262,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
                 id="startDate"
                 value={startDate}
                 onChange={(val) => setStartDate(val)}
-                placeholder="Start date"
+
               />
             </div>
             <div className="space-y-2">
@@ -274,7 +274,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
                 value={endDate}
                 onChange={(val) => setEndDate(val)}
                 min={startDate}
-                placeholder="End date"
+
               />
             </div>
           </div>

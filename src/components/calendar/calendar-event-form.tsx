@@ -177,7 +177,7 @@ export function CalendarEventForm({ initialData, eventId }: CalendarEventFormPro
                 id="startDate"
                 value={startDate}
                 onChange={(val) => setStartDate(val)}
-                placeholder="Start date"
+
               />
             </div>
             <div className="space-y-2">
@@ -189,7 +189,7 @@ export function CalendarEventForm({ initialData, eventId }: CalendarEventFormPro
                 value={endDate}
                 onChange={(val) => setEndDate(val)}
                 min={startDate}
-                placeholder="End date"
+
               />
               <p className="text-xs text-gray-500">
                 Defaults to start date if not set.

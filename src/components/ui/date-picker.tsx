@@ -4,7 +4,6 @@ import * as React from "react"
 import { format, parse, isValid } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
@@ -23,7 +22,7 @@ interface DatePickerProps {
 export function DatePicker({
   value,
   onChange,
-  placeholder = "Select date",
+  placeholder = "DD/MM/YYYY",
   min,
   max,
   disabled,
@@ -31,11 +30,19 @@ export function DatePicker({
   id,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
-  const [textValue, setTextValue] = React.useState(value || "")
+  const pickerId = React.useId()
+  // Display format: DD/MM/YYYY for Singapore users
+  const toDisplay = (isoValue: string) => {
+    if (!isoValue) return ""
+    const parsed = parse(isoValue, "yyyy-MM-dd", new Date())
+    return isValid(parsed) ? format(parsed, "dd/MM/yyyy") : isoValue
+  }
+
+  const [textValue, setTextValue] = React.useState(toDisplay(value))
 
   // Sync text value when external value changes
   React.useEffect(() => {
-    setTextValue(value || "")
+    setTextValue(toDisplay(value))
   }, [value])
 
   const selectedDate = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined
@@ -44,21 +51,33 @@ export function DatePicker({
 
   const handleCalendarSelect = (date: Date | undefined) => {
     if (date) {
-      const formatted = format(date, "yyyy-MM-dd")
-      onChange(formatted)
-      setTextValue(formatted)
+      const iso = format(date, "yyyy-MM-dd")
+      onChange(iso)
+      setTextValue(format(date, "dd/MM/yyyy"))
     }
     setOpen(false)
+  }
+
+  const isInRange = (date: Date) => {
+    if (minDate && date < minDate) return false
+    if (maxDate && date > maxDate) return false
+    return true
   }
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setTextValue(val)
 
-    // Live-parse YYYY-MM-DD as user types
-    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    // Live-parse DD/MM/YYYY as user types
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+      const parsed = parse(val, "dd/MM/yyyy", new Date())
+      if (isValid(parsed) && isInRange(parsed)) {
+        onChange(format(parsed, "yyyy-MM-dd"))
+      }
+    // Also accept YYYY-MM-DD
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
       const parsed = parse(val, "yyyy-MM-dd", new Date())
-      if (isValid(parsed)) {
+      if (isValid(parsed) && isInRange(parsed)) {
         onChange(val)
       }
     } else if (val === "") {
@@ -73,62 +92,73 @@ export function DatePicker({
       return
     }
 
-    // Try YYYY-MM-DD first
-    let parsed = parse(textValue, "yyyy-MM-dd", new Date())
+    // Try DD/MM/YYYY (Singapore common format) first
+    let parsed = parse(textValue, "dd/MM/yyyy", new Date())
     if (isValid(parsed)) {
-      const formatted = format(parsed, "yyyy-MM-dd")
-      onChange(formatted)
-      setTextValue(formatted)
-      return
-    }
-
-    // Try DD/MM/YYYY (Singapore common format)
-    parsed = parse(textValue, "dd/MM/yyyy", new Date())
-    if (isValid(parsed)) {
-      const formatted = format(parsed, "yyyy-MM-dd")
-      onChange(formatted)
-      setTextValue(formatted)
+      const iso = format(parsed, "yyyy-MM-dd")
+      onChange(iso)
+      setTextValue(format(parsed, "dd/MM/yyyy"))
       return
     }
 
     // Try D/M/YYYY (short Singapore format)
     parsed = parse(textValue, "d/M/yyyy", new Date())
     if (isValid(parsed)) {
-      const formatted = format(parsed, "yyyy-MM-dd")
-      onChange(formatted)
-      setTextValue(formatted)
+      const iso = format(parsed, "yyyy-MM-dd")
+      onChange(iso)
+      setTextValue(format(parsed, "dd/MM/yyyy"))
+      return
+    }
+
+    // Try YYYY-MM-DD
+    parsed = parse(textValue, "yyyy-MM-dd", new Date())
+    if (isValid(parsed)) {
+      const iso = format(parsed, "yyyy-MM-dd")
+      onChange(iso)
+      setTextValue(format(parsed, "dd/MM/yyyy"))
       return
     }
 
     // Invalid input -- revert to previous valid value
-    setTextValue(value || "")
+    setTextValue(toDisplay(value))
   }
 
   return (
-    <div className={cn("flex gap-1", className)}>
-      <Input
-        id={id}
-        type="text"
-        value={textValue}
-        onChange={handleTextChange}
-        onBlur={handleTextBlur}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="bg-gray-900 border-gray-800 text-white flex-1"
-      />
-      <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+      // Only close if not clicking back into the input
+      if (!isOpen) {
+        // Small delay to check if input got focus
+        setTimeout(() => {
+          const active = document.activeElement
+          if (active?.closest(`[data-datepicker-id="${pickerId}"]`)) return
+          setOpen(false)
+        }, 0)
+      } else {
+        setOpen(true)
+      }
+    }}>
+      <div className={cn("relative", className)} data-datepicker-id={pickerId}>
+        <Input
+          id={id}
+          type="text"
+          value={textValue}
+          onChange={handleTextChange}
+          onBlur={handleTextBlur}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="bg-gray-900 border-gray-800 text-white w-full text-sm placeholder:text-xs pr-8"
+        />
         <PopoverTrigger asChild>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="icon"
             disabled={disabled}
-            className="border-gray-800 bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800 shrink-0"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
           >
             <CalendarIcon className="h-4 w-4" />
-          </Button>
+          </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
+        <PopoverContent className="w-auto p-0" align="end" onOpenAutoFocus={(e) => e.preventDefault()}>
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -141,7 +171,7 @@ export function DatePicker({
             }}
           />
         </PopoverContent>
-      </Popover>
-    </div>
+      </div>
+    </Popover>
   )
 }

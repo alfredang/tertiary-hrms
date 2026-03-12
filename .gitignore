@@ -66,6 +66,7 @@ CLAUDE.md
 .claude/
 .mcp.json
 .agents/
+skills-lock.json
 
 # Android signing keystores
 *.jks

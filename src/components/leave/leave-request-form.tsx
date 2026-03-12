@@ -281,7 +281,7 @@ export function LeaveRequestForm({ leaveTypes }: LeaveRequestFormProps) {
                 id="startDate"
                 value={startDate}
                 onChange={(val) => setStartDate(val)}
-                placeholder="Start date"
+
               />
             </div>
             <div className="space-y-2">
@@ -293,7 +293,7 @@ export function LeaveRequestForm({ leaveTypes }: LeaveRequestFormProps) {
                 value={endDate}
                 onChange={(val) => setEndDate(val)}
                 min={startDate}
-                placeholder="End date"
+
               />
             </div>
           </div>

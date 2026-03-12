@@ -43,7 +43,7 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
           id="fullName"
           {...form.register("personalInfo.fullName")}
           className="bg-gray-900 border-gray-800 text-white"
-          placeholder="e.g. Alfred Ang"
+          placeholder="e.g. John Tan"
         />
         {errors?.fullName && (
           <p className="text-sm text-red-400">
@@ -62,6 +62,7 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
           type="email"
           {...form.register("personalInfo.email")}
           className="bg-gray-900 border-gray-800 text-white"
+          placeholder="e.g. name@tertiaryinfotech.com"
         />
         {errors?.email && (
           <p className="text-sm text-red-400">
@@ -92,7 +93,6 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
             id="dateOfBirth"
             value={form.watch("personalInfo.dateOfBirth") || ""}
             onChange={(val) => form.setValue("personalInfo.dateOfBirth", val)}
-            placeholder="Date of birth"
           />
           {errors?.dateOfBirth && (
             <p className="text-sm text-red-400">

@@ -373,16 +373,18 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
           <div className="flex items-center gap-2">
             <DatePicker
               value={dateFrom}
-              onChange={(val) => setDateFrom(val)}
-              placeholder="From"
-              className="flex-1 sm:w-[150px] sm:flex-none"
+              onChange={(val) => {
+                setDateFrom(val)
+                if (dateTo && val && val > dateTo) setDateTo("")
+              }}
+              className="flex-1 sm:w-[200px] sm:flex-none"
             />
             <span className="text-gray-400 text-sm">to</span>
             <DatePicker
               value={dateTo}
               onChange={(val) => setDateTo(val)}
-              placeholder="To"
-              className="flex-1 sm:w-[150px] sm:flex-none"
+              min={dateFrom || undefined}
+              className="flex-1 sm:w-[200px] sm:flex-none"
             />
           </div>
         </div>

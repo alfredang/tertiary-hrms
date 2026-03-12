@@ -199,7 +199,7 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
                 value={expenseDate}
                 onChange={(val) => setExpenseDate(val)}
                 max={new Date().toISOString().split("T")[0]}
-                placeholder="Expense date"
+
               />
             </div>
           </div>

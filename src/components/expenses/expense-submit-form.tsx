@@ -187,7 +187,7 @@ export function ExpenseSubmitForm({ categories }: ExpenseSubmitFormProps) {
                 value={expenseDate}
                 onChange={(val) => setExpenseDate(val)}
                 max={new Date().toISOString().split('T')[0]}
-                placeholder="Expense date"
+
               />
             </div>
           </div>

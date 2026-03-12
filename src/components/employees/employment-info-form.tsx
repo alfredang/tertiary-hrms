@@ -121,7 +121,7 @@ export function EmploymentInfoForm({
             id="startDate"
             value={form.watch("employmentInfo.startDate") || ""}
             onChange={(val) => form.setValue("employmentInfo.startDate", val)}
-            placeholder="Start date"
+
           />
           {errors?.startDate && (
             <p className="text-sm text-red-400">
@@ -139,7 +139,7 @@ export function EmploymentInfoForm({
             id="endDate"
             value={form.watch("employmentInfo.endDate") || ""}
             onChange={(val) => form.setValue("employmentInfo.endDate", val)}
-            placeholder="End date"
+
           />
           {errors?.endDate && (
             <p className="text-sm text-red-400">

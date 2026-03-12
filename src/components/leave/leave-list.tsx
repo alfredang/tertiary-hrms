@@ -383,16 +383,18 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           <div className="flex items-center gap-2">
             <DatePicker
               value={dateFrom}
-              onChange={(val) => setDateFrom(val)}
-              placeholder="From"
-              className="w-full sm:w-[160px]"
+              onChange={(val) => {
+                setDateFrom(val)
+                if (dateTo && val && val > dateTo) setDateTo("")
+              }}
+              className="w-full sm:w-[200px]"
             />
             <span className="text-gray-400 text-sm">to</span>
             <DatePicker
               value={dateTo}
               onChange={(val) => setDateTo(val)}
-              placeholder="To"
-              className="w-full sm:w-[160px]"
+              min={dateFrom || undefined}
+              className="w-full sm:w-[200px]"
             />
           </div>
         </div>

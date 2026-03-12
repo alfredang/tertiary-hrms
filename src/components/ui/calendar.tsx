@@ -26,11 +26,11 @@ function Calendar({
         nav: "flex items-center gap-1",
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 text-gray-400 hover:text-white border-gray-700 absolute left-1"
+          "h-7 w-7 bg-transparent p-0 text-gray-400 hover:text-white border-gray-700 absolute left-3 top-3 z-10"
         ),
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 text-gray-400 hover:text-white border-gray-700 absolute right-1"
+          "h-7 w-7 bg-transparent p-0 text-gray-400 hover:text-white border-gray-700 absolute right-3 top-3 z-10"
         ),
         month_grid: "w-full border-collapse",
         weekdays: "flex",
