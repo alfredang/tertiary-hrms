@@ -47,7 +47,7 @@ export async function PATCH(
     // 4. Check employee exists
     const employee = await prisma.employee.findUnique({
       where: { id },
-      include: { salaryInfo: true },
+      include: { salaryInfo: true, user: true },
     });
 
     if (!employee) {
@@ -57,14 +57,37 @@ export async function PATCH(
       );
     }
 
+    // 5. Prevent self-deactivation (locking yourself out)
+    if (employmentInfo?.status && employmentInfo.status !== "ACTIVE") {
+      let currentUserId: string | undefined;
+      if (!isDevAuthSkipped()) {
+        const session = await auth();
+        currentUserId = session?.user?.id;
+      }
+      if (currentUserId && employee.userId === currentUserId) {
+        return NextResponse.json(
+          { error: "You cannot change your own status — ask another admin" },
+          { status: 403 }
+        );
+      }
+    }
+
     // 5. Update in transaction for data consistency
     const updated = await prisma.$transaction(async (tx) => {
+      // Helper: convert empty strings to undefined so Prisma skips them
+      const emptyToUndefined = (val: string | undefined | null) =>
+        val === "" ? undefined : val;
+
       // Prepare employee update data
       const employeeData: Prisma.EmployeeUpdateInput = {};
       if (personalInfo) {
         const { fullName, ...restPersonal } = personalInfo;
         Object.assign(employeeData, {
           ...restPersonal,
+          // Nullable fields: convert "" to null to avoid unique constraint issues
+          phone: emptyToUndefined(restPersonal.phone),
+          nric: restPersonal.nric === "" ? null : restPersonal.nric,
+          address: emptyToUndefined(restPersonal.address),
           ...(fullName && { name: fullName.toUpperCase() }),
           dateOfBirth: restPersonal.dateOfBirth
             ? new Date(restPersonal.dateOfBirth)
@@ -74,6 +97,9 @@ export async function PATCH(
       if (employmentInfo) {
         Object.assign(employeeData, {
           ...employmentInfo,
+          // Don't set departmentId to empty string (FK violation)
+          departmentId: emptyToUndefined(employmentInfo.departmentId),
+          position: emptyToUndefined(employmentInfo.position),
           startDate: employmentInfo.startDate
             ? new Date(employmentInfo.startDate)
             : undefined,
@@ -99,6 +125,14 @@ export async function PATCH(
           },
         },
       });
+
+      // Sync User.email if Employee.email changed
+      if (personalInfo?.email && personalInfo.email !== employee.email) {
+        await tx.user.update({
+          where: { id: employee.userId },
+          data: { email: personalInfo.email },
+        });
+      }
 
       // Update salary info if provided
       if (salaryInfo && employee.salaryInfo) {

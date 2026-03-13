@@ -31,7 +31,7 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
       {/* Basic Salary */}
       <div className="space-y-2">
         <Label htmlFor="basicSalary" className="text-gray-300">
-          Basic Salary (Monthly)
+          Basic Salary (Monthly) <span className="text-red-400">*</span>
         </Label>
         <Input
           id="basicSalary"
@@ -52,7 +52,7 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
       {/* Allowances */}
       <div className="space-y-2">
         <Label htmlFor="allowances" className="text-gray-300">
-          Allowances (Monthly)
+          Allowances (Monthly) <span className="text-red-400">*</span>
         </Label>
         <Input
           id="allowances"
@@ -112,7 +112,7 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
       {/* CPF Applicable */}
       <div className="space-y-2">
         <Label htmlFor="cpfApplicable" className="text-gray-300">
-          CPF Applicable
+          CPF Applicable <span className="text-red-400">*</span>
         </Label>
         <Select
           value={form.watch("salaryInfo.cpfApplicable")?.toString() || "true"}
@@ -135,7 +135,7 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
           {/* CPF Employee Rate */}
           <div className="space-y-2">
             <Label htmlFor="cpfEmployeeRate" className="text-gray-300">
-              CPF Employee Rate (%)
+              CPF Employee Rate (%) <span className="text-red-400">*</span>
             </Label>
             <Input
               id="cpfEmployeeRate"
@@ -165,7 +165,7 @@ export function SalaryInfoForm({ form }: SalaryInfoFormProps) {
           {/* CPF Employer Rate */}
           <div className="space-y-2">
             <Label htmlFor="cpfEmployerRate" className="text-gray-300">
-              CPF Employer Rate (%)
+              CPF Employer Rate (%) <span className="text-red-400">*</span>
             </Label>
             <Input
               id="cpfEmployerRate"

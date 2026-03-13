@@ -451,7 +451,7 @@ export function CompanySettingsForm({ settings, readOnly = false }: CompanySetti
         </CardContent>
       </Card>
 
-      {renderRolloverSection()}
+      {/* HIDDEN: Leave Year-End Rollover — re-enable by uncommenting: {renderRolloverSection()} */}
 
       {!readOnly && (
         <div className="flex justify-end gap-3">

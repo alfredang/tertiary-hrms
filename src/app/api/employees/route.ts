@@ -35,10 +35,11 @@ export async function POST(req: NextRequest) {
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: personalInfo.email },
+      include: { employee: true },
     });
-    if (existingUser) {
+    if (existingUser?.employee) {
       return NextResponse.json(
-        { error: "An account with this email already exists" },
+        { error: "An employee profile for this email already exists" },
         { status: 409 }
       );
     }
@@ -53,18 +54,22 @@ export async function POST(req: NextRequest) {
       : 0;
     const employeeId = `EMP${String(lastNum + 1).padStart(3, "0")}`;
 
-    const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || randomUUID().slice(0, 12);
-    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
-
     const result = await prisma.$transaction(async (tx) => {
-      // Create user
-      const user = await tx.user.create({
-        data: {
-          email: personalInfo.email,
-          password: hashedPassword,
-          role: "STAFF",
-        },
-      });
+      // Reuse existing User (Google OAuth sign-in) or create new one
+      let user;
+      if (existingUser) {
+        user = existingUser;
+      } else {
+        const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || randomUUID().slice(0, 12);
+        const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+        user = await tx.user.create({
+          data: {
+            email: personalInfo.email,
+            password: hashedPassword,
+            role: "STAFF",
+          },
+        });
+      }
 
       // Create employee with partial data
       const employee = await tx.employee.create({

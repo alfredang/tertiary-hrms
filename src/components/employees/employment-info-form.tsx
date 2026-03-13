@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EmploymentType, EmployeeStatus } from "@prisma/client";
+import { EmploymentType } from "@prisma/client";
 import type { Department } from "@prisma/client";
 
 interface EmploymentInfoFormProps {
@@ -26,14 +26,6 @@ const employmentTypeOptions = [
   { value: "INTERN", label: "Intern" },
 ];
 
-const statusOptions = [
-  { value: "ACTIVE", label: "Active" },
-  { value: "ON_LEAVE", label: "On Leave" },
-  { value: "RESIGNED", label: "Resigned" },
-  { value: "TERMINATED", label: "Terminated" },
-  { value: "INACTIVE", label: "Inactive" },
-];
-
 export function EmploymentInfoForm({
   form,
   departments,
@@ -44,7 +36,7 @@ export function EmploymentInfoForm({
       {/* Department */}
       <div className="space-y-2">
         <Label htmlFor="departmentId" className="text-gray-300">
-          Department
+          Department <span className="text-red-400">*</span>
         </Label>
         <Select
           value={form.watch("employmentInfo.departmentId")}
@@ -73,7 +65,7 @@ export function EmploymentInfoForm({
       {/* Position */}
       <div className="space-y-2">
         <Label htmlFor="position" className="text-gray-300">
-          Position
+          Position <span className="text-red-400">*</span>
         </Label>
         <Input
           id="position"
@@ -90,7 +82,7 @@ export function EmploymentInfoForm({
       {/* Employment Type */}
       <div className="space-y-2">
         <Label htmlFor="employmentType" className="text-gray-300">
-          Employment Type
+          Employment Type <span className="text-red-400">*</span>
         </Label>
         <Select
           value={form.watch("employmentInfo.employmentType")}
@@ -115,7 +107,7 @@ export function EmploymentInfoForm({
         {/* Start Date */}
         <div className="space-y-2">
           <Label htmlFor="startDate" className="text-gray-300">
-            Start Date
+            Start Date <span className="text-red-400">*</span>
           </Label>
           <DatePicker
             id="startDate"
@@ -149,29 +141,6 @@ export function EmploymentInfoForm({
         </div>
       </div>
 
-      {/* Status */}
-      <div className="space-y-2">
-        <Label htmlFor="status" className="text-gray-300">
-          Status
-        </Label>
-        <Select
-          value={form.watch("employmentInfo.status")}
-          onValueChange={(value) =>
-            form.setValue("employmentInfo.status", value as EmployeeStatus)
-          }
-        >
-          <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
     </div>
   );
 }

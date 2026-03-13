@@ -244,13 +244,13 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
           </Button>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex gap-2 sm:w-auto w-full">
           <Button
             variant="success"
             size="sm"
             onClick={() => handleApprove(id)}
             disabled={isLoading === id}
-            className="h-8 px-3 text-sm"
+            className="h-8 px-3 text-sm flex-1 sm:flex-none"
           >
             <Check className="h-4 w-4 mr-1" />
             Approve
@@ -260,7 +260,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             size="sm"
             onClick={() => { setRejectConfirm(id); setResetConfirm(null); }}
             disabled={isLoading === id}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm flex-1 sm:flex-none"
           >
             <X className="h-4 w-4 mr-1" />
             Reject
@@ -430,9 +430,15 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
           <div className="sm:hidden space-y-3">
             {sortedClaims.map((claim) => (
               <div key={claim.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between">
                   <span className="text-sm font-medium text-white">{claim.employee.name}</span>
-                  <Badge className={statusColors[claim.status]}>{claim.status}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge className={`min-w-[88px] justify-center ${statusColors[claim.status]}`}>{claim.status}</Badge>
+                    <div className="flex items-center gap-1">
+                      {renderReceiptButton(claim)}
+                      {(claim.status === "APPROVED" || claim.status === "REJECTED") && renderAdminResetActions(claim.id)}
+                    </div>
+                  </div>
                 </div>
                 <p className="text-sm text-gray-300 line-clamp-2">{claim.description}</p>
                 <div className="flex items-center justify-between">
@@ -442,11 +448,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                     <span>{formatDate(claim.expenseDate)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {renderReceiptButton(claim)}
-                  {claim.status === "PENDING" && renderAdminPendingActions(claim.id)}
-                  {(claim.status === "APPROVED" || claim.status === "REJECTED") && renderAdminResetActions(claim.id)}
-                </div>
+                {claim.status === "PENDING" && renderAdminPendingActions(claim.id)}
               </div>
             ))}
             {sortedClaims.length === 0 && (
@@ -485,7 +487,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                       {formatDate(claim.expenseDate)}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge className={statusColors[claim.status]}>
+                      <Badge className={`min-w-[88px] justify-center ${statusColors[claim.status]}`}>
                         {claim.status}
                       </Badge>
                     </td>
@@ -521,7 +523,10 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               <div key={claim.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-gray-300 truncate flex-1 mr-2">{claim.description}</p>
-                  <Badge className={statusColors[claim.status]}>{claim.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={`min-w-[88px] justify-center ${statusColors[claim.status]}`}>{claim.status}</Badge>
+                    {renderReceiptButton(claim)}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-base font-semibold text-white">{formatCurrency(Number(claim.amount))}</span>
@@ -530,10 +535,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                     <span>{formatDate(claim.expenseDate)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {renderReceiptButton(claim)}
-                  {claim.status === "PENDING" && renderStaffActions(claim.id)}
-                </div>
+                {claim.status === "PENDING" && renderStaffActions(claim.id)}
               </div>
             ))}
             {sortedClaims.length === 0 && (
@@ -568,7 +570,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                       {formatDate(claim.expenseDate)}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge className={statusColors[claim.status]}>
+                      <Badge className={`min-w-[88px] justify-center ${statusColors[claim.status]}`}>
                         {claim.status}
                       </Badge>
                     </td>

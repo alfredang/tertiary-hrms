@@ -15,6 +15,7 @@ import { Gender, EducationLevel } from "@prisma/client";
 
 interface PersonalInfoFormProps {
   form: UseFormReturn<any>;
+  mode?: "create" | "edit";
 }
 
 const genderOptions = [
@@ -30,14 +31,14 @@ const educationOptions = [
   { value: "PHD", label: "PhD" },
 ];
 
-export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
+export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps) {
   const errors = form.formState.errors.personalInfo as Record<string, any> | undefined;
   return (
     <div className="space-y-4">
       {/* Full Name */}
       <div className="space-y-2">
         <Label htmlFor="fullName" className="text-gray-300">
-          Full Name *
+          Full Name <span className="text-red-400">*</span>
         </Label>
         <Input
           id="fullName"
@@ -55,7 +56,7 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
       {/* Email */}
       <div className="space-y-2">
         <Label htmlFor="email" className="text-gray-300">
-          Email *
+          Email <span className="text-red-400">*</span>
         </Label>
         <Input
           id="email"
@@ -87,7 +88,7 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
         {/* Date of Birth */}
         <div className="space-y-2">
           <Label htmlFor="dateOfBirth" className="text-gray-300">
-            Date of Birth
+            Date of Birth <span className="text-red-400">*</span>
           </Label>
           <DatePicker
             id="dateOfBirth"
@@ -104,7 +105,7 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
         {/* Gender */}
         <div className="space-y-2">
           <Label htmlFor="gender" className="text-gray-300">
-            Gender
+            Gender <span className="text-red-400">*</span>
           </Label>
           <Select
             value={form.watch("personalInfo.gender")}
@@ -130,7 +131,7 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
         {/* Nationality */}
         <div className="space-y-2">
           <Label htmlFor="nationality" className="text-gray-300">
-            Nationality
+            Nationality <span className="text-red-400">*</span>
           </Label>
           <Input
             id="nationality"
@@ -160,7 +161,7 @@ export function PersonalInfoForm({ form }: PersonalInfoFormProps) {
       {/* Education Level */}
       <div className="space-y-2">
         <Label htmlFor="educationLevel" className="text-gray-300">
-          Education Level
+          Education Level <span className="text-red-400">*</span>
         </Label>
         <Select
           value={form.watch("personalInfo.educationLevel")}

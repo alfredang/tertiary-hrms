@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Grid3X3, List, Plus, Building2, Mail, Phone } from "lucide-react";
+import { Search, Grid3X3, List, Plus, Building2, Mail, Phone, Pencil } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import type { Employee, Department, EmployeeStatus, User, Role } from "@prisma/client";
 
@@ -156,8 +156,13 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredEmployees.map((employee) => (
             <Link key={employee.id} href={`/employees/${employee.id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer bg-gray-950 border-gray-800">
-                <CardContent className="p-4 sm:p-6">
+              <Card className="group hover:border-primary/50 transition-colors cursor-pointer bg-gray-950 border-gray-800">
+                <CardContent className="p-4 sm:p-6 relative">
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-gray-700 transition-colors">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </div>
+                  </div>
                   <div className="flex items-start gap-4">
                     <div className="relative">
                       <Avatar className="h-12 w-12 bg-primary">
@@ -213,7 +218,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
           <div className="divide-y divide-gray-800">
             {filteredEmployees.map((employee) => (
               <Link key={employee.id} href={`/employees/${employee.id}`}>
-                <div className="flex items-center gap-4 p-4 hover:bg-gray-900 transition-colors cursor-pointer">
+                <div className="group flex items-center gap-4 p-4 hover:bg-gray-900 transition-colors cursor-pointer">
                   <Avatar className="h-10 w-10 bg-primary">
                     <AvatarFallback className="bg-primary text-white text-sm">
                       {getInitials(employee.name)}
@@ -240,6 +245,9 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                   </div>
                   <div className="hidden md:block text-sm text-gray-400">
                     {employee.email}
+                  </div>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-gray-700 transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
                   </div>
                 </div>
               </Link>

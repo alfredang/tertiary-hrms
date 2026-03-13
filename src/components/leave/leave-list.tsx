@@ -285,13 +285,13 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           </Button>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex gap-2 sm:w-auto w-full">
           <Button
             variant="success"
             size="sm"
             onClick={() => handleApprove(id)}
             disabled={isLoading === id}
-            className="h-8 px-3 text-sm"
+            className="h-8 px-3 text-sm flex-1 sm:flex-none"
           >
             <Check className="h-4 w-4 mr-1" />
             Approve
@@ -301,7 +301,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
             size="sm"
             onClick={() => { setRejectConfirm(id); setResetConfirm(null); }}
             disabled={isLoading === id}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm flex-1 sm:flex-none"
           >
             <X className="h-4 w-4 mr-1" />
             Reject
@@ -439,9 +439,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           <div className="sm:hidden space-y-3">
             {sortedRequests.map((request) => (
               <div key={request.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between">
                   <span className="text-sm font-medium text-white">{request.employee.name}</span>
-                  <Badge className={statusColors[request.status]}>{request.status}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>{request.status}</Badge>
+                    <div className="flex items-center gap-1">
+                      {renderDocButton(request)}
+                      {(request.status === "APPROVED" || request.status === "REJECTED") && renderAdminResetActions(request.id)}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="border-gray-700 text-gray-300">{request.leaveType.name}</Badge>
@@ -455,11 +461,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                   <Clock className="h-3 w-3" />
                   <span>Applied {formatDate(request.createdAt)}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {renderDocButton(request)}
-                  {request.status === "PENDING" && renderAdminPendingActions(request.id)}
-                  {(request.status === "APPROVED" || request.status === "REJECTED") && renderAdminResetActions(request.id)}
-                </div>
+                {request.status === "PENDING" && renderAdminPendingActions(request.id)}
               </div>
             ))}
             {sortedRequests.length === 0 && (
@@ -506,7 +508,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       {formatDate(request.createdAt)}
                     </td>
                     <td className="px-2 sm:px-4 py-3">
-                      <Badge className={statusColors[request.status]}>
+                      <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>
                         {request.status}
                       </Badge>
                     </td>
@@ -540,9 +542,12 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           <div className="sm:hidden space-y-3">
             {sortedRequests.map((request) => (
               <div key={request.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between">
                   <Badge variant="outline" className="border-gray-700 text-gray-300">{request.leaveType.name}</Badge>
-                  <Badge className={statusColors[request.status]}>{request.status}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>{request.status}</Badge>
+                    {request.documentUrl && <div>{renderDocButton(request)}</div>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Calendar className="h-3 w-3" />
@@ -552,10 +557,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                   <span>{renderDaysDisplay(request)}</span>
                   <span>Applied {formatDate(request.createdAt)}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {renderDocButton(request)}
-                  {request.status === "PENDING" && renderStaffActions(request.id)}
-                </div>
+                {request.status === "PENDING" && renderStaffActions(request.id)}
               </div>
             ))}
             {sortedRequests.length === 0 && (
@@ -598,7 +600,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       {formatDate(request.createdAt)}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge className={statusColors[request.status]}>
+                      <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>
                         {request.status}
                       </Badge>
                     </td>

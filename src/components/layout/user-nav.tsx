@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import {
@@ -43,7 +43,31 @@ export function UserNav({ fallbackName, fallbackEmail }: UserNavProps = {}) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuItem
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={async () => {
+              // Clear Google Auth plugin session (shows account picker on next sign-in)
+              try {
+                const { Capacitor } = await import("@capacitor/core");
+                if (Capacitor.isNativePlatform()) {
+                  const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+                  await GoogleAuth.signOut();
+                }
+              } catch {
+                // Not on native or plugin not available — ignore
+              }
+              try {
+                const csrfRes = await fetch("/api/auth/csrf");
+                const { csrfToken } = await csrfRes.json();
+                await fetch("/api/auth/signout", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                  body: new URLSearchParams({ csrfToken, callbackUrl: "/login" }),
+                  redirect: "manual",
+                });
+              } catch {
+                // Ignore — cookie cleared server-side regardless
+              }
+              window.location.href = "/login";
+            }}
             className="text-red-600"
           >
             <LogOut className="mr-2 h-4 w-4" />

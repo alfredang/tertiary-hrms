@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -69,8 +69,32 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail }: HeaderP
     pathname.startsWith(path)
   )?.[1] || "Dashboard";
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: "/login" });
+  const handleSignOut = async () => {
+    // Clear Google Auth plugin session (shows account picker on next sign-in)
+    try {
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.isNativePlatform()) {
+        const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+        await GoogleAuth.signOut();
+      }
+    } catch {
+      // Not on native or plugin not available — ignore
+    }
+    // POST to signout endpoint directly with redirect: "manual" to avoid
+    // NextAuth redirecting to AUTH_URL (localhost), which opens external browser
+    try {
+      const csrfRes = await fetch("/api/auth/csrf");
+      const { csrfToken } = await csrfRes.json();
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ csrfToken, callbackUrl: "/login" }),
+        redirect: "manual",
+      });
+    } catch {
+      // Ignore errors — cookie is cleared server-side regardless
+    }
+    window.location.href = "/login";
   };
 
   return (
@@ -98,9 +122,9 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail }: HeaderP
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">{displayName}</p>
-                  <p className="text-xs text-muted-foreground">{displayEmail}</p>
+                <div className="flex flex-col space-y-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

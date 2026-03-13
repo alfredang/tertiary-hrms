@@ -158,9 +158,10 @@ export function DatePicker({
             <CalendarIcon className="h-4 w-4" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <PopoverContent className="w-auto p-0" align="end" side="bottom" onOpenAutoFocus={(e) => e.preventDefault()}>
           <Calendar
             mode="single"
+            fixedWeeks
             selected={selectedDate}
             onSelect={handleCalendarSelect}
             defaultMonth={selectedDate}

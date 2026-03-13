@@ -19,7 +19,8 @@ const config: CapacitorConfig = {
     GoogleAuth: {
       scopes: ["profile", "email"],
       serverClientId: process.env.GOOGLE_CLIENT_ID || "",
-      forceCodeForRefreshToken: true,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      forceCodeForRefreshToken: false,
     },
     SplashScreen: {
       launchShowDuration: 2000,

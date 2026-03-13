@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,17 +13,17 @@ import { PersonalInfoForm } from "@/components/employees/personal-info-form";
 import { EmploymentInfoForm } from "@/components/employees/employment-info-form";
 import { SalaryInfoForm } from "@/components/employees/salary-info-form";
 import {
-  createPersonalInfoSchema,
-  createEmploymentInfoSchema,
-  createSalaryInfoSchema,
+  personalInfoSchema,
+  employmentInfoSchema,
+  salaryInfoSchema,
 } from "@/lib/validations/employee";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import type { Department } from "@prisma/client";
 
 const formSchema = z.object({
-  personalInfo: createPersonalInfoSchema,
-  employmentInfo: createEmploymentInfoSchema,
-  salaryInfo: createSalaryInfoSchema,
+  personalInfo: personalInfoSchema,
+  employmentInfo: employmentInfoSchema,
+  salaryInfo: salaryInfoSchema,
 });
 
 type FormInput = z.infer<typeof formSchema>;
@@ -35,8 +35,6 @@ interface AddEmployeeFormProps {
 export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
-  const [savedEmployeeId, setSavedEmployeeId] = useState<string | null>(null);
-  const [savedTabs, setSavedTabs] = useState<Record<string, boolean>>({});
   const router = useRouter();
   const { toast } = useToast();
 
@@ -75,125 +73,172 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
     },
   });
 
-  const saveTab = async (tab: string) => {
+  const STORAGE_KEY = "add-employee-draft";
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved);
+        if (draft.personalInfo) form.reset(draft);
+        if (draft.activeTab) setActiveTab(draft.activeTab);
+      }
+    } catch {
+      // Ignore corrupt data
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save draft to localStorage on changes
+  const saveDraft = useCallback(() => {
+    try {
+      const data = form.getValues();
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...data, activeTab }),
+      );
+    } catch {
+      // localStorage full or unavailable
+    }
+  }, [form, activeTab]);
+
+  useEffect(() => {
+    // Save on tab change
+    saveDraft();
+  }, [activeTab, saveDraft]);
+
+  useEffect(() => {
+    // Save periodically as user types (every 2s)
+    const interval = setInterval(saveDraft, 2000);
+    return () => clearInterval(interval);
+  }, [saveDraft]);
+
+  const resetTab = () => {
+    const tabLabels: Record<string, string> = {
+      personal: "Personal",
+      employment: "Employment",
+      salary: "Salary",
+    };
+    const label = tabLabels[activeTab] || activeTab;
+    if (!confirm(`Do you want to reset all fields in the "${label}" tab?`)) return;
+    const defaults: Record<string, Record<string, unknown>> = {
+      personal: {
+        "personalInfo.fullName": "",
+        "personalInfo.email": "",
+        "personalInfo.phone": "",
+        "personalInfo.dateOfBirth": "",
+        "personalInfo.gender": "MALE",
+        "personalInfo.nationality": "Singaporean",
+        "personalInfo.nric": "",
+        "personalInfo.address": "",
+        "personalInfo.educationLevel": "DIPLOMA",
+      },
+      employment: {
+        "employmentInfo.departmentId": "",
+        "employmentInfo.position": "",
+        "employmentInfo.employmentType": "FULL_TIME",
+        "employmentInfo.startDate": new Date().toISOString().split("T")[0],
+        "employmentInfo.endDate": "",
+        "employmentInfo.status": "ACTIVE",
+      },
+      salary: {
+        "salaryInfo.basicSalary": 0,
+        "salaryInfo.allowances": 0,
+        "salaryInfo.bankName": "",
+        "salaryInfo.bankAccountNumber": "",
+        "salaryInfo.payNow": "",
+        "salaryInfo.cpfApplicable": true,
+        "salaryInfo.cpfEmployeeRate": 20.0,
+        "salaryInfo.cpfEmployerRate": 17.0,
+      },
+    };
+    const fields = defaults[activeTab];
+    if (fields) {
+      for (const [key, value] of Object.entries(fields)) {
+        form.setValue(key as any, value as any);
+      }
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Validate all tabs — jump to first tab with errors
+    const personalValid = personalInfoSchema.safeParse(
+      form.getValues("personalInfo"),
+    );
+    if (!personalValid.success) {
+      setActiveTab("personal");
+      toast({
+        title: "Personal Info Incomplete",
+        description: personalValid.error.issues[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const employmentValid = employmentInfoSchema.safeParse(
+      form.getValues("employmentInfo"),
+    );
+    if (!employmentValid.success) {
+      setActiveTab("employment");
+      toast({
+        title: "Employment Info Incomplete",
+        description: employmentValid.error.issues[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const salaryValid = salaryInfoSchema.safeParse(
+      form.getValues("salaryInfo"),
+    );
+    if (!salaryValid.success) {
+      setActiveTab("salary");
+      toast({
+        title: "Salary Info Incomplete",
+        description: salaryValid.error.issues[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      if (!savedEmployeeId) {
-        // First save - create the employee
-        const personalInfo = form.getValues("personalInfo");
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalInfo: personalValid.data,
+          employmentInfo: employmentValid.data,
+          salaryInfo: salaryValid.data,
+        }),
+      });
 
-        // Validate at least name + email
-        const parsed = createPersonalInfoSchema.safeParse(personalInfo);
-        if (!parsed.success) {
-          const firstError = parsed.error.issues[0];
-          throw new Error(firstError.message);
-        }
-
-        const payload: any = { personalInfo: parsed.data };
-
-        // Include current tab data if saving from employment or salary
-        if (tab === "employment") {
-          payload.employmentInfo = form.getValues("employmentInfo");
-        } else if (tab === "salary") {
-          payload.employmentInfo = form.getValues("employmentInfo");
-          payload.salaryInfo = form.getValues("salaryInfo");
-        }
-
-        const res = await fetch("/api/employees", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.error || "Failed to create employee");
-        }
-
-        const employee = await res.json();
-        setSavedEmployeeId(employee.id);
-        setSavedTabs((prev) => ({ ...prev, [tab]: true }));
-
-        toast({
-          title: "Employee created",
-          description: `${employee.name} has been saved. You can continue filling in details or come back later.`,
-        });
-      } else {
-        // Subsequent saves - update the employee via PATCH
-        const payload: any = {};
-
-        if (tab === "personal") {
-          payload.personalInfo = form.getValues("personalInfo");
-        } else if (tab === "employment") {
-          payload.employmentInfo = form.getValues("employmentInfo");
-        } else if (tab === "salary") {
-          payload.salaryInfo = form.getValues("salaryInfo");
-        }
-
-        const res = await fetch(`/api/employees/${savedEmployeeId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.error || "Failed to update employee");
-        }
-
-        setSavedTabs((prev) => ({ ...prev, [tab]: true }));
-
-        toast({
-          title: "Saved",
-          description: `${tab.charAt(0).toUpperCase() + tab.slice(1)} information has been saved.`,
-        });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to create employee");
       }
+
+      const employee = await res.json();
+
+      localStorage.removeItem(STORAGE_KEY);
+
+      toast({
+        title: "Employee created",
+        description: `${employee.name} has been added successfully.`,
+      });
+
+      router.push(`/employees/${employee.id}`);
     } catch (error) {
       toast({
         title: "Error",
         description:
-          error instanceof Error ? error.message : "Failed to save",
+          error instanceof Error ? error.message : "Failed to create employee",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
-
-  const handleDone = () => {
-    if (savedEmployeeId) {
-      router.push(`/employees/${savedEmployeeId}`);
-    } else {
-      router.push("/employees");
-    }
-  };
-
-  const renderTabSaveButton = (tab: string) => (
-    <div className="flex items-center gap-2">
-      {savedTabs[tab] && (
-        <span className="flex items-center gap-1 text-sm text-green-400">
-          <Check className="h-4 w-4" />
-          Saved
-        </span>
-      )}
-      <Button
-        type="button"
-        onClick={() => saveTab(tab)}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Saving...
-          </>
-        ) : savedTabs[tab] ? (
-          "Update"
-        ) : (
-          "Save"
-        )}
-      </Button>
-    </div>
-  );
 
   return (
     <Card className="bg-gray-950 border-gray-800">
@@ -208,53 +253,35 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <CardTitle className="text-white">Employee Details</CardTitle>
-              {savedEmployeeId && (
-                <p className="text-sm text-gray-400 mt-1">
-                  Employee created — fill in remaining details as needed
-                </p>
-              )}
-            </div>
+            <CardTitle className="text-white">Add New Employee</CardTitle>
           </div>
-          {savedEmployeeId && (
-            <Button variant="outline" onClick={handleDone}>
-              Done
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={resetTab}
+            className="text-gray-500 hover:text-white text-xs gap-1.5"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset tab
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 bg-gray-900">
-            <TabsTrigger value="personal" className="relative">
-              Personal
-              {savedTabs["personal"] && (
-                <Check className="h-3 w-3 ml-1 text-green-400" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="employment" className="relative">
-              Employment
-              {savedTabs["employment"] && (
-                <Check className="h-3 w-3 ml-1 text-green-400" />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="salary" className="relative">
-              Salary
-              {savedTabs["salary"] && (
-                <Check className="h-3 w-3 ml-1 text-green-400" />
-              )}
-            </TabsTrigger>
+            <TabsTrigger value="personal">Personal</TabsTrigger>
+            <TabsTrigger value="employment">Employment</TabsTrigger>
+            <TabsTrigger value="salary">Salary</TabsTrigger>
           </TabsList>
 
           <TabsContent value="personal" className="mt-6">
             <PersonalInfoForm form={form} />
-            <div className="flex justify-between mt-6">
-              {renderTabSaveButton("personal")}
+            <div className="flex justify-end mt-6">
               <Button
                 type="button"
-                variant="ghost"
                 onClick={() => setActiveTab("employment")}
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 Next: Employment
               </Button>
@@ -264,20 +291,17 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
           <TabsContent value="employment" className="mt-6">
             <EmploymentInfoForm form={form} departments={departments} />
             <div className="flex justify-between mt-6">
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setActiveTab("personal")}
-                >
-                  Back
-                </Button>
-                {renderTabSaveButton("employment")}
-              </div>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
+                onClick={() => setActiveTab("personal")}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
                 onClick={() => setActiveTab("salary")}
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 Next: Salary
               </Button>
@@ -287,21 +311,28 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
           <TabsContent value="salary" className="mt-6">
             <SalaryInfoForm form={form} />
             <div className="flex justify-between mt-6">
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setActiveTab("employment")}
-                >
-                  Back
-                </Button>
-                {renderTabSaveButton("salary")}
-              </div>
-              {savedEmployeeId && (
-                <Button onClick={handleDone}>
-                  Done
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setActiveTab("employment")}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Employee"
+                )}
+              </Button>
             </div>
           </TabsContent>
         </Tabs>

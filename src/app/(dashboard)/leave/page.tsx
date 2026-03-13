@@ -152,31 +152,33 @@ export default async function LeavePage() {
 
       {/* Leave Balance Summary - only show for staff view */}
       {viewAs === "staff" && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Balance</p>
-            <p className="text-xl sm:text-2xl font-bold text-green-400">{leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-5 sm:order-3 xl:order-4">
             <p className="text-xs text-gray-400 mb-1">Pro-rated Allocation</p>
             <p className="text-xl sm:text-2xl font-bold text-cyan-400">{leaveBalance.proRated}</p>
           </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-2 sm:order-4 xl:order-5">
+            <p className="text-xs text-gray-400 mb-1">Yearly Entitlement</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-400">{leaveBalance.allocation}</p>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-3 sm:order-2 xl:order-2">
+            <p className="text-xs text-gray-400 mb-1">Leave(s) Taken</p>
+            <p className="text-xl sm:text-2xl font-bold text-amber-400">{leaveBalance.taken}</p>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-4 sm:order-5 xl:order-3">
+            <p className="text-xs text-gray-400 mb-1">Leave(s) Rejected</p>
+            <p className="text-xl sm:text-2xl font-bold text-red-400">{leaveBalance.rejected}</p>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-1 sm:order-1 xl:order-1">
+            <p className="text-xs text-gray-400 mb-1">Remaining Balance</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-400">{leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken}</p>
+          </div>
+          {/* HIDDEN: Carry-over card — re-enable when year-end rollover is active
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
             <p className="text-xs text-gray-400 mb-1">Carry-over</p>
             <p className="text-xl sm:text-2xl font-bold text-purple-400">{leaveBalance.carriedOver}</p>
           </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Leave Taken</p>
-            <p className="text-xl sm:text-2xl font-bold text-amber-400">{leaveBalance.taken}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Rejected</p>
-            <p className="text-xl sm:text-2xl font-bold text-red-400">{leaveBalance.rejected}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Yearly Entitlement</p>
-            <p className="text-xl sm:text-2xl font-bold text-blue-400">{leaveBalance.allocation}</p>
-          </div>
+          */}
         </div>
       )}
 

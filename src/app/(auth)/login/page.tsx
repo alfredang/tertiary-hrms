@@ -95,20 +95,32 @@ function LoginForm() {
   const handleGoogleSignIn = async () => {
     setError("");
     setIsGoogleLoading(true);
+    let platform = "unknown";
     try {
       // Check if running in native Capacitor app
       const { Capacitor } = await import("@capacitor/core");
+      platform = Capacitor.isNativePlatform() ? "native" : "web";
 
-      if (Capacitor.isNativePlatform()) {
+      if (platform === "native") {
         // Native mobile: use Capacitor Google Auth plugin
         const { GoogleAuth } = await import(
           "@codetrix-studio/capacitor-google-auth"
         );
-        await GoogleAuth.initialize();
-        const result = await GoogleAuth.signIn();
+        try {
+          await GoogleAuth.initialize();
+        } catch (initErr) {
+          throw new Error("init failed: " + (initErr instanceof Error ? initErr.message : JSON.stringify(initErr)));
+        }
+
+        let result;
+        try {
+          result = await GoogleAuth.signIn();
+        } catch (signInErr) {
+          throw new Error("signIn failed: " + (signInErr instanceof Error ? signInErr.message : JSON.stringify(signInErr)));
+        }
 
         if (!result.authentication?.idToken) {
-          throw new Error("No ID token received from Google");
+          throw new Error("No idToken. Got: " + JSON.stringify(Object.keys(result)));
         }
 
         // Send the ID token to our backend for verification + session creation
@@ -122,7 +134,7 @@ function LoginForm() {
 
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.error || "Authentication failed");
+          throw new Error("API: " + (data.error || res.status));
         }
 
         window.location.href = "/dashboard";
@@ -132,8 +144,8 @@ function LoginForm() {
       }
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Google sign-in failed";
-      setError(message + ". Please try again.");
+        err instanceof Error ? err.message : JSON.stringify(err);
+      setError(`[${platform}] ${message}`);
       setIsGoogleLoading(false);
     }
   };
@@ -290,40 +302,40 @@ function LoginForm() {
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs"
+                className="flex-1 min-w-0 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs px-2"
                 onClick={() => handleSkipLogin("admin")}
                 disabled={skipLoadingRole !== null}
               >
                 {skipLoadingRole === "admin" ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  "Login as Admin"
+                  "Admin"
                 )}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs"
+                className="flex-1 min-w-0 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs px-2"
                 onClick={() => handleSkipLogin("staff")}
                 disabled={skipLoadingRole !== null}
               >
                 {skipLoadingRole === "staff" ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  "Login as Staff"
+                  "Staff"
                 )}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs"
+                className="flex-1 min-w-0 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs px-2"
                 onClick={() => handleSkipLogin("staff2")}
                 disabled={skipLoadingRole !== null}
               >
                 {skipLoadingRole === "staff2" ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  "Login as Staff 2"
+                  "Staff 2"
                 )}
               </Button>
             </div>
