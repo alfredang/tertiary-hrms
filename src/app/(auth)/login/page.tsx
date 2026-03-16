@@ -112,6 +112,13 @@ function LoginForm() {
           throw new Error("init failed: " + (initErr instanceof Error ? initErr.message : JSON.stringify(initErr)));
         }
 
+        // Clear any cached Google session from previous sign-in
+        try {
+          await GoogleAuth.signOut();
+        } catch {
+          // Ignore — no previous session to clear
+        }
+
         let result;
         try {
           result = await GoogleAuth.signIn();
