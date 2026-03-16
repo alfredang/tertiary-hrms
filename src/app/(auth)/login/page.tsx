@@ -120,10 +120,19 @@ function LoginForm() {
         }
 
         let result;
-        try {
-          result = await GoogleAuth.signIn();
-        } catch (signInErr) {
-          throw new Error("signIn failed: " + (signInErr instanceof Error ? signInErr.message : JSON.stringify(signInErr)));
+        let lastErr;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            result = await GoogleAuth.signIn();
+            break;
+          } catch (signInErr) {
+            lastErr = signInErr;
+            // Clear and retry — Google Play Services may need cache reset
+            try { await GoogleAuth.signOut(); } catch { /* ignore */ }
+          }
+        }
+        if (!result) {
+          throw new Error("signIn failed: " + (lastErr instanceof Error ? lastErr.message : JSON.stringify(lastErr)));
         }
 
         if (!result.authentication?.idToken) {
