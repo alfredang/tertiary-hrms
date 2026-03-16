@@ -59,6 +59,8 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - **Inactive employee blocking** — employees with INACTIVE status are denied login (both credentials and OAuth)
 - HR management routes (`/payroll/generate`, `/settings`) restricted to ADMIN/HR/MANAGER via middleware
 - Dev quick-login buttons for testing (development mode only)
+- **Password change** — users can change their own password from Profile page
+- **Admin password reset** — admins can reset any employee's password to the default via employee edit sheet
 
 ### RBAC (Role-Based Access Control)
 - **Admin view**: full access to all employees, leave requests, expenses, payroll, and settings
@@ -80,6 +82,9 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Grid and list view options
 - Inline employee editing via slide-out sheet (admin only)
 - Personal info, employment details, and salary management
+- **Add Employee** — admin form with personal, employment, and salary info (localStorage draft, strict validation)
+- **Status management** — dedicated tab with color-coded status cards (Active, On Leave, Inactive, Resigned, Terminated)
+- **Password reset** — admin can reset employee password to default from Status tab
 - Manager assignment and organizational hierarchy
 
 ### Leave Management
@@ -90,7 +95,7 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Leave balance tracking per employee per year with carry-over support
 - Dashboard shows Entitlement, Allocation (pro-rated), Carry-over, Leave Taken, Leave Rejected, and Remaining Balance
 - **Leave request form** with date range picker, day type selector (Full Day / AM Half / PM Half), and reason
-- MC submission with **doctor's certificate upload**
+- MC submission with **doctor's certificate upload** (files stored locally; cloud storage pending)
 - Admin approval/rejection workflow with optional rejection reason
 - **Admin reset** — reset approved/rejected leave back to pending (with audit log)
 - Staff can **edit** (change dates/reason) or **cancel** pending leave requests
@@ -116,7 +121,7 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 
 ### Expense Claims
 - Category-based expense submission (Transport, Meals, Equipment, etc.)
-- **Receipt upload** with file attachment support
+- **Receipt upload** with file attachment support (files stored locally; cloud storage pending)
 - **Expense submission form** with date, amount, and description (future dates blocked)
 - Staff can **edit** or **cancel** pending expense claims
 - Approval workflow for managers and admins with optional rejection reason
@@ -137,10 +142,9 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 - Month navigation (prev/next) and Today button
 
 ### Settings (Admin Only)
-- Company-wide settings management
-- Leave policy configuration
+- Company information management (name, UEN, address, phone, email, website)
 - Approval email routing for leave/expense/MC notifications
-- System preferences
+- **Year-end leave rollover** — admin triggers via button; AL carries forward, MC/CL/NPL reset
 
 ### AI Chatbot
 - HR assistant powered by Google Gemini / OpenAI / Anthropic (via AI SDK)
@@ -185,7 +189,7 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 | **Authentication** | NextAuth v5 (Auth.js) — Credentials + Google OAuth |
 | **AI/LLM** | AI SDK (Gemini, OpenAI, Anthropic) |
 | **CPF Calculator** | decimal.js for precise Singapore CPF calculations |
-| **Excel Parsing** | xlsx (SheetJS) for payroll upload |
+| **Excel Parsing** | exceljs for payroll upload |
 | **Mobile** | Capacitor 8 (iOS + Android) |
 | **PDF** | jsPDF + jspdf-autotable |
 | **Testing** | Vitest + Playwright |
@@ -231,6 +235,10 @@ AUTH_URL="http://localhost:3000"
 # Google OAuth (for Social Login)
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_ANDROID_CLIENT_ID="your-android-client-id"
+
+# Default password for admin reset
+DEFAULT_EMPLOYEE_PASSWORD="your-default-password"
 
 # AI Chatbot (at least one required for chatbot feature)
 GOOGLE_GENERATIVE_AI_API_KEY=""
@@ -346,8 +354,9 @@ Build and run from Android Studio on an emulator or device.
 
 ### Google Auth Plugin (Native Mobile)
 
-The Capacitor Google Auth plugin (`@codetrix-studio/capacitor-google-auth`) is configured in `capacitor.config.ts`. Requires:
-- `GOOGLE_CLIENT_ID` env var (web client ID from Google Cloud Console)
+The Capacitor Google Auth plugin (`@codetrix-studio/capacitor-google-auth`) is configured in `capacitor.config.ts`. The config loads `.env.local` via dotenv at sync time. Requires:
+- `GOOGLE_CLIENT_ID` env var (web client ID — used as `serverClientId`)
+- `GOOGLE_ANDROID_CLIENT_ID` env var (Android client ID)
 - Android: SHA-1 fingerprint registered in Google Cloud Console
 - iOS: Bundle ID registered in Google Cloud Console
 
