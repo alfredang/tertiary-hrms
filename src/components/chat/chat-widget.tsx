@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export function ChatWidget() {
+export function ChatWidget({ isAdmin = false }: { isAdmin?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -81,10 +81,34 @@ export function ChatWidget() {
             {/* Messages */}
             <div className="h-80 overflow-y-auto p-4 space-y-4">
               {messages.length === 0 && (
-                <div className="text-center text-gray-500 py-8">
-                  <Bot className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                  <p className="text-sm">Hi! I&apos;m your HR Assistant.</p>
-                  <p className="text-sm">How can I help you today?</p>
+                <div className="text-gray-500 py-4">
+                  <Bot className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                  <p className="text-sm text-center font-medium text-gray-400 mb-3">Hi! I&apos;m your HR Assistant.</p>
+                  <p className="text-xs text-gray-500 mb-2">I can help you with:</p>
+                  <ul className="text-xs text-gray-500 space-y-1 ml-1">
+                    {isAdmin ? (
+                      <>
+                        <li>- Approving or rejecting leave &amp; expenses</li>
+                        <li>- Adding employees &amp; resetting passwords</li>
+                        <li>- Generating payroll &amp; uploading Excel</li>
+                        <li>- Managing employee statuses</li>
+                        <li>- Company settings &amp; leave rollover</li>
+                        <li>- Using the admin/staff view toggle</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>- How to apply for leave or submit expenses</li>
+                        <li>- Leave balances and policies</li>
+                        <li>- Viewing payslips &amp; CPF questions</li>
+                        <li>- How to change your password</li>
+                        <li>- Using the calendar</li>
+                        <li>- Navigating the app</li>
+                      </>
+                    )}
+                  </ul>
+                  <p className="text-xs text-gray-400 mt-3 text-center">
+                    Try: &quot;{isAdmin ? "How do I reset an employee's password?" : "How do I apply for leave?"}&quot;
+                  </p>
                 </div>
               )}
 

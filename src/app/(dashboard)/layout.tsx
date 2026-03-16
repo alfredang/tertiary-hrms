@@ -51,7 +51,7 @@ export default async function DashboardLayout({
       <MobileBottomNav />
 
       {/* AI Chat Widget */}
-      <ChatWidget />
+      <ChatWidget isAdmin={isAdmin} />
     </div>
   );
 }
