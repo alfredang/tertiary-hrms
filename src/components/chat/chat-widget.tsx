@@ -11,6 +11,43 @@ import { cn } from "@/lib/utils";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const renderFormattedText = (text: string) => {
+  const lines = text.split("\n");
+  return lines.map((line, i) => {
+    // Bold: **text**
+    const parts = line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={j}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+
+    // Bullet lines
+    if (line.match(/^[\s]*[-*•]\s/)) {
+      const content = line.replace(/^[\s]*[-*•]\s/, "");
+      const formatted = content.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return <strong key={j}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+      return <div key={i} className="pl-3 py-0.5">• {formatted}</div>;
+    }
+
+    // Numbered lines
+    if (line.match(/^\d+\.\s/)) {
+      return <div key={i} className="pl-2 py-0.5">{parts}</div>;
+    }
+
+    // Empty lines as spacing
+    if (line.trim() === "") {
+      return <div key={i} className="h-1.5" />;
+    }
+
+    return <div key={i} className="py-0.5">{parts}</div>;
+  });
+};
+
 export function ChatWidget({ isAdmin = false }: { isAdmin?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -106,7 +143,7 @@ export function ChatWidget({ isAdmin = false }: { isAdmin?: boolean }) {
                       </>
                     )}
                   </ul>
-                  <p className="text-xs text-gray-400 mt-3 text-center">
+                  <p className="text-xs text-gray-400 mt-3">
                     Try: &quot;{isAdmin ? "How do I reset an employee's password?" : "How do I apply for leave?"}&quot;
                   </p>
                 </div>
@@ -133,7 +170,9 @@ export function ChatWidget({ isAdmin = false }: { isAdmin?: boolean }) {
                         : "bg-gray-100 text-gray-900 rounded-tl-none"
                     )}
                   >
-                    {message.parts.find((p): p is { type: "text"; text: string } => p.type === "text")?.text ?? ""}
+                    {message.role === "assistant"
+                      ? renderFormattedText(message.parts.find((p): p is { type: "text"; text: string } => p.type === "text")?.text ?? "")
+                      : (message.parts.find((p): p is { type: "text"; text: string } => p.type === "text")?.text ?? "")}
                   </div>
                   {message.role === "user" && (
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">

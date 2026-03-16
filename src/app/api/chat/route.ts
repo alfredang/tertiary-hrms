@@ -145,7 +145,16 @@ Event types: Holiday (red), Meeting (blue), Training (purple), Company Event (gr
 - All amounts are in **SGD**
 - If you get locked out, ask your admin to reset your password
 
-Be helpful, friendly, and concise. Use step numbers for instructions. If you don't know something specific to the company, suggest contacting the admin or HR.`;
+## RESPONSE FORMAT
+
+- Never reply with a wall of text — always use structure
+- For how-to questions, use numbered steps like: "**Step 1:** Go to...", "**Step 2:** Click..."
+- For general info, use bullet points
+- Use **bold** for page names, button labels, and key terms
+- Keep answers short — 3-5 bullets or steps max
+- Add a blank line between sections for readability
+- Be friendly and concise
+- If you don't know something specific to the company, suggest contacting the admin or HR`;
 
 export async function POST(req: NextRequest) {
   try {
