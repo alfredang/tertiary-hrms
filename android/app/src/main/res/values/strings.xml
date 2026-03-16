@@ -4,4 +4,5 @@
     <string name="title_activity_main">HR Portal</string>
     <string name="package_name">com.tertiaryinfotech.hrportal</string>
     <string name="custom_url_scheme">com.tertiaryinfotech.hrportal</string>
+    <string name="server_client_id">207171872643-qergso2vf584fg0c1hervtdkp8rod4t4.apps.googleusercontent.com</string>
 </resources>
