@@ -10,8 +10,9 @@ const chatSchema = z.object({
   messages: z.array(
     z.object({
       role: z.enum(["user", "assistant"]),
-      content: z.string().max(4000),
-    })
+      content: z.string().max(4000).optional(),
+      parts: z.array(z.any()).optional(),
+    }).passthrough()
   ).max(50),
 });
 
@@ -165,7 +166,26 @@ export async function POST(req: NextRequest) {
         headers: { "Content-Type": "application/json" },
       });
     }
-    const { messages } = validation.data;
+    // Normalize messages: AI SDK v6 sends `parts` instead of `content`
+    const messages = validation.data.messages.map((msg) => ({
+      role: msg.role,
+      content:
+        msg.content ||
+        (msg.parts as Array<{ type: string; text?: string }>)
+          ?.filter((p) => p.type === "text")
+          .map((p) => p.text)
+          .join("") ||
+        "",
+    }));
+
+    // Build role-aware system prompt
+    const userName = session.user.name || "User";
+    const userRole = session.user.role || "STAFF";
+    const isAdmin = ["ADMIN", "HR", "MANAGER"].includes(userRole);
+    const roleContext = isAdmin
+      ? `\n\nThe current user is **${userName}** with **${userRole}** role. They have admin access. Prioritize admin-relevant guidance (approvals, employee management, payroll generation, settings).`
+      : `\n\nThe current user is **${userName}** with **STAFF** role. They do NOT have admin access. Only show staff-relevant guidance (applying for leave, submitting expenses, viewing payslips, calendar, profile).`;
+    const contextualPrompt = systemPrompt + roleContext;
 
     // Try Gemini first, then OpenAI, then Anthropic
     let result;
@@ -173,8 +193,8 @@ export async function POST(req: NextRequest) {
     if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       try {
         result = streamText({
-          model: google("gemini-1.5-flash"),
-          system: systemPrompt,
+          model: google("gemini-2.0-flash"),
+          system: contextualPrompt,
           messages,
         });
       } catch (error) {
@@ -187,7 +207,7 @@ export async function POST(req: NextRequest) {
       try {
         result = streamText({
           model: openai("gpt-4o-mini"),
-          system: systemPrompt,
+          system: contextualPrompt,
           messages,
         });
       } catch (error) {
@@ -200,7 +220,7 @@ export async function POST(req: NextRequest) {
       try {
         result = streamText({
           model: anthropic("claude-3-haiku-20240307"),
-          system: systemPrompt,
+          system: contextualPrompt,
           messages,
         });
       } catch (error) {
