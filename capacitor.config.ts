@@ -1,4 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { config as dotenvConfig } from "dotenv";
+
+dotenvConfig({ path: ".env.local" });
 
 const config: CapacitorConfig = {
   appId: "com.tertiaryinfotech.hrportal",
@@ -19,7 +22,7 @@ const config: CapacitorConfig = {
     GoogleAuth: {
       scopes: ["profile", "email"],
       serverClientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      androidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID || "",
       forceCodeForRefreshToken: false,
     },
     SplashScreen: {

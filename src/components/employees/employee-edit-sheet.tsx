@@ -12,7 +12,7 @@ import { PersonalInfoForm } from "./personal-info-form";
 import { EmploymentInfoForm } from "./employment-info-form";
 import { SalaryInfoForm } from "./salary-info-form";
 import { updateEmployeeSchema } from "@/lib/validations/employee";
-import { Edit } from "lucide-react";
+import { Edit, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   Employee,
@@ -38,6 +38,7 @@ export function EmployeeEditSheet({
 }: EmployeeEditSheetProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const router = useRouter();
   const { toast } = useToast();
@@ -123,6 +124,36 @@ export function EmployeeEditSheet({
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!confirm(`Reset ${employee.name}'s password to default?`)) return;
+
+    setIsResetting(true);
+    try {
+      const res = await fetch(`/api/employees/${employee.id}/reset-password`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to reset password");
+      }
+
+      toast({
+        title: "Password reset",
+        description: `${employee.name}'s password has been reset to default.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to reset password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const renderStatusOptions = () => [
     {
       value: "ACTIVE",
@@ -189,10 +220,10 @@ export function EmployeeEditSheet({
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-4 bg-gray-900">
-                <TabsTrigger value="personal">Personal</TabsTrigger>
-                <TabsTrigger value="employment">Employment</TabsTrigger>
-                <TabsTrigger value="salary">Salary</TabsTrigger>
-                <TabsTrigger value="status">Status</TabsTrigger>
+                <TabsTrigger value="personal" className="text-xs sm:text-sm px-1 sm:px-3">Personal</TabsTrigger>
+                <TabsTrigger value="employment" className="text-xs sm:text-sm px-1 sm:px-3">Employ</TabsTrigger>
+                <TabsTrigger value="salary" className="text-xs sm:text-sm px-1 sm:px-3">Salary</TabsTrigger>
+                <TabsTrigger value="status" className="text-xs sm:text-sm px-1 sm:px-3">Status</TabsTrigger>
               </TabsList>
 
               <TabsContent value="personal" className="mt-6">
@@ -240,6 +271,23 @@ export function EmployeeEditSheet({
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Reset Password */}
+                  <div className="border-t border-gray-800 pt-4 mt-6">
+                    <p className="text-sm text-gray-400 mb-3">
+                      Reset this employee&apos;s password to the default.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleResetPassword}
+                      disabled={isResetting}
+                      className="border-amber-600 text-amber-400 hover:bg-amber-950/30"
+                    >
+                      <KeyRound className="h-4 w-4 mr-2" />
+                      {isResetting ? "Resetting..." : "Reset Password"}
+                    </Button>
                   </div>
                 </div>
               </TabsContent>

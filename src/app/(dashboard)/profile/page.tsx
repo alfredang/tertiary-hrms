@@ -7,6 +7,7 @@ import { getInitials } from "@/lib/utils";
 import { format } from "date-fns";
 import { Building2, Mail, Phone, Calendar, Briefcase, User } from "lucide-react";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { PasswordChangeCard } from "@/components/profile/password-change-card";
 
 export const dynamic = "force-dynamic";
 
@@ -162,6 +163,9 @@ export default async function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Change Password */}
+      <PasswordChangeCard />
     </div>
   );
 }
