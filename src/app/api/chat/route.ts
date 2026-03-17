@@ -119,7 +119,7 @@ Event types: Holiday (red), Meeting (blue), Training (purple), Company Event (gr
 ### Company Settings
 1. Go to **Settings** (admin only)
 2. Update company name, UEN, address, phone, email, website
-3. Trigger **Year-End Leave Rollover** — carries forward unused Annual Leave, resets MC/CL/NPL
+3. Click **Save** to update
 
 ## LEAVE POLICIES
 

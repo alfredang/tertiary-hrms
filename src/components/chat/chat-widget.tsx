@@ -129,7 +129,7 @@ export function ChatWidget({ isAdmin = false }: { isAdmin?: boolean }) {
                         <li>- Adding employees &amp; resetting passwords</li>
                         <li>- Generating payroll &amp; uploading Excel</li>
                         <li>- Managing employee statuses</li>
-                        <li>- Company settings &amp; leave rollover</li>
+                        <li>- Company settings</li>
                         <li>- Using the admin/staff view toggle</li>
                       </>
                     ) : (
