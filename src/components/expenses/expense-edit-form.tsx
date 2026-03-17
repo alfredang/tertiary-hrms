@@ -16,7 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Send, Upload, X } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
+import { DollarSign, Eye, Send, Upload, X } from "lucide-react";
 
 interface ExpenseCategory {
   id: string;
@@ -51,8 +52,28 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [existingReceiptFileName, setExistingReceiptFileName] = useState(initialData.receiptFileName);
   const [removeReceipt, setRemoveReceipt] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewFileName, setPreviewFileName] = useState("");
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
+
+  const openExistingPreview = () => {
+    if (initialData.receiptUrl) {
+      setPreviewUrl(initialData.receiptUrl);
+      setPreviewFileName(existingReceiptFileName || "Receipt");
+      setPreviewOpen(true);
+    }
+  };
+
+  const openNewFilePreview = () => {
+    if (receiptFile) {
+      const objectUrl = URL.createObjectURL(receiptFile);
+      setPreviewUrl(objectUrl);
+      setPreviewFileName(receiptFile.name);
+      setPreviewOpen(true);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +148,7 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit}>
       <Card className="bg-gray-950 border-gray-800 max-w-2xl">
         <CardHeader>
@@ -212,6 +234,17 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
               <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
                 <Upload className="h-4 w-4 shrink-0" />
                 <span className="truncate flex-1">Current: {existingReceiptFileName}</span>
+                {initialData.receiptUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={openExistingPreview}
+                    className="text-gray-400 hover:text-blue-400 shrink-0"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -230,6 +263,15 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
                 <span className="text-sm text-gray-300 truncate flex-1">
                   {receiptFile.name}
                 </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={openNewFilePreview}
+                  className="text-gray-400 hover:text-blue-400"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -290,5 +332,18 @@ export function ExpenseEditForm({ expenseId, initialData, categories }: ExpenseE
         </CardContent>
       </Card>
     </form>
+
+    <DocumentPreviewModal
+      open={previewOpen}
+      onOpenChange={(open) => {
+        setPreviewOpen(open);
+        if (!open && previewUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(previewUrl);
+        }
+      }}
+      url={previewUrl}
+      fileName={previewFileName}
+    />
+    </>
   );
 }

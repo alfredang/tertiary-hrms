@@ -8,7 +8,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Send, Upload, X } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
+import { Calendar, Eye, Send, Upload, X } from "lucide-react";
 
 interface LeaveEditFormProps {
   leaveId: string;
@@ -42,8 +43,28 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [existingDocumentFileName, setExistingDocumentFileName] = useState(initialData.documentFileName);
   const [removeDocument, setRemoveDocument] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewFileName, setPreviewFileName] = useState("");
 
   const isAL = leaveTypeCode === "AL";
+
+  const openExistingPreview = () => {
+    if (initialData.documentUrl) {
+      setPreviewUrl(initialData.documentUrl);
+      setPreviewFileName(existingDocumentFileName || "Document");
+      setPreviewOpen(true);
+    }
+  };
+
+  const openNewFilePreview = () => {
+    if (documentFile) {
+      const objectUrl = URL.createObjectURL(documentFile);
+      setPreviewUrl(objectUrl);
+      setPreviewFileName(documentFile.name);
+      setPreviewOpen(true);
+    }
+  };
   const isSingleDay = startDate && endDate && startDate === endDate;
   const isMultiDay = startDate && endDate && startDate < endDate;
 
@@ -236,6 +257,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit}>
       <Card className="bg-gray-950 border-gray-800 max-w-2xl">
         <CardHeader>
@@ -309,6 +331,17 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
               <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
                 <Upload className="h-4 w-4 shrink-0" />
                 <span className="truncate flex-1">Current: {existingDocumentFileName}</span>
+                {initialData.documentUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={openExistingPreview}
+                    className="text-gray-400 hover:text-blue-400 shrink-0"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -327,6 +360,15 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
                 <span className="text-sm text-gray-300 truncate flex-1">
                   {documentFile.name}
                 </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={openNewFilePreview}
+                  className="text-gray-400 hover:text-blue-400"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -376,5 +418,18 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
         </CardContent>
       </Card>
     </form>
+
+    <DocumentPreviewModal
+      open={previewOpen}
+      onOpenChange={(open) => {
+        setPreviewOpen(open);
+        if (!open && previewUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(previewUrl);
+        }
+      }}
+      url={previewUrl}
+      fileName={previewFileName}
+    />
+    </>
   );
 }
