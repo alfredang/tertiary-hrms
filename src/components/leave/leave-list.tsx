@@ -441,17 +441,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
               <div key={request.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <span className="text-sm font-medium text-white">{request.employee.name}</span>
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1">
                     <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>{request.status}</Badge>
-                    <div className="flex items-center gap-1">
-                      {renderDocButton(request)}
-                      {(request.status === "APPROVED" || request.status === "REJECTED") && renderAdminResetActions(request.id)}
-                    </div>
+                    {(request.status === "APPROVED" || request.status === "REJECTED") && renderAdminResetActions(request.id)}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="border-gray-700 text-gray-300">{request.leaveType.name}</Badge>
-                  <span className="text-xs text-gray-400">{renderDaysDisplay(request)}</span>
+                  <span className="text-xs text-gray-400 flex-1">{renderDaysDisplay(request)}</span>
+                  {renderDocButton(request)}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Calendar className="h-3 w-3" />
@@ -543,11 +541,11 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
             {sortedRequests.map((request) => (
               <div key={request.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-2">
                 <div className="flex items-start justify-between">
-                  <Badge variant="outline" className="border-gray-700 text-gray-300">{request.leaveType.name}</Badge>
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>{request.status}</Badge>
-                    {request.documentUrl && <div>{renderDocButton(request)}</div>}
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="border-gray-700 text-gray-300">{request.leaveType.name}</Badge>
+                    {renderDocButton(request)}
                   </div>
+                  <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>{request.status}</Badge>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Calendar className="h-3 w-3" />
