@@ -77,8 +77,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    // Create uploads directory if it doesn't exist (outside public/ for standalone mode)
+    const uploadsDir =
+      process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
     await mkdir(uploadsDir, { recursive: true });
 
     // Use detected MIME (not client-supplied) for extension
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
     await writeFile(filePath, buffer);
 
     return NextResponse.json({
-      url: `/uploads/${uniqueName}`,
+      url: `/api/uploads/${uniqueName}`,
       fileName: file.name,
     });
   } catch (error) {

@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, getInitials } from "@/lib/utils";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, RefreshCw, Settings, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
 
@@ -63,11 +63,19 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail }: HeaderP
     return () => clearInterval(interval);
   }, []);
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const showAdminFeatures = isAdmin && viewAs === "admin";
 
   const currentPage = Object.entries(pageNames).find(([path]) =>
     pathname.startsWith(path)
   )?.[1] || "Dashboard";
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    router.refresh();
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
 
   const handleSignOut = async () => {
     // Clear Google Auth plugin session (shows account picker on next sign-in)
@@ -106,6 +114,15 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail }: HeaderP
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-x-4 lg:gap-x-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefresh}
+            className="h-8 w-8 text-gray-400 hover:text-white"
+            title="Refresh data"
+          >
+            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          </Button>
           {isAdmin && <ViewToggle />}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

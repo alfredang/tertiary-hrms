@@ -13,6 +13,12 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      // Legacy upload URLs → API route (backward compat for existing DB records)
+      { source: '/uploads/:path*', destination: '/api/uploads/:path*' },
+    ];
+  },
   async headers() {
     return [
       {
