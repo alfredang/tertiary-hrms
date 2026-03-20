@@ -20,7 +20,7 @@ const adminActions = [
     iconBg: "bg-amber-500",
   },
   {
-    title: "Manage Expense Claims",
+    title: "Manage Claims",
     description: "Review expense claims",
     href: "/expenses",
     icon: DollarSign,
