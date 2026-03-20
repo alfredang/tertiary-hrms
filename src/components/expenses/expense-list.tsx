@@ -437,10 +437,11 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                     {(claim.status === "APPROVED" || claim.status === "REJECTED") && renderAdminResetActions(claim.id)}
                   </div>
                 </div>
-                <div className="flex items-start gap-2">
-                  <p className="text-sm text-gray-300 line-clamp-2 flex-1">{claim.description}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">{claim.category.name}</span>
                   {renderReceiptButton(claim)}
                 </div>
+                <p className="text-sm text-gray-300 line-clamp-2">{claim.description}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-base font-semibold text-white">{formatCurrency(Number(claim.amount))}</span>
                   <div className="flex items-center gap-1 text-xs text-gray-400">
@@ -523,10 +524,11 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               <div key={claim.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-gray-300 truncate flex-1 mr-2">{claim.description}</p>
-                  <div className="flex items-center gap-2">
-                    <Badge className={`min-w-[88px] justify-center ${statusColors[claim.status]}`}>{claim.status}</Badge>
-                    {renderReceiptButton(claim)}
-                  </div>
+                  <Badge className={`min-w-[88px] justify-center ${statusColors[claim.status]}`}>{claim.status}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">{claim.category.name}</span>
+                  {renderReceiptButton(claim)}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-base font-semibold text-white">{formatCurrency(Number(claim.amount))}</span>
