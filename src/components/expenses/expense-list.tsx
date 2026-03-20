@@ -465,6 +465,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               <thead>
                 <tr className="bg-gray-950 border-b border-gray-800">
                   {renderSortTh("Employee", "employee")}
+                  {renderSortTh("Category", "description")}
                   {renderSortTh("Description", "description")}
                   {renderSortTh("Amount", "amount", true)}
                   {renderSortTh("Date", "expenseDate")}
@@ -477,6 +478,9 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                   <tr key={claim.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
                     <td className="px-4 py-3 text-sm text-white whitespace-nowrap">
                       {claim.employee.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-400 whitespace-nowrap">
+                      {claim.category.name}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-300 max-w-[200px] truncate">
                       {claim.description}
@@ -553,6 +557,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               <thead>
                 <tr className="bg-gray-950 border-b border-gray-800">
                   {renderSortTh("Description", "description")}
+                  {renderSortTh("Category", "description")}
                   {renderSortTh("Amount", "amount", true)}
                   {renderSortTh("Date", "expenseDate")}
                   {renderSortTh("Status", "status")}
@@ -564,6 +569,9 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                   <tr key={claim.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
                     <td className="px-4 py-3 text-sm text-gray-300 max-w-[150px] truncate">
                       {claim.description}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-400 whitespace-nowrap">
+                      {claim.category.name}
                     </td>
                     <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
                       {formatCurrency(Number(claim.amount))}
