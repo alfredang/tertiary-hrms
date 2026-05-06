@@ -44,15 +44,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate employee ID
-    const lastEmployee = await prisma.employee.findFirst({
-      orderBy: { employeeId: "desc" },
+    // Generate employee ID — find actual numeric max to avoid string-sort issues (e.g. EMP999 > EMP100)
+    const allEmployees = await prisma.employee.findMany({
       select: { employeeId: true },
+      where: { employeeId: { startsWith: "EMP" } },
     });
-    const lastNum = lastEmployee
-      ? parseInt(lastEmployee.employeeId.replace("EMP", ""), 10)
-      : 0;
-    const employeeId = `EMP${String(lastNum + 1).padStart(3, "0")}`;
+    const maxNum = allEmployees.reduce((max, emp) => {
+      const num = parseInt(emp.employeeId.replace("EMP", ""), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    const employeeId = `EMP${String(maxNum + 1).padStart(3, "0")}`;
 
     const result = await prisma.$transaction(async (tx) => {
       // Reuse existing User (Google OAuth sign-in) or create new one

@@ -90,17 +90,20 @@ model Employee {
   avatarUrl                                      String?
   createdAt                                      DateTime       @default(now())
   updatedAt                                      DateTime       @updatedAt
-  department         Department?    @relation(fields: [departmentId], references: [id])
-  manager            Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
-  subordinates       Employee[]     @relation("EmployeeToEmployee")
-  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approvedExpenses   ExpenseClaim[] @relation("ExpenseClaim_approverIdToEmployee")
-  expenseClaims      ExpenseClaim[] @relation("ExpenseClaim_employeeIdToEmployee")
-  leaveBalances      LeaveBalance[]
-  approvedLeaves     LeaveRequest[] @relation("LeaveRequest_approverIdToEmployee")
-  leaveRequests      LeaveRequest[] @relation("LeaveRequest_employeeIdToEmployee")
-  payslips           Payslip[]
-  salaryInfo         SalaryInfo?
+  department               Department?    @relation(fields: [departmentId], references: [id])
+  manager                  Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
+  subordinates             Employee[]     @relation("EmployeeToEmployee")
+  user                     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedExpenses         ExpenseClaim[] @relation("ExpenseClaim_approverIdToEmployee")
+  expenseClaims            ExpenseClaim[] @relation("ExpenseClaim_employeeIdToEmployee")
+  leaveBalances            LeaveBalance[]
+  approvedLeaves           LeaveRequest[] @relation("LeaveRequest_approverIdToEmployee")
+  leaveRequests            LeaveRequest[] @relation("LeaveRequest_employeeIdToEmployee")
+  payslips                 Payslip[]
+  salaryInfo               SalaryInfo?
+  attendances              Attendance[]
+  otEntriesAsEmployee      OtEntry[]      @relation("OtEntry_employeeIdToEmployee")
+  otEntriesAsApprover      OtEntry[]      @relation("OtEntry_approverIdToEmployee")
 }
 
 model ExpenseCategory {
@@ -140,18 +143,20 @@ model ExpenseClaim {
 }
 
 model LeaveBalance {
-  id          String    @id @default(cuid())
-  employeeId  String
-  leaveTypeId String
-  year        Int
-  entitlement Decimal   @db.Decimal(5, 2)
-  used        Decimal   @default(0) @db.Decimal(5, 2)
-  pending     Decimal   @default(0) @db.Decimal(5, 2)
-  carriedOver Decimal   @default(0) @db.Decimal(5, 2)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime   @updatedAt
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  id           String    @id @default(cuid())
+  employeeId   String
+  leaveTypeId  String
+  year         Int
+  entitlement  Decimal   @default(0) @db.Decimal(5, 2)
+  used         Decimal   @default(0) @db.Decimal(5, 2)
+  pending      Decimal   @default(0) @db.Decimal(5, 2)
+  carriedOver  Decimal   @default(0) @db.Decimal(5, 2)
+  earned       Decimal   @default(0) @db.Decimal(5, 2)
+  autoDeducted Decimal   @default(0) @db.Decimal(5, 2)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType @relation(fields: [leaveTypeId], references: [id])
 
   @@unique([employeeId, leaveTypeId, year])
 }
@@ -247,15 +252,16 @@ model Session {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String    @default("")
-  roles     Role[]    @default([STAFF])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  accounts  Account[]
-  employee  Employee?
-  sessions  Session[]
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String         @default("")
+  roles         Role[]         @default([STAFF])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  accounts      Account[]
+  employee      Employee?
+  sessions      Session[]
+  notifications Notification[]
 }
 
 model VerificationToken {
@@ -369,4 +375,78 @@ enum Role {
   MANAGER
   HR
   ADMIN
+}
+
+enum WorkDayType {
+  WEEKDAY
+  WEEKEND
+  PUBLIC_HOLIDAY
+}
+
+enum OtEntryStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+model PublicHoliday {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  name        String
+  countryCode String   @default("SG")
+  year        Int
+  createdAt   DateTime @default(now())
+
+  @@unique([date, countryCode])
+  @@index([year, countryCode])
+}
+
+model Attendance {
+  id         String      @id @default(cuid())
+  employeeId String
+  date       DateTime    @db.Date
+  clockIn    DateTime
+  clockOut   DateTime?
+  totalHours Decimal?    @db.Decimal(5, 2)
+  dayType    WorkDayType @default(WEEKDAY)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  otEntry    OtEntry?
+
+  @@unique([employeeId, date])
+}
+
+model OtEntry {
+  id              String        @id @default(cuid())
+  employeeId      String
+  attendanceId    String        @unique
+  date            DateTime
+  hoursWorked     Decimal       @db.Decimal(5, 2)
+  earnedDays      Decimal       @db.Decimal(5, 2)
+  dayType         WorkDayType
+  status          OtEntryStatus @default(PENDING_APPROVAL)
+  approverId      String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  employee        Employee      @relation("OtEntry_employeeIdToEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  approver        Employee?     @relation("OtEntry_approverIdToEmployee", fields: [approverId], references: [id])
+  attendance      Attendance    @relation(fields: [attendanceId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }

@@ -4,15 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { LayoutDashboard, Clock, Receipt, DollarSign, Calendar } from "lucide-react";
+import { LayoutDashboard, Clock, Receipt, DollarSign, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const allTabs = [
-  { name: "Home",     href: "/dashboard", icon: LayoutDashboard, financeOnly: false },
-  { name: "Leave",    href: "/leave",     icon: Clock,           financeOnly: false },
-  { name: "Expenses", href: "/expenses",  icon: Receipt,         financeOnly: true  },
-  { name: "Payroll",  href: "/payroll",   icon: DollarSign,      financeOnly: true  },
-  { name: "Calendar", href: "/calendar",  icon: Calendar,        financeOnly: false },
+  { name: "Home",       href: "/dashboard",  icon: LayoutDashboard, financeOnly: false },
+  { name: "Leave",      href: "/leave",      icon: Clock,           financeOnly: false },
+  { name: "Attendance", href: "/attendance", icon: Timer,           financeOnly: false },
+  { name: "Expenses",   href: "/expenses",   icon: Receipt,         financeOnly: true  },
+  { name: "Payroll",    href: "/payroll",    icon: DollarSign,      financeOnly: true  },
 ];
 
 export function MobileBottomNav() {

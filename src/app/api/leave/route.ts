@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateDaysBetween, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
+import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
+import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import * as z from "zod";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
@@ -63,18 +64,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calculate days based on dayType and halfDayPosition
+    // Fetch public holidays for working-day calculation
+    const year = start.getFullYear();
+    const dbHolidays = await prisma.publicHoliday.findMany({ where: { year, countryCode: "SG" } });
+    const staticHolidays = getSgHolidaysForYear(year);
+    const allHolidayDates = Array.from(
+      new Set([...staticHolidays, ...dbHolidays.map((h) => h.date.toISOString().slice(0, 10))])
+    );
+
+    // Calculate working days based on dayType and halfDayPosition
     const isSingleDay = startDate === endDate;
     let days: number;
 
     if (isSingleDay) {
+      // Single day: check if it's a working day
+      const { workingDays: wd } = calculateWorkingDays(start, end, allHolidayDates);
+      if (wd === 0) {
+        return NextResponse.json(
+          { error: "The selected date is a weekend or public holiday. Please choose a working day." },
+          { status: 400 }
+        );
+      }
       days = dayType === "FULL_DAY" ? 1 : 0.5;
     } else if (halfDayPosition) {
-      days = roundToHalf(calculateDaysBetween(start, end) - 0.5);
+      const { workingDays: wd } = calculateWorkingDays(start, end, allHolidayDates);
+      days = roundToHalf(wd - 0.5);
     } else {
-      days = submittedDays
-        ? roundToHalf(submittedDays)
-        : roundToHalf(calculateDaysBetween(start, end));
+      const { workingDays: wd } = calculateWorkingDays(start, end, allHolidayDates);
+      days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
     // Get leave type code and employee start date (needed for overlap check + proration)
@@ -89,11 +106,10 @@ export async function POST(req: NextRequest) {
     const effectiveDayType = isAL ? (isSingleDay ? dayType : "FULL_DAY") : "FULL_DAY";
     const effectiveHalfDayPosition = isAL ? (isSingleDay ? null : (halfDayPosition ?? null)) : null;
 
-    // Recalculate days with effective values (non-AL always gets full days)
+    // Recalculate days with effective values (non-AL always gets full working days)
     if (!isAL) {
-      days = submittedDays
-        ? roundToHalf(submittedDays)
-        : roundToHalf(calculateDaysBetween(start, end));
+      const { workingDays: wd } = calculateWorkingDays(start, end, allHolidayDates);
+      days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
     // Check for overlapping leave requests
@@ -181,19 +197,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let effectiveEntitlement = Number(balance.entitlement);
+    let available: number;
 
-    // Annual Leave & Medical Leave: prorated based on employee start date
-    // No Pay Leave, CL: full entitlement (no proration)
-    if ((leaveType?.code === "AL" || leaveType?.code === "MC") && employee?.startDate) {
-      effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate);
+    if (leaveType?.code === "AL_OT") {
+      // Accumulated OT leave: balance is earned - used - autoDeducted - pending
+      available = Number(balance.earned) - Number(balance.used) - Number(balance.autoDeducted) - Number(balance.pending);
+    } else {
+      let effectiveEntitlement = Number(balance.entitlement);
+      if ((leaveType?.code === "AL" || leaveType?.code === "MC") && employee?.startDate) {
+        effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate);
+      }
+      available = effectiveEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
     }
-
-    const available =
-      effectiveEntitlement +
-      Number(balance.carriedOver) -
-      Number(balance.used) -
-      Number(balance.pending);
 
     if (days > available) {
       return NextResponse.json(
@@ -243,6 +258,26 @@ export async function POST(req: NextRequest) {
         pending: { increment: days },
       },
     });
+
+    // Notify all admin/HR/manager users about the new leave request
+    try {
+      const approvers = await prisma.user.findMany({
+        where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } },
+        select: { id: true },
+      });
+      await prisma.notification.createMany({
+        data: approvers.map((u) => ({
+          userId: u.id,
+          title: "New Leave Request",
+          message: `${leaveRequest.employee.name} submitted a ${leaveRequest.leaveType.name} request for ${Number(leaveRequest.days)} day(s).`,
+          type: "LEAVE_SUBMITTED",
+          link: "/leave",
+        })),
+        skipDuplicates: true,
+      });
+    } catch {
+      // Non-critical — don't fail the request if notification fails
+    }
 
     return NextResponse.json(leaveRequest, { status: 201 });
   } catch (error) {

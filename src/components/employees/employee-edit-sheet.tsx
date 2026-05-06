@@ -12,7 +12,7 @@ import { PersonalInfoForm } from "./personal-info-form";
 import { EmploymentInfoForm } from "./employment-info-form";
 import { SalaryInfoForm } from "./salary-info-form";
 import { updateEmployeeSchema } from "@/lib/validations/employee";
-import { Edit, KeyRound, ShieldCheck, Calculator, User, GraduationCap } from "lucide-react";
+import { Edit, KeyRound, ShieldCheck, Calculator, User, GraduationCap, Fingerprint } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   Employee,
@@ -48,6 +48,7 @@ export function EmployeeEditSheet({
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const [selectedRoles, setSelectedRoles] = useState<string[]>(userRoles);
 
@@ -139,6 +140,28 @@ export function EmployeeEditSheet({
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSingpassInvite = async () => {
+    setIsInviting(true);
+    try {
+      const res = await fetch("/api/myinfo/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: employee.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send invite");
+      toast({ title: "Singpass invite sent", description: `An email has been sent to ${employee.email}.` });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send invite",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -245,6 +268,26 @@ export function EmployeeEditSheet({
               </TabsList>
 
               <TabsContent forceMount value="personal" className={cn("mt-6", activeTab !== "personal" && "hidden")}>
+                {/* Singpass auto-fill invite */}
+                <div className="mb-5 p-4 rounded-xl border border-gray-800 bg-gray-900/50 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-300">Auto-fill via Singpass</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Send {employee.name.split(" ")[0]} an email to authorise Singpass — their details will fill automatically.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSingpassInvite}
+                    disabled={isInviting}
+                    className="shrink-0 border-red-700 text-red-400 hover:bg-red-950/30"
+                  >
+                    <Fingerprint className="h-4 w-4 mr-2" />
+                    {isInviting ? "Sending…" : "Send Invite"}
+                  </Button>
+                </div>
                 <PersonalInfoForm form={form} />
               </TabsContent>
 

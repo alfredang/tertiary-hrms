@@ -24,6 +24,7 @@ export async function POST(
 
     const leaveRequest = await prisma.leaveRequest.findUnique({
       where: { id },
+      include: { employee: { include: { user: true } }, leaveType: true },
     });
 
     if (!leaveRequest) {
@@ -63,7 +64,22 @@ export async function POST(
       },
     });
 
-    // TODO: Send email notification to employee
+    // Notify the employee
+    try {
+      if (leaveRequest.employee?.user) {
+        await prisma.notification.create({
+          data: {
+            userId: leaveRequest.employee.user.id,
+            title: "Leave Request Rejected",
+            message: `Your ${(leaveRequest as any).leaveType?.name ?? "leave"} request was rejected.${reason ? ` Reason: ${reason}` : ""}`,
+            type: "LEAVE_REJECTED",
+            link: "/leave",
+          },
+        });
+      }
+    } catch {
+      // Non-critical
+    }
 
     return NextResponse.json(updatedRequest);
   } catch (error) {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateDaysBetween, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
+import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
+import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import * as z from "zod";
 
 const leaveEditSchema = z.object({
@@ -69,18 +70,25 @@ export async function PATCH(
       );
     }
 
-    // Calculate days based on dayType and halfDayPosition
+    // Fetch holidays for working-day calculation
+    const year = newStart.getFullYear();
+    const dbHolidays = await prisma.publicHoliday.findMany({ where: { year, countryCode: "SG" } });
+    const allHolidayDates = Array.from(
+      new Set([...getSgHolidaysForYear(year), ...dbHolidays.map((h) => h.date.toISOString().slice(0, 10))])
+    );
+
+    // Calculate working days based on dayType and halfDayPosition
     const isSingleDay = startDate === endDate;
     let newDays: number;
 
     if (isSingleDay) {
       newDays = dayType === "FULL_DAY" ? 1 : 0.5;
     } else if (halfDayPosition) {
-      newDays = roundToHalf(calculateDaysBetween(newStart, newEnd) - 0.5);
+      const { workingDays: wd } = calculateWorkingDays(newStart, newEnd, allHolidayDates);
+      newDays = roundToHalf(wd - 0.5);
     } else {
-      newDays = submittedDays
-        ? roundToHalf(submittedDays)
-        : roundToHalf(calculateDaysBetween(newStart, newEnd));
+      const { workingDays: wd } = calculateWorkingDays(newStart, newEnd, allHolidayDates);
+      newDays = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
     const oldDays = Number(leaveRequest.days);
@@ -95,11 +103,10 @@ export async function PATCH(
     const effectiveDayType = isAL ? (isSingleDay ? dayType : "FULL_DAY") : "FULL_DAY";
     const effectiveHalfDayPosition = isAL ? (isSingleDay ? null : (halfDayPosition ?? null)) : null;
 
-    // Recalculate days with effective values (non-AL always gets full days)
+    // Recalculate days with effective values (non-AL always gets full working days)
     if (!isAL) {
-      newDays = submittedDays
-        ? roundToHalf(submittedDays)
-        : roundToHalf(calculateDaysBetween(newStart, newEnd));
+      const { workingDays: wd } = calculateWorkingDays(newStart, newEnd, allHolidayDates);
+      newDays = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
     // Check for overlapping leave requests (exclude self)

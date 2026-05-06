@@ -8,6 +8,24 @@ import { Button } from "@/components/ui/button";
 import { Plus, AlertTriangle } from "lucide-react";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
+async function getOtLeaveBalance(employeeId: string) {
+  const currentYear = new Date().getFullYear();
+  const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+  if (!alOtType) return null;
+
+  const balance = await prisma.leaveBalance.findUnique({
+    where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
+  });
+  if (!balance) return { earned: 0, used: 0, autoDeducted: 0, pending: 0, remaining: 0 };
+
+  const earned = Number(balance.earned);
+  const used = Number(balance.used);
+  const autoDeducted = Number(balance.autoDeducted);
+  const pending = Number(balance.pending);
+  const remaining = Math.max(0, earned - used - autoDeducted - pending);
+  return { earned, used, autoDeducted, pending, remaining };
+}
+
 export const dynamic = 'force-dynamic';
 
 async function getLeaveBalance(employeeId: string) {
@@ -114,10 +132,11 @@ export default async function LeavePage() {
     );
   }
 
-  const [leaveBalance, requests] = await Promise.all([
+  const [leaveBalance, otBalance, requests] = await Promise.all([
     currentEmployeeId
       ? getLeaveBalance(currentEmployeeId)
       : Promise.resolve({ carriedOver: 0, allocation: 14, taken: 0, rejected: 0, proRated: 14 }),
+    currentEmployeeId ? getOtLeaveBalance(currentEmployeeId) : Promise.resolve(null),
     getLeaveRequests(filterByEmployeeId),
   ]);
 
@@ -179,6 +198,35 @@ export default async function LeavePage() {
             <p className="text-xl sm:text-2xl font-bold text-purple-400">{leaveBalance.carriedOver}</p>
           </div>
           */}
+        </div>
+      )}
+
+      {/* OT Leave Balance — only show for staff view when there's OT data */}
+      {viewAs === "staff" && otBalance !== null && otBalance.earned > 0 && (
+        <div className="bg-gray-950 border border-emerald-800/40 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-2 w-2 rounded-full bg-emerald-400" />
+            <h3 className="text-sm font-semibold text-emerald-400">Accumulated OT Leave Balance</h3>
+            <span className="text-xs text-gray-500">Earned from weekend / public holiday work</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-gray-900 rounded-lg p-3">
+              <p className="text-xs text-gray-400 mb-1">Earned</p>
+              <p className="text-xl font-bold text-emerald-400">{otBalance.earned}</p>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-3">
+              <p className="text-xs text-gray-400 mb-1">Used</p>
+              <p className="text-xl font-bold text-amber-400">{otBalance.used}</p>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-3">
+              <p className="text-xs text-gray-400 mb-1">Auto-Deducted</p>
+              <p className="text-xl font-bold text-red-400">{otBalance.autoDeducted}</p>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-3">
+              <p className="text-xs text-gray-400 mb-1">Remaining</p>
+              <p className="text-xl font-bold text-green-400">{otBalance.remaining}</p>
+            </div>
+          </div>
         </div>
       )}
 

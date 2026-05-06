@@ -84,7 +84,20 @@ export async function POST(
       },
     });
 
-    // TODO: Send email notification to employee
+    // Notify the employee
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: leaveRequest.employee.userId,
+          title: "Leave Request Approved",
+          message: `Your ${leaveRequest.leaveType.name} request (${Number(leaveRequest.days)} day(s)) has been approved.`,
+          type: "LEAVE_APPROVED",
+          link: "/leave",
+        },
+      });
+    } catch {
+      // Non-critical
+    }
 
     return NextResponse.json(updatedRequest);
   } catch (error) {

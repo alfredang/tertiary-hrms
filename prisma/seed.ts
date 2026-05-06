@@ -1,6 +1,7 @@
 import { PrismaClient, Role, Gender, EmploymentType, EmployeeStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
+import { SG_PUBLIC_HOLIDAYS } from "../src/lib/sg-public-holidays";
 
 const prisma = new PrismaClient();
 
@@ -72,8 +73,28 @@ async function main() {
     update: {},
     create: { id: randomUUID(), name: "No Pay Leave", code: "NPL", defaultDays: 0, description: "Unpaid leave", paid: false, carryOver: false },
   });
-  const leaveTypes = [annualLeave, sickLeave, medicalLeave, compassionateLeave, noPayLeave];
+  const accumulatedLeave = await prisma.leaveType.upsert({
+    where: { code: "AL_OT" },
+    update: {},
+    create: { id: randomUUID(), name: "Accumulated Leave (OT)", code: "AL_OT", defaultDays: 0, description: "Overtime/weekend work accumulated leave", carryOver: true, paid: true },
+  });
+  const leaveTypes = [annualLeave, sickLeave, medicalLeave, compassionateLeave, noPayLeave, accumulatedLeave];
   console.log("Created leave types:", leaveTypes.length);
+
+  // Seed Singapore Public Holidays
+  console.log("Seeding Singapore public holidays...");
+  const currentYear = new Date().getFullYear();
+  for (const year of [currentYear, currentYear + 1]) {
+    const holidays = SG_PUBLIC_HOLIDAYS[year] ?? [];
+    for (const h of holidays) {
+      await prisma.publicHoliday.upsert({
+        where: { date_countryCode: { date: new Date(h.date), countryCode: "SG" } },
+        update: { name: h.name },
+        create: { date: new Date(h.date), name: h.name, countryCode: "SG", year },
+      });
+    }
+  }
+  console.log("Seeded SG public holidays");
 
   // Create Expense Categories
   console.log("Creating expense categories...");
@@ -158,7 +179,6 @@ async function main() {
     },
   });
   // Create leave balances for admin employee
-  const currentYear = new Date().getFullYear();
   for (const leaveType of leaveTypes) {
     await prisma.leaveBalance.upsert({
       where: {

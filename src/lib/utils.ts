@@ -44,6 +44,58 @@ export function calculateDaysBetween(start: Date, end: Date): number {
 }
 
 /**
+ * Count working days (Mon–Fri) between two dates, excluding weekends and
+ * any dates listed in publicHolidays ("YYYY-MM-DD" strings in local time).
+ * Both start and end are inclusive.
+ */
+export function calculateWorkingDays(
+  start: Date,
+  end: Date,
+  publicHolidays: string[] = [],
+): { workingDays: number; calendarDays: number; weekendDays: number; holidayDays: number } {
+  const holidaySet = new Set(publicHolidays);
+  const cursor = new Date(start);
+  cursor.setHours(0, 0, 0, 0);
+  const endNorm = new Date(end);
+  endNorm.setHours(0, 0, 0, 0);
+
+  let workingDays = 0;
+  let weekendDays = 0;
+  let holidayDays = 0;
+  let calendarDays = 0;
+
+  while (cursor <= endNorm) {
+    calendarDays++;
+    const dow = cursor.getDay(); // 0=Sun, 6=Sat
+    const iso = cursor.toISOString().slice(0, 10);
+    if (dow === 0 || dow === 6) {
+      weekendDays++;
+    } else if (holidaySet.has(iso)) {
+      holidayDays++;
+    } else {
+      workingDays++;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return { workingDays, calendarDays, weekendDays, holidayDays };
+}
+
+/** Returns "YYYY-MM-DD" in local time for a given Date. */
+export function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Returns true if date is a weekend (Sat or Sun). */
+export function isWeekend(date: Date): boolean {
+  const dow = date.getDay();
+  return dow === 0 || dow === 6;
+}
+
+/**
  * Round a number DOWN to the nearest 0.5
  * e.g., 3.2 → 3.0, 3.7 → 3.5, 3.8 → 3.5, 4.0 → 4.0
  */

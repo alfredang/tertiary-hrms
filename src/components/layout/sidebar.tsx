@@ -15,6 +15,7 @@ import {
   Calendar,
   Settings,
   ChevronRight,
+  Timer,
 } from "lucide-react";
 
 const navigation = [
@@ -22,6 +23,7 @@ const navigation = [
   { name: "My Profile", href: "/profile",     icon: User },
   { name: "Employees",  href: "/employees",   icon: Users,      adminOnly: true  as const },
   { name: "Leave",      href: "/leave",       icon: Clock },
+  { name: "Attendance", href: "/attendance",  icon: Timer },
   { name: "Expenses",   href: "/expenses",    icon: Receipt,    financeOnly: true as const },
   { name: "Payroll",    href: "/payroll",     icon: DollarSign, financeOnly: true as const },
   { name: "Calendar",   href: "/calendar",    icon: Calendar },

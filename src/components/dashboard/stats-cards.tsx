@@ -1,18 +1,20 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, Stethoscope, Receipt, CalendarDays, DollarSign } from "lucide-react";
+import { Clock, Stethoscope, Receipt, CalendarDays, DollarSign, Briefcase, Bell } from "lucide-react";
 
 interface AdminStats {
   pendingLeaves: number;
   pendingMC: number;
   pendingClaims: number;
+  pendingOtApprovals: number;
 }
 
 interface StaffStats {
   leaveBalance: number;
   mcBalance: number;
   expenseClaimAmount: number;
+  otBalance: number;
 }
 
 interface StatsCardsProps {
@@ -36,11 +38,13 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
       { title: "Pending Leave Approval", value: String(adminStats.pendingLeaves), icon: Clock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
       { title: "Pending MC Approval", value: String(adminStats.pendingMC), icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
       { title: "Pending Claim Approval", value: String(adminStats.pendingClaims), icon: Receipt, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+      { title: "Pending OT Approvals", value: String(adminStats.pendingOtApprovals), icon: Bell, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
     );
   } else if (staffStats) {
     cards.push(
       { title: "Leave Balance", value: String(staffStats.leaveBalance), icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
       { title: "MC Balance", value: String(staffStats.mcBalance), icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
+      { title: "OT Leave Balance", value: String(staffStats.otBalance), icon: Briefcase, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
       {
         title: "Expense Claims (YTD)",
         value: `$${staffStats.expenseClaimAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,

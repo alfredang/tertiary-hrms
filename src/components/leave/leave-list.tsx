@@ -63,6 +63,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
   const { toast } = useToast();
 
@@ -116,10 +117,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const handleReject = async (id: string) => {
     setIsLoading(id);
     try {
-      const res = await fetch(`/api/leave/${id}/reject`, { method: "POST" });
+      const res = await fetch(`/api/leave/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: rejectReason }),
+      });
       if (!res.ok) throw new Error("Failed to reject");
       toast({ title: "Leave request rejected", description: "The employee has been notified." });
       setRejectConfirm(null);
+      setRejectReason("");
       router.refresh();
     } catch {
       toast({ title: "Error", description: "Failed to reject leave request", variant: "destructive" });
@@ -264,25 +270,34 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const renderAdminPendingActions = (id: string) => (
     <>
       {rejectConfirm === id ? (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-red-400">Reject this leave?</span>
-          <Button
-            size="sm"
-            onClick={() => handleReject(id)}
-            disabled={isLoading === id}
-            className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-white"
-          >
-            {isLoading === id ? "Rejecting..." : "Yes, Reject"}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setRejectConfirm(null)}
-            disabled={isLoading === id}
-            className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
-          >
-            No
-          </Button>
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-red-400">Rejection reason (optional):</span>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Enter reason..."
+            rows={2}
+            className="text-xs rounded bg-gray-900 border border-gray-700 text-white px-2 py-1 resize-none w-full max-w-xs"
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              onClick={() => handleReject(id)}
+              disabled={isLoading === id}
+              className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-white"
+            >
+              {isLoading === id ? "Rejecting..." : "Confirm Reject"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setRejectConfirm(null); setRejectReason(""); }}
+              disabled={isLoading === id}
+              className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="flex gap-2 sm:w-auto w-full">
@@ -299,7 +314,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { setRejectConfirm(id); setResetConfirm(null); }}
+            onClick={() => { setRejectConfirm(id); setResetConfirm(null); setRejectReason(""); }}
             disabled={isLoading === id}
             className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm flex-1 sm:flex-none"
           >
