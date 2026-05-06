@@ -34,11 +34,13 @@ export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
   useEffect(() => {
     const cookie = document.cookie.split("; ").find((c) => c.startsWith("viewAs="));
     const saved = cookie ? cookie.split("=")[1] : "";
-    // If saved view is still a valid assigned role, keep it; otherwise default to first
     if (saved && assignedLower.includes(saved)) {
       setCurrentView(saved);
     } else if (ROLES.length > 0) {
-      setCurrentView(ROLES[0].value);
+      // Saved cookie is for a role the user no longer has — reset it
+      const defaultView = ROLES[0].value;
+      document.cookie = `viewAs=${defaultView};path=/;max-age=${60 * 60 * 24 * 365}`;
+      setCurrentView(defaultView);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRoles.join(",")]);

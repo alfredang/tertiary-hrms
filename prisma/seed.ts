@@ -113,13 +113,13 @@ async function main() {
     where: { email: "admin@tertiaryinfotech.com" },
     update: {
       password: hashedPassword,
-      role: Role.ADMIN,
+      roles: [Role.ADMIN],
     },
     create: {
       id: randomUUID(),
       email: "admin@tertiaryinfotech.com",
       password: hashedPassword,
-      role: Role.ADMIN,
+      roles: [Role.ADMIN],
     },
   });
 
@@ -187,11 +187,11 @@ async function main() {
   console.log("Creating staff test user...");
   const staffUser = await prisma.user.upsert({
     where: { email: "staff@tertiaryinfotech.com" },
-    update: { password: hashedPassword, role: Role.STAFF },
+    update: { password: hashedPassword, roles: [Role.STAFF] },
     create: {
       email: "staff@tertiaryinfotech.com",
       password: hashedPassword,
-      role: Role.STAFF,
+      roles: [Role.STAFF],
     },
   });
 
@@ -270,7 +270,7 @@ async function main() {
         id: randomUUID(),
         email: emp.email,
         password: hashedPassword,
-        role: Role.STAFF,
+        roles: [Role.STAFF],
       },
     });
 

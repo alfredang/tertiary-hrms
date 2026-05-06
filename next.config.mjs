@@ -32,6 +32,8 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
+          // Prevent browser from serving stale pages/JS after code deploys
+          { key: 'Cache-Control', value: 'no-store' },
         ],
       },
     ];
