@@ -47,6 +47,7 @@ async function getEmployee(id: string) {
   const employee = await prisma.employee.findUnique({
     where: { id },
     include: {
+      user: { select: { roles: true } },
       department: true,
       salaryInfo: true,
       leaveBalances: {
@@ -152,7 +153,7 @@ export default async function EmployeeDetailPage({
 
         {/* Edit Button - Only visible to ADMIN, HR, MANAGER */}
         {canEdit && (
-          <EmployeeEditSheet employee={employee} departments={departments} />
+          <EmployeeEditSheet employee={employee} departments={departments} userRoles={employee.user?.roles ?? ["STAFF"]} />
         )}
       </div>
 

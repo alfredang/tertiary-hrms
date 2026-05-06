@@ -41,17 +41,21 @@ const statusLabels: Record<EmployeeStatus, string> = {
 };
 
 const roleColors: Record<Role, string> = {
-  ADMIN: "bg-purple-100 text-purple-800 border-purple-200",
-  HR: "bg-blue-100 text-blue-800 border-blue-200",
-  MANAGER: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  STAFF: "bg-gray-100 text-gray-800 border-gray-200",
+  ADMIN:      "bg-purple-100 text-purple-800 border-purple-200",
+  HR:         "bg-blue-100 text-blue-800 border-blue-200",
+  MANAGER:    "bg-indigo-100 text-indigo-800 border-indigo-200",
+  ACCOUNTANT: "bg-sky-100 text-sky-800 border-sky-200",
+  STAFF:      "bg-gray-100 text-gray-800 border-gray-200",
+  INTERN:     "bg-amber-100 text-amber-800 border-amber-200",
 };
 
 const roleLabels: Record<Role, string> = {
-  ADMIN: "Admin",
-  HR: "HR",
-  MANAGER: "Manager",
-  STAFF: "Staff",
+  ADMIN:      "Admin",
+  HR:         "HR",
+  MANAGER:    "Manager",
+  ACCOUNTANT: "Accountant",
+  STAFF:      "Staff",
+  INTERN:     "Intern",
 };
 
 export function EmployeeList({ employees, departments, isAdmin = true }: EmployeeListProps) {
@@ -182,9 +186,11 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                         <Badge className={statusColors[employee.status]}>
                           {statusLabels[employee.status]}
                         </Badge>
-                        <Badge className={roleColors[employee.user.role]}>
-                          {roleLabels[employee.user.role]}
-                        </Badge>
+                        {(employee.user.roles ?? []).map((r) => (
+                          <Badge key={r} className={roleColors[r]}>
+                            {roleLabels[r]}
+                          </Badge>
+                        ))}
                         <Badge variant="outline" className="border-gray-600 text-gray-300">
                           {employee.position}
                         </Badge>
@@ -232,9 +238,11 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                       <Badge className={statusColors[employee.status]}>
                         {statusLabels[employee.status]}
                       </Badge>
-                      <Badge className={roleColors[employee.user.role]}>
-                        {roleLabels[employee.user.role]}
-                      </Badge>
+                      {(employee.user.roles ?? []).map((r) => (
+                        <Badge key={r} className={roleColors[r]}>
+                          {roleLabels[r]}
+                        </Badge>
+                      ))}
                       <Badge variant="outline" className="border-gray-600 text-gray-300">
                         {employee.position}
                       </Badge>

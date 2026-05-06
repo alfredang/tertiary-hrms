@@ -42,7 +42,7 @@ export async function PATCH(
       );
     }
 
-    const { personalInfo, employmentInfo, salaryInfo } = validation.data;
+    const { personalInfo, employmentInfo, salaryInfo, roles } = validation.data;
 
     // 4. Check employee exists
     const employee = await prisma.employee.findUnique({
@@ -126,11 +126,18 @@ export async function PATCH(
         },
       });
 
-      // Sync User.email if Employee.email changed
+      // Sync User.email and/or User.role if changed
+      const userUpdates: Record<string, unknown> = {};
       if (personalInfo?.email && personalInfo.email !== employee.email) {
+        userUpdates.email = personalInfo.email;
+      }
+      if (roles && JSON.stringify(roles.sort()) !== JSON.stringify([...(employee.user.roles ?? [])].sort())) {
+        userUpdates.roles = roles;
+      }
+      if (Object.keys(userUpdates).length > 0) {
         await tx.user.update({
           where: { id: employee.userId },
-          data: { email: personalInfo.email },
+          data: userUpdates,
         });
       }
 

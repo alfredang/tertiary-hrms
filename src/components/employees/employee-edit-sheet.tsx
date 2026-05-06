@@ -12,7 +12,7 @@ import { PersonalInfoForm } from "./personal-info-form";
 import { EmploymentInfoForm } from "./employment-info-form";
 import { SalaryInfoForm } from "./salary-info-form";
 import { updateEmployeeSchema } from "@/lib/validations/employee";
-import { Edit, KeyRound } from "lucide-react";
+import { Edit, KeyRound, ShieldCheck, Calculator, User, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   Employee,
@@ -23,6 +23,13 @@ import type {
   EmployeeStatus,
 } from "@prisma/client";
 
+const ROLE_OPTIONS = [
+  { value: "ADMIN",      label: "Admin",      description: "Full access to all features",          icon: ShieldCheck, color: "border-purple-600 bg-purple-950/30", dot: "bg-purple-500" },
+  { value: "ACCOUNTANT", label: "Accountant", description: "Access to expenses and payroll",        icon: Calculator,  color: "border-blue-600 bg-blue-950/30",   dot: "bg-blue-500"   },
+  { value: "STAFF",      label: "Staff",      description: "Standard employee access",              icon: User,        color: "border-green-600 bg-green-950/30", dot: "bg-green-500"  },
+  { value: "INTERN",     label: "Intern",     description: "Same access as staff",                  icon: GraduationCap, color: "border-amber-600 bg-amber-950/30", dot: "bg-amber-500" },
+] as const;
+
 interface EmployeeEditSheetProps {
   employee: Employee & {
     salaryInfo: SalaryInfo | null;
@@ -30,16 +37,27 @@ interface EmployeeEditSheetProps {
     leaveBalances: (LeaveBalance & { leaveType: LeaveType })[];
   };
   departments: Department[];
+  userRoles?: string[];
 }
 
 export function EmployeeEditSheet({
   employee,
   departments,
+  userRoles = ["STAFF"],
 }: EmployeeEditSheetProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(userRoles);
+
+  const toggleRole = (value: string) => {
+    setSelectedRoles((prev) =>
+      prev.includes(value)
+        ? prev.length === 1 ? prev : prev.filter((r) => r !== value) // keep at least one
+        : [...prev, value]
+    );
+  };
   const router = useRouter();
   const { toast } = useToast();
 
@@ -95,7 +113,7 @@ export function EmployeeEditSheet({
       const res = await fetch(`/api/employees/${employee.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, roles: selectedRoles }),
       });
 
       if (!res.ok) {
@@ -105,7 +123,7 @@ export function EmployeeEditSheet({
 
       toast({
         title: "Employee updated",
-        description: "Employee information has been updated successfully.",
+        description: `Saved successfully. Roles: ${selectedRoles.map(r => r.charAt(0) + r.slice(1).toLowerCase()).join(", ")}.`,
       });
 
       setOpen(false);
@@ -198,7 +216,7 @@ export function EmployeeEditSheet({
   ];
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSelectedRoles(userRoles); }}>
       <SheetTrigger asChild>
         <Button>
           <Edit className="h-4 w-4 mr-2" />
@@ -226,19 +244,19 @@ export function EmployeeEditSheet({
                 <TabsTrigger value="status" className="text-xs sm:text-sm px-1 sm:px-3">Status</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="personal" className="mt-6">
+              <TabsContent forceMount value="personal" className={cn("mt-6", activeTab !== "personal" && "hidden")}>
                 <PersonalInfoForm form={form} />
               </TabsContent>
 
-              <TabsContent value="employment" className="mt-6">
+              <TabsContent forceMount value="employment" className={cn("mt-6", activeTab !== "employment" && "hidden")}>
                 <EmploymentInfoForm form={form} departments={departments} />
               </TabsContent>
 
-              <TabsContent value="salary" className="mt-6">
+              <TabsContent forceMount value="salary" className={cn("mt-6", activeTab !== "salary" && "hidden")}>
                 <SalaryInfoForm form={form} />
               </TabsContent>
 
-              <TabsContent value="status" className="mt-6">
+              <TabsContent forceMount value="status" className={cn("mt-6", activeTab !== "status" && "hidden")}>
                 <div className="space-y-4">
                   <p className="text-sm text-gray-400">
                     Set the current employment status for {employee.name}.
@@ -271,6 +289,53 @@ export function EmployeeEditSheet({
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Role Assignment */}
+                  <div className="border-t border-gray-800 pt-4 mt-6 space-y-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-300">System Roles</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Select all roles that apply. At least one is required.</p>
+                    </div>
+                    <div className="space-y-2">
+                      {ROLE_OPTIONS.map(({ value, label, description, icon: Icon, color, dot }) => {
+                        const isSelected = selectedRoles.includes(value);
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => toggleRole(value)}
+                            className={cn(
+                              "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors",
+                              isSelected ? color : "border-gray-800 bg-gray-900/50 hover:bg-gray-900"
+                            )}
+                          >
+                            {/* Checkbox indicator */}
+                            <div className={cn(
+                              "w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center",
+                              isSelected ? "border-white bg-white" : "border-gray-600"
+                            )}>
+                              {isSelected && (
+                                <svg className="w-2.5 h-2.5 text-gray-900" fill="currentColor" viewBox="0 0 12 12">
+                                  <path d="M10 3L5 8.5 2 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                                </svg>
+                              )}
+                            </div>
+                            <div className={cn("w-2 h-2 rounded-full shrink-0", dot)} />
+                            <Icon className="h-4 w-4 text-gray-400 shrink-0" />
+                            <div className="flex-1">
+                              <p className={cn("text-sm font-medium", isSelected ? "text-white" : "text-gray-300")}>{label}</p>
+                              <p className="text-xs text-gray-500">{description}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedRoles.length > 0 && (
+                      <p className="text-xs text-gray-500">
+                        Selected: {selectedRoles.map(r => r.charAt(0) + r.slice(1).toLowerCase()).join(", ")}
+                      </p>
+                    )}
                   </div>
 
                   {/* Reset Password */}

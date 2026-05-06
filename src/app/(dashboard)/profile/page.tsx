@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getInitials } from "@/lib/utils";
 import { format } from "date-fns";
-import { Building2, Mail, Phone, Calendar, Briefcase, User } from "lucide-react";
+import { Building2, Briefcase } from "lucide-react";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { PasswordChangeCard } from "@/components/profile/password-change-card";
+import { PersonalInfoEditCard } from "@/components/profile/personal-info-edit-card";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,7 @@ export default async function ProfilePage() {
                   {emp.status}
                 </Badge>
                 <Badge variant="outline" className="border-gray-700 text-gray-300">
-                  {user.role}
+                  {session?.user?.role ?? user.roles[0]}
                 </Badge>
                 <Badge variant="outline" className="border-gray-700 text-gray-300">
                   {emp.employeeId}
@@ -89,48 +90,18 @@ export default async function ProfilePage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Personal Information */}
-        <Card className="bg-gray-950 border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <User className="h-5 w-5" />
-              Personal Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Mail className="h-4 w-4 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-400">Email</p>
-                <p className="text-white">{emp.email}</p>
-              </div>
-            </div>
-            {emp.phone && (
-              <div className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-400">Phone</p>
-                  <p className="text-white">{emp.phone}</p>
-                </div>
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <Calendar className="h-4 w-4 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-400">Date of Birth</p>
-                <p className="text-white">{emp.dateOfBirth ? format(emp.dateOfBirth, "d MMM yyyy") : "—"}</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Gender</p>
-              <p className="text-white">{emp.gender}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Nationality</p>
-              <p className="text-white">{emp.nationality}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Personal Information — editable */}
+        <PersonalInfoEditCard
+          name={emp.name}
+          email={emp.email}
+          phone={emp.phone ?? null}
+          dateOfBirth={emp.dateOfBirth ? emp.dateOfBirth.toISOString().split("T")[0] : null}
+          gender={emp.gender ?? null}
+          nationality={emp.nationality ?? null}
+          nric={emp.nric ?? null}
+          address={emp.address ?? null}
+          educationLevel={emp.educationLevel ?? null}
+        />
 
         {/* Employment Information */}
         <Card className="bg-gray-950 border-gray-800">

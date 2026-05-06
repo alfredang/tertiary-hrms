@@ -123,7 +123,7 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail }: HeaderP
           >
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
-          {isAdmin && <ViewToggle />}
+          {isAdmin && <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} />}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">

@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone', // Enable for Docker deployment
+  experimental: {
+    staleTimes: { dynamic: 0, static: 0 }, // always fetch fresh — no stale client-side cache
+  },
   images: {
     remotePatterns: [
       {

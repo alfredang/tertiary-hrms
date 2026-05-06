@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
-const VALID_ROLES = ["ADMIN", "HR", "MANAGER", "STAFF"] as const;
+const VALID_ROLES = ["ADMIN", "HR", "MANAGER", "STAFF", "INTERN", "ACCOUNTANT"] as const;
 
 export async function middleware(req: NextRequest) {
   // Development mode: Skip authentication checks if SKIP_AUTH is enabled

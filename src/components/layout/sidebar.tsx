@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -17,41 +18,41 @@ import {
 } from "lucide-react";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "My Profile", href: "/profile", icon: User },
-  { name: "Employees", href: "/employees", icon: Users, adminOnly: true as const },
-  { name: "Leave", href: "/leave", icon: Clock },
-  { name: "Expenses", href: "/expenses", icon: Receipt },
-  { name: "Payroll", href: "/payroll", icon: DollarSign },
-  { name: "Calendar", href: "/calendar", icon: Calendar },
-  { name: "Settings", href: "/settings", icon: Settings, adminOnly: true as const },
+  { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
+  { name: "My Profile", href: "/profile",     icon: User },
+  { name: "Employees",  href: "/employees",   icon: Users,      adminOnly: true  as const },
+  { name: "Leave",      href: "/leave",       icon: Clock },
+  { name: "Expenses",   href: "/expenses",    icon: Receipt,    financeOnly: true as const },
+  { name: "Payroll",    href: "/payroll",     icon: DollarSign, financeOnly: true as const },
+  { name: "Calendar",   href: "/calendar",    icon: Calendar },
+  { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly: true  as const },
 ];
 
 export function Sidebar({ role }: { role?: string }) {
   const pathname = usePathname();
-  const [viewAs, setViewAs] = useState<string>(() => {
-    if (typeof document !== "undefined") {
-      const cookie = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("viewAs="));
-      if (cookie) return cookie.split("=")[1];
-    }
-    return "admin";
-  });
+  const { data: session } = useSession();
+  const actualRoles: string[] = (session?.user as any)?.roles ?? (role ? [role] : ["STAFF"]);
+
+  // Always start with "admin" so the server and client render identically on first paint.
+  // The effect below syncs the real cookie value after hydration.
+  const [viewAs, setViewAs] = useState<string>("admin");
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const cookie = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("viewAs="));
-      const val = cookie ? cookie.split("=")[1] : "admin";
-      setViewAs(val);
-    }, 500);
+    const readCookie = () => {
+      const cookie = document.cookie.split("; ").find((c) => c.startsWith("viewAs="));
+      setViewAs(cookie ? cookie.split("=")[1] : "admin");
+    };
+    readCookie();
+    const interval = setInterval(readCookie, 500);
     return () => clearInterval(interval);
   }, []);
 
-  // Inline (not hasAdminAccess) because this also requires the viewAs cookie check
-  const isAdmin = (role === "ADMIN" || role === "HR" || role === "MANAGER") && viewAs === "admin";
+  const isActualAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  const isAdmin = isActualAdmin && viewAs === "admin";
+  // Finance: admins respect viewAs; others check their actual roles
+  const canSeeFinance = isActualAdmin
+    ? viewAs === "admin" || viewAs === "accountant"
+    : actualRoles.includes("ACCOUNTANT");
 
   return (
     <div className="flex grow flex-col gap-y-5 px-6 pt-4">
@@ -70,8 +71,8 @@ export function Sidebar({ role }: { role?: string }) {
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-1">
           {navigation.map((item) => {
-            // Hide admin-only items from non-admin users
             if ("adminOnly" in item && item.adminOnly && !isAdmin) return null;
+            if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <li key={item.name}>
@@ -91,9 +92,7 @@ export function Sidebar({ role }: { role?: string }) {
                     )}
                   />
                   {item.name}
-                  {isActive && (
-                    <ChevronRight className="ml-auto h-4 w-4" />
-                  )}
+                  {isActive && <ChevronRight className="ml-auto h-4 w-4" />}
                 </Link>
               </li>
             );

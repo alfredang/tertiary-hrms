@@ -39,7 +39,7 @@ export const employmentInfoSchema = z.object({
 });
 
 export const salaryInfoSchema = z.object({
-  basicSalary: z.number().positive("Salary must be positive"),
+  basicSalary: z.number().min(0, "Salary cannot be negative"),
   allowances: z.number().min(0, "Allowances cannot be negative"),
   bankName: z.string().optional(),
   bankAccountNumber: z.string().optional(),
@@ -55,14 +55,30 @@ export const salaryInfoSchema = z.object({
     .max(100, "CPF rate must be between 0 and 100"),
 });
 
+// Converts empty strings and sentinel zeros → undefined before validating partial
+// sections, so forceMount'd form fields with blank/default values don't block submission.
+function lenientSection<T extends z.ZodTypeAny>(schema: T, stripZeroKeys: string[] = []) {
+  return z.preprocess((raw) => {
+    if (!raw || typeof raw !== "object") return raw;
+    return Object.fromEntries(
+      Object.entries(raw as Record<string, unknown>).map(([k, v]) => {
+        if (v === "") return [k, undefined];
+        if (stripZeroKeys.includes(k) && v === 0) return [k, undefined];
+        return [k, v];
+      })
+    );
+  }, schema);
+}
+
 export const updateEmployeeSchema = z
   .object({
-    personalInfo: personalInfoSchema.partial().optional(),
-    employmentInfo: employmentInfoSchema.partial().optional(),
-    salaryInfo: salaryInfoSchema.partial().optional(),
+    personalInfo:   lenientSection(personalInfoSchema.partial()).optional(),
+    employmentInfo: lenientSection(employmentInfoSchema.partial()).optional(),
+    salaryInfo:     lenientSection(salaryInfoSchema.partial(), ["basicSalary", "allowances", "cpfEmployeeRate", "cpfEmployerRate"]).optional(),
+    roles: z.enum(["STAFF", "INTERN", "ACCOUNTANT", "MANAGER", "HR", "ADMIN"]).array().min(1, "At least one role is required").optional(),
   })
   .refine(
-    (data) => data.personalInfo || data.employmentInfo || data.salaryInfo,
+    (data) => data.personalInfo || data.employmentInfo || data.salaryInfo || data.roles,
     { message: "At least one section must be provided" }
   );
 
