@@ -77,8 +77,7 @@ export async function POST(req: Request) {
           id: randomUUID(),
           email,
           password: "",
-          role: "STAFF",
-          updatedAt: new Date(),
+          roles: ["STAFF"],
         },
         include: { employee: true },
       });
@@ -113,6 +112,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const ROLE_PRIORITY = ["ADMIN", "HR", "MANAGER", "ACCOUNTANT", "STAFF", "INTERN"] as const;
+    const primaryRole = ROLE_PRIORITY.find((r) => user!.roles.includes(r as never)) ?? "STAFF";
+
     // Set the session cookie
     const isSecure = process.env.AUTH_URL?.startsWith("https://") ?? false;
     const cookieName = isSecure
@@ -123,7 +125,8 @@ export async function POST(req: Request) {
       token: {
         sub: user.id,
         email: user.email,
-        role: user.role,
+        role: primaryRole,
+        roles: user.roles,
         employeeId: user.employee?.id,
         needsSetup: !user.employee?.id,
         name: user.employee?.name || user.email,
@@ -147,7 +150,8 @@ export async function POST(req: Request) {
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
+        role: primaryRole,
+        roles: user.roles,
         employeeId: user.employee?.id,
         needsSetup: !user.employee?.id,
       },
