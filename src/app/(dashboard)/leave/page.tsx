@@ -120,10 +120,10 @@ export default async function LeavePage() {
   const viewAs = isAdmin ? viewMode : "staff";
 
   // Admin view: show all leaves; Staff view: show only own leaves
-  const filterByEmployeeId = viewAs === "staff" ? currentEmployeeId : undefined;
+  const filterByEmployeeId = viewAs !== "admin" ? currentEmployeeId : undefined;
 
   // Safety: prevent data leak if staff view but no employeeId
-  if (viewAs === "staff" && !currentEmployeeId) {
+  if (viewAs !== "admin" && !currentEmployeeId) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Leave Management</h1>
@@ -149,7 +149,7 @@ export default async function LeavePage() {
             {viewAs === "admin" ? "Manage all employee leave requests" : "Manage time off requests"}
           </p>
         </div>
-        {viewAs === "staff" && (
+        {viewAs !== "admin" && (
           <Link href="/leave/request" className="w-full sm:w-auto">
             <Button className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
@@ -160,7 +160,7 @@ export default async function LeavePage() {
       </div>
 
       {/* Expiring carry-over leave warning — show in Q4 (Oct-Dec) */}
-      {viewAs === "staff" && leaveBalance.carriedOver > 0 && new Date().getMonth() >= 9 && (
+      {viewAs !== "admin" && leaveBalance.carriedOver > 0 && new Date().getMonth() >= 9 && (
         <div className="bg-amber-900/20 border border-amber-700/50 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-amber-200">
@@ -170,7 +170,7 @@ export default async function LeavePage() {
       )}
 
       {/* Leave Balance Summary - only show for staff view */}
-      {viewAs === "staff" && (
+      {viewAs !== "admin" && (
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-5 sm:order-3 xl:order-4">
             <p className="text-xs text-gray-400 mb-1">Pro-rated Allocation</p>
@@ -202,7 +202,7 @@ export default async function LeavePage() {
       )}
 
       {/* OT Leave Balance — only show for staff view when there's OT data */}
-      {viewAs === "staff" && otBalance !== null && otBalance.earned > 0 && (
+      {viewAs !== "admin" && otBalance !== null && otBalance.earned > 0 && (
         <div className="bg-gray-950 border border-emerald-800/40 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <div className="h-2 w-2 rounded-full bg-emerald-400" />

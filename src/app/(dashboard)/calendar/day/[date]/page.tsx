@@ -119,7 +119,7 @@ export default async function CalendarDayPage({
   const viewAs = isAdmin ? viewMode : "staff";
 
   // Staff without employee record
-  if (viewAs === "staff" && !currentEmployeeId) {
+  if (viewAs !== "admin" && !currentEmployeeId) {
     return (
       <div className="space-y-6">
         <Link href="/calendar">
@@ -141,7 +141,7 @@ export default async function CalendarDayPage({
   }
 
   // Determine who can see leave: admin sees all, staff sees own
-  const staffFilter = viewAs === "staff" ? currentEmployeeId : undefined;
+  const staffFilter = viewAs !== "admin" ? currentEmployeeId : undefined;
 
   // Fetch data in parallel
   const [leaveRequests, rawEvents] = await Promise.all([
@@ -222,7 +222,7 @@ export default async function CalendarDayPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Users className="h-5 w-5 text-amber-500" />
-            {viewAs === "staff" ? "My Leaves" : "People on Leave"}
+            {viewAs !== "admin" ? "My Leaves" : "People on Leave"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -264,7 +264,7 @@ export default async function CalendarDayPage({
             </div>
           ) : (
             <p className="text-gray-500 text-sm py-4 text-center">
-              {viewAs === "staff" ? "You have no leave on this day" : "No one is on leave"}
+              {viewAs !== "admin" ? "You have no leave on this day" : "No one is on leave"}
             </p>
           )}
         </CardContent>

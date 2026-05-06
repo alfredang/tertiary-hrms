@@ -93,10 +93,10 @@ export default async function PayrollPage() {
   const viewAs = isAdmin ? viewMode : "staff";
 
   // Admin view: show all payslips; Staff view: show only own
-  const filterByEmployeeId = viewAs === "staff" ? currentEmployeeId : undefined;
+  const filterByEmployeeId = viewAs !== "admin" ? currentEmployeeId : undefined;
 
   // Safety: prevent data leak if staff view but no employeeId
-  if (viewAs === "staff" && !currentEmployeeId) {
+  if (viewAs !== "admin" && !currentEmployeeId) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Payroll</h1>

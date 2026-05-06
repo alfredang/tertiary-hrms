@@ -8,9 +8,9 @@ import { hasAdminAccess } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 
-async function getEmployees(viewAs: "admin" | "staff", currentEmployeeId?: string) {
-  // If viewing as staff, only show own record
-  if (viewAs === "staff" && currentEmployeeId) {
+async function getEmployees(viewAs: string, currentEmployeeId?: string) {
+  // If viewing as staff/intern/accountant, only show own record
+  if (viewAs !== "admin" && currentEmployeeId) {
     const employee = await prisma.employee.findUnique({
       where: { id: currentEmployeeId },
       include: {
@@ -21,7 +21,7 @@ async function getEmployees(viewAs: "admin" | "staff", currentEmployeeId?: strin
     return employee ? [employee] : [];
   }
 
-  if (viewAs === "staff" && !currentEmployeeId) {
+  if (viewAs !== "admin" && !currentEmployeeId) {
     return [];
   }
 
