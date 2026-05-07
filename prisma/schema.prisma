@@ -87,6 +87,7 @@ model Employee {
   endDate                                        DateTime?
   status                                         EmployeeStatus @default(ACTIVE)
   managerId                                      String?
+  monthlyLeaveRate                               Decimal?       @db.Decimal(5, 2)
   avatarUrl                                      String?
   createdAt                                      DateTime       @default(now())
   updatedAt                                      DateTime       @updatedAt

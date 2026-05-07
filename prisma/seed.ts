@@ -81,17 +81,36 @@ async function main() {
   const leaveTypes = [annualLeave, sickLeave, medicalLeave, compassionateLeave, noPayLeave, accumulatedLeave];
   console.log("Created leave types:", leaveTypes.length);
 
-  // Seed Singapore Public Holidays
+  // Seed Singapore Public Holidays — into both PublicHoliday and CalendarEvent tables
   console.log("Seeding Singapore public holidays...");
   const currentYear = new Date().getFullYear();
   for (const year of [currentYear, currentYear + 1]) {
     const holidays = SG_PUBLIC_HOLIDAYS[year] ?? [];
     for (const h of holidays) {
+      const holidayDate = new Date(h.date);
       await prisma.publicHoliday.upsert({
-        where: { date_countryCode: { date: new Date(h.date), countryCode: "SG" } },
+        where: { date_countryCode: { date: holidayDate, countryCode: "SG" } },
         update: { name: h.name },
-        create: { date: new Date(h.date), name: h.name, countryCode: "SG", year },
+        create: { date: holidayDate, name: h.name, countryCode: "SG", year },
       });
+      // Create CalendarEvent if none exists for this date+name
+      const exists = await prisma.calendarEvent.findFirst({
+        where: { type: "HOLIDAY", startDate: holidayDate, title: h.name },
+      });
+      if (!exists) {
+        await prisma.calendarEvent.create({
+          data: {
+            title: h.name,
+            description: "Singapore Public Holiday",
+            startDate: holidayDate,
+            endDate: holidayDate,
+            allDay: true,
+            type: "HOLIDAY",
+            color: "#ef4444",
+            createdById: null,
+          },
+        });
+      }
     }
   }
   console.log("Seeded SG public holidays");

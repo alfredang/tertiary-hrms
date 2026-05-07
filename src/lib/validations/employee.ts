@@ -36,6 +36,7 @@ export const employmentInfoSchema = z.object({
       { message: "Invalid end date" }
     ),
   status: z.nativeEnum(EmployeeStatus),
+  monthlyLeaveRate: z.number().min(0).max(30).optional().nullable(),
 });
 
 export const salaryInfoSchema = z.object({
@@ -118,6 +119,7 @@ export const createEmploymentInfoSchema = z.object({
       message: "Invalid end date",
     }),
   status: z.nativeEnum(EmployeeStatus).optional(),
+  monthlyLeaveRate: z.number().min(0).max(30).optional().nullable(),
 });
 
 export const createSalaryInfoSchema = z.object({

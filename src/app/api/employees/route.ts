@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
             ? new Date(employmentInfo.endDate)
             : null,
           status: employmentInfo?.status || undefined,
+          monthlyLeaveRate: employmentInfo?.monthlyLeaveRate ?? null,
         },
         include: { department: true },
       });

@@ -141,6 +141,33 @@ export function EmploymentInfoForm({
         </div>
       </div>
 
+      {/* Monthly Leave Rate */}
+      <div className="space-y-2">
+        <Label htmlFor="monthlyLeaveRate" className="text-gray-300">
+          Leave Days Per Working Month
+        </Label>
+        <Input
+          id="monthlyLeaveRate"
+          type="number"
+          step="0.01"
+          min="0"
+          max="30"
+          placeholder="Leave blank to use standard 14 days/year"
+          value={form.watch("employmentInfo.monthlyLeaveRate") ?? ""}
+          onChange={(e) => {
+            const val = e.target.value;
+            form.setValue(
+              "employmentInfo.monthlyLeaveRate",
+              val === "" ? null : parseFloat(val),
+            );
+          }}
+          className="bg-gray-900 border-gray-800 text-white"
+        />
+        <p className="text-xs text-gray-500">
+          Applied while total service &lt; 12 months. After 12 months the standard 14 days/year rate is used automatically. Leave blank to always use the standard rate.
+        </p>
+      </div>
+
     </div>
   );
 }

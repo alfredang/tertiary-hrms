@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { prorateLeave, hasAdminAccess } from "@/lib/utils";
 import { LeaveList } from "@/components/leave/leave-list";
+import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -49,10 +50,10 @@ async function getLeaveBalance(employeeId: string) {
     },
   });
 
-  // Get employee start date for proration
+  // Get employee start date and monthly leave rate for proration
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
-    select: { startDate: true },
+    select: { startDate: true, monthlyLeaveRate: true },
   });
 
   const rejectedCount = await prisma.leaveRequest.count({
@@ -67,9 +68,11 @@ async function getLeaveBalance(employeeId: string) {
   const allocation = balance ? Number(balance.entitlement) : annualLeaveType.defaultDays;
   const carriedOver = balance ? Number(balance.carriedOver) : 0;
   const taken = balance ? Number(balance.used) : 0;
-  const proRated = prorateLeave(allocation, employee?.startDate ?? undefined);
+  const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
+  const proRated = prorateLeave(allocation, employee?.startDate ?? undefined, monthlyLeaveRate);
+  const employeeStartDate = employee?.startDate?.toISOString() ?? null;
 
-  return { carriedOver, allocation, taken, rejected: rejectedCount, proRated };
+  return { carriedOver, allocation, taken, rejected: rejectedCount, proRated, employeeStartDate, monthlyLeaveRate };
 }
 
 async function getLeaveRequests(employeeId?: string) {
@@ -135,7 +138,7 @@ export default async function LeavePage() {
   const [leaveBalance, otBalance, requests] = await Promise.all([
     currentEmployeeId
       ? getLeaveBalance(currentEmployeeId)
-      : Promise.resolve({ carriedOver: 0, allocation: 14, taken: 0, rejected: 0, proRated: 14 }),
+      : Promise.resolve({ carriedOver: 0, allocation: 14, taken: 0, rejected: 0, proRated: 14, employeeStartDate: null, monthlyLeaveRate: null }),
     currentEmployeeId ? getOtLeaveBalance(currentEmployeeId) : Promise.resolve(null),
     getLeaveRequests(filterByEmployeeId),
   ]);
@@ -171,34 +174,11 @@ export default async function LeavePage() {
 
       {/* Leave Balance Summary - only show for staff view */}
       {viewAs !== "admin" && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-5 sm:order-3 xl:order-4">
-            <p className="text-xs text-gray-400 mb-1">Pro-rated Allocation</p>
-            <p className="text-xl sm:text-2xl font-bold text-cyan-400">{leaveBalance.proRated}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-2 sm:order-4 xl:order-5">
-            <p className="text-xs text-gray-400 mb-1">Yearly Entitlement</p>
-            <p className="text-xl sm:text-2xl font-bold text-blue-400">{leaveBalance.allocation}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-3 sm:order-2 xl:order-2">
-            <p className="text-xs text-gray-400 mb-1">Leave(s) Taken</p>
-            <p className="text-xl sm:text-2xl font-bold text-amber-400">{leaveBalance.taken}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-4 sm:order-5 xl:order-3">
-            <p className="text-xs text-gray-400 mb-1">Leave(s) Rejected</p>
-            <p className="text-xl sm:text-2xl font-bold text-red-400">{leaveBalance.rejected}</p>
-          </div>
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4 order-1 sm:order-1 xl:order-1">
-            <p className="text-xs text-gray-400 mb-1">Remaining Balance</p>
-            <p className="text-xl sm:text-2xl font-bold text-green-400">{leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken}</p>
-          </div>
-          {/* HIDDEN: Carry-over card — re-enable when year-end rollover is active
-          <div className="bg-gray-950 border border-gray-800 rounded-xl p-3 sm:p-4">
-            <p className="text-xs text-gray-400 mb-1">Carry-over</p>
-            <p className="text-xl sm:text-2xl font-bold text-purple-400">{leaveBalance.carriedOver}</p>
-          </div>
-          */}
-        </div>
+        <LeaveBalanceCards
+          leaveBalance={leaveBalance}
+          employeeStartDate={leaveBalance.employeeStartDate ?? null}
+          monthlyLeaveRate={leaveBalance.monthlyLeaveRate ?? null}
+        />
       )}
 
       {/* OT Leave Balance — only show for staff view when there's OT data */}

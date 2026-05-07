@@ -83,6 +83,7 @@ export function EmployeeEditSheet({
         startDate: employee.startDate?.toISOString().split("T")[0] ?? "",
         endDate: employee.endDate?.toISOString().split("T")[0] || "",
         status: employee.status,
+        monthlyLeaveRate: employee.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null,
       },
       salaryInfo: employee.salaryInfo
         ? {

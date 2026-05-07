@@ -12,12 +12,18 @@ import { hasAdminAccess } from "@/lib/utils";
 export const dynamic = 'force-dynamic';
 
 async function getCalendarEvents(userId: string, employeeId?: string, showAllLeaves = false) {
-  // 1. Personal events — only events created by this user (fully private)
+  // 1. Personal events created by this user (meetings, training, company events)
   const ownEvents = await prisma.calendarEvent.findMany({
     where: {
       createdById: userId,
-      type: { in: ["HOLIDAY", "MEETING", "TRAINING", "COMPANY_EVENT"] },
+      type: { in: ["MEETING", "TRAINING", "COMPANY_EVENT"] },
     },
+    orderBy: { startDate: "asc" },
+  });
+
+  // 2. Global holiday events — visible to everyone regardless of who created them
+  const holidayEvents = await prisma.calendarEvent.findMany({
+    where: { type: "HOLIDAY" },
     orderBy: { startDate: "asc" },
   });
 
@@ -45,9 +51,9 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
     );
   }
 
-  // Deduplicate in case a leave event was also created by this user
+  // Deduplicate across all sources
   const eventMap = new Map<string, (typeof ownEvents)[0]>();
-  for (const event of [...ownEvents, ...leaveEvents]) {
+  for (const event of [...holidayEvents, ...ownEvents, ...leaveEvents]) {
     eventMap.set(event.id, event);
   }
 

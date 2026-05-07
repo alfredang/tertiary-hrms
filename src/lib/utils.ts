@@ -167,51 +167,53 @@ export function hasAdminAccess(role: string | null | undefined): boolean {
 
 /**
  * Calculate prorated leave allocation (monthly accrual).
- * Allocation = annualEntitlement * elapsedMonths / 12
+ * The join month is always counted (inclusive).
  *
- * For existing employees (started before this year):
- * - effectiveStart = Jan 1 → inclusive months (Jan=1, Feb=2, ...)
- *
- * For new hires (started this year):
- * - Uses completed months only (join month does NOT count)
- * - MOM formula: (completed months of service ÷ 12) × entitlement
- * - Note: MOM requires 3-month eligibility — we skip that (boss decision)
+ * If monthlyLeaveRate is provided AND total service < 12 months:
+ *   prorated = monthlyLeaveRate × elapsedMonthsThisYear
+ * Otherwise:
+ *   prorated = (annualEntitlement × elapsedMonthsThisYear) / 12
  *
  * Rounded down to nearest 0.5 day.
- *
- * Examples (entitlement = 14, current month = Feb):
- * - Existing employee → 14 * 2/12 = 2.33 → 2 (+ carry-over from last year)
- * - New hire joined Feb → 0 completed months → 0
- * - New hire joined Jan → 1 completed month → 14 * 1/12 = 1.17 → 1
  */
-export function prorateLeave(annualEntitlement: number, employeeStartDate?: Date | string): number {
+export function prorateLeave(
+  annualEntitlement: number,
+  employeeStartDate?: Date | string,
+  monthlyLeaveRate?: number | null,
+): number {
   const now = new Date();
   const currentYear = now.getFullYear();
   const yearStart = new Date(currentYear, 0, 1);
 
   let effectiveStart = yearStart;
+  let actualStartDate: Date | null = null;
+
   if (employeeStartDate) {
     const startDate = typeof employeeStartDate === "string" ? new Date(employeeStartDate) : employeeStartDate;
+    actualStartDate = startDate;
     if (startDate > yearStart) {
       effectiveStart = startDate;
     }
   }
 
-  // If employee hasn't started yet, no leave
   if (effectiveStart > now) return 0;
 
-  const currentMonth = now.getMonth(); // 0-indexed (Jan=0, Feb=1, ...)
-  const startMonth = effectiveStart.getMonth(); // 0-indexed
-
-  // Existing employees (started before this year): inclusive months from Jan
-  // New hires (started this year): completed months only (join month doesn't count)
-  const startedThisYear = effectiveStart > yearStart;
-  const elapsedMonths = startedThisYear
-    ? currentMonth - startMonth       // completed months (join month excluded)
-    : currentMonth - startMonth + 1;  // inclusive (Jan=1, Feb=2, etc.)
+  const currentMonth = now.getMonth();
+  const startMonth = effectiveStart.getMonth();
+  // Join month is inclusive for all employees
+  const elapsedMonths = currentMonth - startMonth + 1;
 
   if (elapsedMonths <= 0) return 0;
 
-  const prorated = (annualEntitlement * elapsedMonths) / 12;
-  return roundToHalf(prorated);
+  // If custom monthly rate set and total service < 12 months, use it
+  if (monthlyLeaveRate != null && actualStartDate) {
+    const totalMonthsService =
+      (now.getFullYear() - actualStartDate.getFullYear()) * 12 +
+      (now.getMonth() - actualStartDate.getMonth()) + 1;
+    if (totalMonthsService < 12) {
+      return roundToHalf(monthlyLeaveRate * elapsedMonths);
+    }
+  }
+
+  return roundToHalf((annualEntitlement * elapsedMonths) / 12);
 }

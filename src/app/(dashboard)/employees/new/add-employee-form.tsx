@@ -59,6 +59,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
         startDate: new Date().toISOString().split("T")[0],
         endDate: "",
         status: "ACTIVE",
+        monthlyLeaveRate: null,
       },
       salaryInfo: {
         basicSalary: 0,
@@ -140,6 +141,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
         "employmentInfo.startDate": new Date().toISOString().split("T")[0],
         "employmentInfo.endDate": "",
         "employmentInfo.status": "ACTIVE",
+        "employmentInfo.monthlyLeaveRate": null,
       },
       salary: {
         "salaryInfo.basicSalary": 0,
