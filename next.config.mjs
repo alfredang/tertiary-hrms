@@ -3,6 +3,7 @@ const nextConfig = {
   output: 'standalone', // Enable for Docker deployment
   experimental: {
     staleTimes: { dynamic: 0, static: 0 }, // always fetch fresh — no stale client-side cache
+    instrumentationHook: true,
   },
   images: {
     remotePatterns: [
