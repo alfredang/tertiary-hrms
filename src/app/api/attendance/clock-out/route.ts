@@ -13,16 +13,15 @@ export async function POST() {
   const now = new Date();
   const today = toLocalDateString(now);
 
-  const record = await prisma.attendance.findFirst({
-    where: {
-      employeeId,
-      date: { gte: new Date(today), lt: new Date(today + "T23:59:59") },
-      clockOut: null,
-    },
+  const record = await prisma.attendance.findUnique({
+    where: { employeeId_date: { employeeId, date: new Date(today) } },
   });
 
   if (!record) {
     return NextResponse.json({ error: "No active clock-in found for today" }, { status: 400 });
+  }
+  if (record.clockOut) {
+    return NextResponse.json({ error: "Already clocked out today" }, { status: 400 });
   }
 
   const totalMs = now.getTime() - record.clockIn.getTime();

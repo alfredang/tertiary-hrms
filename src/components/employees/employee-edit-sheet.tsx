@@ -109,6 +109,8 @@ export function EmployeeEditSheet({
     },
   });
 
+  const currentStatus = form.watch("employmentInfo.status");
+
   const onSubmit = async (data: any) => {
     setIsLoading(true);
     try {
@@ -129,7 +131,8 @@ export function EmployeeEditSheet({
       });
 
       setOpen(false);
-      router.refresh(); // Refresh server component data
+      // Refresh data without navigating away
+      setTimeout(() => router.refresh(), 100);
     } catch (error) {
       toast({
         title: "Error",
@@ -307,7 +310,7 @@ export function EmployeeEditSheet({
                   </p>
                   <div className="space-y-3">
                     {renderStatusOptions().map((opt) => {
-                      const isSelected = form.watch("employmentInfo.status") === opt.value;
+                      const isSelected = currentStatus === opt.value;
                       return (
                         <button
                           key={opt.value}

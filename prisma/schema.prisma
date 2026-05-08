@@ -175,6 +175,8 @@ model LeaveRequest {
   documentUrl      String?
   documentFileName String?
   status           LeaveStatus @default(PENDING)
+  otDaysUsed       Decimal     @default(0) @db.Decimal(5, 2)
+  deficitDays      Decimal     @default(0) @db.Decimal(5, 2)
   approverId       String?
   approvedAt       DateTime?
   rejectedAt       DateTime?

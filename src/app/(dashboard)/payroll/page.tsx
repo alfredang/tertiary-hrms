@@ -91,12 +91,12 @@ export default async function PayrollPage() {
 
   const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
+  // Accountant has full finance access — same data scope as admin
+  const isFinanceView = viewAs === "admin" || viewAs === "accountant";
 
-  // Admin view: show all payslips; Staff view: show only own
-  const filterByEmployeeId = viewAs !== "admin" ? currentEmployeeId : undefined;
+  const filterByEmployeeId = !isFinanceView ? currentEmployeeId : undefined;
 
-  // Safety: prevent data leak if staff view but no employeeId
-  if (viewAs !== "admin" && !currentEmployeeId) {
+  if (!isFinanceView && !currentEmployeeId) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Payroll</h1>
@@ -116,10 +116,10 @@ export default async function PayrollPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Payroll</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">
-            {viewAs === "admin" ? "Manage all employee payroll" : "Manage salary payments"}
+            {isFinanceView ? "Manage all employee payroll" : "Manage salary payments"}
           </p>
         </div>
-        {viewAs === "admin" && (
+        {isFinanceView && (
           <Link href="/payroll/generate" className="w-full sm:w-auto">
             <Button className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
@@ -129,8 +129,8 @@ export default async function PayrollPage() {
         )}
       </div>
 
-      {/* Stats Cards - admin view only */}
-      {viewAs === "admin" && (
+      {/* Stats Cards - finance view */}
+      {isFinanceView && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-gray-950 border border-green-800 rounded-2xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
@@ -161,7 +161,7 @@ export default async function PayrollPage() {
         </div>
       )}
 
-      <PayrollList payslips={payslips} isHR={viewAs === "admin"} />
+      <PayrollList payslips={payslips} isHR={isFinanceView} />
     </div>
   );
 }

@@ -80,12 +80,12 @@ export default async function ExpensesPage() {
 
   const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
+  // Accountant has full finance access — same data scope as admin
+  const isFinanceView = viewAs === "admin" || viewAs === "accountant";
 
-  // Admin view: show all expenses; Staff view: show only own
-  const filterByEmployeeId = viewAs !== "admin" ? currentEmployeeId : undefined;
+  const filterByEmployeeId = !isFinanceView ? currentEmployeeId : undefined;
 
-  // Safety: prevent data leak if staff view but no employeeId
-  if (viewAs !== "admin" && !currentEmployeeId) {
+  if (!isFinanceView && !currentEmployeeId) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Expense Claims</h1>
@@ -106,10 +106,10 @@ export default async function ExpensesPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Expense Claims</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">
-            {viewAs === "admin" ? "Manage all employee expenses" : "Submit and manage expenses"}
+            {isFinanceView ? "Manage all employee expenses" : "Submit and manage expenses"}
           </p>
         </div>
-        {viewAs !== "admin" && (
+        {!isFinanceView && (
           <Link href="/expenses/submit" className="w-full sm:w-auto">
             <Button className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
@@ -120,7 +120,7 @@ export default async function ExpensesPage() {
       </div>
 
       {/* Stats Header - only for staff view */}
-      {viewAs !== "admin" && (
+      {!isFinanceView && (
         <div className="bg-gray-950 border border-gray-800 text-white rounded-2xl p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -139,7 +139,7 @@ export default async function ExpensesPage() {
         </div>
       )}
 
-      <ExpenseList claims={claims} categories={categories} isManager={viewAs === "admin"} />
+      <ExpenseList claims={claims} categories={categories} isManager={isFinanceView} />
     </div>
   );
 }

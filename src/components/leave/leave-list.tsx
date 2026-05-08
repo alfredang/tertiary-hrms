@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,8 @@ interface LeaveRequest {
   documentFileName: string | null;
   status: LeaveStatus;
   createdAt: Date;
+  otDaysUsed?: any;
+  deficitDays?: any;
   employee: {
     id: string;
     name: string;
@@ -349,21 +351,38 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const renderDaysDisplay = (request: LeaveRequest) => {
     const numDays = Number(request.days);
     const dayLabel = numDays === 1 ? "day" : "days";
+    const deficit = Number(request.deficitDays ?? 0);
+    const otUsed = Number(request.otDaysUsed ?? 0);
 
+    let base: ReactNode;
     if (request.dayType === "AM_HALF") {
-      return <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(AM)</span></>;
-    }
-    if (request.dayType === "PM_HALF") {
-      return <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(PM)</span></>;
-    }
-    if (request.halfDayPosition && numDays % 1 !== 0) {
+      base = <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(AM)</span></>;
+    } else if (request.dayType === "PM_HALF") {
+      base = <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(PM)</span></>;
+    } else if (request.halfDayPosition && numDays % 1 !== 0) {
       const halfDate = request.halfDayPosition === "first"
         ? formatDate(request.startDate)
         : formatDate(request.endDate);
-      return <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(half on {halfDate})</span></>;
+      base = <>{numDays} {dayLabel} <span className="text-xs text-gray-500">(half on {halfDate})</span></>;
+    } else {
+      base = <>{numDays} {dayLabel}</>;
     }
 
-    return <>{numDays} {dayLabel}</>;
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {base}
+        {otUsed > 0 && (
+          <span className="text-xs bg-emerald-950/40 text-emerald-400 border border-emerald-800/50 rounded px-1.5 py-0.5">
+            +{otUsed}d OT
+          </span>
+        )}
+        {deficit > 0 && (
+          <span className="text-xs bg-red-950/40 text-red-400 border border-red-800/50 rounded px-1.5 py-0.5">
+            {deficit}d deficit
+          </span>
+        )}
+      </div>
+    );
   };
 
   const renderDocButton = (request: LeaveRequest) => {

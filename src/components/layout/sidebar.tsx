@@ -21,13 +21,13 @@ import {
 const navigation = [
   { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
   { name: "My Profile", href: "/profile",     icon: User },
-  { name: "Employees",  href: "/employees",   icon: Users,      adminOnly: true  as const },
+  { name: "Employees",  href: "/employees",   icon: Users,      adminOnly:      true as const },
   { name: "Leave",      href: "/leave",       icon: Clock },
   { name: "Attendance", href: "/attendance",  icon: Timer },
-  { name: "Expenses",   href: "/expenses",    icon: Receipt,    financeOnly: true as const },
-  { name: "Payroll",    href: "/payroll",     icon: DollarSign, financeOnly: true as const },
-  { name: "Calendar",   href: "/calendar",    icon: Calendar },
-  { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly: true  as const },
+  { name: "Expenses",   href: "/expenses",    icon: Receipt,    financeOnly:    true as const },
+  { name: "Payroll",    href: "/payroll",     icon: DollarSign, financeOnly:    true as const },
+  { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const },
+  { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly:      true as const },
 ];
 
 export function Sidebar({ role }: { role?: string }) {
@@ -51,10 +51,14 @@ export function Sidebar({ role }: { role?: string }) {
 
   const isActualAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
   const isAdmin = isActualAdmin && viewAs === "admin";
-  // Finance: admins respect viewAs; others check their actual roles
+  // Finance: admins respect viewAs; pure accountant role always sees finance
   const canSeeFinance = isActualAdmin
     ? viewAs === "admin" || viewAs === "accountant"
-    : actualRoles.includes("ACCOUNTANT");
+    : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT");
+  // Accountant view hides calendar (they use staff view for personal calendar)
+  const isAccountantView = isActualAdmin
+    ? viewAs === "accountant"
+    : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT") && !isActualAdmin;
 
   return (
     <div className="flex grow flex-col gap-y-5 px-6 pt-4">
@@ -75,6 +79,7 @@ export function Sidebar({ role }: { role?: string }) {
           {navigation.map((item) => {
             if ("adminOnly" in item && item.adminOnly && !isAdmin) return null;
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
+            if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <li key={item.name}>

@@ -13,7 +13,6 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to reject
     if (!["MANAGER", "HR", "ADMIN"].includes(session.user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -32,13 +31,12 @@ export async function POST(
     }
 
     if (leaveRequest.status !== "PENDING") {
-      return NextResponse.json(
-        { error: "Leave request is not pending" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Leave request is not pending" }, { status: 400 });
     }
 
-    // Update leave request
+    const currentYear = new Date().getFullYear();
+    const otDaysUsed = Number(leaveRequest.otDaysUsed);
+
     const updatedRequest = await prisma.leaveRequest.update({
       where: { id },
       data: {
@@ -49,8 +47,7 @@ export async function POST(
       },
     });
 
-    // Update leave balance - remove from pending
-    const currentYear = new Date().getFullYear();
+    // Refund AL pending
     await prisma.leaveBalance.update({
       where: {
         employeeId_leaveTypeId_year: {
@@ -59,19 +56,32 @@ export async function POST(
           year: currentYear,
         },
       },
-      data: {
-        pending: { decrement: Number(leaveRequest.days) },
-      },
+      data: { pending: { decrement: Number(leaveRequest.days) } },
     });
 
-    // Notify the employee
+    // Refund OT pending if any was reserved
+    if (otDaysUsed > 0) {
+      const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+      if (alOtType) {
+        await prisma.leaveBalance.updateMany({
+          where: {
+            employeeId: leaveRequest.employeeId,
+            leaveTypeId: alOtType.id,
+            year: currentYear,
+          },
+          data: { pending: { decrement: otDaysUsed } },
+        });
+      }
+    }
+
+    // Notify employee
     try {
       if (leaveRequest.employee?.user) {
         await prisma.notification.create({
           data: {
             userId: leaveRequest.employee.user.id,
             title: "Leave Request Rejected",
-            message: `Your ${(leaveRequest as any).leaveType?.name ?? "leave"} request was rejected.${reason ? ` Reason: ${reason}` : ""}`,
+            message: `Your ${leaveRequest.leaveType?.name ?? "leave"} request was rejected.${reason ? ` Reason: ${reason}` : ""}`,
             type: "LEAVE_REJECTED",
             link: "/leave",
           },
@@ -84,9 +94,6 @@ export async function POST(
     return NextResponse.json(updatedRequest);
   } catch (error) {
     console.error("Error rejecting leave:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

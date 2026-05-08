@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Send, Upload, X, Info } from "lucide-react";
+import { Calendar, Send, Upload, X, Info, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { calculateWorkingDays } from "@/lib/utils";
 
@@ -28,9 +28,24 @@ interface LeaveType {
 interface LeaveRequestFormProps {
   leaveTypes: LeaveType[];
   otBalance?: number;
+  alEarned?: number;         // AL accrued to today
+  alFullAvailable?: number;  // full-year entitlement minus used/pending
+  alPersonalEntitlement?: number; // total days entitled this year (for display)
+  // legacy prop — kept for backwards compat when form is reused elsewhere
+  alAvailable?: number;
 }
 
-export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestFormProps) {
+export function LeaveRequestForm({
+  leaveTypes,
+  otBalance = 0,
+  alEarned = 0,
+  alFullAvailable = 0,
+  alPersonalEntitlement = 12,
+  alAvailable,
+}: LeaveRequestFormProps) {
+  // alEarned falls back to legacy alAvailable prop
+  const earnedToday = alEarned ?? alAvailable ?? 0;
+
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +59,8 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [publicHolidays, setPublicHolidays] = useState<string[]>([]);
   const [breakdown, setBreakdown] = useState<{ calendarDays: number; weekendDays: number; holidayDays: number } | null>(null);
+  const [useOt, setUseOt] = useState(false);
+  const [otDaysToUse, setOtDaysToUse] = useState(0);
 
   const selectedLeaveType = leaveTypes.find((t) => t.id === leaveTypeId);
   const isMC = selectedLeaveType?.code === "MC" || selectedLeaveType?.code === "SL";
@@ -52,6 +69,18 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
 
   const isSingleDay = startDate && endDate && startDate === endDate;
   const isMultiDay = startDate && endDate && startDate < endDate;
+
+  const daysNum = parseFloat(days) || 0;
+
+  // True deficit: beyond full-year entitlement
+  const deficitBeforeOt = isAL ? Math.max(0, daysNum - alFullAvailable) : 0;
+  const effectiveOtUsed = useOt ? Math.min(otDaysToUse, otBalance, daysNum) : 0;
+  // Advance AL: within full entitlement but ahead of accrual (after OT offset)
+  const advanceDays = isAL ? Math.max(0, Math.min(daysNum, alFullAvailable) - earnedToday - effectiveOtUsed) : 0;
+  const deficitDays = isAL ? Math.max(0, deficitBeforeOt - effectiveOtUsed) : 0;
+  const fullyWithinEntitlement = isAL && daysNum <= alFullAvailable;
+  // Days not yet earned (advance + deficit) — OT can cover any of this
+  const nonEarnedDays = isAL ? Math.max(0, daysNum - earnedToday) : 0;
 
   // Fetch public holidays when start date year changes
   useEffect(() => {
@@ -63,7 +92,7 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
       .catch(() => {});
   }, [startDate.slice(0, 4)]);
 
-  // Auto-calculate working days when dates/type/half-day change
+  // Auto-calculate working days
   useEffect(() => {
     if (!startDate || !endDate) { setDays(""); setBreakdown(null); return; }
     if (startDate > endDate) { setDays(""); setBreakdown(null); return; }
@@ -83,7 +112,6 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
     }
   }, [startDate, endDate, dayType, halfDayPosition, publicHolidays]);
 
-  // Reset dayType/halfDayPosition when switching leave type or date range
   useEffect(() => {
     if (leaveTypeId && !isAL) { setDayType("FULL_DAY"); setHalfDayPosition(null); }
   }, [leaveTypeId, isAL]);
@@ -95,10 +123,18 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
     }
   }, [startDate, endDate]);
 
+  // Auto-fill OT slider when toggle turns on
+  useEffect(() => {
+    if (!useOt) { setOtDaysToUse(0); return; }
+    // Cover deficit first; if none, cover the advance (non-earned) portion
+    const target = deficitBeforeOt > 0 ? deficitBeforeOt : nonEarnedDays;
+    setOtDaysToUse(Math.min(target, otBalance));
+  }, [useOt, deficitBeforeOt, nonEarnedDays, otBalance]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isOT && parseFloat(days) > otBalance) {
+    if (isOT && daysNum > otBalance) {
       toast({ title: "Insufficient OT Leave", description: `You only have ${otBalance} OT day(s) available.`, variant: "destructive" });
       return;
     }
@@ -125,12 +161,13 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
           leaveTypeId,
           startDate,
           endDate,
-          days: parseFloat(days),
+          days: daysNum,
           dayType: isSingleDay ? dayType : "FULL_DAY",
           halfDayPosition: isMultiDay ? halfDayPosition : null,
           reason,
           documentUrl,
           documentFileName,
+          otDaysUsed: effectiveOtUsed,
         }),
       });
 
@@ -199,6 +236,154 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
     return null;
   };
 
+  const renderAlBalancePanel = () => {
+    if (!isAL || !days) return null;
+
+    return (
+      <div className="space-y-3">
+        {/* Balance Summary */}
+        <div className="bg-gray-900 rounded-lg p-3 space-y-2">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Leave Balance Summary</p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-xs text-gray-500">Earned to Date</p>
+              <p className={`text-base font-bold ${earnedToday >= daysNum ? "text-green-400" : "text-amber-400"}`}>
+                {earnedToday.toFixed(1)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Full Entitlement</p>
+              <p className="text-base font-bold text-cyan-400">{alPersonalEntitlement}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">OT Available</p>
+              <p className="text-base font-bold text-emerald-400">{otBalance}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* OT Toggle — show whenever AL is selected and OT balance exists */}
+        {isAL && otBalance > 0 && nonEarnedDays > 0 && (
+          <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
+            <div>
+              <p className="text-sm text-white font-medium">Use OT days for this request</p>
+              <p className="text-xs text-gray-500">
+                {otBalance} OT day(s) available
+                {deficitBeforeOt > 0
+                  ? ` — offset the ${deficitBeforeOt} day deficit`
+                  : ` — cover advance leave ahead of accrual`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUseOt(!useOt)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${useOt ? "bg-emerald-600" : "bg-gray-700"}`}
+            >
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useOt ? "translate-x-5" : "translate-x-1"}`} />
+            </button>
+          </div>
+        )}
+
+        {/* OT amount slider */}
+        {useOt && isAL && otBalance > 0 && nonEarnedDays > 0 && (
+          <div className="bg-emerald-950/30 border border-emerald-800/40 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-emerald-300 text-xs">OT days to use</Label>
+              <span className="text-emerald-400 font-bold text-sm">{otDaysToUse} day(s)</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={Math.min(otBalance, nonEarnedDays)}
+              step={0.5}
+              value={otDaysToUse}
+              onChange={(e) => setOtDaysToUse(parseFloat(e.target.value))}
+              className="w-full accent-emerald-500"
+            />
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>0</span>
+              <span>{Math.min(otBalance, nonEarnedDays)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Breakdown panel */}
+        {daysNum > 0 && (
+          <div className={`rounded-lg p-3 border space-y-1.5 text-xs ${
+            deficitDays > 0 ? "bg-red-950/20 border-red-800/40"
+            : advanceDays > 0 ? "bg-amber-950/20 border-amber-800/40"
+            : "bg-green-950/20 border-green-800/40"
+          }`}>
+            {/* Earned portion */}
+            {Math.min(earnedToday, daysNum) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">Already earned (accrued):</span>
+                <span className="text-white font-medium">{Math.min(earnedToday, daysNum).toFixed(1)} day(s)</span>
+              </div>
+            )}
+            {/* Advance portion (within entitlement, not yet accrued) */}
+            {advanceDays > 0 && (
+              <div className="flex justify-between">
+                <span className="text-amber-400 font-medium">Advance (within entitlement):</span>
+                <span className="text-amber-400 font-bold">{advanceDays.toFixed(1)} day(s)</span>
+              </div>
+            )}
+            {/* OT used portion */}
+            {effectiveOtUsed > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">OT days used:</span>
+                <span className="text-emerald-400 font-medium">{effectiveOtUsed} day(s)</span>
+              </div>
+            )}
+            {/* True deficit */}
+            {deficitDays > 0 && (
+              <div className="flex justify-between">
+                <span className="text-red-400 font-medium">Deficit (beyond entitlement):</span>
+                <span className="text-red-400 font-bold">{deficitDays.toFixed(1)} day(s)</span>
+              </div>
+            )}
+
+            {/* Notes */}
+            {advanceDays > 0 && deficitDays === 0 && (
+              <div className="flex items-start gap-1.5 text-amber-300 pt-1">
+                <Clock className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>
+                  {advanceDays.toFixed(1)} day(s) are within your {alPersonalEntitlement}-day entitlement but not yet accrued.
+                  These will be earned over your remaining service months.
+                </span>
+              </div>
+            )}
+            {deficitDays > 0 && (
+              <div className="flex items-start gap-1.5 text-red-300 pt-1">
+                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>
+                  {deficitDays.toFixed(1)} day(s) exceed your full entitlement. These will be recorded as a deficit, offset by future OT earnings from weekend/holiday work.
+                </span>
+              </div>
+            )}
+            {fullyWithinEntitlement && advanceDays === 0 && deficitDays === 0 && (
+              <div className="flex items-center gap-1.5 text-green-300 pt-1">
+                <CheckCircle2 className="h-3 w-3 shrink-0" />
+                <span>
+                  {effectiveOtUsed > 0
+                    ? `Covered by earned AL + ${effectiveOtUsed} OT day(s).`
+                    : "Fully covered by your earned AL balance."}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const leaveTypeLabel = (type: LeaveType) => {
+    if (type.code === "AL_OT") return `${type.name} (${otBalance} days available)`;
+    if (type.code === "AL") return `${type.name} (${alPersonalEntitlement} days)`;
+    if (type.defaultDays > 0) return `${type.name} (${type.defaultDays} days/year)`;
+    return type.name;
+  };
+
   return (
     <form onSubmit={handleSubmit}>
       <Card className="bg-gray-950 border-gray-800 max-w-2xl">
@@ -218,7 +403,7 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
               <SelectContent>
                 {leaveTypes.map((type) => (
                   <SelectItem key={type.id} value={type.id}>
-                    {type.name}{type.code === "AL_OT" ? ` (${otBalance} days available)` : type.defaultDays > 0 ? ` (${type.defaultDays} days/year)` : ""}
+                    {leaveTypeLabel(type)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -270,6 +455,9 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
             </div>
           )}
 
+          {/* AL balance panel */}
+          {renderAlBalancePanel()}
+
           <div className="space-y-2">
             <Label htmlFor="reason" className="text-white">Reason (optional)</Label>
             <Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)}
@@ -304,9 +492,12 @@ export function LeaveRequestForm({ leaveTypes, otBalance = 0 }: LeaveRequestForm
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading} className="border-gray-700 hover:bg-gray-800">
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || !leaveTypeId || !startDate || !endDate || !days || parseFloat(days) < 0.5 || (isOT && parseFloat(days) > otBalance)}>
+            <Button
+              type="submit"
+              disabled={isLoading || !leaveTypeId || !startDate || !endDate || !days || parseFloat(days) < 0.5 || (isOT && parseFloat(days) > otBalance)}
+            >
               <Send className="h-4 w-4 mr-2" />
-              {isLoading ? "Submitting..." : "Submit Request"}
+              {isLoading ? "Submitting..." : deficitDays > 0 ? `Submit with ${deficitDays.toFixed(1)}d deficit` : "Submit Request"}
             </Button>
           </div>
         </CardContent>

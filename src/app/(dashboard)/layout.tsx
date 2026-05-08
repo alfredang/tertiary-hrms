@@ -8,6 +8,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
+import { getViewMode } from "@/lib/view-mode";
 
 export default async function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default async function DashboardLayout({
   const session = await auth();
   const role = isDevAuthSkipped() ? "ADMIN" : session?.user?.role;
   const isAdmin = hasAdminAccess(role);
+  const currentView = await getViewMode();
 
   // Resolve user info for header/sidebar (works even with SKIP_AUTH and no session)
   let userName = session?.user?.name;
@@ -42,7 +44,7 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <div className="lg:pl-72">
-        <Header isAdmin={isAdmin} fallbackName={userName} fallbackEmail={userEmail} />
+        <Header isAdmin={isAdmin} fallbackName={userName} fallbackEmail={userEmail} currentView={currentView} />
         <PullToRefresh>
           <main className="py-6 px-4 pb-20 sm:px-6 lg:px-8 lg:pb-6">
             {children}

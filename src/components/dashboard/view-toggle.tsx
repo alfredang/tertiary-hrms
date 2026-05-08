@@ -22,33 +22,23 @@ const ALL_ROLES = [
 
 interface ViewToggleProps {
   userRoles?: string[];
+  initialView?: string;
 }
 
-export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
+export function ViewToggle({ userRoles = [], initialView }: ViewToggleProps) {
   const router = useRouter();
-  // Filter to only roles the user has been assigned
   const assignedLower = userRoles.map((r) => r.toLowerCase());
   const ROLES = ALL_ROLES.filter((r) => assignedLower.includes(r.value));
-  const [currentView, setCurrentView] = useState("");
+  const [currentView, setCurrentView] = useState(initialView ?? "admin");
 
   useEffect(() => {
-    const cookie = document.cookie.split("; ").find((c) => c.startsWith("viewAs="));
-    const saved = cookie ? cookie.split("=")[1] : "";
-    if (saved && assignedLower.includes(saved)) {
-      setCurrentView(saved);
-    } else if (ROLES.length > 0) {
-      // Saved cookie is for a role the user no longer has — reset it
-      const defaultView = ROLES[0].value;
-      document.cookie = `viewAs=${defaultView};path=/;max-age=${60 * 60 * 24 * 365}`;
-      setCurrentView(defaultView);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userRoles.join(",")]);
+    if (initialView) setCurrentView(initialView);
+  }, [initialView]);
 
   const handleSelect = (view: string) => {
     document.cookie = `viewAs=${view};path=/;max-age=${60 * 60 * 24 * 365}`;
     setCurrentView(view);
-    router.refresh();
+    window.location.href = "/dashboard";
   };
 
   if (ROLES.length === 0) return null;

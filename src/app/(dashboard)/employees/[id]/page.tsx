@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getInitials, prorateLeave } from "@/lib/utils";
+import { getInitials, prorateLeave, computeYearlyEntitlement } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   Building2,
@@ -408,12 +408,19 @@ export default async function EmployeeDetailPage({
                 {employee.leaveBalances
                   .filter((balance) => balance.year === new Date().getFullYear())
                   .map((balance) => {
-                    const fullEntitlement = Number(balance.entitlement);
-                    // AL is prorated based on employee start date; others use full entitlement
                     const isAL = balance.leaveType.code === "AL";
+                    const monthlyLeaveRate = employee.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
+                    // Compute the actual yearly entitlement for display
+                    const displayEntitlement = isAL
+                      ? (monthlyLeaveRate != null && monthlyLeaveRate < 12
+                          ? monthlyLeaveRate
+                          : employee.startDate
+                          ? computeYearlyEntitlement(employee.startDate)
+                          : Number(balance.entitlement))
+                      : Number(balance.entitlement);
                     const allocation = isAL
-                      ? prorateLeave(fullEntitlement, employee.startDate ?? undefined)
-                      : fullEntitlement;
+                      ? prorateLeave(Number(balance.entitlement), employee.startDate ?? undefined, monthlyLeaveRate, true)
+                      : Number(balance.entitlement);
                     const totalBalance = allocation + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
                     return (
                       <div key={balance.id} className="space-y-2">
@@ -427,10 +434,10 @@ export default async function EmployeeDetailPage({
                           <div className="flex justify-between">
                             <span className="text-gray-400">Entitlement:</span>
                             <span className="text-white font-medium">
-                              {fullEntitlement} days
+                              {displayEntitlement} days
                             </span>
                           </div>
-                          {isAL && allocation !== fullEntitlement && (
+                          {isAL && allocation !== displayEntitlement && (
                             <div className="flex justify-between">
                               <span className="text-gray-400">Allocation:</span>
                               <span className="text-cyan-400 font-medium">

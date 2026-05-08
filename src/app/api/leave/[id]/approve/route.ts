@@ -13,7 +13,6 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has permission to approve
     if (!["MANAGER", "HR", "ADMIN"].includes(session.user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -30,13 +29,14 @@ export async function POST(
     }
 
     if (leaveRequest.status !== "PENDING") {
-      return NextResponse.json(
-        { error: "Leave request is not pending" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Leave request is not pending" }, { status: 400 });
     }
 
-    // Update leave request
+    const currentYear = new Date().getFullYear();
+    const otDaysUsed = Number(leaveRequest.otDaysUsed);
+    const deficitDays = Number(leaveRequest.deficitDays);
+
+    // Update leave request status
     const updatedRequest = await prisma.leaveRequest.update({
       where: { id },
       data: {
@@ -46,8 +46,7 @@ export async function POST(
       },
     });
 
-    // Update leave balance
-    const currentYear = new Date().getFullYear();
+    // Move AL days from pending → used
     await prisma.leaveBalance.update({
       where: {
         employeeId_leaveTypeId_year: {
@@ -62,15 +61,48 @@ export async function POST(
       },
     });
 
-    // Create calendar event for approved leave
-    let eventTitle = `${leaveRequest.employee.name} - ${leaveRequest.leaveType.name}`;
-    if (leaveRequest.dayType === "AM_HALF") {
-      eventTitle += " (AM Half)";
-    } else if (leaveRequest.dayType === "PM_HALF") {
-      eventTitle += " (PM Half)";
-    } else if (leaveRequest.halfDayPosition) {
-      eventTitle += ` (half on ${leaveRequest.halfDayPosition} day)`;
+    // Handle OT balance adjustments
+    if (otDaysUsed > 0 || deficitDays > 0) {
+      const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+      if (alOtType) {
+        const otUpdateData: Record<string, any> = {};
+        if (otDaysUsed > 0) {
+          otUpdateData.used = { increment: otDaysUsed };
+          otUpdateData.pending = { decrement: otDaysUsed };
+        }
+        // Record deficit as autoDeducted so remaining can go negative
+        if (deficitDays > 0) {
+          otUpdateData.autoDeducted = { increment: deficitDays };
+        }
+
+        await prisma.leaveBalance.upsert({
+          where: {
+            employeeId_leaveTypeId_year: {
+              employeeId: leaveRequest.employeeId,
+              leaveTypeId: alOtType.id,
+              year: currentYear,
+            },
+          },
+          update: otUpdateData,
+          create: {
+            employeeId: leaveRequest.employeeId,
+            leaveTypeId: alOtType.id,
+            year: currentYear,
+            entitlement: 0,
+            earned: 0,
+            used: otDaysUsed,
+            autoDeducted: deficitDays,
+            pending: 0,
+          },
+        });
+      }
     }
+
+    // Create calendar event
+    let eventTitle = `${leaveRequest.employee.name} - ${leaveRequest.leaveType.name}`;
+    if (leaveRequest.dayType === "AM_HALF") eventTitle += " (AM Half)";
+    else if (leaveRequest.dayType === "PM_HALF") eventTitle += " (PM Half)";
+    else if (leaveRequest.halfDayPosition) eventTitle += ` (half on ${leaveRequest.halfDayPosition} day)`;
 
     await prisma.calendarEvent.create({
       data: {
@@ -84,13 +116,17 @@ export async function POST(
       },
     });
 
-    // Notify the employee
+    // Notify employee
     try {
+      let msg = `Your ${leaveRequest.leaveType.name} request (${Number(leaveRequest.days)} day(s)) has been approved.`;
+      if (deficitDays > 0) {
+        msg += ` Note: ${deficitDays} day(s) will be recorded as deficit and offset by future OT earnings.`;
+      }
       await prisma.notification.create({
         data: {
           userId: leaveRequest.employee.userId,
           title: "Leave Request Approved",
-          message: `Your ${leaveRequest.leaveType.name} request (${Number(leaveRequest.days)} day(s)) has been approved.`,
+          message: msg,
           type: "LEAVE_APPROVED",
           link: "/leave",
         },
@@ -102,9 +138,6 @@ export async function POST(
     return NextResponse.json(updatedRequest);
   } catch (error) {
     console.error("Error approving leave:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

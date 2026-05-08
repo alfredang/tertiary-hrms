@@ -20,10 +20,12 @@ async function getOtLeaveBalance(employeeId: string) {
   if (!balance) return { earned: 0, used: 0, autoDeducted: 0, pending: 0, remaining: 0 };
 
   const earned = Number(balance.earned);
-  const used = Number(balance.used);
-  const autoDeducted = Number(balance.autoDeducted);
-  const pending = Number(balance.pending);
-  const remaining = Math.max(0, earned - used - autoDeducted - pending);
+  // Clamp used/pending to non-negative to guard against stale data from reset flows
+  const used = Math.max(0, Number(balance.used));
+  const autoDeducted = Math.max(0, Number(balance.autoDeducted));
+  const pending = Math.max(0, Number(balance.pending));
+  // Allow negative remaining — represents deficit owed back via future OT work
+  const remaining = earned - used - autoDeducted - pending;
   return { earned, used, autoDeducted, pending, remaining };
 }
 
@@ -37,7 +39,7 @@ async function getLeaveBalance(employeeId: string) {
   });
 
   if (!annualLeaveType) {
-    return { carriedOver: 0, allocation: 14, taken: 0, rejected: 0, proRated: 14 };
+    return { carriedOver: 0, allocation: 12, taken: 0, rejected: 0, proRated: 12 };
   }
 
   const balance = await prisma.leaveBalance.findUnique({
@@ -53,7 +55,7 @@ async function getLeaveBalance(employeeId: string) {
   // Get employee start date and monthly leave rate for proration
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
-    select: { startDate: true, monthlyLeaveRate: true },
+    select: { startDate: true, endDate: true, monthlyLeaveRate: true },
   });
 
   const rejectedCount = await prisma.leaveRequest.count({
@@ -69,10 +71,11 @@ async function getLeaveBalance(employeeId: string) {
   const carriedOver = balance ? Number(balance.carriedOver) : 0;
   const taken = balance ? Number(balance.used) : 0;
   const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
-  const proRated = prorateLeave(allocation, employee?.startDate ?? undefined, monthlyLeaveRate);
+  const proRated = prorateLeave(allocation, employee?.startDate ?? undefined, monthlyLeaveRate, true);
   const employeeStartDate = employee?.startDate?.toISOString() ?? null;
+  const employeeEndDate = employee?.endDate?.toISOString() ?? null;
 
-  return { carriedOver, allocation, taken, rejected: rejectedCount, proRated, employeeStartDate, monthlyLeaveRate };
+  return { carriedOver, allocation, taken, rejected: rejectedCount, proRated, employeeStartDate, employeeEndDate, monthlyLeaveRate };
 }
 
 async function getLeaveRequests(employeeId?: string) {
@@ -138,7 +141,7 @@ export default async function LeavePage() {
   const [leaveBalance, otBalance, requests] = await Promise.all([
     currentEmployeeId
       ? getLeaveBalance(currentEmployeeId)
-      : Promise.resolve({ carriedOver: 0, allocation: 14, taken: 0, rejected: 0, proRated: 14, employeeStartDate: null, monthlyLeaveRate: null }),
+      : Promise.resolve({ carriedOver: 0, allocation: 12, taken: 0, rejected: 0, proRated: 12, employeeStartDate: null, employeeEndDate: null, monthlyLeaveRate: null }),
     currentEmployeeId ? getOtLeaveBalance(currentEmployeeId) : Promise.resolve(null),
     getLeaveRequests(filterByEmployeeId),
   ]);
@@ -177,17 +180,25 @@ export default async function LeavePage() {
         <LeaveBalanceCards
           leaveBalance={leaveBalance}
           employeeStartDate={leaveBalance.employeeStartDate ?? null}
+          employeeEndDate={leaveBalance.employeeEndDate ?? null}
           monthlyLeaveRate={leaveBalance.monthlyLeaveRate ?? null}
         />
       )}
 
-      {/* OT Leave Balance — only show for staff view when there's OT data */}
-      {viewAs !== "admin" && otBalance !== null && otBalance.earned > 0 && (
-        <div className="bg-gray-950 border border-emerald-800/40 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-400" />
-            <h3 className="text-sm font-semibold text-emerald-400">Accumulated OT Leave Balance</h3>
+      {/* OT Leave Balance — show when earned > 0 OR there is a deficit */}
+      {viewAs !== "admin" && otBalance !== null && (otBalance.earned > 0 || otBalance.remaining < 0) && (
+        <div className={`bg-gray-950 border rounded-xl p-4 ${otBalance.remaining < 0 ? "border-red-800/50" : "border-emerald-800/40"}`}>
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <div className={`h-2 w-2 rounded-full ${otBalance.remaining < 0 ? "bg-red-400" : "bg-emerald-400"}`} />
+            <h3 className={`text-sm font-semibold ${otBalance.remaining < 0 ? "text-red-400" : "text-emerald-400"}`}>
+              Accumulated OT Leave Balance
+            </h3>
             <span className="text-xs text-gray-500">Earned from weekend / public holiday work</span>
+            {otBalance.remaining < 0 && (
+              <span className="ml-auto text-xs text-red-300 bg-red-950/40 border border-red-800/50 rounded px-2 py-0.5">
+                {Math.abs(otBalance.remaining)} day(s) deficit — offset by future OT work
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-gray-900 rounded-lg p-3">
@@ -199,14 +210,21 @@ export default async function LeavePage() {
               <p className="text-xl font-bold text-amber-400">{otBalance.used}</p>
             </div>
             <div className="bg-gray-900 rounded-lg p-3">
-              <p className="text-xs text-gray-400 mb-1">Auto-Deducted</p>
+              <p className="text-xs text-gray-400 mb-1">Deficit</p>
               <p className="text-xl font-bold text-red-400">{otBalance.autoDeducted}</p>
             </div>
             <div className="bg-gray-900 rounded-lg p-3">
               <p className="text-xs text-gray-400 mb-1">Remaining</p>
-              <p className="text-xl font-bold text-green-400">{otBalance.remaining}</p>
+              <p className={`text-xl font-bold ${otBalance.remaining < 0 ? "text-red-400" : "text-green-400"}`}>
+                {otBalance.remaining}
+              </p>
             </div>
           </div>
+          {otBalance.remaining < 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              Work on weekends or public holidays to earn OT days and reduce this deficit.
+            </p>
+          )}
         </div>
       )}
 

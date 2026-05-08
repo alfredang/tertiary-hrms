@@ -146,7 +146,7 @@ export async function PATCH(
       }
     }
 
-    // Check leave balance
+    // Check leave balance for non-AL types only
     const currentYear = new Date().getFullYear();
     const balance = await prisma.leaveBalance.findUnique({
       where: {
@@ -165,34 +165,37 @@ export async function PATCH(
       );
     }
 
-    // Apply proration for AL/MC — same logic as POST /api/leave
-    const employee = await prisma.employee.findUnique({
-      where: { id: leaveRequest.employeeId },
-      select: { startDate: true },
-    });
+    // For non-AL types: enforce balance check
+    if (leaveType?.code !== "AL") {
+      const employee = await prisma.employee.findUnique({
+        where: { id: leaveRequest.employeeId },
+        select: { startDate: true, monthlyLeaveRate: true },
+      });
 
-    let effectiveEntitlement = Number(balance.entitlement);
-    if ((leaveType?.code === "AL" || leaveType?.code === "MC") && employee?.startDate) {
-      effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate);
-    }
+      let effectiveEntitlement = Number(balance.entitlement);
+      if (leaveType?.code === "AL_OT") {
+        effectiveEntitlement = Number(balance.earned) - Number(balance.autoDeducted);
+      } else if (leaveType?.code === "MC" && employee?.startDate) {
+        effectiveEntitlement = prorateLeave(
+          Number(balance.entitlement),
+          employee.startDate,
+          employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null,
+        );
+      }
 
-    // Available = entitlement + carriedOver - used - (pending without the old reservation)
-    const pendingWithoutOld = Number(balance.pending) - oldDays;
-    const available =
-      effectiveEntitlement +
-      Number(balance.carriedOver) -
-      Number(balance.used) -
-      pendingWithoutOld;
+      const pendingWithoutOld = Number(balance.pending) - oldDays;
+      const available =
+        effectiveEntitlement +
+        (leaveType?.code === "AL_OT" ? 0 : Number(balance.carriedOver)) -
+        Number(balance.used) -
+        pendingWithoutOld;
 
-    if (newDays > available) {
-      return NextResponse.json(
-        {
-          error: "Insufficient leave balance",
-          available,
-          requested: newDays,
-        },
-        { status: 400 }
-      );
+      if (newDays > available) {
+        return NextResponse.json(
+          { error: "Insufficient leave balance", available, requested: newDays },
+          { status: 400 }
+        );
+      }
     }
 
     const daysDelta = newDays - oldDays;

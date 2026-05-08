@@ -11,11 +11,8 @@ export async function GET() {
   if (!employeeId) return NextResponse.json({ error: "No employee record" }, { status: 400 });
 
   const today = toLocalDateString(new Date());
-  const record = await prisma.attendance.findFirst({
-    where: {
-      employeeId,
-      date: { gte: new Date(today), lt: new Date(today + "T23:59:59") },
-    },
+  const record = await prisma.attendance.findUnique({
+    where: { employeeId_date: { employeeId, date: new Date(today) } },
     include: { otEntry: { select: { earnedDays: true, status: true } } },
   });
 

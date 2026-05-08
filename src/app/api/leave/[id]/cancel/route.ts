@@ -15,19 +15,14 @@ export async function POST(
 
     const { id } = await params;
 
-    const leaveRequest = await prisma.leaveRequest.findUnique({
-      where: { id },
-    });
+    const leaveRequest = await prisma.leaveRequest.findUnique({ where: { id } });
 
     if (!leaveRequest) {
       return NextResponse.json({ error: "Leave request not found" }, { status: 404 });
     }
 
     if (leaveRequest.status !== "PENDING") {
-      return NextResponse.json(
-        { error: "Only pending leave requests can be cancelled" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Only pending leave requests can be cancelled" }, { status: 400 });
     }
 
     if (leaveRequest.employeeId !== session.user.employeeId) {
@@ -35,8 +30,9 @@ export async function POST(
     }
 
     const currentYear = new Date().getFullYear();
+    const otDaysUsed = Number(leaveRequest.otDaysUsed);
 
-    await prisma.$transaction([
+    const ops: any[] = [
       prisma.leaveRequest.update({
         where: { id },
         data: { status: "CANCELLED" },
@@ -49,18 +45,30 @@ export async function POST(
             year: currentYear,
           },
         },
-        data: {
-          pending: { decrement: Number(leaveRequest.days) },
-        },
+        data: { pending: { decrement: Number(leaveRequest.days) } },
       }),
-    ]);
+    ];
+
+    await prisma.$transaction(ops);
+
+    // Refund OT pending outside of transaction to avoid issues with upsert
+    if (otDaysUsed > 0) {
+      const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+      if (alOtType) {
+        await prisma.leaveBalance.updateMany({
+          where: {
+            employeeId: leaveRequest.employeeId,
+            leaveTypeId: alOtType.id,
+            year: currentYear,
+          },
+          data: { pending: { decrement: otDaysUsed } },
+        });
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error cancelling leave request:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

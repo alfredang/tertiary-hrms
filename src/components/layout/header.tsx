@@ -17,6 +17,7 @@ import { cn, getInitials } from "@/lib/utils";
 import { LogOut, RefreshCw, Settings, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
+import { NotificationBell } from "./notification-bell";
 
 const pageNames: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -32,36 +33,20 @@ interface HeaderProps {
   isAdmin?: boolean;
   fallbackName?: string | null;
   fallbackEmail?: string | null;
+  currentView?: string;
 }
 
-export function Header({ isAdmin = false, fallbackName, fallbackEmail }: HeaderProps) {
+export function Header({ isAdmin = false, fallbackName, fallbackEmail, currentView }: HeaderProps) {
   const { data: session } = useSession();
   const displayName = session?.user?.name || fallbackName || "User";
   const displayEmail = session?.user?.email || fallbackEmail || "";
   const pathname = usePathname();
   const router = useRouter();
-  const [viewAs, setViewAs] = useState<string>("admin");
+  const [viewAs, setViewAs] = useState<string>(currentView ?? "admin");
 
   useEffect(() => {
-    const cookie = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("viewAs="));
-    if (cookie) {
-      setViewAs(cookie.split("=")[1]);
-    }
-  }, []);
-
-  // Listen for cookie changes (when ViewToggle is clicked, it calls router.refresh)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const cookie = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("viewAs="));
-      const val = cookie ? cookie.split("=")[1] : "admin";
-      setViewAs(val);
-    }, 500);
-    return () => clearInterval(interval);
-  }, []);
+    setViewAs(currentView ?? "admin");
+  }, [currentView]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -123,7 +108,8 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail }: HeaderP
           >
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
-          {isAdmin && <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} />}
+          {isAdmin && <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} initialView={currentView} />}
+          <NotificationBell viewAs={viewAs} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">

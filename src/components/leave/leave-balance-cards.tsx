@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, Info } from "lucide-react";
+import { computeYearlyEntitlement } from "@/lib/utils";
 
 interface LeaveBalance {
   proRated: number;
@@ -15,6 +16,7 @@ interface LeaveBalance {
 interface Props {
   leaveBalance: LeaveBalance;
   employeeStartDate: string | null;
+  employeeEndDate?: string | null;
   monthlyLeaveRate?: number | null;
 }
 
@@ -28,7 +30,8 @@ interface MonthRow {
 function buildClean(
   annualEntitlement: number,
   startDateStr: string | null,
-  monthlyLeaveRate?: number | null,
+  customLeaveRate?: number | null,
+  contractEndDateStr?: string | null,
 ): MonthRow[] {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -36,50 +39,59 @@ function buildClean(
   const startDate = startDateStr ? new Date(startDateStr) : null;
   const startedThisYear = startDate && startDate.getFullYear() === currentYear;
 
-  // Determine per-month accrual rate
-  let perMonth: number;
-  if (monthlyLeaveRate != null && startDate) {
-    const totalMonthsService =
-      (now.getFullYear() - startDate.getFullYear()) * 12 +
-      (now.getMonth() - startDate.getMonth()) + 1;
-    perMonth = totalMonthsService < 12 ? monthlyLeaveRate : annualEntitlement / 12;
-  } else {
-    perMonth = annualEntitlement / 12;
-  }
+  // Short-contract mode: admin explicitly set leave < 6 days (contract < 6 months)
+  const isShortContract = customLeaveRate != null && customLeaveRate < 6;
+
+  // Fixed yearly entitlement for current year based on seniority at Jan 1
+  const yearlyEntitlement = startDate
+    ? computeYearlyEntitlement(startDate, currentYear)
+    : annualEntitlement;
 
   const rows: MonthRow[] = [];
   let cumulative = 0;
 
-  // Build list of period boundaries for the year
+  // Build period boundaries: rolling months from start (if started this year) or Jan–Dec
   const periods: Array<{ start: Date; end: Date }> = [];
 
+  const contractEnd = contractEndDateStr ? new Date(contractEndDateStr) : null;
+
   if (startedThisYear && startDate) {
-    // Rolling months from start date
+    // Show exactly the number of periods matching the contract length (capped at 12)
+    const maxPeriods = customLeaveRate != null && customLeaveRate < 12 ? customLeaveRate : 12;
     let s = new Date(startDate);
-    while (s.getFullYear() === currentYear) {
+    for (let i = 0; i < maxPeriods; i++) {
       const e = new Date(s);
       e.setMonth(e.getMonth() + 1);
       e.setDate(e.getDate() - 1);
-      periods.push({ start: new Date(s), end: e });
+      // Trim the last period's end to the actual contract end date
+      const periodEnd = contractEnd && e > contractEnd ? contractEnd : e;
+      periods.push({ start: new Date(s), end: periodEnd });
+      s = new Date(s);
       s.setMonth(s.getMonth() + 1);
-      if (s.getFullYear() > currentYear) break;
     }
   } else {
-    // Calendar months Jan–Dec
     for (let m = 0; m < 12; m++) {
-      const s = new Date(currentYear, m, 1);
-      const e = new Date(currentYear, m + 1, 0);
-      periods.push({ start: s, end: e });
+      periods.push({ start: new Date(currentYear, m, 1), end: new Date(currentYear, m + 1, 0) });
     }
   }
 
-  for (let i = 0; i < periods.length; i++) {
-    const { start, end } = periods[i];
+  for (const { start, end } of periods) {
     const isFuture = start > now;
     const isPartial = !isFuture && end > now;
 
     let accrued = 0;
     if (!isFuture) {
+      let perMonth = 0;
+      if (isShortContract && customLeaveRate != null) {
+        // Short contract: 1 day/month up to the admin-set total cap
+        if (Math.round(cumulative) < customLeaveRate) {
+          perMonth = 1;
+        }
+      } else {
+        // Long contract, FT, or no rate set: accrue from month 1, no waiting period
+        perMonth = yearlyEntitlement / 12;
+      }
+
       if (isPartial) {
         const daysInPeriod = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
         const daysElapsed = Math.round((now.getTime() - start.getTime()) / 86400000) + 1;
@@ -91,7 +103,6 @@ function buildClean(
     }
 
     const displayEnd = isPartial ? now : end;
-
     rows.push({
       periodLabel: formatPeriod(start, displayEnd),
       daysAccrued: Math.round(accrued * 100) / 100,
@@ -108,16 +119,37 @@ function formatPeriod(start: Date, end: Date): string {
   return `${start.toLocaleDateString("en-SG", opts)} – ${end.toLocaleDateString("en-SG", opts)}`;
 }
 
-export function LeaveBalanceCards({ leaveBalance, employeeStartDate, monthlyLeaveRate }: Props) {
+export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEndDate, monthlyLeaveRate }: Props) {
   const [open, setOpen] = useState(false);
 
-  const rows = buildClean(leaveBalance.allocation, employeeStartDate, monthlyLeaveRate);
+  const rows = buildClean(leaveBalance.allocation, employeeStartDate, monthlyLeaveRate, employeeEndDate);
   const remaining = leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken;
 
+  const isShortContract = monthlyLeaveRate != null && monthlyLeaveRate < 6;
+
+  // For contract employees (monthlyLeaveRate < 12), total entitlement = their rate
+  // For FT/senior (rate = 12 or null), use seniority-based entitlement
+  const yearlyEntitlement =
+    monthlyLeaveRate != null && monthlyLeaveRate < 12
+      ? monthlyLeaveRate
+      : employeeStartDate
+      ? computeYearlyEntitlement(new Date(employeeStartDate))
+      : leaveBalance.allocation;
+
+  // Distinguish advance AL (within entitlement, amber) from true deficit (beyond entitlement, red)
+  const advanceAl = remaining < 0 && leaveBalance.taken <= yearlyEntitlement + leaveBalance.carriedOver;
+  const trueDeficit = remaining < 0 && leaveBalance.taken > yearlyEntitlement + leaveBalance.carriedOver;
+  const remainingColor = remaining < 0
+    ? (trueDeficit ? "text-red-400" : "text-amber-400")
+    : "text-green-400";
+  const remainingLabel = remaining < 0
+    ? (trueDeficit ? "Remaining (Deficit)" : "Remaining (Advance)")
+    : "Remaining Balance";
+
   const cards = [
-    { label: "Remaining Balance", value: remaining, color: "text-green-400", clickable: true },
-    { label: "Pro-rated Allocation", value: leaveBalance.proRated, color: "text-cyan-400", clickable: true },
-    { label: "Yearly Entitlement", value: leaveBalance.allocation, color: "text-blue-400", clickable: false },
+    { label: remainingLabel, value: remaining, color: remainingColor, clickable: true },
+    { label: "Earned to Date", value: leaveBalance.proRated, color: "text-cyan-400", clickable: true },
+    { label: "Yearly Entitlement", value: yearlyEntitlement, color: "text-blue-400", clickable: false },
     { label: "Leave(s) Taken", value: leaveBalance.taken, color: "text-amber-400", clickable: false },
     { label: "Leave(s) Rejected", value: leaveBalance.rejected, color: "text-red-400", clickable: false },
   ];
@@ -169,15 +201,15 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, monthlyLeav
               <div className="bg-gray-900 rounded-lg p-3 grid grid-cols-3 gap-2 text-center text-xs">
                 <div>
                   <p className="text-gray-400">Entitlement</p>
-                  <p className="text-white font-bold text-base">{leaveBalance.allocation} days/yr</p>
+                  <p className="text-white font-bold text-base">{yearlyEntitlement} days/yr</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Accrued to Date</p>
+                  <p className="text-gray-400">Earned to Date</p>
                   <p className="text-cyan-400 font-bold text-base">{leaveBalance.proRated} days</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Remaining</p>
-                  <p className="text-green-400 font-bold text-base">{remaining} days</p>
+                  <p className="text-gray-400">{remaining < 0 ? (trueDeficit ? "Deficit" : "Advance") : "Remaining"}</p>
+                  <p className={`font-bold text-base ${remainingColor}`}>{remaining} days</p>
                 </div>
               </div>
 
@@ -218,13 +250,20 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, monthlyLeav
               </div>
 
               <p className="text-xs text-gray-600">
-                Rate: {(monthlyLeaveRate != null && employeeStartDate ? (() => {
-                  const start = new Date(employeeStartDate);
-                  const now = new Date();
-                  const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
-                  return months < 12 ? monthlyLeaveRate : leaveBalance.allocation / 12;
-                })() : leaveBalance.allocation / 12).toFixed(4)} days/month. The displayed balance is rounded to the nearest 0.5 day.
+                {isShortContract
+                  ? `Short contract: ${yearlyEntitlement} day${yearlyEntitlement !== 1 ? "s" : ""} total, accruing at 1 day/month.`
+                  : `Rate: 1 day/month, accumulates from your first month of service.`}
               </p>
+              {advanceAl && (
+                <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-300">
+                  You have used days in advance of monthly accrual. Your balance will normalise as you continue earning leave each month.
+                </div>
+              )}
+              {trueDeficit && (
+                <div className="bg-red-950/20 border border-red-800/40 rounded-lg p-2.5 text-xs text-red-300">
+                  Your leave usage has exceeded your full entitlement. The deficit will be offset by future OT earnings.
+                </div>
+              )}
             </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>

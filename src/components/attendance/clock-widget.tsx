@@ -45,10 +45,11 @@ export function ClockWidget() {
   const fetchToday = useCallback(async () => {
     try {
       const res = await fetch("/api/attendance/today");
+      if (!res.ok) { setIsFetching(false); return; }
       const data = await res.json();
       setRecord(data.record ?? null);
     } catch {
-      // silently fail
+      // network or parse error — leave record as null
     } finally {
       setIsFetching(false);
     }
@@ -60,7 +61,8 @@ export function ClockWidget() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/attendance/clock-in", { method: "POST" });
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { /* empty body */ }
       if (!res.ok) throw new Error(data.error || "Failed to clock in");
       toast({ title: "Clocked In", description: `Clocked in at ${new Date(data.clockIn).toLocaleTimeString("en-SG")}` });
       await fetchToday();
@@ -76,7 +78,8 @@ export function ClockWidget() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/attendance/clock-out", { method: "POST" });
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { /* empty body */ }
       if (!res.ok) throw new Error(data.error || "Failed to clock out");
       const hrs = Number(data.attendance.totalHours ?? 0).toFixed(2);
       let desc = `Clocked out after ${hrs} hours.`;

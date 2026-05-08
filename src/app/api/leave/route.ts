@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
+import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates, computeAlFullEntitlement } from "@/lib/utils";
 import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import * as z from "zod";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -16,6 +16,7 @@ const leaveRequestSchema = z.object({
   reason: z.string().optional(),
   documentUrl: z.string().optional(),
   documentFileName: z.string().optional(),
+  otDaysUsed: z.number().min(0).default(0),
 });
 
 export async function POST(req: NextRequest) {
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
       }
       employeeId = session.user.employeeId;
     } else {
-      // Dev mode: use admin employee as default
       const adminUser = await prisma.user.findUnique({
         where: { email: "admin@tertiaryinfotech.com" },
         include: { employee: true },
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { leaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason, documentUrl, documentFileName } = validation.data;
+    const { leaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason, documentUrl, documentFileName, otDaysUsed } = validation.data;
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -77,7 +77,6 @@ export async function POST(req: NextRequest) {
     let days: number;
 
     if (isSingleDay) {
-      // Single day: check if it's a working day
       const { workingDays: wd } = calculateWorkingDays(start, end, allHolidayDates);
       if (wd === 0) {
         return NextResponse.json(
@@ -94,19 +93,18 @@ export async function POST(req: NextRequest) {
       days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
-    // Get leave type code and employee start date (needed for overlap check + proration)
     const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { startDate: true },
+      select: { startDate: true, monthlyLeaveRate: true },
     });
 
-    // Only AL supports half-day — force FULL_DAY for all other types
     const isAL = leaveType?.code === "AL";
+    const isOT = leaveType?.code === "AL_OT";
+
     const effectiveDayType = isAL ? (isSingleDay ? dayType : "FULL_DAY") : "FULL_DAY";
     const effectiveHalfDayPosition = isAL ? (isSingleDay ? null : (halfDayPosition ?? null)) : null;
 
-    // Recalculate days with effective values (non-AL always gets full working days)
     if (!isAL) {
       const { workingDays: wd } = calculateWorkingDays(start, end, allHolidayDates);
       days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
@@ -139,7 +137,6 @@ export async function POST(req: NextRequest) {
         }))
       );
       if (conflictDates.length > 0) {
-        // Check if this is a complementary half-day scenario (AM+PM same day)
         if (isSingleDay && effectiveDayType !== "FULL_DAY") {
           const complementaryType = effectiveDayType === "AM_HALF" ? "PM_HALF" : "AM_HALF";
           const hasComplementary = overlappingLeaves.some(l => {
@@ -164,16 +161,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check leave balance — auto-create if missing (e.g. new year, new employee)
+    // Check/create leave balance
     const currentYear = new Date().getFullYear();
     let balance = await prisma.leaveBalance.findUnique({
-      where: {
-        employeeId_leaveTypeId_year: {
-          employeeId,
-          leaveTypeId,
-          year: currentYear,
-        },
-      },
+      where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: currentYear } },
     });
 
     if (!balance && leaveType) {
@@ -197,28 +188,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Calculate available balance
     let available: number;
 
-    if (leaveType?.code === "AL_OT") {
-      // Accumulated OT leave: balance is earned - used - autoDeducted - pending
+    if (isOT) {
       available = Number(balance.earned) - Number(balance.used) - Number(balance.autoDeducted) - Number(balance.pending);
     } else {
       let effectiveEntitlement = Number(balance.entitlement);
-      if ((leaveType?.code === "AL" || leaveType?.code === "MC") && employee?.startDate) {
-        effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate);
+      if (isAL && employee?.startDate) {
+        effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate, null, true);
+      } else if (leaveType?.code === "MC" && employee?.startDate) {
+        effectiveEntitlement = prorateLeave(
+          Number(balance.entitlement),
+          employee.startDate,
+          employee.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null,
+        );
       }
       available = effectiveEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
     }
 
-    if (days > available) {
+    // For non-AL leave types: hard block if insufficient balance
+    if (!isAL && days > available) {
       return NextResponse.json(
-        {
-          error: "Insufficient leave balance",
-          available,
-          requested: days,
-        },
+        { error: "Insufficient leave balance", available, requested: days },
         { status: 400 }
       );
+    }
+
+    // For AL: allow deficit. Validate OT usage if provided.
+    let resolvedOtDaysUsed = 0;
+    let deficitDays = 0;
+
+    if (isAL) {
+      // Clamp otDaysUsed to what's actually available in OT balance
+      if (otDaysUsed > 0) {
+        const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+        if (alOtType) {
+          const otBalance = await prisma.leaveBalance.findUnique({
+            where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
+          });
+          const otAvailable = otBalance
+            ? Math.max(0, Number(otBalance.earned) - Number(otBalance.used) - Number(otBalance.autoDeducted) - Number(otBalance.pending))
+            : 0;
+          resolvedOtDaysUsed = Math.min(otDaysUsed, otAvailable);
+        }
+      }
+      // Deficit = days beyond the FULL year entitlement (not prorated to today).
+      // Using within-entitlement days ahead of accrual = advance AL, not deficit.
+      const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
+      const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate);
+      const fullAvailable = fullEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
+      deficitDays = Math.max(0, days - fullAvailable - resolvedOtDaysUsed);
     }
 
     // Create leave request
@@ -236,55 +256,59 @@ export async function POST(req: NextRequest) {
         documentUrl: documentUrl || null,
         documentFileName: documentFileName || null,
         status: "PENDING",
+        otDaysUsed: resolvedOtDaysUsed,
+        deficitDays,
       },
       include: {
         leaveType: true,
-        employee: {
-          select: { name: true },
-        },
+        employee: { select: { name: true } },
       },
     });
 
-    // Update leave balance - increment pending
+    // Update AL balance pending
     await prisma.leaveBalance.update({
-      where: {
-        employeeId_leaveTypeId_year: {
-          employeeId,
-          leaveTypeId,
-          year: currentYear,
-        },
-      },
-      data: {
-        pending: { increment: days },
-      },
+      where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: currentYear } },
+      data: { pending: { increment: days } },
     });
 
-    // Notify all admin/HR/manager users about the new leave request
+    // Update OT balance pending if OT days were used
+    if (resolvedOtDaysUsed > 0) {
+      const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+      if (alOtType) {
+        await prisma.leaveBalance.upsert({
+          where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
+          update: { pending: { increment: resolvedOtDaysUsed } },
+          create: { employeeId, leaveTypeId: alOtType.id, year: currentYear, entitlement: 0, earned: 0, pending: resolvedOtDaysUsed },
+        });
+      }
+    }
+
+    // Notify admins/HR/managers
     try {
       const approvers = await prisma.user.findMany({
         where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } },
         select: { id: true },
       });
+      let msg = `${leaveRequest.employee.name} submitted a ${leaveRequest.leaveType.name} request for ${Number(leaveRequest.days)} day(s).`;
+      if (deficitDays > 0) msg += ` ⚠ ${deficitDays} day(s) deficit.`;
       await prisma.notification.createMany({
         data: approvers.map((u) => ({
           userId: u.id,
           title: "New Leave Request",
-          message: `${leaveRequest.employee.name} submitted a ${leaveRequest.leaveType.name} request for ${Number(leaveRequest.days)} day(s).`,
+          message: msg,
           type: "LEAVE_SUBMITTED",
           link: "/leave",
         })),
         skipDuplicates: true,
       });
     } catch {
-      // Non-critical — don't fail the request if notification fails
+      // Non-critical
     }
 
     return NextResponse.json(leaveRequest, { status: 201 });
   } catch (error) {
     console.error("Error creating leave request:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

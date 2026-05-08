@@ -53,17 +53,17 @@ export async function POST(
     const currentYear = new Date().getFullYear();
     const days = Number(leaveRequest.days);
     const oldStatus = leaveRequest.status;
+    const otDaysUsed = Number((leaveRequest as any).otDaysUsed) || 0;
+    const deficitDays = Number((leaveRequest as any).deficitDays) || 0;
 
-    // Build balance update based on current status
-    // APPROVED: reverse used+ and pending- that happened at approval
-    // REJECTED or CANCELLED: only restore pending (it was decremented at reject/cancel)
+    // Build AL balance update
+    // APPROVED → undo used+/pending- from approval; REJECTED/CANCELLED → just restore pending
     const balanceUpdate =
       oldStatus === "APPROVED"
         ? { used: { decrement: days }, pending: { increment: days } }
         : { pending: { increment: days } };
 
     await prisma.$transaction([
-      // Reset leave request to pending
       prisma.leaveRequest.update({
         where: { id },
         data: {
@@ -74,7 +74,6 @@ export async function POST(
           rejectionReason: null,
         },
       }),
-      // Restore leave balance
       prisma.leaveBalance.update({
         where: {
           employeeId_leaveTypeId_year: {
@@ -85,7 +84,6 @@ export async function POST(
         },
         data: balanceUpdate,
       }),
-      // Log the reset action for audit trail
       prisma.auditLog.create({
         data: {
           userId: session.user.id,
@@ -98,11 +96,32 @@ export async function POST(
       }),
     ]);
 
-    // Delete linked calendar event if it was APPROVED (outside transaction — deleteMany is idempotent)
+    // Undo OT balance changes that were applied at approval
+    if (oldStatus === "APPROVED" && (otDaysUsed > 0 || deficitDays > 0)) {
+      const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+      if (alOtType) {
+        const otUpdate: Record<string, any> = {};
+        if (otDaysUsed > 0) {
+          otUpdate.used = { decrement: otDaysUsed };
+          otUpdate.pending = { increment: otDaysUsed };
+        }
+        if (deficitDays > 0) {
+          otUpdate.autoDeducted = { decrement: deficitDays };
+        }
+        await prisma.leaveBalance.updateMany({
+          where: {
+            employeeId: leaveRequest.employeeId,
+            leaveTypeId: alOtType.id,
+            year: currentYear,
+          },
+          data: otUpdate,
+        });
+      }
+    }
+
+    // Delete linked calendar event
     if (oldStatus === "APPROVED") {
-      await prisma.calendarEvent.deleteMany({
-        where: { leaveRequestId: id },
-      });
+      await prisma.calendarEvent.deleteMany({ where: { leaveRequestId: id } });
     }
 
     return NextResponse.json({ success: true });

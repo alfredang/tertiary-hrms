@@ -2,8 +2,19 @@
 const nextConfig = {
   output: 'standalone', // Enable for Docker deployment
   experimental: {
-    staleTimes: { dynamic: 0, static: 0 }, // always fetch fresh — no stale client-side cache
     instrumentationHook: true,
+    // Dramatically reduces cold-start compile time by tree-shaking icon/component libraries
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-toast',
+      'date-fns',
+    ],
   },
   images: {
     remotePatterns: [
@@ -19,7 +30,6 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      // Legacy upload URLs → API route (backward compat for existing DB records)
       { source: '/uploads/:path*', destination: '/api/uploads/:path*' },
     ];
   },
@@ -33,7 +43,12 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
-          // Prevent browser from serving stale pages/JS after code deploys
+        ],
+      },
+      {
+        // no-store only on HTML pages and API — not on static assets (already excluded)
+        source: '/((?!_next/static|_next/image|favicon.ico).*)',
+        headers: [
           { key: 'Cache-Control', value: 'no-store' },
         ],
       },

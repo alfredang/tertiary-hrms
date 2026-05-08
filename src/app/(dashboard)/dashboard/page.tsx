@@ -57,20 +57,21 @@ async function getStaffStats(employeeId: string) {
     }),
     prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { startDate: true },
+      select: { startDate: true, monthlyLeaveRate: true },
     }),
   ]);
 
   // Fall back to leave type default if no balance record exists (same as leave page)
   const alAllocation = alBalance ? Number(alBalance.entitlement) : (alType?.defaultDays ?? 0);
-  const alEntitlement = prorateLeave(alAllocation, employee?.startDate ?? undefined);
+  const alMonthlyRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
+  const alEntitlement = prorateLeave(alAllocation, employee?.startDate ?? undefined, alMonthlyRate, true);
   const alCarriedOver = alBalance ? Number(alBalance.carriedOver) : 0;
   const alUsed = alBalance ? Number(alBalance.used) : 0;
   const alPending = alBalance ? Number(alBalance.pending) : 0;
   const leaveBalance = alEntitlement + alCarriedOver - alUsed - alPending;
 
   const mcAllocation = mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0);
-  const mcEntitlement = prorateLeave(mcAllocation, employee?.startDate ?? undefined);
+  const mcEntitlement = prorateLeave(mcAllocation, employee?.startDate ?? undefined, alMonthlyRate);
   const mcCarriedOver = mcBalance ? Number(mcBalance.carriedOver) : 0;
   const mcUsed = mcBalance ? Number(mcBalance.used) : 0;
   const mcPending = mcBalance ? Number(mcBalance.pending) : 0;

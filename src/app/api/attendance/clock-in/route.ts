@@ -15,12 +15,9 @@ export async function POST() {
   const today = toLocalDateString(now);
   const year = now.getFullYear();
 
-  // Check if already clocked in today
-  const existing = await prisma.attendance.findFirst({
-    where: {
-      employeeId,
-      date: { gte: new Date(today), lt: new Date(today + "T23:59:59") },
-    },
+  // Check if already clocked in today (exact date match via unique index)
+  const existing = await prisma.attendance.findUnique({
+    where: { employeeId_date: { employeeId, date: new Date(today) } },
   });
   if (existing) {
     return NextResponse.json({ error: "Already clocked in today" }, { status: 400 });
@@ -28,7 +25,6 @@ export async function POST() {
 
   // Determine day type
   const holidays = getSgHolidaysForYear(year);
-  // Merge with any DB overrides
   const dbHolidays = await prisma.publicHoliday.findMany({ where: { year, countryCode: "SG" } });
   const allHolidays = new Set([...holidays, ...dbHolidays.map((h) => h.date.toISOString().slice(0, 10))]);
 
@@ -39,14 +35,20 @@ export async function POST() {
     dayType = "WEEKEND";
   }
 
-  const record = await prisma.attendance.create({
-    data: {
-      employeeId,
-      date: new Date(today),
-      clockIn: now,
-      dayType,
-    },
-  });
-
-  return NextResponse.json(record, { status: 201 });
+  try {
+    const record = await prisma.attendance.create({
+      data: {
+        employeeId,
+        date: new Date(today),
+        clockIn: now,
+        dayType,
+      },
+    });
+    return NextResponse.json(record, { status: 201 });
+  } catch (err: any) {
+    if (err?.code === "P2002") {
+      return NextResponse.json({ error: "Already clocked in today" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Failed to clock in" }, { status: 500 });
+  }
 }
