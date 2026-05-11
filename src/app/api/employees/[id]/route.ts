@@ -181,3 +181,80 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    let currentUserId: string | undefined;
+
+    if (!isDevAuthSkipped()) {
+      const session = await auth();
+      if (!session?.user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (!["ADMIN", "HR"].includes(session.user.role)) {
+        return NextResponse.json(
+          { error: "Forbidden - only ADMIN and HR can delete employees" },
+          { status: 403 }
+        );
+      }
+      currentUserId = session.user.id;
+    }
+
+    const { id } = await params;
+
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+
+    if (!employee) {
+      return NextResponse.json(
+        { error: "Employee not found" },
+        { status: 404 }
+      );
+    }
+
+    if (currentUserId && employee.userId === currentUserId) {
+      return NextResponse.json(
+        { error: "You cannot delete your own account" },
+        { status: 403 }
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Remove rows that reference this employee but don't cascade
+      await tx.leaveRequest.deleteMany({
+        where: { OR: [{ employeeId: id }, { approverId: id }] },
+      });
+      await tx.expenseClaim.deleteMany({
+        where: { OR: [{ employeeId: id }, { approverId: id }] },
+      });
+      await tx.payslip.deleteMany({ where: { employeeId: id } });
+      // OtEntry.approver is optional — null out instead of deleting the OT record
+      await tx.otEntry.updateMany({
+        where: { approverId: id },
+        data: { approverId: null },
+      });
+      // Detach subordinates so the self-relation FK doesn't block deletion
+      await tx.employee.updateMany({
+        where: { managerId: id },
+        data: { managerId: null },
+      });
+
+      // Cascades: Employee, SalaryInfo, LeaveBalance, Attendance,
+      // OtEntry (employee side), Notification, Session, Account
+      await tx.user.delete({ where: { id: employee.userId } });
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting employee:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

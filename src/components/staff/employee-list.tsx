@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -15,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Grid3X3, List, Plus, Building2, Mail, Phone, Pencil } from "lucide-react";
-import { getInitials } from "@/lib/utils";
 import type { Employee, Department, EmployeeStatus, User, Role } from "@prisma/client";
 
 interface EmployeeListProps {
@@ -49,6 +47,15 @@ const roleColors: Record<Role, string> = {
   INTERN:     "bg-amber-100 text-amber-800 border-amber-200",
 };
 
+const rolePriority: Record<Role, number> = {
+  ADMIN: 0,
+  STAFF: 1,
+  ACCOUNTANT: 2,
+  INTERN: 3,
+  HR: 4,
+  MANAGER: 5,
+};
+
 const roleLabels: Record<Role, string> = {
   ADMIN:      "Admin",
   HR:         "HR",
@@ -57,6 +64,13 @@ const roleLabels: Record<Role, string> = {
   STAFF:      "Staff",
   INTERN:     "Intern",
 };
+
+function formatDate(d: Date | string | null | undefined): string {
+  if (!d) return "—";
+  const date = d instanceof Date ? d : new Date(d);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 export function EmployeeList({ employees, departments, isAdmin = true }: EmployeeListProps) {
   const [view, setView] = useState<"grid" | "list">("list");
@@ -79,6 +93,11 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
       statusFilter === "all" || employee.status === statusFilter;
 
     return matchesSearch && matchesDepartment && matchesStatus;
+  }).sort((a, b) => {
+    const aRank = Math.min(...(a.user.roles ?? []).map((r) => rolePriority[r]), 99);
+    const bRank = Math.min(...(b.user.roles ?? []).map((r) => rolePriority[r]), 99);
+    if (aRank !== bRank) return aRank - bRank;
+    return a.employeeId.localeCompare(b.employeeId);
   });
 
   return (
@@ -168,15 +187,8 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <div className="relative">
-                      <Avatar className="h-12 w-12 bg-primary">
-                        <AvatarFallback className="bg-primary text-white">
-                          {getInitials(employee.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {employee.status === "ACTIVE" && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-                      )}
+                    <div className="text-sm font-semibold text-gray-300 tracking-wide w-16 flex-shrink-0">
+                      {employee.employeeId}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-white mb-2 break-words">
@@ -220,47 +232,77 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
           ))}
         </div>
       ) : (
-        <Card className="bg-gray-950 border-gray-800">
-          <div className="divide-y divide-gray-800">
-            {filteredEmployees.map((employee) => (
-              <Link key={employee.id} href={`/employees/${employee.id}`}>
-                <div className="group flex items-center gap-4 p-4 hover:bg-gray-900 transition-colors cursor-pointer">
-                  <Avatar className="h-10 w-10 bg-primary">
-                    <AvatarFallback className="bg-primary text-white text-sm">
-                      {getInitials(employee.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white mb-1">
-                      {employee.name}
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={statusColors[employee.status]}>
-                        {statusLabels[employee.status]}
-                      </Badge>
-                      {(employee.user.roles ?? []).map((r) => (
+        <Card className="bg-gray-950 border-gray-800 overflow-x-auto">
+          <table className="text-sm border-collapse">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-800">
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Employee ID</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Name</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Type</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Role</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Email</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Tel</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Start Date</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">End Date</th>
+                <th className="px-3 py-2 font-medium w-6"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filteredEmployees.map((employee) => (
+                <tr
+                  key={employee.id}
+                  className="group hover:bg-gray-900 transition-colors cursor-pointer"
+                  onClick={() => { window.location.href = `/employees/${employee.id}`; }}
+                >
+                  <td className="px-3 py-2 font-semibold text-gray-300 tracking-wide whitespace-nowrap">
+                    {employee.employeeId}
+                  </td>
+                  <td className="px-3 py-2 font-medium text-white whitespace-nowrap">
+                    {employee.name}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="flex gap-1">
+                      {[...(employee.user.roles ?? [])].sort((a, b) => rolePriority[a] - rolePriority[b]).map((r) => (
                         <Badge key={r} className={roleColors[r]}>
                           {roleLabels[r]}
                         </Badge>
                       ))}
-                      <Badge variant="outline" className="border-gray-600 text-gray-300">
-                        {employee.position}
-                      </Badge>
                     </div>
-                  </div>
-                  <div className="hidden sm:block text-sm text-gray-400">
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <Badge className={statusColors[employee.status]}>
+                      {statusLabels[employee.status]}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
                     {employee.department?.name ?? "—"}
-                  </div>
-                  <div className="hidden md:block text-sm text-gray-400">
-                    {employee.email}
-                  </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-gray-700 transition-colors">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  </td>
+                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
+                    {employee.email.includes(".noemail@") ? "—" : employee.email}
+                  </td>
+                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
+                    {employee.phone ?? "—"}
+                  </td>
+                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
+                    {formatDate(employee.startDate)}
+                  </td>
+                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
+                    {formatDate(employee.endDate)}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Link
+                      href={`/employees/${employee.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-gray-700"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Card>
       )}
 
