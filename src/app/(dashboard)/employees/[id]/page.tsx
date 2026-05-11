@@ -119,8 +119,8 @@ export default async function EmployeeDetailPage({
   const role = isDevAuthSkipped() ? "ADMIN" : (session?.user?.role || "STAFF");
   const isAdmin = role === "ADMIN";
 
-  // Only ADMIN can edit, and respect the view toggle
-  const canEdit = isAdmin && viewMode === "admin";
+  // Admins can edit any record regardless of which view they're in
+  const canEdit = isAdmin;
 
   return (
     <div className="space-y-6">
@@ -263,19 +263,21 @@ export default async function EmployeeDetailPage({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-gray-400">Department</p>
+              <p className="text-sm text-gray-400">Role</p>
               <div className="flex items-center gap-2 mt-1">
                 <Building2 className="h-4 w-4 text-gray-400" />
                 <p className="font-medium text-white">{employee.department?.name ?? "—"}</p>
               </div>
             </div>
             <div>
-              <p className="text-sm text-gray-400">Position</p>
-              <p className="font-medium text-white mt-1">{employee.position ?? "—"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Employment Type</p>
-              <p className="font-medium text-white mt-1">{employee.employmentType.replace("_", " ")}</p>
+              <p className="text-sm text-gray-400">User Type</p>
+              <p className="font-medium text-white mt-1">
+                {(employee.user?.roles ?? []).length > 0
+                  ? employee.user.roles
+                      .map((r) => r.charAt(0) + r.slice(1).toLowerCase())
+                      .join(", ")
+                  : "—"}
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-400">Start Date</p>

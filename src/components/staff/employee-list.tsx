@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Grid3X3, List, Plus, Building2, Mail, Phone, Pencil } from "lucide-react";
+import { Search, Plus, Pencil } from "lucide-react";
 import type { Employee, Department, EmployeeStatus, User, Role } from "@prisma/client";
 
 interface EmployeeListProps {
@@ -73,7 +73,6 @@ function formatDate(d: Date | string | null | undefined): string {
 }
 
 export function EmployeeList({ employees, departments, isAdmin = true }: EmployeeListProps) {
-  const [view, setView] = useState<"grid" | "list">("list");
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -118,10 +117,10 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
             <div className="flex gap-3">
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="All Departments" />
+                  <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
+                  <SelectItem value="all">All Roles</SelectItem>
                   {departments.map((dept) => (
                     <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
@@ -131,10 +130,10 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[160px]">
-                  <SelectValue placeholder="All Statuses" />
+                  <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="ACTIVE">Active</SelectItem>
                   <SelectItem value="ON_LEAVE">On Leave</SelectItem>
                   <SelectItem value="RESIGNED">Resigned</SelectItem>
@@ -146,24 +145,6 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
           </div>
 
           <div className="flex items-center gap-2 justify-between sm:justify-end">
-            <div className="hidden sm:flex items-center border rounded-lg p-1">
-              <Button
-                variant={view === "grid" ? "secondary" : "ghost"}
-                size="icon"
-                onClick={() => setView("grid")}
-                className="h-8 w-8"
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={view === "list" ? "secondary" : "ghost"}
-                size="icon"
-                onClick={() => setView("list")}
-                className="h-8 w-8"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
             <Link href="/employees/new" className="flex-1 sm:flex-none">
               <Button className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
@@ -174,65 +155,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
         </div>
       )}
 
-      {/* Employee Grid/List */}
-      {view === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEmployees.map((employee) => (
-            <Link key={employee.id} href={`/employees/${employee.id}`}>
-              <Card className="group hover:border-primary/50 transition-colors cursor-pointer bg-gray-950 border-gray-800">
-                <CardContent className="p-4 sm:p-6 relative">
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-gray-700 transition-colors">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="text-sm font-semibold text-gray-300 tracking-wide w-16 flex-shrink-0">
-                      {employee.employeeId}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white mb-2 break-words">
-                        {employee.name}
-                      </h3>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge className={statusColors[employee.status]}>
-                          {statusLabels[employee.status]}
-                        </Badge>
-                        {(employee.user.roles ?? []).map((r) => (
-                          <Badge key={r} className={roleColors[r]}>
-                            {roleLabels[r]}
-                          </Badge>
-                        ))}
-                        <Badge variant="outline" className="border-gray-600 text-gray-300">
-                          {employee.position}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-sm text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 flex-shrink-0" />
-                      <span>{employee.department?.name ?? "—"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 flex-shrink-0" />
-                      <span className="break-all">{employee.email}</span>
-                    </div>
-                    {employee.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 flex-shrink-0" />
-                        <span>{employee.phone}</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <Card className="bg-gray-950 border-gray-800 overflow-x-auto">
+      <Card className="bg-gray-950 border-gray-800 overflow-x-auto">
           <table className="text-sm border-collapse">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-800">
@@ -294,7 +217,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                     <Link
                       href={`/employees/${employee.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-gray-700"
+                      className="inline-flex p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Link>
@@ -304,7 +227,6 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
             </tbody>
           </table>
         </Card>
-      )}
 
       {filteredEmployees.length === 0 && (
         <div className="text-center py-12">
