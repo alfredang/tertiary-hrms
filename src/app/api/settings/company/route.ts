@@ -6,11 +6,13 @@ import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 const companySettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
+  shortName: z.string().optional().nullable(),
   uen: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
+  logo: z.string().optional().nullable(),
   approvalEmails: z.array(z.string().email()).optional(),
 });
 

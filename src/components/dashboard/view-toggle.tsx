@@ -15,9 +15,9 @@ import { Eye, ChevronDown, Check, ShieldCheck, Calculator, User, GraduationCap }
 
 const ALL_ROLES = [
   { value: "admin",      label: "Admin",      icon: ShieldCheck },
-  { value: "accountant", label: "Accountant", icon: Calculator },
   { value: "staff",      label: "Staff",      icon: User },
   { value: "intern",     label: "Intern",     icon: GraduationCap },
+  { value: "accountant", label: "Accountant", icon: Calculator },
 ] as const;
 
 interface ViewToggleProps {

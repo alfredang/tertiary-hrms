@@ -278,6 +278,7 @@ model VerificationToken {
 model CompanySettings {
   id             String   @id @default("company_settings")
   name           String   @default("Company Name")
+  shortName      String?
   uen            String?
   address        String?
   phone          String?

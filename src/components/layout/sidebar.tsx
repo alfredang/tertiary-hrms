@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -30,7 +31,15 @@ const navigation = [
   { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly:      true as const },
 ];
 
-export function Sidebar({ role }: { role?: string }) {
+export function Sidebar({
+  role,
+  companyShortName,
+  companyLogo,
+}: {
+  role?: string;
+  companyShortName?: string;
+  companyLogo?: string | null;
+}) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const actualRoles: string[] = (session?.user as any)?.roles ?? (role ? [role] : ["STAFF"]);
@@ -64,12 +73,15 @@ export function Sidebar({ role }: { role?: string }) {
     <div className="flex grow flex-col gap-y-5 px-6 pt-4">
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-          <span className="text-lg font-bold text-white">HR</span>
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center overflow-hidden">
+          {companyLogo ? (
+            <Image src={companyLogo} alt="Logo" width={40} height={40} className="object-contain" unoptimized />
+          ) : (
+            <span className="text-lg font-bold text-white">HR</span>
+          )}
         </div>
-        <div>
-          <p className="font-semibold text-white">HR Portal</p>
-          <p className="text-xs text-gray-400">Management System</p>
+        <div className="min-w-0">
+          <p className="font-semibold text-white line-clamp-2 leading-tight">{companyShortName ?? "HR Portal"}</p>
         </div>
       </div>
 

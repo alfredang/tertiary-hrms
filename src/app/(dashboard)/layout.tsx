@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { UserNav } from "@/components/layout/user-nav";
-import { ChatWidget } from "@/components/chat/chat-widget";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -23,13 +22,25 @@ export default async function DashboardLayout({
   // Resolve user info for header/sidebar (works even with SKIP_AUTH and no session)
   let userName = session?.user?.name;
   let userEmail = session?.user?.email;
-  if (!userName && isDevAuthSkipped()) {
-    const adminUser = await prisma.user.findUnique({
-      where: { email: "admin@tertiaryinfotech.com" },
-      include: { employee: { select: { name: true } } },
+  const companySettings = await prisma.companySettings.findUnique({
+    where: { id: "company_settings" },
+    select: { shortName: true, name: true, logo: true },
+  });
+  const companyShortName = companySettings?.shortName || companySettings?.name || "HR Portal";
+  const companyLogo = companySettings?.logo || null;
+
+  let userAvatarUrl: string | null = null;
+  let userGender: "MALE" | "FEMALE" | "OTHER" | null = null;
+  const lookupEmail = userEmail || (isDevAuthSkipped() ? "admin@tertiaryinfotech.com" : null);
+  if (lookupEmail) {
+    const u = await prisma.user.findUnique({
+      where: { email: lookupEmail },
+      include: { employee: { select: { name: true, avatarUrl: true, gender: true } } },
     });
-    userName = adminUser?.employee?.name || "Admin";
-    userEmail = adminUser?.email;
+    if (!userName) userName = u?.employee?.name || (isDevAuthSkipped() ? "Admin" : userName);
+    if (!userEmail) userEmail = u?.email ?? undefined;
+    userAvatarUrl = u?.employee?.avatarUrl ?? null;
+    userGender = u?.employee?.gender ?? null;
   }
 
   return (
@@ -37,14 +48,14 @@ export default async function DashboardLayout({
       {/* Sidebar - desktop only */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-800 bg-gray-950">
-          <Sidebar role={role} />
-          <UserNav fallbackName={userName} fallbackEmail={userEmail} />
+          <Sidebar role={role} companyShortName={companyShortName} companyLogo={companyLogo} />
+          <UserNav fallbackName={userName} fallbackEmail={userEmail} avatarUrl={userAvatarUrl} gender={userGender} />
         </div>
       </div>
 
       {/* Main content */}
       <div className="lg:pl-72">
-        <Header isAdmin={isAdmin} fallbackName={userName} fallbackEmail={userEmail} currentView={currentView} />
+        <Header isAdmin={isAdmin} fallbackName={userName} fallbackEmail={userEmail} avatarUrl={userAvatarUrl} gender={userGender} currentView={currentView} companyShortName={companyShortName} companyLogo={companyLogo} />
         <PullToRefresh>
           <main className="py-6 px-4 pb-20 sm:px-6 lg:px-8 lg:pb-6">
             {children}
@@ -54,9 +65,6 @@ export default async function DashboardLayout({
 
       {/* Mobile bottom navigation */}
       <MobileBottomNav />
-
-      {/* AI Chat Widget */}
-      <ChatWidget isAdmin={isAdmin} />
     </div>
   );
 }

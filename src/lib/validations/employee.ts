@@ -18,6 +18,7 @@ export const personalInfoSchema = z.object({
   nric: z.string().optional(),
   address: z.string().optional(),
   educationLevel: z.nativeEnum(EducationLevel),
+  avatarUrl: z.string().optional().nullable(),
 });
 
 export const employmentInfoSchema = z.object({

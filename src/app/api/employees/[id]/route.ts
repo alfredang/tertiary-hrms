@@ -10,7 +10,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 1. Authentication check
+    const { id } = await params;
+
+    // 1. Authentication + authorization
     // Development mode: Skip authentication if SKIP_AUTH is enabled
     if (!isDevAuthSkipped()) {
       const session = await auth();
@@ -18,16 +20,15 @@ export async function PATCH(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      // 2. Authorization check - only ADMIN, HR, MANAGER can edit
-      if (!["ADMIN", "HR", "MANAGER"].includes(session.user.role)) {
+      const isPrivileged = ["ADMIN", "HR", "MANAGER"].includes(session.user.role);
+      const isSelf = session.user.employeeId === id;
+      if (!isPrivileged && !isSelf) {
         return NextResponse.json(
           { error: "Forbidden - insufficient permissions" },
           { status: 403 }
         );
       }
     }
-
-    const { id } = await params;
     const body = await req.json();
 
     // 3. Validate request body

@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AvatarPlaceholder } from "@/components/ui/avatar-placeholder";
+import type { Gender } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,8 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn, getInitials } from "@/lib/utils";
-import { LogOut, RefreshCw, Settings, User } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { LogOut, RefreshCw, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
 import { NotificationBell } from "./notification-bell";
@@ -33,10 +35,14 @@ interface HeaderProps {
   isAdmin?: boolean;
   fallbackName?: string | null;
   fallbackEmail?: string | null;
+  avatarUrl?: string | null;
+  gender?: Gender | null;
   currentView?: string;
+  companyShortName?: string;
+  companyLogo?: string | null;
 }
 
-export function Header({ isAdmin = false, fallbackName, fallbackEmail, currentView }: HeaderProps) {
+export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl, gender, currentView, companyShortName, companyLogo }: HeaderProps) {
   const { data: session } = useSession();
   const displayName = session?.user?.name || fallbackName || "User";
   const displayEmail = session?.user?.email || fallbackEmail || "";
@@ -94,7 +100,7 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, currentVi
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-800 bg-gray-950 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex items-center gap-x-3">
-          <MobileSidebar fallbackName={fallbackName} fallbackEmail={fallbackEmail} />
+          <MobileSidebar fallbackName={fallbackName} fallbackEmail={fallbackEmail} companyShortName={companyShortName} companyLogo={companyLogo} />
           <h1 className={cn("text-lg font-semibold text-white", isAdmin && "hidden sm:block")}>{currentPage}</h1>
         </div>
 
@@ -113,9 +119,10 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, currentVi
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">
-                <Avatar className="h-8 w-8 bg-primary">
-                  <AvatarFallback className="bg-primary text-white text-sm">
-                    {getInitials(displayName || displayEmail || "U")}
+                <Avatar className="h-8 w-8">
+                  {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
+                  <AvatarFallback className="bg-transparent p-0">
+                    <AvatarPlaceholder gender={gender} />
                   </AvatarFallback>
                 </Avatar>
                 <span className="hidden sm:block text-sm font-medium text-gray-300">
@@ -133,14 +140,8 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, currentVi
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push("/profile")}>
                 <User className="mr-2 h-4 w-4" />
-                Profile
+                My Profile
               </DropdownMenuItem>
-              {showAdminFeatures && (
-                <DropdownMenuItem onClick={() => router.push("/settings")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                 <LogOut className="mr-2 h-4 w-4" />

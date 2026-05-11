@@ -1,58 +1,41 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { getInitials } from "@/lib/utils";
-import { format } from "date-fns";
-import { Building2, Briefcase } from "lucide-react";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { PasswordChangeCard } from "@/components/profile/password-change-card";
-import { PersonalInfoEditCard } from "@/components/profile/personal-info-edit-card";
+import { EmployeeDetailEditable } from "@/components/employees/employee-detail-editable";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const session = await auth();
 
-  let user;
-  if (isDevAuthSkipped()) {
-    user = await prisma.user.findUnique({
-      where: { email: "admin@tertiaryinfotech.com" },
-      include: {
-        employee: {
-          include: {
-            department: true,
-            salaryInfo: true,
-          },
-        },
+  const email = isDevAuthSkipped()
+    ? "admin@tertiaryinfotech.com"
+    : session?.user?.email;
+  if (!email) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: {
+      employee: {
+        include: { department: true, salaryInfo: true },
       },
-    });
-  } else {
-    if (!session?.user?.email) return null;
-    user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: {
-        employee: {
-          include: {
-            department: true,
-            salaryInfo: true,
-          },
-        },
-      },
-    });
-  }
+    },
+  });
 
   if (!user || !user.employee) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">My Profile</h1>
-        <p className="text-sm sm:text-base text-gray-400">Your employee profile has not been set up yet. Please contact HR.</p>
+        <p className="text-sm sm:text-base text-gray-400">
+          Your employee profile has not been set up yet. Please contact HR.
+        </p>
       </div>
     );
   }
 
-  const emp = user.employee;
+  const departments = await prisma.department.findMany({ orderBy: { name: "asc" } });
+  const employeeWithUser = { ...user.employee, user: { roles: user.roles } };
 
   return (
     <div className="space-y-6">
@@ -61,81 +44,12 @@ export default async function ProfilePage() {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Your personal information</p>
       </div>
 
-      {/* Profile Header */}
-      <Card className="bg-gray-950 border-gray-800">
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
-            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 bg-primary">
-              <AvatarFallback className="bg-primary text-white text-xl sm:text-2xl">
-                {getInitials(emp.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="text-center sm:text-left">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">{emp.name}</h2>
-              <p className="text-gray-400">{emp.position ?? "—"}</p>
-              <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
-                <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                  {emp.status}
-                </Badge>
-                <Badge variant="outline" className="border-gray-700 text-gray-300">
-                  {session?.user?.role ?? user.roles[0]}
-                </Badge>
-                <Badge variant="outline" className="border-gray-700 text-gray-300">
-                  {emp.employeeId}
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <EmployeeDetailEditable
+        employee={employeeWithUser}
+        departments={departments}
+        canEdit={true}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Personal Information — editable */}
-        <PersonalInfoEditCard
-          name={emp.name}
-          email={emp.email}
-          phone={emp.phone ?? null}
-          dateOfBirth={emp.dateOfBirth ? emp.dateOfBirth.toISOString().split("T")[0] : null}
-          gender={emp.gender ?? null}
-          nationality={emp.nationality ?? null}
-          nric={emp.nric ?? null}
-          address={emp.address ?? null}
-          educationLevel={emp.educationLevel ?? null}
-        />
-
-        {/* Employment Information */}
-        <Card className="bg-gray-950 border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Briefcase className="h-5 w-5" />
-              Employment Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="h-4 w-4 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-400">Department</p>
-                <p className="text-white">{emp.department?.name ?? "—"}</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Position</p>
-              <p className="text-white">{emp.position ?? "—"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Employment Type</p>
-              <p className="text-white">{emp.employmentType.replace("_", " ")}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Start Date</p>
-              <p className="text-white">{emp.startDate ? format(emp.startDate, "d MMM yyyy") : "—"}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Change Password */}
       <PasswordChangeCard />
     </div>
   );

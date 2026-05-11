@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Save, ShieldCheck, Plus, X, Pencil, RotateCcw } from "lucide-react";
+import { Building2, Save, ShieldCheck, Plus, X, Pencil, RotateCcw, Upload, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -24,11 +25,13 @@ import type { CompanySettings } from "@prisma/client";
 
 const companySettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
+  shortName: z.string().optional(),
   uen: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
+  logo: z.string().optional(),
   approvalEmails: z.array(z.string().email()).optional(),
 });
 
@@ -58,26 +61,59 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
     resolver: zodResolver(companySettingsSchema),
     defaultValues: {
       name: settings.name,
+      shortName: settings.shortName || "",
       uen: settings.uen || "",
       address: settings.address || "",
       phone: settings.phone || "",
       email: settings.email || "",
       website: settings.website || "",
+      logo: settings.logo || "",
       approvalEmails: settings.approvalEmails || [],
     },
   });
+  const logoUrl = form.watch("logo");
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const handleCancel = () => {
     form.reset({
       name: settings.name,
+      shortName: settings.shortName || "",
       uen: settings.uen || "",
       address: settings.address || "",
       phone: settings.phone || "",
       email: settings.email || "",
       website: settings.website || "",
+      logo: settings.logo || "",
     });
     setApprovalEmails(settings.approvalEmails || []);
     setEditing(false);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || "Upload failed");
+      }
+      const j = await res.json();
+      form.setValue("logo", j.url, { shouldDirty: true });
+    } catch (err) {
+      toast({
+        title: "Logo upload failed",
+        description: err instanceof Error ? err.message : "Try again",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
   };
 
   const addApprovalEmail = () => {
@@ -182,11 +218,59 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
         <CardContent>
           {editing ? (
             <div className="space-y-6">
+              <div className="space-y-2">
+                <Label className="text-white">Company Logo</Label>
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 rounded-lg bg-gray-900 border border-gray-700 flex items-center justify-center overflow-hidden">
+                    {logoUrl ? (
+                      <Image src={logoUrl} alt="Company logo" width={64} height={64} className="object-contain" unoptimized />
+                    ) : (
+                      <Building2 className="h-7 w-7 text-gray-600" />
+                    )}
+                  </div>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    className="border-gray-700 hover:bg-gray-800"
+                  >
+                    {uploadingLogo ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    {logoUrl ? "Replace logo" : "Upload logo"}
+                  </Button>
+                  {logoUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => form.setValue("logo", "", { shouldDirty: true })}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-white">Company Name *</Label>
                   <Input id="name" {...form.register("name")} className="bg-gray-900 border-gray-700 text-white" placeholder="Enter company name" />
                   {form.formState.errors.name && <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shortName" className="text-white">Short Name</Label>
+                  <Input id="shortName" {...form.register("shortName")} className="bg-gray-900 border-gray-700 text-white" placeholder="e.g., Tertiary Infotech Academy" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="uen" className="text-white">UEN (Unique Entity Number)</Label>
@@ -213,15 +297,28 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-              <div>
-                <p className="text-sm text-gray-400">Company Name</p>
-                <p className="text-white">{settings.name || "—"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-400">UEN</p>
-                <p className="text-white">{settings.uen || "—"}</p>
-              </div>
+            <div className="space-y-6">
+              {settings.logo && (
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">Company Logo</p>
+                  <div className="h-16 w-16 rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center overflow-hidden">
+                    <Image src={settings.logo} alt="Company logo" width={64} height={64} className="object-contain" unoptimized />
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                <div>
+                  <p className="text-sm text-gray-400">Company Name</p>
+                  <p className="text-white">{settings.name || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Short Name</p>
+                  <p className="text-white">{settings.shortName || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">UEN</p>
+                  <p className="text-white">{settings.uen || "—"}</p>
+                </div>
               <div>
                 <p className="text-sm text-gray-400">Phone</p>
                 <p className="text-white">{settings.phone || "—"}</p>
@@ -237,6 +334,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
               <div>
                 <p className="text-sm text-gray-400">Address</p>
                 <p className="text-white">{settings.address || "—"}</p>
+              </div>
               </div>
             </div>
           )}

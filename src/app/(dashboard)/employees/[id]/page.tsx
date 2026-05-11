@@ -1,44 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getInitials, prorateLeave, computeYearlyEntitlement } from "@/lib/utils";
+import { prorateLeave, computeYearlyEntitlement } from "@/lib/utils";
 import { format } from "date-fns";
-import {
-  Building2,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Briefcase,
-  DollarSign,
-  User,
-  FileText,
-} from "lucide-react";
-import type { EmployeeStatus } from "@prisma/client";
-import { EmployeeEditSheet } from "@/components/employees/employee-edit-sheet";
-import { getViewMode } from "@/lib/view-mode";
+import { Calendar, DollarSign, FileText } from "lucide-react";
+import { EmployeeDetailEditable } from "@/components/employees/employee-detail-editable";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
-
-const statusColors: Record<EmployeeStatus, string> = {
-  ACTIVE: "bg-green-100 text-green-800 border-green-200",
-  ON_LEAVE: "bg-amber-100 text-amber-800 border-amber-200",
-  TERMINATED: "bg-red-100 text-red-800 border-red-200",
-  RESIGNED: "bg-gray-100 text-gray-800 border-gray-200",
-  INACTIVE: "bg-slate-100 text-slate-800 border-slate-200",
-};
-
-const statusLabels: Record<EmployeeStatus, string> = {
-  ACTIVE: "Active",
-  ON_LEAVE: "On Leave",
-  TERMINATED: "Terminated",
-  RESIGNED: "Resigned",
-  INACTIVE: "Inactive",
-};
 
 async function getEmployee(id: string) {
   const currentYear = new Date().getFullYear();
@@ -104,8 +75,6 @@ export default async function EmployeeDetailPage({
     }
   }
 
-  const viewMode = await getViewMode();
-
   const [employee, departments] = await Promise.all([
     getEmployee(id),
     getDepartments(),
@@ -124,185 +93,9 @@ export default async function EmployeeDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-          <div className="relative">
-            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 bg-primary">
-              <AvatarFallback className="bg-primary text-white text-xl sm:text-2xl">
-                {getInitials(employee.name)}
-              </AvatarFallback>
-            </Avatar>
-            {employee.status === "ACTIVE" && (
-              <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
-            )}
-          </div>
-          <div className="text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              {employee.name}
-            </h1>
-            <p className="text-gray-400 mt-1">{employee.position ?? "—"}</p>
-            <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 mt-2">
-              <Badge className={statusColors[employee.status]}>
-                {statusLabels[employee.status]}
-              </Badge>
-              <span className="text-sm text-gray-400">ID: {employee.employeeId}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Edit Button - Only visible to ADMIN, HR, MANAGER */}
-        {canEdit && (
-          <EmployeeEditSheet employee={employee} departments={departments} userRoles={employee.user?.roles ?? ["STAFF"]} />
-        )}
-      </div>
+      <EmployeeDetailEditable employee={employee} departments={departments} canEdit={canEdit} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Personal Information */}
-        <Card className="bg-gray-950 border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <User className="h-5 w-5" />
-              Personal Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-400">Email</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Mail className="h-4 w-4 text-gray-400" />
-                <p className="font-medium text-white">{employee.email}</p>
-              </div>
-            </div>
-            {employee.phone && (
-              <div>
-                <p className="text-sm text-gray-400">Phone</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <p className="font-medium text-white">{employee.phone}</p>
-                </div>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-400">Date of Birth</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <p className="font-medium text-white">{employee.dateOfBirth ? format(new Date(employee.dateOfBirth), "PPP") : "—"}</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Gender</p>
-              <p className="font-medium text-white mt-1">{employee.gender}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Residency Status</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge
-                  variant="outline"
-                  className={
-                    employee.nationality === "Singaporean"
-                      ? "border-green-500 text-green-400 bg-green-950/30"
-                      : employee.nationality === "PR" || employee.nationality === "Permanent Resident"
-                      ? "border-blue-500 text-blue-400 bg-blue-950/30"
-                      : "border-amber-500 text-amber-400 bg-amber-950/30"
-                  }
-                >
-                  {employee.nationality}
-                </Badge>
-              </div>
-            </div>
-            {employee.educationLevel && (
-              <div>
-                <p className="text-sm text-gray-400">Education Level</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge
-                    variant="outline"
-                    className={
-                      employee.educationLevel === "PHD"
-                        ? "border-purple-500 text-purple-400 bg-purple-950/30"
-                        : employee.educationLevel === "MASTER"
-                        ? "border-blue-500 text-blue-400 bg-blue-950/30"
-                        : employee.educationLevel === "DEGREE"
-                        ? "border-green-500 text-green-400 bg-green-950/30"
-                        : "border-gray-500 text-gray-400 bg-gray-950/30"
-                    }
-                  >
-                    {employee.educationLevel === "PHD" ? "PhD" : employee.educationLevel.charAt(0) + employee.educationLevel.slice(1).toLowerCase()}
-                  </Badge>
-                </div>
-              </div>
-            )}
-            {employee.nric && (
-              <div>
-                <p className="text-sm text-gray-400">NRIC</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                  <p className="font-medium text-white">{employee.nric}</p>
-                </div>
-              </div>
-            )}
-            {employee.address && (
-              <div>
-                <p className="text-sm text-gray-400">Address</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <p className="font-medium text-white">{employee.address}</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Employment Details */}
-        <Card className="bg-gray-950 border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Briefcase className="h-5 w-5" />
-              Employment Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-400">Role</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Building2 className="h-4 w-4 text-gray-400" />
-                <p className="font-medium text-white">{employee.department?.name ?? "—"}</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">User Type</p>
-              <p className="font-medium text-white mt-1">
-                {(employee.user?.roles ?? []).length > 0
-                  ? employee.user.roles
-                      .map((r) => r.charAt(0) + r.slice(1).toLowerCase())
-                      .join(", ")
-                  : "—"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Start Date</p>
-              <div className="flex items-center gap-2 mt-1">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <p className="font-medium">{employee.startDate ? format(new Date(employee.startDate), "PPP") : "—"}</p>
-              </div>
-            </div>
-            {employee.endDate && (
-              <div>
-                <p className="text-sm text-gray-400">End Date</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <p className="font-medium text-white">{format(new Date(employee.endDate), "PPP")}</p>
-                </div>
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-400">Status</p>
-              <Badge className={`${statusColors[employee.status]} mt-1`}>
-                {statusLabels[employee.status]}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Compensation */}
         {employee.salaryInfo && (

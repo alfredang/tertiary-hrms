@@ -170,12 +170,12 @@ export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps)
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-end">
         {/* Date of Birth */}
         <div className="space-y-2">
-          <Label htmlFor="dateOfBirth" className="text-gray-300">
-            Date of Birth <span className="text-red-400">*</span>
-            <span className="ml-1 text-xs text-gray-500 font-normal">(year from NRIC, correct day/month)</span>
+          <Label htmlFor="dateOfBirth" className="text-gray-300 block">
+            <span>Date of Birth <span className="text-red-400">*</span></span>
+            <span className="block text-xs text-gray-500 font-normal">(year from NRIC, correct day/month)</span>
           </Label>
           <DatePicker
             id="dateOfBirth"

@@ -1,8 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AvatarPlaceholder } from "@/components/ui/avatar-placeholder";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,13 +10,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut } from "lucide-react";
+import type { Gender } from "@prisma/client";
 
 interface UserNavProps {
   fallbackName?: string | null;
   fallbackEmail?: string | null;
+  avatarUrl?: string | null;
+  gender?: Gender | null;
 }
 
-export function UserNav({ fallbackName, fallbackEmail }: UserNavProps = {}) {
+export function UserNav({ fallbackName, fallbackEmail, avatarUrl, gender }: UserNavProps = {}) {
   const { data: session } = useSession();
   const displayName = session?.user?.name || fallbackName || "User";
   const displayEmail = session?.user?.email || fallbackEmail || "";
@@ -26,9 +29,10 @@ export function UserNav({ fallbackName, fallbackEmail }: UserNavProps = {}) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-gray-800 transition-colors">
-            <Avatar className="h-10 w-10 bg-primary">
-              <AvatarFallback className="bg-primary text-white">
-                {getInitials(displayName || displayEmail || "U")}
+            <Avatar className="h-10 w-10">
+              {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
+              <AvatarFallback className="bg-transparent p-0">
+                <AvatarPlaceholder gender={gender} />
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
