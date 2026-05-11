@@ -26,7 +26,7 @@ const pageNames: Record<string, string> = {
   "/profile": "My Profile",
   "/employees": "Employees",
   "/leave": "Leave",
-  "/expenses": "Expenses",
+  "/expenses": "Expense Claims",
   "/payroll": "Payroll",
   "/calendar": "Calendar",
 };

@@ -234,19 +234,11 @@ export async function DELETE(
         where: { OR: [{ employeeId: id }, { approverId: id }] },
       });
       await tx.payslip.deleteMany({ where: { employeeId: id } });
-      // OtEntry.approver is optional — null out instead of deleting the OT record
-      await tx.otEntry.updateMany({
-        where: { approverId: id },
-        data: { approverId: null },
-      });
-      // Detach subordinates so the self-relation FK doesn't block deletion
       await tx.employee.updateMany({
         where: { managerId: id },
         data: { managerId: null },
       });
 
-      // Cascades: Employee, SalaryInfo, LeaveBalance, Attendance,
-      // OtEntry (employee side), Notification, Session, Account
       await tx.user.delete({ where: { id: employee.userId } });
     });
 

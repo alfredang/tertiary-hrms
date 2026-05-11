@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { QuickBooksCredentialsCard } from "@/components/settings/quickbooks-credentials-card";
 import { GmailCredentialsCard } from "@/components/settings/gmail-credentials-card";
+import { ClaudeCredentialsCard } from "@/components/settings/claude-credentials-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { redirect } from "next/navigation";
 import { getViewMode } from "@/lib/view-mode";
@@ -35,6 +36,7 @@ async function getCredentials() {
           "GMAIL_CLIENT_ID",
           "GMAIL_CLIENT_SECRET",
           "GMAIL_REFRESH_TOKEN",
+          "CLAUDE_API_KEY",
         ],
       },
     },
@@ -77,10 +79,6 @@ export default async function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="credentials" className="mt-6">
-          <div className="space-y-2 mb-6">
-            <h2 className="text-lg font-semibold text-white">API Credentials</h2>
-            <p className="text-sm text-gray-400">Store and manage third-party API keys for integrations.</p>
-          </div>
           <div className="space-y-4">
             <GmailCredentialsCard
               emailUser={credentials["GMAIL_EMAIL_USER"] ?? ""}
@@ -94,6 +92,7 @@ export default async function SettingsPage() {
               refreshToken={credentials["QUICKBOOKS_REFRESH_TOKEN"] ?? ""}
               realmId={credentials["QUICKBOOKS_REALM_ID"] ?? ""}
             />
+            <ClaudeCredentialsCard apiKey={credentials["CLAUDE_API_KEY"] ?? ""} />
           </div>
         </TabsContent>
       </Tabs>

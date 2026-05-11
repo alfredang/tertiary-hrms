@@ -13,10 +13,12 @@ import {
   Clock,
   Receipt,
   DollarSign,
+  Calculator,
+  TrendingDown,
+  TrendingUp,
   Calendar,
   Settings,
   ChevronRight,
-  Timer,
 } from "lucide-react";
 
 const navigation = [
@@ -24,9 +26,18 @@ const navigation = [
   { name: "My Profile", href: "/profile",     icon: User },
   { name: "Employees",  href: "/employees",   icon: Users,      adminOnly:      true as const },
   { name: "Leave",      href: "/leave",       icon: Clock },
-  { name: "Attendance", href: "/attendance",  icon: Timer },
-  { name: "Expenses",   href: "/expenses",    icon: Receipt,    financeOnly:    true as const },
+  { name: "Expense Claims", href: "/expenses",    icon: Receipt,    financeOnly:    true as const },
   { name: "Payroll",    href: "/payroll",     icon: DollarSign, financeOnly:    true as const },
+  {
+    name: "Accounting",
+    href: "/accounting",
+    icon: Calculator,
+    financeOnly: true as const,
+    children: [
+      { name: "Expense Tracking", href: "/accounting/expense-tracking", icon: TrendingDown },
+      { name: "Income Tracking",  href: "/accounting/income-tracking",  icon: TrendingUp   },
+    ],
+  },
   { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const },
   { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly:      true as const },
 ];
@@ -93,15 +104,19 @@ export function Sidebar({
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            const children = "children" in item ? item.children : undefined;
+            const childExpanded = !!children && isActive;
             return (
               <li key={item.name}>
                 <Link
                   href={item.href}
                   className={cn(
                     "group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-medium transition-all",
-                    isActive
+                    isActive && !children
                       ? "bg-primary text-white"
-                      : "text-gray-300 hover:bg-gray-800"
+                      : isActive && children
+                        ? "bg-gray-800 text-white"
+                        : "text-gray-300 hover:bg-gray-800"
                   )}
                 >
                   <item.icon
@@ -111,8 +126,36 @@ export function Sidebar({
                     )}
                   />
                   {item.name}
-                  {isActive && <ChevronRight className="ml-auto h-4 w-4" />}
+                  {isActive && !children && <ChevronRight className="ml-auto h-4 w-4" />}
                 </Link>
+                {childExpanded && children && (
+                  <ul className="mt-1 ml-4 border-l border-gray-800 pl-3 space-y-1">
+                    {children.map((child) => {
+                      const childActive = pathname === child.href;
+                      return (
+                        <li key={child.href}>
+                          <Link
+                            href={child.href}
+                            className={cn(
+                              "group flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm transition-all",
+                              childActive
+                                ? "bg-primary text-white"
+                                : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
+                            )}
+                          >
+                            <child.icon
+                              className={cn(
+                                "h-4 w-4 shrink-0",
+                                childActive ? "text-white" : "text-gray-500 group-hover:text-gray-200",
+                              )}
+                            />
+                            {child.name}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </li>
             );
           })}

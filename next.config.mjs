@@ -3,6 +3,7 @@ const nextConfig = {
   output: 'standalone', // Enable for Docker deployment
   experimental: {
     instrumentationHook: true,
+    serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist"],
     // Dramatically reduces cold-start compile time by tree-shaking icon/component libraries
     optimizePackageImports: [
       'lucide-react',

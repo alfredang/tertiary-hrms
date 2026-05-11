@@ -77,7 +77,7 @@ export function GmailCredentialsCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-gray-400" />
-            <CardTitle className="text-white">Gmail (OTP Email)</CardTitle>
+            <CardTitle className="text-white">Google OAuth</CardTitle>
             {isConfigured && (
               <span className="flex items-center gap-1 text-xs text-green-400 font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" />

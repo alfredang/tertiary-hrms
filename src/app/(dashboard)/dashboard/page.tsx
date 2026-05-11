@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 async function getAdminStats() {
   const mcLeaveType = await prisma.leaveType.findUnique({ where: { code: "MC" } });
 
-  const [pendingLeaves, pendingMC, pendingClaims, pendingOtApprovals] = await Promise.all([
+  const [pendingLeaves, pendingMC, pendingClaims] = await Promise.all([
     prisma.leaveRequest.count({
       where: { status: "PENDING", ...(mcLeaveType ? { leaveTypeId: { not: mcLeaveType.id } } : {}) },
     }),
@@ -21,10 +21,9 @@ async function getAdminStats() {
       ? prisma.leaveRequest.count({ where: { status: "PENDING", leaveTypeId: mcLeaveType.id } })
       : Promise.resolve(0),
     prisma.expenseClaim.count({ where: { status: "PENDING" } }),
-    prisma.otEntry.count({ where: { status: "PENDING_APPROVAL" } }),
   ]);
 
-  return { pendingLeaves, pendingMC, pendingClaims, pendingOtApprovals };
+  return { pendingLeaves, pendingMC, pendingClaims };
 }
 
 async function getStaffStats(employeeId: string) {
@@ -78,19 +77,7 @@ async function getStaffStats(employeeId: string) {
   const mcBalanceVal = mcEntitlement + mcCarriedOver - mcUsed - mcPending;
   const expenseClaimAmount = expenseClaims.reduce((sum, c) => sum + Number(c.amount), 0);
 
-  // OT leave balance
-  const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
-  let otBalance = 0;
-  if (alOtType) {
-    const otBal = await prisma.leaveBalance.findUnique({
-      where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
-    });
-    if (otBal) {
-      otBalance = Math.max(0, Number(otBal.earned) - Number(otBal.used) - Number(otBal.autoDeducted) - Number(otBal.pending));
-    }
-  }
-
-  return { leaveBalance, mcBalance: mcBalanceVal, expenseClaimAmount, otBalance };
+  return { leaveBalance, mcBalance: mcBalanceVal, expenseClaimAmount };
 }
 
 async function getRecentActivity(employeeId?: string) {

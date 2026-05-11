@@ -64,10 +64,20 @@ scripts/*.png
 
 # Visibility (managed by /toggle-visibility) — stealth
 CLAUDE.md
-.claude/
 .mcp.json
 .agents/
 skills-lock.json
+
+# Ignore everything inside .claude/ except the shared project skills directory,
+# which we want tracked so the custom accounting skill ships with the repo.
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+
+# Local secrets backups and runtime uploads — never commit.
+env_backup
+/env_backup
+/uploads/
 
 # Android signing keystores
 *.jks

@@ -102,9 +102,6 @@ model Employee {
   leaveRequests            LeaveRequest[] @relation("LeaveRequest_employeeIdToEmployee")
   payslips                 Payslip[]
   salaryInfo               SalaryInfo?
-  attendances              Attendance[]
-  otEntriesAsEmployee      OtEntry[]      @relation("OtEntry_employeeIdToEmployee")
-  otEntriesAsApprover      OtEntry[]      @relation("OtEntry_approverIdToEmployee")
 }
 
 model ExpenseCategory {
@@ -381,18 +378,6 @@ enum Role {
   ADMIN
 }
 
-enum WorkDayType {
-  WEEKDAY
-  WEEKEND
-  PUBLIC_HOLIDAY
-}
-
-enum OtEntryStatus {
-  PENDING_APPROVAL
-  APPROVED
-  REJECTED
-}
-
 model PublicHoliday {
   id          String   @id @default(cuid())
   date        DateTime @db.Date
@@ -403,42 +388,6 @@ model PublicHoliday {
 
   @@unique([date, countryCode])
   @@index([year, countryCode])
-}
-
-model Attendance {
-  id         String      @id @default(cuid())
-  employeeId String
-  date       DateTime    @db.Date
-  clockIn    DateTime
-  clockOut   DateTime?
-  totalHours Decimal?    @db.Decimal(5, 2)
-  dayType    WorkDayType @default(WEEKDAY)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  otEntry    OtEntry?
-
-  @@unique([employeeId, date])
-}
-
-model OtEntry {
-  id              String        @id @default(cuid())
-  employeeId      String
-  attendanceId    String        @unique
-  date            DateTime
-  hoursWorked     Decimal       @db.Decimal(5, 2)
-  earnedDays      Decimal       @db.Decimal(5, 2)
-  dayType         WorkDayType
-  status          OtEntryStatus @default(PENDING_APPROVAL)
-  approverId      String?
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  employee        Employee      @relation("OtEntry_employeeIdToEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
-  approver        Employee?     @relation("OtEntry_approverIdToEmployee", fields: [approverId], references: [id])
-  attendance      Attendance    @relation(fields: [attendanceId], references: [id])
 }
 
 model Notification {
@@ -453,4 +402,32 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
+}
+
+model BankTransaction {
+  id              String   @id @default(cuid())
+  paymentDate     DateTime @db.Date
+  title           String
+  amount          Decimal  @db.Decimal(12, 2)
+  direction       String   @default("DEBIT")
+  type            String   @default("Other")
+  paymentType     String   @default("Bank Transfer")
+  paymentRef      String?
+  invoiceNo       String?
+  status          String   @default("Pending")
+  gstIncluded     Boolean  @default(false)
+  recurring       String   @default("One Time")
+  remarks         String?
+  rawDescription  String
+  statementRef    String?
+  dedupeKey       String   @unique
+  importBatchId   String
+  uploadedById    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([paymentDate])
+  @@index([direction])
+  @@index([importBatchId])
+  @@index([type])
 }

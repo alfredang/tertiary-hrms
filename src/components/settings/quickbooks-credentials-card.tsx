@@ -84,7 +84,7 @@ export function QuickBooksCredentialsCard({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-white">QuickBooks</CardTitle>
+            <CardTitle className="text-white">QuickBooks OAuth</CardTitle>
             {isConnected && (
               <span className="flex items-center gap-1 text-xs text-green-400 font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" />
