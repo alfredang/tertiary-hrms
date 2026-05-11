@@ -14,6 +14,8 @@ RUN npm config set fetch-retry-maxtimeout 600000 && \
 
 # Copy package files and .npmrc
 COPY package.json package-lock.json* .npmrc* ./
+# Copy prisma schema so postinstall (prisma generate) works
+COPY prisma ./prisma
 
 # Install dependencies with retries and explicit legacy peer deps
 RUN npm ci --legacy-peer-deps || \
