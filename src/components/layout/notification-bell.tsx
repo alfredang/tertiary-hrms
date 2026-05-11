@@ -179,7 +179,7 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-blue-200">Enable desktop notifications</p>
                 <p className="text-[11px] text-blue-400 mt-0.5">
-                  Get notified even when you're on another tab.
+                  Get notified even when you&apos;re on another tab.
                 </p>
               </div>
               <button
