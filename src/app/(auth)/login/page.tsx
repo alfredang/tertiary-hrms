@@ -522,33 +522,6 @@ function LoginForm() {
           </Button>
         </div>
 
-        {/* Dev Quick Login */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="bg-yellow-950/30 border border-yellow-800/50 rounded-2xl p-4 space-y-3">
-            <p className="text-xs text-yellow-500 font-medium text-center uppercase tracking-wide">
-              Dev Quick Login
-            </p>
-            <div className="flex gap-2">
-              {(["admin", "staff", "staff2"] as const).map((role) => (
-                <Button
-                  key={role}
-                  type="button"
-                  variant="outline"
-                  className="flex-1 min-w-0 border-yellow-800/50 bg-yellow-950/20 text-yellow-400 hover:bg-yellow-900/30 hover:text-yellow-300 text-xs px-2"
-                  onClick={() => handleSkipLogin(role)}
-                  disabled={skipLoadingRole !== null}
-                >
-                  {skipLoadingRole === role ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    role.charAt(0).toUpperCase() + role.slice(1)
-                  )}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Footer */}
         <div className="text-center space-y-1">
           <p className="text-xs text-gray-600">{COMPANY_NAME} HR Portal</p>

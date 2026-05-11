@@ -59,7 +59,7 @@ const roleLabels: Record<Role, string> = {
 };
 
 export function EmployeeList({ employees, departments, isAdmin = true }: EmployeeListProps) {
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list">("list");
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
