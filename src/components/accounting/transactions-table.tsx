@@ -70,7 +70,9 @@ export function TransactionsTable({
 
   // Column widths (in px), keyed by column id. Persisted in localStorage,
   // separate per direction so Income and Expense have independent layouts.
-  const storageKey = `acct-cols-${direction}`;
+  // v2: bumped after widening the title column default so existing users
+  // don't keep the cached 240px width.
+  const storageKey = `acct-cols-v2-${direction}`;
   const [widths, setWidths] = useState<Record<string, number>>({});
   useEffect(() => {
     try {
@@ -184,9 +186,12 @@ export function TransactionsTable({
         </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="text-sm" style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}>
+        <table
+          className="text-sm border-collapse [&_td]:border-r [&_td]:border-gray-700 [&_th]:border-r [&_th]:border-gray-700 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0 [&_tr]:border-b [&_tr]:border-gray-700"
+          style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}
+        >
           <colgroup>
-            <Col id="title" widths={widths} defaultW={240} />
+            <Col id="title" widths={widths} defaultW={360} />
             <Col id="paymentDate" widths={widths} defaultW={150} />
             <Col id="amount" widths={widths} defaultW={110} />
             <Col id="paymentType" widths={widths} defaultW={140} />
@@ -200,7 +205,7 @@ export function TransactionsTable({
           </colgroup>
           <thead className="bg-gray-900 text-gray-400">
             <tr>
-              <ResizableTh id="title" widths={widths} setWidth={setWidth} defaultW={240}>
+              <ResizableTh id="title" widths={widths} setWidth={setWidth} defaultW={360}>
                 {titleLabel}
               </ResizableTh>
               <ResizableTh id="paymentDate" widths={widths} setWidth={setWidth} defaultW={150}>
@@ -237,7 +242,7 @@ export function TransactionsTable({
               <th className="p-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800 text-white">
+          <tbody className="text-white">
             {rows.map((r) => {
               const isSaving = (f: string) => savingKeys.has(`${r.id}:${f}`);
               const errorOf = (f: string) => errors[`${r.id}:${f}`];

@@ -56,6 +56,8 @@ export function ExpenseFilters({
       // so we need an explicit override to show every row.
       next.set(key, value);
     }
+    // Any filter change resets to page 1 so the result set is always valid.
+    next.delete("page");
     startTransition(() => {
       const qs = next.toString();
       router.replace(qs ? `?${qs}` : "?", { scroll: false });

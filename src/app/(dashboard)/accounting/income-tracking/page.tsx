@@ -8,13 +8,16 @@ import {
   ExpenseFilters,
   INCOME_CATEGORY_OPTIONS,
 } from "@/components/accounting/expense-filters";
+import { Pagination } from "@/components/accounting/pagination";
+
+const PAGE_SIZE = 200;
 
 export const dynamic = "force-dynamic";
 
 export default async function IncomeTrackingPage({
   searchParams,
 }: {
-  searchParams?: { status?: string; category?: string; from?: string; to?: string };
+  searchParams?: { status?: string; category?: string; from?: string; to?: string; page?: string };
 }) {
   const session = await auth();
 
@@ -57,10 +60,16 @@ export default async function IncomeTrackingPage({
     }
   }
 
+  const total = await prisma.bankTransaction.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rawPage = parseInt(searchParams?.page ?? "1", 10);
+  const page = isNaN(rawPage) ? 1 : Math.min(Math.max(1, rawPage), totalPages);
+
   const transactions = await prisma.bankTransaction.findMany({
     where,
     orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }],
-    take: 1000,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
   });
 
   const rows = transactions.map((t) => ({
@@ -101,6 +110,7 @@ export default async function IncomeTrackingPage({
         direction="CREDIT"
         emptyText="No income matches the current filters."
       />
+      <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} />
     </div>
   );
 }
