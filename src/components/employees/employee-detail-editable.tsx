@@ -37,6 +37,7 @@ import type {
   EducationLevel,
   Employee,
   EmployeeStatus,
+  EmploymentType,
   Gender,
   Role,
 } from "@prisma/client";
@@ -47,6 +48,13 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string; className: string 
   { value: "TERMINATED", label: "Terminated", className: "bg-red-100 text-red-800 border-red-200" },
   { value: "RESIGNED",   label: "Resigned",   className: "bg-gray-100 text-gray-800 border-gray-200" },
   { value: "INACTIVE",   label: "Inactive",   className: "bg-slate-100 text-slate-800 border-slate-200" },
+];
+
+const EMPLOYMENT_TYPE_OPTIONS: { value: EmploymentType; label: string }[] = [
+  { value: "FULL_TIME", label: "Full Time" },
+  { value: "PART_TIME", label: "Part Time" },
+  { value: "CONTRACT",  label: "Contract" },
+  { value: "INTERN",    label: "Intern" },
 ];
 
 const ALL_ROLES: { value: Role; label: string }[] = [
@@ -113,6 +121,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
     departmentId: employee.departmentId ?? "",
     startDate: formatDateValue(employee.startDate),
     endDate: formatDateValue(employee.endDate),
+    employmentType: employee.employmentType,
     status: employee.status,
     roles: (employee.user?.roles ?? ["STAFF"]) as Role[],
   };
@@ -180,6 +189,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
           departmentId: form.departmentId,
           startDate: form.startDate,
           endDate: form.endDate || null,
+          employmentType: form.employmentType,
           status: form.status,
         },
         roles: form.roles,
@@ -511,6 +521,27 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
               ) : (
                 <p className="font-medium text-white">
                   {employee.endDate ? format(new Date(employee.endDate), "PPP") : "—"}
+                </p>
+              )}
+            </Field>
+            <Field label="Employment" icon={<Briefcase className="h-4 w-4 text-gray-400" />}>
+              {editing ? (
+                <Select
+                  value={form.employmentType}
+                  onValueChange={(v) => set("employmentType", v as EmploymentType)}
+                >
+                  <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EMPLOYMENT_TYPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="font-medium text-white">
+                  {EMPLOYMENT_TYPE_OPTIONS.find((o) => o.value === employee.employmentType)?.label ?? "—"}
                 </p>
               )}
             </Field>
