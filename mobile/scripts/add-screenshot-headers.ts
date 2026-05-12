@@ -33,8 +33,8 @@ const TARGETS = [
 ];
 
 async function main() {
-  const rawDir = path.join(process.cwd(), "screenshots", "raw");
-  const headerDir = path.join(process.cwd(), "screenshots", "with-headers");
+  const rawDir = path.join(__dirname, "..", "screenshots", "raw");
+  const headerDir = path.join(__dirname, "..", "screenshots", "with-headers");
   fs.mkdirSync(headerDir, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });

@@ -121,8 +121,8 @@ async function compositeHeaders(rawDir: string, headerDir: string) {
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
-  const rawDir = path.join(process.cwd(), "screenshots", "raw");
-  const headerDir = path.join(process.cwd(), "screenshots", "with-headers");
+  const rawDir = path.join(__dirname, "..", "screenshots", "raw");
+  const headerDir = path.join(__dirname, "..", "screenshots", "with-headers");
   fs.mkdirSync(headerDir, { recursive: true });
 
   await upscaleRaw(rawDir);

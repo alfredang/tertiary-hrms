@@ -177,7 +177,7 @@ async function compositeWithHeader(
 // ── Main ──
 
 async function main() {
-  const screenshotsDir = path.join(process.cwd(), "screenshots");
+  const screenshotsDir = path.join(__dirname, "..", "screenshots");
   const rawDir = path.join(screenshotsDir, "raw");
   const headerDir = path.join(screenshotsDir, "with-headers");
 

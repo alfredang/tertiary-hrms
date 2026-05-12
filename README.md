@@ -435,10 +435,12 @@ tertiary-hrms/
 │   │   ├── company-settings.ts    # Helper to load CompanySettings branding
 │   │   └── validations/           # Zod schemas
 │   └── middleware.ts              # Auth guard + needsSetup redirect
-├── mobile/                        # Native mobile projects (Capacitor)
+├── mobile/                        # Everything mobile-related (Capacitor)
 │   ├── ios/                       # Capacitor iOS project (Xcode workspace)
 │   ├── android/                   # Capacitor Android project (Gradle)
-│   └── resources/                 # Splash + icon source images
+│   ├── resources/                 # Splash + icon source images
+│   ├── screenshots/               # App Store / Play Store listing screenshots
+│   └── scripts/                   # Screenshot capture + splash generation
 ├── fastlane/                      # iOS Fastlane lanes (TestFlight)
 ├── public/
 │   ├── manifest.json              # PWA manifest
