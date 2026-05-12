@@ -1,6 +1,26 @@
+import { execSync } from 'node:child_process';
+
+function gitCommit() {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+function buildDate() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${String(d.getFullYear()).slice(-2)}`;
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone', // Enable for Docker deployment
+  env: {
+    NEXT_PUBLIC_BUILD_DATE: buildDate(),
+    NEXT_PUBLIC_GIT_COMMIT: gitCommit(),
+  },
   experimental: {
     instrumentationHook: true,
     serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist"],

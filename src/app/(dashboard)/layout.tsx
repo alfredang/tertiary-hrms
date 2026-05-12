@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
-import { UserNav } from "@/components/layout/user-nav";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -49,7 +48,6 @@ export default async function DashboardLayout({
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-800 bg-gray-950">
           <Sidebar role={role} companyShortName={companyShortName} companyLogo={companyLogo} />
-          <UserNav fallbackName={userName} fallbackEmail={userEmail} avatarUrl={userAvatarUrl} gender={userGender} />
         </div>
       </div>
 

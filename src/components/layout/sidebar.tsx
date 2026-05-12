@@ -161,6 +161,10 @@ export function Sidebar({
           })}
         </ul>
       </nav>
+
+      <div className="pb-3 text-left text-xs text-gray-500">
+        version {process.env.NEXT_PUBLIC_BUILD_DATE} ({process.env.NEXT_PUBLIC_GIT_COMMIT})
+      </div>
     </div>
   );
 }

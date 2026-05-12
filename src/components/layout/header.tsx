@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarPlaceholder } from "@/components/ui/avatar-placeholder";
 import type { Gender } from "@prisma/client";
@@ -21,16 +21,6 @@ import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
 import { NotificationBell } from "./notification-bell";
 
-const pageNames: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/profile": "My Profile",
-  "/employees": "Employees",
-  "/leave": "Leave",
-  "/expenses": "Expense Claims",
-  "/payroll": "Payroll",
-  "/calendar": "Calendar",
-};
-
 interface HeaderProps {
   isAdmin?: boolean;
   fallbackName?: string | null;
@@ -46,7 +36,6 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
   const { data: session } = useSession();
   const displayName = session?.user?.name || fallbackName || "User";
   const displayEmail = session?.user?.email || fallbackEmail || "";
-  const pathname = usePathname();
   const router = useRouter();
   const [viewAs, setViewAs] = useState<string>(currentView ?? "admin");
 
@@ -57,10 +46,6 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const showAdminFeatures = isAdmin && viewAs === "admin";
-
-  const currentPage = Object.entries(pageNames).find(([path]) =>
-    pathname.startsWith(path)
-  )?.[1] || "Dashboard";
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -101,7 +86,6 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex items-center gap-x-3">
           <MobileSidebar fallbackName={fallbackName} fallbackEmail={fallbackEmail} companyShortName={companyShortName} companyLogo={companyLogo} />
-          <h1 className={cn("text-lg font-semibold text-white", isAdmin && "hidden sm:block")}>{currentPage}</h1>
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-x-4 lg:gap-x-6">
