@@ -47,7 +47,7 @@ export default async function DashboardLayout({
       {/* Sidebar - desktop only */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-[width] duration-200 lg:w-[var(--sidebar-w,18rem)]">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-800 bg-gray-950">
-          <Sidebar role={role} companyShortName={companyShortName} companyLogo={companyLogo} />
+          <Sidebar role={role} companyShortName={companyShortName} companyLogo={companyLogo} initialView={currentView} />
         </div>
       </div>
 

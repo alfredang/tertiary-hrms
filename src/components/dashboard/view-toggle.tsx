@@ -38,7 +38,11 @@ export function ViewToggle({ userRoles = [], initialView }: ViewToggleProps) {
   const handleSelect = (view: string) => {
     document.cookie = `viewAs=${view};path=/;max-age=${60 * 60 * 24 * 365}`;
     setCurrentView(view);
-    window.location.href = "/dashboard";
+    // Client-side nav to /dashboard (safe across role boundaries since
+    // most pages exist in /dashboard) and refresh RSCs so the sidebar +
+    // header re-render with the new cookie. No full page reload.
+    router.push("/dashboard");
+    router.refresh();
   };
 
   if (ROLES.length === 0) return null;

@@ -88,29 +88,22 @@ export function Sidebar({
   role,
   companyShortName,
   companyLogo,
+  initialView,
 }: {
   role?: string;
   companyShortName?: string;
   companyLogo?: string | null;
+  initialView?: string;
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const actualRoles: string[] = (session?.user as any)?.roles ?? (role ? [role] : ["STAFF"]);
 
-  // Always start with "admin" so the server and client render identically on first paint.
-  // The effect below syncs the real cookie value after hydration.
-  const [viewAs, setViewAs] = useState<string>("admin");
+  // viewAs is server-rendered from the cookie — no client polling.
+  // Re-renders happen on router.refresh() after the view-toggle writes a new
+  // cookie value, so we always paint the correct view in one go.
+  const viewAs = initialView ?? "admin";
   const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    const readCookie = () => {
-      const cookie = document.cookie.split("; ").find((c) => c.startsWith("viewAs="));
-      setViewAs(cookie ? cookie.split("=")[1] : "admin");
-    };
-    readCookie();
-    const interval = setInterval(readCookie, 500);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem("sidebarCollapsed") === "true";
