@@ -50,6 +50,16 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string; className: string 
   { value: "INACTIVE",   label: "Inactive",   className: "bg-slate-100 text-slate-800 border-slate-200" },
 ];
 
+const WORKDAY_OPTIONS: { value: number; short: string; full: string }[] = [
+  { value: 1, short: "Mon", full: "Monday" },
+  { value: 2, short: "Tue", full: "Tuesday" },
+  { value: 3, short: "Wed", full: "Wednesday" },
+  { value: 4, short: "Thu", full: "Thursday" },
+  { value: 5, short: "Fri", full: "Friday" },
+  { value: 6, short: "Sat", full: "Saturday" },
+  { value: 7, short: "Sun", full: "Sunday" },
+];
+
 const EMPLOYMENT_TYPE_OPTIONS: { value: EmploymentType; label: string }[] = [
   { value: "FULL_TIME", label: "Full Time" },
   { value: "PART_TIME", label: "Part Time" },
@@ -122,6 +132,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
     startDate: formatDateValue(employee.startDate),
     endDate: formatDateValue(employee.endDate),
     employmentType: employee.employmentType,
+    workdays: (employee.workdays?.length ? [...employee.workdays] : [1, 2, 3, 4, 5]) as number[],
     status: employee.status,
     roles: (employee.user?.roles ?? ["STAFF"]) as Role[],
   };
@@ -130,6 +141,15 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
 
   function set<K extends keyof typeof initialForm>(key: K, value: (typeof initialForm)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function toggleWorkday(day: number) {
+    set(
+      "workdays",
+      form.workdays.includes(day)
+        ? form.workdays.filter((d) => d !== day)
+        : [...form.workdays, day]
+    );
   }
 
   function toggleRole(role: Role) {
@@ -190,6 +210,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
           startDate: form.startDate,
           endDate: form.endDate || null,
           employmentType: form.employmentType,
+          workdays: [...form.workdays].sort((a, b) => a - b),
           status: form.status,
         },
         roles: form.roles,
@@ -542,6 +563,37 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
               ) : (
                 <p className="font-medium text-white">
                   {EMPLOYMENT_TYPE_OPTIONS.find((o) => o.value === employee.employmentType)?.label ?? "—"}
+                </p>
+              )}
+            </Field>
+            <Field label="Workdays" icon={<Calendar className="h-4 w-4 text-gray-400" />}>
+              {editing ? (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {WORKDAY_OPTIONS.map((d) => {
+                    const active = form.workdays.includes(d.value);
+                    return (
+                      <button
+                        key={d.value}
+                        type="button"
+                        onClick={() => toggleWorkday(d.value)}
+                        title={d.full}
+                        className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                          active
+                            ? "bg-primary text-white border-primary"
+                            : "bg-gray-900 text-gray-400 border-gray-700 hover:border-gray-500"
+                        }`}
+                      >
+                        {d.short}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="font-medium text-white">
+                  {(employee.workdays?.length
+                    ? WORKDAY_OPTIONS.filter((d) => employee.workdays.includes(d.value)).map((d) => d.short)
+                    : ["Mon", "Tue", "Wed", "Thu", "Fri"]
+                  ).join(", ")}
                 </p>
               )}
             </Field>

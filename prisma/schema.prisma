@@ -83,6 +83,7 @@ model Employee {
   departmentId                                   String?
   position                                       String?
   employmentType                                 EmploymentType @default(FULL_TIME)
+  workdays                                       Int[]          @default([1, 2, 3, 4, 5])
   startDate                                      DateTime?
   endDate                                        DateTime?
   status                                         EmployeeStatus @default(ACTIVE)

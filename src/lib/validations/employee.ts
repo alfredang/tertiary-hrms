@@ -37,6 +37,7 @@ export const employmentInfoSchema = z.object({
       { message: "Invalid end date" }
     ),
   status: z.nativeEnum(EmployeeStatus),
+  workdays: z.array(z.number().int().min(1).max(7)).optional(),
   monthlyLeaveRate: z.number().min(0).max(30).optional().nullable(),
 });
 
