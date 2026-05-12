@@ -39,8 +39,8 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
     );
   } else if (staffStats) {
     cards.push(
-      { title: "Leave Balance", value: String(staffStats.leaveBalance), icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-      { title: "MC Balance", value: String(staffStats.mcBalance), icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
+      { title: "Annual Leave Balance", value: String(staffStats.leaveBalance), icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+      { title: "Medical Leave Balance", value: String(staffStats.mcBalance), icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
       {
         title: "Expense Claims (YTD)",
         value: `$${staffStats.expenseClaimAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
