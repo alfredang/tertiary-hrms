@@ -99,11 +99,10 @@ export function Sidebar({
   const isAccountantView = isActualAdmin
     ? viewAs === "accountant"
     : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT") && !isActualAdmin;
-  // Intern view: only when the user is a pure intern (no elevated roles)
-  const isInternView =
-    !isActualAdmin &&
-    actualRoles.length > 0 &&
-    actualRoles.every((r) => r.toUpperCase() === "INTERN");
+  // Intern view: admins respect viewAs; pure intern role always sees intern view
+  const isInternView = isActualAdmin
+    ? viewAs === "intern"
+    : actualRoles.length > 0 && actualRoles.every((r) => r.toUpperCase() === "INTERN");
 
   return (
     <div className={cn("flex grow flex-col gap-y-5 pt-4", collapsed ? "px-2" : "px-6")}>
