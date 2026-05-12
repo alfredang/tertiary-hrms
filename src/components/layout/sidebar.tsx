@@ -34,6 +34,7 @@ type Grandchild = { name: string; href: string };
 type Child = { name: string; href: string; icon?: IconType; children?: Grandchild[] };
 type NavItem = {
   name: string;
+  adminName?: string; // override label shown in admin view
   href: string;
   icon: IconType;
   adminOnly?: true;
@@ -46,10 +47,10 @@ type NavItem = {
 const navigation: NavItem[] = [
   { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
   { name: "My Profile", href: "/profile",     icon: User },
-  { name: "Employees",  href: "/employees",   icon: Users,      adminOnly:      true as const },
-  { name: "Leave",      href: "/leave",       icon: Clock,      noAccountant:   true as const },
-  { name: "Expense Claims", href: "/expenses",    icon: Receipt,    noAccountant:   true as const },
-  { name: "Payroll",    href: "/payroll",     icon: DollarSign, hideForIntern: true as const },
+  { name: "Employees",       adminName: "Staff Management",   href: "/employees", icon: Users,      adminOnly:     true as const },
+  { name: "Leave",           adminName: "Leave Management",   href: "/leave",     icon: Clock,      noAccountant:  true as const },
+  { name: "Expense Claims",  adminName: "Claim Management",   href: "/expenses",  icon: Receipt,    noAccountant:  true as const },
+  { name: "Payroll",         adminName: "Payroll Management", href: "/payroll",   icon: DollarSign, hideForIntern: true as const },
   {
     name: "Accounting",
     href: "/accounting",
@@ -177,7 +178,7 @@ export function Sidebar({
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
             if ("hideForIntern" in item && item.hideForIntern && isInternView) return null;
-            return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} />;
+            return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} isAdmin={isAdmin} />;
           })}
         </ul>
       </nav>
@@ -199,15 +200,18 @@ function TopLevelNavItem({
   item,
   pathname,
   collapsed,
+  isAdmin,
 }: {
   item: NavItem;
   pathname: string;
   collapsed: boolean;
+  isAdmin: boolean;
 }) {
   const children = item.children;
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   const [manuallyOpen, setManuallyOpen] = useState<boolean | null>(null);
   const expanded = manuallyOpen ?? isActive;
+  const label = isAdmin && item.adminName ? item.adminName : item.name;
 
   return (
     <li>
@@ -223,7 +227,7 @@ function TopLevelNavItem({
       >
         <Link
           href={item.href}
-          title={collapsed ? item.name : undefined}
+          title={collapsed ? label : undefined}
           className={cn(
             "flex items-center gap-x-3 flex-1 min-w-0 py-3",
             collapsed ? "justify-center px-2" : "px-3",
@@ -235,7 +239,7 @@ function TopLevelNavItem({
               isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200",
             )}
           />
-          {!collapsed && <span className="flex-1 truncate">{item.name}</span>}
+          {!collapsed && <span className="flex-1 truncate">{label}</span>}
         </Link>
         {!collapsed && children && (
           <button
@@ -245,7 +249,7 @@ function TopLevelNavItem({
               e.stopPropagation();
               setManuallyOpen(!expanded);
             }}
-            aria-label={expanded ? `Collapse ${item.name}` : `Expand ${item.name}`}
+            aria-label={expanded ? `Collapse ${label}` : `Expand ${label}`}
             aria-expanded={expanded}
             className="px-2.5 py-3 rounded-md hover:bg-gray-700/60 transition-colors shrink-0"
           >
