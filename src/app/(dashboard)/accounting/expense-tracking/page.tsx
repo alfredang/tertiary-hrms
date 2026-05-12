@@ -78,6 +78,7 @@ export default async function ExpenseTrackingPage({
     paymentType: t.paymentType,
     paymentRef: t.paymentRef ?? "",
     invoiceNo: t.invoiceNo ?? "",
+    receiptNo: t.receiptNo ?? "",
     status: t.status,
     gstIncluded: t.gstIncluded,
     remarks: t.remarks ?? "",

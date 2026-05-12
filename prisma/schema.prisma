@@ -414,6 +414,7 @@ model BankTransaction {
   paymentType     String   @default("Bank Transfer")
   paymentRef      String?
   invoiceNo       String?
+  receiptNo       String?
   status          String   @default("Pending")
   gstIncluded     Boolean  @default(false)
   recurring       String   @default("One Time")

@@ -14,6 +14,7 @@ type Row = {
   paymentType: string;
   paymentRef: string;
   invoiceNo: string;
+  receiptNo: string;
   status: string;
   gstIncluded: boolean;
   remarks: string;
@@ -47,6 +48,7 @@ export function TransactionsTable({
   titleLabel = "Expense Title",
   showGst = true,
   showCategory = false,
+  showReceiptNo = false,
   paymentRefLabel = "Payment Ref",
   invoiceNoLabel = "Invoice No",
   direction = "DEBIT",
@@ -56,6 +58,7 @@ export function TransactionsTable({
   titleLabel?: string;
   showGst?: boolean;
   showCategory?: boolean;
+  showReceiptNo?: boolean;
   paymentRefLabel?: string;
   invoiceNoLabel?: string;
   direction?: "DEBIT" | "CREDIT";
@@ -194,12 +197,13 @@ export function TransactionsTable({
             <Col id="title" widths={widths} defaultW={360} />
             <Col id="paymentDate" widths={widths} defaultW={150} />
             <Col id="amount" widths={widths} defaultW={110} />
+            {showGst && <Col id="gstIncluded" widths={widths} defaultW={80} />}
             <Col id="paymentType" widths={widths} defaultW={140} />
             {showCategory && <Col id="type" widths={widths} defaultW={150} />}
             <Col id="paymentRef" widths={widths} defaultW={160} />
             <Col id="invoiceNo" widths={widths} defaultW={200} />
+            {showReceiptNo && <Col id="receiptNo" widths={widths} defaultW={180} />}
             <Col id="status" widths={widths} defaultW={120} />
-            {showGst && <Col id="gstIncluded" widths={widths} defaultW={110} />}
             <Col id="remarks" widths={widths} defaultW={360} />
             <col style={{ width: "40px" }} />
           </colgroup>
@@ -214,6 +218,11 @@ export function TransactionsTable({
               <ResizableTh id="amount" widths={widths} setWidth={setWidth} defaultW={110} align="right">
                 Amount
               </ResizableTh>
+              {showGst && (
+                <ResizableTh id="gstIncluded" widths={widths} setWidth={setWidth} defaultW={80}>
+                  GST
+                </ResizableTh>
+              )}
               <ResizableTh id="paymentType" widths={widths} setWidth={setWidth} defaultW={140}>
                 Payment Type
               </ResizableTh>
@@ -228,14 +237,14 @@ export function TransactionsTable({
               <ResizableTh id="invoiceNo" widths={widths} setWidth={setWidth} defaultW={200}>
                 {invoiceNoLabel}
               </ResizableTh>
+              {showReceiptNo && (
+                <ResizableTh id="receiptNo" widths={widths} setWidth={setWidth} defaultW={180}>
+                  Receipt No
+                </ResizableTh>
+              )}
               <ResizableTh id="status" widths={widths} setWidth={setWidth} defaultW={120}>
                 Status
               </ResizableTh>
-              {showGst && (
-                <ResizableTh id="gstIncluded" widths={widths} setWidth={setWidth} defaultW={110}>
-                  GST Included
-                </ResizableTh>
-              )}
               <ResizableTh id="remarks" widths={widths} setWidth={setWidth} defaultW={360}>
                 Remark
               </ResizableTh>
@@ -286,6 +295,23 @@ export function TransactionsTable({
                       error={errorOf("amount")}
                     />
                   </td>
+
+                  {/* GST (expense only) */}
+                  {showGst && (
+                    <td className="p-2">
+                      <SelectCell
+                        value={r.gstIncluded ? "Yes" : "No"}
+                        options={["Yes", "No"]}
+                        onChange={(v) => {
+                          const bool = v === "Yes";
+                          setField(r.id, "gstIncluded", bool);
+                          commitField(r.id, "gstIncluded", bool);
+                        }}
+                        saving={isSaving("gstIncluded")}
+                        error={errorOf("gstIncluded")}
+                      />
+                    </td>
+                  )}
 
                   {/* Payment Type */}
                   <td className="p-2">
@@ -343,6 +369,20 @@ export function TransactionsTable({
                     />
                   </td>
 
+                  {/* Receipt No (income only) */}
+                  {showReceiptNo && (
+                    <td className="p-2 font-mono overflow-hidden">
+                      <TextCell
+                        value={r.receiptNo}
+                        onChange={(v) => setField(r.id, "receiptNo", v)}
+                        onCommit={(v) => commitField(r.id, "receiptNo", v.slice(0, 80))}
+                        saving={isSaving("receiptNo")}
+                        error={errorOf("receiptNo")}
+                        mono
+                      />
+                    </td>
+                  )}
+
                   {/* Status (dropdown) */}
                   <td className="p-2">
                     <SelectCell
@@ -357,23 +397,6 @@ export function TransactionsTable({
                       tone={r.status === "Settled" ? "green" : "orange"}
                     />
                   </td>
-
-                  {/* GST */}
-                  {showGst && (
-                    <td className="p-2">
-                      <SelectCell
-                        value={r.gstIncluded ? "Yes" : "No"}
-                        options={["Yes", "No"]}
-                        onChange={(v) => {
-                          const bool = v === "Yes";
-                          setField(r.id, "gstIncluded", bool);
-                          commitField(r.id, "gstIncluded", bool);
-                        }}
-                        saving={isSaving("gstIncluded")}
-                        error={errorOf("gstIncluded")}
-                      />
-                    </td>
-                  )}
 
                   {/* Remark */}
                   <td className="p-2 overflow-hidden">

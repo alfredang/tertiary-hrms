@@ -32,6 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (typeof body.paymentType === "string") data.paymentType = body.paymentType.slice(0, 40);
   if (typeof body.paymentRef === "string") data.paymentRef = body.paymentRef.slice(0, 120) || null;
   if (typeof body.invoiceNo === "string") data.invoiceNo = body.invoiceNo.slice(0, 80) || null;
+  if (typeof body.receiptNo === "string") data.receiptNo = body.receiptNo.slice(0, 80) || null;
   if (typeof body.status === "string") data.status = body.status.slice(0, 30);
   if (typeof body.gstIncluded === "boolean") data.gstIncluded = body.gstIncluded;
   if (typeof body.remarks === "string") data.remarks = body.remarks.slice(0, 500) || null;

@@ -81,6 +81,7 @@ export default async function IncomeTrackingPage({
     paymentType: t.paymentType,
     paymentRef: t.paymentRef ?? "",
     invoiceNo: t.invoiceNo ?? "",
+    receiptNo: t.receiptNo ?? "",
     status: t.status,
     gstIncluded: t.gstIncluded,
     remarks: t.remarks ?? "",
@@ -106,7 +107,7 @@ export default async function IncomeTrackingPage({
         rows={rows}
         titleLabel="Customer Name"
         showGst={false}
-        showCategory
+        showReceiptNo
         direction="CREDIT"
         emptyText="No income matches the current filters."
       />
