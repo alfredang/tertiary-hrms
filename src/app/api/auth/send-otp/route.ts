@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
         const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
         const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-        const companyName = settings?.name || "Tertiary Infotech";
+        const companyName = settings?.name || "HR Portal";
 
         const subject = `${companyName} HR Portal - Verification Code`;
         const bodyLines = [

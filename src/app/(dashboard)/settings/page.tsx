@@ -17,7 +17,7 @@ async function getCompanySettings() {
   });
   if (!settings) {
     settings = await prisma.companySettings.create({
-      data: { id: "company_settings", name: "Tertiary Infotech", uen: "", address: "", phone: "", email: "", website: "" },
+      data: { id: "company_settings" },
     });
   }
   return settings;

@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/toaster";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { CapacitorInit } from "@/components/capacitor-init";
+import { getCompanyBranding } from "@/lib/company-settings";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,20 +18,30 @@ export const viewport: Viewport = {
   themeColor: "#6366f1",
 };
 
-export const metadata: Metadata = {
-  title: "HR Portal - Tertiary Infotech",
-  description: "Human Resources Management System",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "HR Portal",
-  },
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/icons/apple-touch-icon.png",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  let displayName = "HR Portal";
+  try {
+    const branding = await getCompanyBranding();
+    const label = branding.shortName || branding.name;
+    if (label) displayName = `HR Portal - ${label}`;
+  } catch {
+    // DB unavailable during build/preview — fall back to generic title
+  }
+  return {
+    title: displayName,
+    description: "Human Resources Management System",
+    manifest: "/manifest.json",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: "HR Portal",
+    },
+    icons: {
+      icon: "/favicon.ico",
+      apple: "/icons/apple-touch-icon.png",
+    },
+  };
+}
 
 export default function RootLayout({
   children,

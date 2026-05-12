@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { promises as fs } from "fs";
+import path from "path";
 import { auth } from "@/lib/auth";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
@@ -9,6 +11,18 @@ import {
   enrichTransactionsWithAgent,
 } from "@/lib/claude-parse-statement";
 import { prisma } from "@/lib/prisma";
+
+async function archiveStatement(buffer: Buffer, originalName: string): Promise<void> {
+  try {
+    const dir = path.join(process.cwd(), ".bank_statements");
+    await fs.mkdir(dir, { recursive: true });
+    const safeName = originalName.replace(/[^\w.\-]+/g, "_");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await fs.writeFile(path.join(dir, `${stamp}__${safeName}`), buffer);
+  } catch (err) {
+    console.error("Failed to archive bank statement locally:", err);
+  }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +49,9 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const name = file.name.toLowerCase();
+
+  // Archive uploaded statement to .bank_statements/ (gitignored — contains PII).
+  await archiveStatement(buffer, file.name);
   // XLSX magic: ZIP "PK\x03\x04". Old .xls (CFB/OLE2) magic: D0 CF 11 E0 A1 B1 1A E1.
   const isXlsxMagic =
     buffer.length >= 4 &&

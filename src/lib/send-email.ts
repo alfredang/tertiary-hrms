@@ -43,7 +43,7 @@ export async function sendEmail({
   html: string;
 }) {
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-  const companyName = settings?.name || "Tertiary Infotech";
+  const companyName = settings?.name || "HR Portal";
 
   const { client, senderEmail } = await getGmailClient();
 

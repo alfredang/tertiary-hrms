@@ -1,8 +1,11 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { COMPANY_NAME } from "./constants";
 
 interface PayslipData {
+  company: {
+    name: string;
+    address: string;
+  };
   employee: {
     name: string;
     id: string;
@@ -57,13 +60,13 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
   // Header - Company Name
   doc.setFontSize(20);
   doc.setTextColor(79, 70, 229); // Indigo
-  doc.text(COMPANY_NAME, pageWidth / 2, 20, { align: "center" });
+  doc.text(data.company.name, pageWidth / 2, 20, { align: "center" });
 
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text("123 Business Street, Singapore 123456", pageWidth / 2, 27, {
-    align: "center",
-  });
+  if (data.company.address) {
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(data.company.address, pageWidth / 2, 27, { align: "center" });
+  }
 
   // Title
   doc.setFontSize(16);

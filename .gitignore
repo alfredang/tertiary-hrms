@@ -79,6 +79,9 @@ env_backup
 /env_backup
 /uploads/
 
+# Locally archived bank statement uploads — contain PII, never commit.
+/.bank_statements/
+
 # Android signing keystores
 *.jks
 *.keystore

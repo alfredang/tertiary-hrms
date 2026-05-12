@@ -6,7 +6,6 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { COMPANY_NAME } from "@/lib/constants";
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, KeyRound } from "lucide-react";
 
 type Step = "email" | "otp" | "password";
@@ -41,8 +40,32 @@ function LoginForm() {
   const [isResending, setIsResending] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [skipLoadingRole, setSkipLoadingRole] = useState<string | null>(null);
+  const [branding, setBranding] = useState<{ name: string; shortName: string | null; logo: string | null }>({
+    name: "",
+    shortName: null,
+    logo: null,
+  });
 
   const otpInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch company branding (name, short name, logo) from public endpoint
+  useEffect(() => {
+    fetch("/api/public/branding")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setBranding({ name: data.name, shortName: data.shortName, logo: data.logo });
+      })
+      .catch(() => { /* fall back to defaults */ });
+  }, []);
+
+  const displayName = branding.shortName || branding.name || "HR Portal";
+  const footerName = branding.name || "HR Portal";
+  const logoInitials = (branding.shortName || branding.name || "HR")
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   // Load remembered email on mount
   useEffect(() => {
@@ -247,12 +270,21 @@ function LoginForm() {
         {/* Logo + Header */}
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-4">
-            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-2xl font-bold text-white">HR</span>
-            </div>
+            {branding.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={branding.logo}
+                alt={`${displayName} logo`}
+                className="w-14 h-14 rounded-2xl object-contain bg-white shadow-lg shadow-primary/20"
+              />
+            ) : (
+              <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
+                <span className="text-2xl font-bold text-white">{logoInitials}</span>
+              </div>
+            )}
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome back</h1>
-          <p className="text-gray-400">Sign in to {COMPANY_NAME} HR Portal</p>
+          <p className="text-gray-400">Sign in to {displayName} HR Portal</p>
         </div>
 
         {/* Card */}
@@ -523,11 +555,8 @@ function LoginForm() {
         </div>
 
         {/* Footer */}
-        <div className="text-center space-y-1">
-          <p className="text-xs text-gray-600">{COMPANY_NAME} HR Portal</p>
-          <a href="/privacy-policy" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">
-            Privacy Policy
-          </a>
+        <div className="text-center">
+          <p className="text-xs text-gray-600">Powered by {footerName}</p>
         </div>
       </div>
     </div>

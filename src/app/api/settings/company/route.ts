@@ -88,15 +88,7 @@ export async function GET() {
     // Create default settings if they don't exist
     if (!settings) {
       settings = await prisma.companySettings.create({
-        data: {
-          id: "company_settings",
-          name: "Tertiary Infotech",
-          uen: "",
-          address: "",
-          phone: "",
-          email: "",
-          website: "",
-        },
+        data: { id: "company_settings" },
       });
     }
 

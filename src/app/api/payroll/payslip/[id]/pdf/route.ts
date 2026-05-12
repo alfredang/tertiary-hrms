@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
+import { getCompanyBranding } from "@/lib/company-settings";
 
 export async function GET(
   req: NextRequest,
@@ -39,7 +40,13 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const company = await getCompanyBranding();
+
     const pdfData = generatePayslipPDF({
+      company: {
+        name: company.name,
+        address: company.address,
+      },
       employee: {
         name: payslip.employee.name,
         id: payslip.employee.employeeId,

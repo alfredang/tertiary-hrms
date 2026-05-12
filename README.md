@@ -247,7 +247,6 @@ ANTHROPIC_API_KEY=""
 
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
-NEXT_PUBLIC_COMPANY_NAME="Your Company Name"
 
 # Development (skip auth for quick testing)
 SKIP_AUTH="false"
