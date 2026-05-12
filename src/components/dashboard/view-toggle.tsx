@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Eye, ChevronDown, Check, ShieldCheck, Calculator, User, GraduationCap } from "lucide-react";
+import { useViewMode, type ViewMode } from "@/components/layout/view-mode-context";
 
 const ALL_ROLES = [
   { value: "admin",      label: "Admin",      icon: ShieldCheck },
@@ -22,26 +22,21 @@ const ALL_ROLES = [
 
 interface ViewToggleProps {
   userRoles?: string[];
-  initialView?: string;
 }
 
-export function ViewToggle({ userRoles = [], initialView }: ViewToggleProps) {
+export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
   const router = useRouter();
+  const { viewMode: currentView, setViewMode } = useViewMode();
   const assignedLower = userRoles.map((r) => r.toLowerCase());
   const ROLES = ALL_ROLES.filter((r) => assignedLower.includes(r.value));
-  const [currentView, setCurrentView] = useState(initialView ?? "admin");
 
-  useEffect(() => {
-    if (initialView) setCurrentView(initialView);
-  }, [initialView]);
-
-  const handleSelect = (view: string) => {
-    document.cookie = `viewAs=${view};path=/;max-age=${60 * 60 * 24 * 365}`;
-    setCurrentView(view);
-    // Client-side nav to /dashboard (safe across role boundaries since
-    // most pages exist in /dashboard) and refresh RSCs so the sidebar +
-    // header re-render with the new cookie. No full page reload.
-    router.push("/dashboard");
+  const handleSelect = (view: ViewMode) => {
+    // Synchronous: sidebar / header re-render immediately from context.
+    setViewMode(view);
+    // Refresh server components in the background so role-dependent server
+    // data (e.g. Header's "View As" badge sourced from cookies) stays in
+    // sync. This does NOT block the UI — the context update already flipped
+    // the sidebar.
     router.refresh();
   };
 

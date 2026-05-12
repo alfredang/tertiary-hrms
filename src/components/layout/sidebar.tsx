@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { TEMPLATES, TEMPLATE_KEYS } from "@/lib/email-templates/defaults";
+import { useViewMode } from "./view-mode-context";
 import {
   LayoutDashboard,
   Users,
@@ -88,21 +89,18 @@ export function Sidebar({
   role,
   companyShortName,
   companyLogo,
-  initialView,
 }: {
   role?: string;
   companyShortName?: string;
   companyLogo?: string | null;
-  initialView?: string;
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const actualRoles: string[] = (session?.user as any)?.roles ?? (role ? [role] : ["STAFF"]);
 
-  // viewAs is server-rendered from the cookie — no client polling.
-  // Re-renders happen on router.refresh() after the view-toggle writes a new
-  // cookie value, so we always paint the correct view in one go.
-  const viewAs = initialView ?? "admin";
+  // viewAs is read from the client ViewModeContext — toggling it is a
+  // synchronous React state update, no server round-trip, no flash.
+  const { viewMode: viewAs } = useViewMode();
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {

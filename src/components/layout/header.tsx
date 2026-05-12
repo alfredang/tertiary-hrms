@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,6 +20,7 @@ import { LogOut, RefreshCw, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
 import { NotificationBell } from "./notification-bell";
+import { useViewModeOptional } from "./view-mode-context";
 
 interface HeaderProps {
   isAdmin?: boolean;
@@ -37,11 +38,11 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
   const displayName = session?.user?.name || fallbackName || "User";
   const displayEmail = session?.user?.email || fallbackEmail || "";
   const router = useRouter();
-  const [viewAs, setViewAs] = useState<string>(currentView ?? "admin");
-
-  useEffect(() => {
-    setViewAs(currentView ?? "admin");
-  }, [currentView]);
+  // Prefer client context (instant updates on view-toggle) — fall back to
+  // the server-rendered currentView prop on routes that don't mount the
+  // ViewModeProvider.
+  const ctx = useViewModeOptional();
+  const viewAs = ctx?.viewMode ?? currentView ?? "admin";
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -98,7 +99,7 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
           >
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
-          {isAdmin && <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} initialView={currentView} />}
+          {isAdmin && <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} />}
           <NotificationBell viewAs={viewAs} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
