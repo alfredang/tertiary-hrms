@@ -19,6 +19,8 @@ import {
   Calendar,
   Settings,
   ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 const navigation = [
@@ -58,6 +60,7 @@ export function Sidebar({
   // Always start with "admin" so the server and client render identically on first paint.
   // The effect below syncs the real cookie value after hydration.
   const [viewAs, setViewAs] = useState<string>("admin");
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const readCookie = () => {
@@ -68,6 +71,23 @@ export function Sidebar({
     const interval = setInterval(readCookie, 500);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebarCollapsed") === "true";
+    setCollapsed(stored);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sidebar-w", collapsed ? "5rem" : "18rem");
+  }, [collapsed]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("sidebarCollapsed", String(next));
+      return next;
+    });
+  };
 
   const isActualAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
   const isAdmin = isActualAdmin && viewAs === "admin";
@@ -81,19 +101,29 @@ export function Sidebar({
     : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT") && !isActualAdmin;
 
   return (
-    <div className="flex grow flex-col gap-y-5 px-6 pt-4">
-      {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center overflow-hidden">
+    <div className={cn("flex grow flex-col gap-y-5 pt-4", collapsed ? "px-2" : "px-6")}>
+      {/* Logo + collapse toggle */}
+      <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "flex-col gap-2" : "gap-3")}>
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center overflow-hidden shrink-0">
           {companyLogo ? (
             <Image src={companyLogo} alt="Logo" width={40} height={40} className="object-contain" unoptimized />
           ) : (
             <span className="text-lg font-bold text-white">HR</span>
           )}
         </div>
-        <div className="min-w-0">
-          <p className="font-semibold text-white line-clamp-2 leading-tight">{companyShortName ?? "HR Portal"}</p>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-white line-clamp-2 leading-tight">{companyShortName ?? "HR Portal"}</p>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white"
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
       </div>
 
       {/* Navigation */}
@@ -110,8 +140,10 @@ export function Sidebar({
               <li key={item.name}>
                 <Link
                   href={item.href}
+                  title={collapsed ? item.name : undefined}
                   className={cn(
-                    "group flex items-center gap-x-3 rounded-xl px-3 py-3 text-sm font-medium transition-all",
+                    "group flex items-center gap-x-3 rounded-xl py-3 text-sm font-medium transition-all",
+                    collapsed ? "justify-center px-2" : "px-3",
                     isActive && !children
                       ? "bg-primary text-white"
                       : isActive && children
@@ -125,10 +157,10 @@ export function Sidebar({
                       isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"
                     )}
                   />
-                  {item.name}
-                  {isActive && !children && <ChevronRight className="ml-auto h-4 w-4" />}
+                  {!collapsed && item.name}
+                  {!collapsed && isActive && !children && <ChevronRight className="ml-auto h-4 w-4" />}
                 </Link>
-                {childExpanded && children && (
+                {!collapsed && childExpanded && children && (
                   <ul className="mt-1 ml-4 border-l border-gray-800 pl-3 space-y-1">
                     {children.map((child) => {
                       const childActive = pathname === child.href;
@@ -162,9 +194,11 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <div className="pb-3 text-left text-xs text-gray-500">
-        version {process.env.NEXT_PUBLIC_BUILD_DATE} ({process.env.NEXT_PUBLIC_GIT_COMMIT})
-      </div>
+      {!collapsed && (
+        <div className="pb-3 text-left text-xs text-gray-500">
+          version {process.env.NEXT_PUBLIC_BUILD_DATE} ({process.env.NEXT_PUBLIC_GIT_COMMIT})
+        </div>
+      )}
     </div>
   );
 }

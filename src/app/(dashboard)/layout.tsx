@@ -45,14 +45,14 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Sidebar - desktop only */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-[width] duration-200 lg:w-[var(--sidebar-w,18rem)]">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-800 bg-gray-950">
           <Sidebar role={role} companyShortName={companyShortName} companyLogo={companyLogo} />
         </div>
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-72">
+      <div className="transition-[padding] duration-200 lg:pl-[var(--sidebar-w,18rem)]">
         <Header isAdmin={isAdmin} fallbackName={userName} fallbackEmail={userEmail} avatarUrl={userAvatarUrl} gender={userGender} currentView={currentView} companyShortName={companyShortName} companyLogo={companyLogo} />
         <PullToRefresh>
           <main className="py-6 px-4 pb-20 sm:px-6 lg:px-8 lg:pb-6">
