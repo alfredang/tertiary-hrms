@@ -383,10 +383,12 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="font-medium text-white">{employee.gender}</p>
+                <p className="font-medium text-white">
+                  {employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase()}
+                </p>
               )}
             </Field>
-            <Field label="Residency Status">
+            <Field label="Nationality">
               {editing ? (
                 <Input
                   value={form.nationality}
@@ -408,7 +410,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                 </Badge>
               )}
             </Field>
-            <Field label="Education Level">
+            <Field label="Highest Education Level">
               {editing ? (
                 <Select
                   value={form.educationLevel}
