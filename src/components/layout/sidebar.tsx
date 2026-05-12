@@ -28,6 +28,8 @@ import {
   KeyRound,
   Mail,
   Webhook,
+  CalendarDays,
+  Stethoscope,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -49,7 +51,17 @@ const navigation: NavItem[] = [
   { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
   { name: "My Profile", href: "/profile",     icon: User },
   { name: "Employees",       adminName: "Staff Management",   href: "/employees", icon: Users,      adminOnly:     true as const },
-  { name: "Leave",           adminName: "Leave Management",   href: "/leave",     icon: Clock,      noAccountant:  true as const },
+  {
+    name: "Leave",
+    adminName: "Leave Management",
+    href: "/leave",
+    icon: Clock,
+    noAccountant: true as const,
+    children: [
+      { name: "Annual Leave",  href: "/leave/annual",  icon: CalendarDays },
+      { name: "Medical Leave", href: "/leave/medical", icon: Stethoscope },
+    ],
+  },
   { name: "Expense Claims",  adminName: "Claim Management",   href: "/expenses",  icon: Receipt,    noAccountant:  true as const },
   { name: "Payroll",         adminName: "Payroll Management", href: "/payroll",   icon: DollarSign, hideForIntern: true as const },
   {
