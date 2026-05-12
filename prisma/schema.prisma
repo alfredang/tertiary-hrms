@@ -307,6 +307,49 @@ model OtpCode {
   @@index([email])
 }
 
+// User-customisable email template. Defaults live in code; rows here are
+// the per-tenant override of subject/body. Missing key => use default.
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique  // OTP, LEAVE_REQUEST, LEAVE_APPROVED, LEAVE_REJECTED, EXPENSE_REQUEST, EXPENSE_APPROVED, EXPENSE_REJECTED, PASSWORD_RESET
+  subject   String
+  body      String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+// Inbound webhook receivers. Each row exposes /api/webhooks/{endpointToken}
+// that logs the request and returns 200.
+model Webhook {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  httpMethod    String       @default("POST")  // GET | POST
+  endpointToken String       @unique           // opaque random, used in the public URL
+  authToken     String?                         // optional Bearer secret
+  enabled       Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  logs          WebhookLog[]
+}
+
+model WebhookLog {
+  id            String   @id @default(cuid())
+  webhookId     String
+  webhook       Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  receivedAt    DateTime @default(now())
+  httpMethod    String
+  headers       Json?
+  queryParams   Json?
+  body          Json?
+  sourceIp      String?
+  statusCode    Int      @default(200)
+  responseBody  Json?
+  errorMessage  String?
+
+  @@index([webhookId, receivedAt])
+}
+
 enum EmployeeStatus {
   ACTIVE
   ON_LEAVE

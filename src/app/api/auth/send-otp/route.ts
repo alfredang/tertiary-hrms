@@ -112,37 +112,22 @@ export async function POST(req: NextRequest) {
 
         const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-        const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-        const companyName = settings?.name || "HR Portal";
+        // Render OTP email from the (possibly user-customised) EmailTemplate.
+        const { renderEmail, plainTextToHtml } = await import("@/lib/email-templates/render");
+        const { subject, body } = await renderEmail("OTP", {
+          OTP: code,
+          EXPIRY_MINUTES: 30,
+          USER_EMAIL: email,
+        });
 
-        const subject = `${companyName} HR Portal - Verification Code`;
-        const bodyLines = [
-          "Hi,",
-          "",
-          `Your OTP is ${code}.`,
-          "",
-          `Please use this to log in to the ${companyName} HR Portal within 30 minutes.`,
-          "",
-          "If you did not request this OTP, please ignore this email. Do not share this OTP with anyone.",
-          "",
-          `Warm regards`,
-          companyName,
-        ];
+        // Highlight the OTP code in the HTML rendering so it pops visually.
+        const htmlBody = plainTextToHtml(body).replace(
+          new RegExp(code, "g"),
+          `<strong style="font-size:20px;letter-spacing:3px;color:#1d4ed8;">${code}</strong>`,
+        );
 
-        const htmlBody = `
-          <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
-            ${bodyLines
-              .map((line) => {
-                if (!line.trim()) return '<br style="line-height:0.5;">';
-                const highlighted = line.replace(
-                  new RegExp(code, "g"),
-                  `<strong style="font-size:20px;letter-spacing:3px;color:#1d4ed8;">${code}</strong>`
-                );
-                return `<p style="margin:0 0 4px 0;">${highlighted}</p>`;
-              })
-              .join("\n")}
-          </div>
-        `;
+        const branding = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
+        const companyName = branding?.name || "HR Portal";
 
         const rawEmail = [
           `From: ${companyName} <${GMAIL_EMAIL_USER}>`,

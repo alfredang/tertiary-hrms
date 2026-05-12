@@ -21,6 +21,10 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Building2,
+  KeyRound,
+  Mail,
+  Webhook,
 } from "lucide-react";
 
 const navigation = [
@@ -41,7 +45,18 @@ const navigation = [
     ],
   },
   { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const },
-  { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly:      true as const },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
+    adminOnly: true as const,
+    children: [
+      { name: "Company Info",    href: "/settings/company",         icon: Building2 },
+      { name: "Credentials",     href: "/settings/credentials",     icon: KeyRound },
+      { name: "Email Templates", href: "/settings/email-templates", icon: Mail },
+      { name: "Webhooks",        href: "/settings/webhooks",        icon: Webhook },
+    ],
+  },
 ];
 
 export function Sidebar({
