@@ -28,8 +28,8 @@ const navigation = [
   { name: "My Profile", href: "/profile",     icon: User },
   { name: "Employees",  href: "/employees",   icon: Users,      adminOnly:      true as const },
   { name: "Leave",      href: "/leave",       icon: Clock },
-  { name: "Expense Claims", href: "/expenses",    icon: Receipt,    financeOnly:    true as const },
-  { name: "Payroll",    href: "/payroll",     icon: DollarSign, financeOnly:    true as const },
+  { name: "Expense Claims", href: "/expenses",    icon: Receipt },
+  { name: "Payroll",    href: "/payroll",     icon: DollarSign },
   {
     name: "Accounting",
     href: "/accounting",
