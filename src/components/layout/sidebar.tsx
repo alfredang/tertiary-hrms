@@ -177,42 +177,7 @@ export function Sidebar({
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
             if ("hideForIntern" in item && item.hideForIntern && isInternView) return null;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            const children = "children" in item ? item.children : undefined;
-            const childExpanded = !!children && isActive;
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  title={collapsed ? item.name : undefined}
-                  className={cn(
-                    "group flex items-center gap-x-3 rounded-xl py-3 text-sm font-medium transition-all",
-                    collapsed ? "justify-center px-2" : "px-3",
-                    isActive && !children
-                      ? "bg-primary text-white"
-                      : isActive && children
-                        ? "bg-gray-800 text-white"
-                        : "text-gray-300 hover:bg-gray-800"
-                  )}
-                >
-                  <item.icon
-                    className={cn(
-                      "h-5 w-5 shrink-0",
-                      isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"
-                    )}
-                  />
-                  {!collapsed && item.name}
-                  {!collapsed && isActive && !children && <ChevronRight className="ml-auto h-4 w-4" />}
-                </Link>
-                {!collapsed && childExpanded && children && (
-                  <ul className="mt-1 ml-4 border-l border-gray-800 pl-3 space-y-1">
-                    {children.map((child) => (
-                      <NestedChildRow key={child.href} child={child} pathname={pathname} />
-                    ))}
-                  </ul>
-                )}
-              </li>
-            );
+            return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} />;
           })}
         </ul>
       </nav>
@@ -223,6 +188,84 @@ export function Sidebar({
         </div>
       )}
     </div>
+  );
+}
+
+// A top-level sidebar entry. When it has children, a chevron is shown that
+// toggles the submenu; clicking the label/icon still navigates to the item's
+// href. Default open state mirrors the route (open when the route is active);
+// once the user clicks the chevron they take over the state.
+function TopLevelNavItem({
+  item,
+  pathname,
+  collapsed,
+}: {
+  item: NavItem;
+  pathname: string;
+  collapsed: boolean;
+}) {
+  const children = item.children;
+  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+  const [manuallyOpen, setManuallyOpen] = useState<boolean | null>(null);
+  const expanded = manuallyOpen ?? isActive;
+
+  return (
+    <li>
+      <div
+        className={cn(
+          "group flex items-center rounded-xl text-sm font-medium transition-all",
+          isActive && !children
+            ? "bg-primary text-white"
+            : isActive && children
+              ? "bg-gray-800 text-white"
+              : "text-gray-300 hover:bg-gray-800",
+        )}
+      >
+        <Link
+          href={item.href}
+          title={collapsed ? item.name : undefined}
+          className={cn(
+            "flex items-center gap-x-3 flex-1 min-w-0 py-3",
+            collapsed ? "justify-center px-2" : "px-3",
+          )}
+        >
+          <item.icon
+            className={cn(
+              "h-5 w-5 shrink-0",
+              isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200",
+            )}
+          />
+          {!collapsed && <span className="flex-1 truncate">{item.name}</span>}
+        </Link>
+        {!collapsed && children && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setManuallyOpen(!expanded);
+            }}
+            aria-label={expanded ? `Collapse ${item.name}` : `Expand ${item.name}`}
+            aria-expanded={expanded}
+            className="px-2.5 py-3 rounded-md hover:bg-gray-700/60 transition-colors shrink-0"
+          >
+            {expanded ? (
+              <ChevronDown className="h-4 w-4 opacity-70" />
+            ) : (
+              <ChevronRight className="h-4 w-4 opacity-70" />
+            )}
+          </button>
+        )}
+      </div>
+
+      {!collapsed && expanded && children && (
+        <ul className="mt-1 ml-4 border-l border-gray-800 pl-3 space-y-1">
+          {children.map((child) => (
+            <NestedChildRow key={child.href} child={child} pathname={pathname} />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
