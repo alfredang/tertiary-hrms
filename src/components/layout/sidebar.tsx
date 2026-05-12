@@ -206,67 +206,9 @@ export function Sidebar({
                 </Link>
                 {!collapsed && childExpanded && children && (
                   <ul className="mt-1 ml-4 border-l border-gray-800 pl-3 space-y-1">
-                    {children.map((child) => {
-                      const childActive =
-                        pathname === child.href || pathname.startsWith(child.href + "/");
-                      const grandchildren =
-                        "children" in child ? child.children : undefined;
-                      const grandchildExpanded = !!grandchildren && childActive;
-                      return (
-                        <li key={child.href}>
-                          <Link
-                            href={child.href}
-                            className={cn(
-                              "group flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm transition-all",
-                              childActive && !grandchildren
-                                ? "bg-primary text-white"
-                                : childActive && grandchildren
-                                  ? "bg-gray-800 text-white"
-                                  : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
-                            )}
-                          >
-                            {child.icon && (
-                              <child.icon
-                                className={cn(
-                                  "h-4 w-4 shrink-0",
-                                  childActive
-                                    ? "text-white"
-                                    : "text-gray-500 group-hover:text-gray-200",
-                                )}
-                              />
-                            )}
-                            <span className="flex-1 truncate">{child.name}</span>
-                            {grandchildren && (
-                              grandchildExpanded
-                                ? <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                                : <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                            )}
-                          </Link>
-                          {grandchildExpanded && grandchildren && (
-                            <ul className="mt-1 ml-3 border-l border-gray-800 pl-3 space-y-0.5">
-                              {grandchildren.map((g) => {
-                                const gActive = pathname === g.href;
-                                return (
-                                  <li key={g.href}>
-                                    <Link
-                                      href={g.href}
-                                      className={cn(
-                                        "block rounded-md px-3 py-1.5 text-xs transition-all",
-                                        gActive
-                                          ? "bg-primary/80 text-white"
-                                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
-                                      )}
-                                    >
-                                      {g.name}
-                                    </Link>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </li>
-                      );
-                    })}
+                    {children.map((child) => (
+                      <NestedChildRow key={child.href} child={child} pathname={pathname} />
+                    ))}
                   </ul>
                 )}
               </li>
@@ -281,5 +223,93 @@ export function Sidebar({
         </div>
       )}
     </div>
+  );
+}
+
+// A second-level sidebar row that may itself have grandchildren (a third-level
+// nested list). The chevron is a separate button that toggles open/close;
+// the rest of the row remains a Link so clicking the label still navigates.
+// Default open state mirrors the route — open when active.
+function NestedChildRow({
+  child,
+  pathname,
+}: {
+  child: Child;
+  pathname: string;
+}) {
+  const grandchildren = child.children;
+  const childActive =
+    pathname === child.href || pathname.startsWith(child.href + "/");
+  const [manuallyOpen, setManuallyOpen] = useState<boolean | null>(null);
+  // route-driven default, overridable by user click
+  const expanded = manuallyOpen ?? childActive;
+
+  return (
+    <li>
+      <div
+        className={cn(
+          "group flex items-center rounded-lg text-sm transition-all",
+          childActive && !grandchildren
+            ? "bg-primary text-white"
+            : childActive && grandchildren
+              ? "bg-gray-800 text-white"
+              : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
+        )}
+      >
+        <Link href={child.href} className="flex items-center gap-x-3 flex-1 px-3 py-2 min-w-0">
+          {child.icon && (
+            <child.icon
+              className={cn(
+                "h-4 w-4 shrink-0",
+                childActive ? "text-white" : "text-gray-500 group-hover:text-gray-200",
+              )}
+            />
+          )}
+          <span className="flex-1 truncate">{child.name}</span>
+        </Link>
+        {grandchildren && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setManuallyOpen(!expanded);
+            }}
+            aria-label={expanded ? "Collapse submenu" : "Expand submenu"}
+            aria-expanded={expanded}
+            className="px-2 py-2 rounded-md hover:bg-gray-700/60 transition-colors shrink-0"
+          >
+            {expanded ? (
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 opacity-70" />
+            )}
+          </button>
+        )}
+      </div>
+
+      {grandchildren && expanded && (
+        <ul className="mt-1 ml-3 border-l border-gray-800 pl-3 space-y-0.5">
+          {grandchildren.map((g) => {
+            const gActive = pathname === g.href;
+            return (
+              <li key={g.href}>
+                <Link
+                  href={g.href}
+                  className={cn(
+                    "block rounded-md px-3 py-1.5 text-xs transition-all",
+                    gActive
+                      ? "bg-primary/80 text-white"
+                      : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
+                  )}
+                >
+                  {g.name}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
   );
 }
