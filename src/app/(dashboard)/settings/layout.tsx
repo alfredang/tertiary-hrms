@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getViewMode } from "@/lib/view-mode";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +20,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
           Manage company information, integrations, email templates, and webhooks
         </p>
       </div>
-
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-        <SettingsSidebar />
-        <div className="min-w-0">{children}</div>
-      </div>
+      {children}
     </div>
   );
 }

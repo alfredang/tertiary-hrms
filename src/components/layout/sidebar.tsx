@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { TEMPLATES, TEMPLATE_KEYS } from "@/lib/email-templates/defaults";
 import {
   LayoutDashboard,
   Users,
@@ -19,6 +20,7 @@ import {
   Calendar,
   Settings,
   ChevronRight,
+  ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
   Building2,
@@ -27,7 +29,21 @@ import {
   Webhook,
 } from "lucide-react";
 
-const navigation = [
+type IconType = React.ComponentType<{ className?: string }>;
+type Grandchild = { name: string; href: string };
+type Child = { name: string; href: string; icon?: IconType; children?: Grandchild[] };
+type NavItem = {
+  name: string;
+  href: string;
+  icon: IconType;
+  adminOnly?: true;
+  noAccountant?: true;
+  financeOnly?: true;
+  hideForIntern?: true;
+  children?: Child[];
+};
+
+const navigation: NavItem[] = [
   { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
   { name: "My Profile", href: "/profile",     icon: User },
   { name: "Employees",  href: "/employees",   icon: Users,      adminOnly:      true as const },
@@ -51,10 +67,18 @@ const navigation = [
     icon: Settings,
     adminOnly: true as const,
     children: [
-      { name: "Company Info",    href: "/settings/company",         icon: Building2 },
-      { name: "Credentials",     href: "/settings/credentials",     icon: KeyRound },
-      { name: "Email Templates", href: "/settings/email-templates", icon: Mail },
-      { name: "Webhooks",        href: "/settings/webhooks",        icon: Webhook },
+      { name: "Company Info", href: "/settings/company",     icon: Building2 },
+      { name: "Credentials",  href: "/settings/credentials", icon: KeyRound },
+      {
+        name: "Email Templates",
+        href: "/settings/email-templates",
+        icon: Mail,
+        children: TEMPLATE_KEYS.map((k) => ({
+          name: TEMPLATES[k].label,
+          href: `/settings/email-templates/${k.toLowerCase().replace(/_/g, "-")}`,
+        })),
+      },
+      { name: "Webhooks", href: "/settings/webhooks", icon: Webhook },
     ],
   },
 ];
@@ -183,26 +207,63 @@ export function Sidebar({
                 {!collapsed && childExpanded && children && (
                   <ul className="mt-1 ml-4 border-l border-gray-800 pl-3 space-y-1">
                     {children.map((child) => {
-                      const childActive = pathname === child.href;
+                      const childActive =
+                        pathname === child.href || pathname.startsWith(child.href + "/");
+                      const grandchildren =
+                        "children" in child ? child.children : undefined;
+                      const grandchildExpanded = !!grandchildren && childActive;
                       return (
                         <li key={child.href}>
                           <Link
                             href={child.href}
                             className={cn(
                               "group flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm transition-all",
-                              childActive
+                              childActive && !grandchildren
                                 ? "bg-primary text-white"
-                                : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
+                                : childActive && grandchildren
+                                  ? "bg-gray-800 text-white"
+                                  : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
                             )}
                           >
-                            <child.icon
-                              className={cn(
-                                "h-4 w-4 shrink-0",
-                                childActive ? "text-white" : "text-gray-500 group-hover:text-gray-200",
-                              )}
-                            />
-                            {child.name}
+                            {child.icon && (
+                              <child.icon
+                                className={cn(
+                                  "h-4 w-4 shrink-0",
+                                  childActive
+                                    ? "text-white"
+                                    : "text-gray-500 group-hover:text-gray-200",
+                                )}
+                              />
+                            )}
+                            <span className="flex-1 truncate">{child.name}</span>
+                            {grandchildren && (
+                              grandchildExpanded
+                                ? <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                                : <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                            )}
                           </Link>
+                          {grandchildExpanded && grandchildren && (
+                            <ul className="mt-1 ml-3 border-l border-gray-800 pl-3 space-y-0.5">
+                              {grandchildren.map((g) => {
+                                const gActive = pathname === g.href;
+                                return (
+                                  <li key={g.href}>
+                                    <Link
+                                      href={g.href}
+                                      className={cn(
+                                        "block rounded-md px-3 py-1.5 text-xs transition-all",
+                                        gActive
+                                          ? "bg-primary/80 text-white"
+                                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
+                                      )}
+                                    >
+                                      {g.name}
+                                    </Link>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
                         </li>
                       );
                     })}
