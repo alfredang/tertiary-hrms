@@ -514,7 +514,27 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                   })}
                 </div>
               ) : (
-                <p className="font-medium text-white">{userTypeLabel}</p>
+                <div className="flex flex-wrap gap-2">
+                  {(employee.user?.roles ?? []).length > 0 ? (
+                    employee.user!.roles.map((r) => {
+                      const cls =
+                        r === "ADMIN"
+                          ? "border-purple-500 text-purple-400 bg-purple-950/30"
+                          : r === "ACCOUNTANT"
+                          ? "border-green-500 text-green-400 bg-green-950/30"
+                          : r === "INTERN"
+                          ? "border-amber-500 text-amber-400 bg-amber-950/30"
+                          : "border-blue-500 text-blue-400 bg-blue-950/30";
+                      return (
+                        <Badge key={r} variant="outline" className={cls}>
+                          {r.charAt(0) + r.slice(1).toLowerCase()}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    <p className="font-medium text-white">—</p>
+                  )}
+                </div>
               )}
             </Field>
             <Field label="Start Date" icon={<Calendar className="h-4 w-4 text-gray-400" />}>
@@ -589,12 +609,29 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                   })}
                 </div>
               ) : (
-                <p className="font-medium text-white">
-                  {(employee.workdays?.length
-                    ? WORKDAY_OPTIONS.filter((d) => employee.workdays.includes(d.value)).map((d) => d.short)
-                    : ["Mon", "Tue", "Wed", "Thu", "Fri"]
-                  ).join(", ")}
-                </p>
+                <div className="flex flex-wrap gap-3">
+                  {WORKDAY_OPTIONS.map((d) => {
+                    const selected = employee.workdays?.length
+                      ? employee.workdays.includes(d.value)
+                      : d.value >= 1 && d.value <= 5;
+                    return (
+                      <div key={d.value} className="flex items-center gap-1.5">
+                        <span
+                          className={`flex h-4 w-4 items-center justify-center rounded border ${
+                            selected
+                              ? "bg-primary border-primary"
+                              : "bg-gray-900 border-gray-700"
+                          }`}
+                        >
+                          {selected && <Check className="h-3 w-3 text-white" />}
+                        </span>
+                        <span className={`text-sm ${selected ? "text-white" : "text-gray-500"}`}>
+                          {d.short}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </Field>
             <Field label="Status">
