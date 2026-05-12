@@ -40,12 +40,12 @@ next-env.d.ts
 /prisma/migrations
 
 # Capacitor build artifacts
-ios/App/Pods
-android/.gradle
-android/.idea
-android/app/build
-android/build
-android/local.properties
+mobile/ios/App/Pods
+mobile/android/.gradle
+mobile/android/.idea
+mobile/android/app/build
+mobile/android/build
+mobile/android/local.properties
 
 # Sensitive data files
 *.xlsx

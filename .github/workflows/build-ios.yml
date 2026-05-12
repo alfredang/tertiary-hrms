@@ -76,7 +76,7 @@ jobs:
 
       - name: Build iOS app
         run: |
-          cd ios/App
+          cd mobile/ios/App
           xcodebuild -project App.xcodeproj \
             -scheme App \
             -sdk iphoneos \

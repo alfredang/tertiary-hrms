@@ -432,16 +432,19 @@ tertiary-hrms/
 │   │   ├── cpf-calculator.ts      # Singapore CPF calculations (decimal.js)
 │   │   ├── utils.ts               # Formatting, leave proration, helpers
 │   │   ├── view-mode.ts           # Admin/Staff view toggle
-│   │   ├── constants.ts           # App constants
+│   │   ├── company-settings.ts    # Helper to load CompanySettings branding
 │   │   └── validations/           # Zod schemas
 │   └── middleware.ts              # Auth guard + needsSetup redirect
-├── ios/                           # Capacitor iOS project
-├── android/                       # Capacitor Android project
+├── mobile/                        # Native mobile projects (Capacitor)
+│   ├── ios/                       # Capacitor iOS project (Xcode workspace)
+│   ├── android/                   # Capacitor Android project (Gradle)
+│   └── resources/                 # Splash + icon source images
+├── fastlane/                      # iOS Fastlane lanes (TestFlight)
 ├── public/
 │   ├── manifest.json              # PWA manifest
 │   ├── sw.js                      # Service worker
 │   └── icons/                     # App icons
-└── capacitor.config.ts            # Capacitor configuration
+└── capacitor.config.ts            # Capacitor config (points to mobile/ios + mobile/android)
 ```
 
 ---

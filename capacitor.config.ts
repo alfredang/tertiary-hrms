@@ -12,10 +12,12 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
   ios: {
+    path: "mobile/ios",
     contentInset: "automatic",
     scheme: "Tertiary HRMS",
   },
   android: {
+    path: "mobile/android",
     allowMixedContent: false,
   },
   plugins: {
