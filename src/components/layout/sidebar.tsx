@@ -27,8 +27,8 @@ const navigation = [
   { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
   { name: "My Profile", href: "/profile",     icon: User },
   { name: "Employees",  href: "/employees",   icon: Users,      adminOnly:      true as const },
-  { name: "Leave",      href: "/leave",       icon: Clock },
-  { name: "Expense Claims", href: "/expenses",    icon: Receipt },
+  { name: "Leave",      href: "/leave",       icon: Clock,      noAccountant:   true as const },
+  { name: "Expense Claims", href: "/expenses",    icon: Receipt,    noAccountant:   true as const },
   { name: "Payroll",    href: "/payroll",     icon: DollarSign, hideForIntern: true as const },
   {
     name: "Accounting",
