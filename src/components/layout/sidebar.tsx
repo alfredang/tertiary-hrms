@@ -29,7 +29,7 @@ const navigation = [
   { name: "Employees",  href: "/employees",   icon: Users,      adminOnly:      true as const },
   { name: "Leave",      href: "/leave",       icon: Clock },
   { name: "Expense Claims", href: "/expenses",    icon: Receipt },
-  { name: "Payroll",    href: "/payroll",     icon: DollarSign },
+  { name: "Payroll",    href: "/payroll",     icon: DollarSign, hideForIntern: true as const },
   {
     name: "Accounting",
     href: "/accounting",
@@ -40,7 +40,7 @@ const navigation = [
       { name: "Income Tracking",  href: "/accounting/income-tracking",  icon: TrendingUp   },
     ],
   },
-  { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const },
+  { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const, hideForIntern: true as const },
   { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly:      true as const },
 ];
 
@@ -99,6 +99,11 @@ export function Sidebar({
   const isAccountantView = isActualAdmin
     ? viewAs === "accountant"
     : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT") && !isActualAdmin;
+  // Intern view: only when the user is a pure intern (no elevated roles)
+  const isInternView =
+    !isActualAdmin &&
+    actualRoles.length > 0 &&
+    actualRoles.every((r) => r.toUpperCase() === "INTERN");
 
   return (
     <div className={cn("flex grow flex-col gap-y-5 pt-4", collapsed ? "px-2" : "px-6")}>
@@ -133,6 +138,7 @@ export function Sidebar({
             if ("adminOnly" in item && item.adminOnly && !isAdmin) return null;
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
+            if ("hideForIntern" in item && item.hideForIntern && isInternView) return null;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             const children = "children" in item ? item.children : undefined;
             const childExpanded = !!children && isActive;
