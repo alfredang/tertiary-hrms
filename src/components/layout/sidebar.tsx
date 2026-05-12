@@ -40,7 +40,7 @@ const navigation = [
       { name: "Income Tracking",  href: "/accounting/income-tracking",  icon: TrendingUp   },
     ],
   },
-  { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const, hideForIntern: true as const },
+  { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const },
   { name: "Settings",   href: "/settings",    icon: Settings,   adminOnly:      true as const },
 ];
 
