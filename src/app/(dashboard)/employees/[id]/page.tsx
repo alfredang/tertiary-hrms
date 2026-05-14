@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prorateLeave, computeYearlyEntitlement } from "@/lib/utils";
 import { format } from "date-fns";
-import { Calendar, DollarSign, FileText } from "lucide-react";
+import { Calendar, DollarSign, FileText, Briefcase } from "lucide-react";
 import { EmployeeDetailEditable } from "@/components/employees/employee-detail-editable";
+import { AdminOtLogPanel } from "@/components/employees/admin-ot-log-panel";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
@@ -388,6 +389,19 @@ export default async function EmployeeDetailPage({
               </CardContent>
             </Card>
           )}
+
+          {/* OT Work Log — admin can record weekend/PH work days */}
+          <Card className="bg-gray-950 border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Briefcase className="h-5 w-5" />
+                OT Work Log
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AdminOtLogPanel employeeId={employee.id} />
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

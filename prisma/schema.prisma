@@ -68,41 +68,42 @@ model Department {
 }
 
 model Employee {
-  id                                             String         @id @default(cuid())
-  userId                                         String         @unique
-  employeeId                                     String         @unique
-  name                                           String
-  email                                          String         @unique
-  phone                                          String?
-  dateOfBirth                                    DateTime?
-  gender                                         Gender         @default(MALE)
-  nationality                                    String         @default("Singaporean")
-  nric                                           String?        @unique
-  address                                        String?
-  educationLevel                                 EducationLevel @default(DIPLOMA)
-  departmentId                                   String?
-  position                                       String?
-  employmentType                                 EmploymentType @default(FULL_TIME)
-  workdays                                       Int[]          @default([1, 2, 3, 4, 5])
-  startDate                                      DateTime?
-  endDate                                        DateTime?
-  status                                         EmployeeStatus @default(ACTIVE)
-  managerId                                      String?
-  monthlyLeaveRate                               Decimal?       @db.Decimal(5, 2)
-  avatarUrl                                      String?
-  createdAt                                      DateTime       @default(now())
-  updatedAt                                      DateTime       @updatedAt
-  department               Department?    @relation(fields: [departmentId], references: [id])
-  manager                  Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
-  subordinates             Employee[]     @relation("EmployeeToEmployee")
-  user                     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approvedExpenses         ExpenseClaim[] @relation("ExpenseClaim_approverIdToEmployee")
-  expenseClaims            ExpenseClaim[] @relation("ExpenseClaim_employeeIdToEmployee")
-  leaveBalances            LeaveBalance[]
-  approvedLeaves           LeaveRequest[] @relation("LeaveRequest_approverIdToEmployee")
-  leaveRequests            LeaveRequest[] @relation("LeaveRequest_employeeIdToEmployee")
-  payslips                 Payslip[]
-  salaryInfo               SalaryInfo?
+  id               String         @id @default(cuid())
+  userId           String         @unique
+  employeeId       String         @unique
+  email            String         @unique
+  phone            String?
+  dateOfBirth      DateTime?
+  gender           Gender         @default(MALE)
+  nationality      String         @default("Singaporean")
+  nric             String?        @unique
+  address          String?
+  departmentId     String?
+  position         String?
+  employmentType   EmploymentType @default(FULL_TIME)
+  startDate        DateTime?
+  endDate          DateTime?
+  status           EmployeeStatus @default(ACTIVE)
+  managerId        String?
+  avatarUrl        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  educationLevel   EducationLevel @default(DIPLOMA)
+  name             String
+  monthlyLeaveRate Decimal?       @db.Decimal(5, 2)
+  workdays         Int[]          @default([1, 2, 3, 4, 5])
+  department       Department?    @relation(fields: [departmentId], references: [id])
+  manager          Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
+  subordinates     Employee[]     @relation("EmployeeToEmployee")
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedExpenses ExpenseClaim[] @relation("ExpenseClaim_approverIdToEmployee")
+  expenseClaims    ExpenseClaim[] @relation("ExpenseClaim_employeeIdToEmployee")
+  leaveBalances    LeaveBalance[]
+  approvedLeaves   LeaveRequest[] @relation("LeaveRequest_approverIdToEmployee")
+  leaveRequests    LeaveRequest[] @relation("LeaveRequest_employeeIdToEmployee")
+  payslips         Payslip[]
+  salaryInfo       SalaryInfo?
+  otWorkLogs       OtWorkLog[]
 }
 
 model ExpenseCategory {
@@ -113,32 +114,32 @@ model ExpenseCategory {
   maxAmount       Decimal?       @db.Decimal(12, 2)
   requiresReceipt Boolean        @default(true)
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime       @updatedAt
   expenseClaims   ExpenseClaim[]
 }
 
 model ExpenseClaim {
-  id              String          @id @default(cuid())
-  employeeId      String
-  categoryId      String
-  description     String
-  amount          Decimal         @db.Decimal(12, 2)
-  currency        String          @default("SGD")
-  expenseDate     DateTime
-  receiptUrl      String?
-  receiptFileName String?
-  status          ExpenseStatus   @default(PENDING)
-  approverId      String?
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  rejectionReason String?
-  paidAt          DateTime?
+  id               String          @id @default(cuid())
+  employeeId       String
+  categoryId       String
+  description      String
+  amount           Decimal         @db.Decimal(12, 2)
+  currency         String          @default("SGD")
+  expenseDate      DateTime
+  receiptUrl       String?
+  receiptFileName  String?
+  status           ExpenseStatus   @default(PENDING)
+  approverId       String?
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  paidAt           DateTime?
   paymentReference String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime  @updatedAt
-  approver        Employee?       @relation("ExpenseClaim_approverIdToEmployee", fields: [approverId], references: [id])
-  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
-  employee        Employee        @relation("ExpenseClaim_employeeIdToEmployee", fields: [employeeId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  approver         Employee?       @relation("ExpenseClaim_approverIdToEmployee", fields: [approverId], references: [id])
+  category         ExpenseCategory @relation(fields: [categoryId], references: [id])
+  employee         Employee        @relation("ExpenseClaim_employeeIdToEmployee", fields: [employeeId], references: [id])
 }
 
 model LeaveBalance {
@@ -150,10 +151,10 @@ model LeaveBalance {
   used         Decimal   @default(0) @db.Decimal(5, 2)
   pending      Decimal   @default(0) @db.Decimal(5, 2)
   carriedOver  Decimal   @default(0) @db.Decimal(5, 2)
-  earned       Decimal   @default(0) @db.Decimal(5, 2)
-  autoDeducted Decimal   @default(0) @db.Decimal(5, 2)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  autoDeducted Decimal   @default(0) @db.Decimal(5, 2)
+  earned       Decimal   @default(0) @db.Decimal(5, 2)
   employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   leaveType    LeaveType @relation(fields: [leaveTypeId], references: [id])
 
@@ -167,20 +168,20 @@ model LeaveRequest {
   startDate        DateTime
   endDate          DateTime
   days             Decimal     @db.Decimal(5, 2)
-  dayType          DayType     @default(FULL_DAY)
-  halfDayPosition  String?     // "first" or "last" for multi-day leaves
   reason           String?
-  documentUrl      String?
-  documentFileName String?
   status           LeaveStatus @default(PENDING)
-  otDaysUsed       Decimal     @default(0) @db.Decimal(5, 2)
-  deficitDays      Decimal     @default(0) @db.Decimal(5, 2)
   approverId       String?
   approvedAt       DateTime?
   rejectedAt       DateTime?
   rejectionReason  String?
   createdAt        DateTime    @default(now())
-  updatedAt        DateTime  @updatedAt
+  updatedAt        DateTime    @updatedAt
+  documentFileName String?
+  documentUrl      String?
+  dayType          DayType     @default(FULL_DAY)
+  halfDayPosition  String?
+  deficitDays      Decimal     @default(0) @db.Decimal(5, 2)
+  otDaysUsed       Decimal     @default(0) @db.Decimal(5, 2)
   approver         Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
   employee         Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
   leaveType        LeaveType   @relation(fields: [leaveTypeId], references: [id])
@@ -221,7 +222,7 @@ model Payslip {
   status          PayslipStatus @default(DRAFT)
   pdfUrl          String?
   createdAt       DateTime      @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime      @updatedAt
   employee        Employee      @relation(fields: [employeeId], references: [id])
 
   @@unique([employeeId, payPeriodStart, payPeriodEnd])
@@ -234,13 +235,13 @@ model SalaryInfo {
   allowances        Decimal  @default(0) @db.Decimal(12, 2)
   bankName          String?
   bankAccountNumber String?
-  payNow            String?
   cpfApplicable     Boolean  @default(true)
   cpfEmployeeRate   Decimal  @default(20.00) @db.Decimal(5, 2)
   cpfEmployerRate   Decimal  @default(17.00) @db.Decimal(5, 2)
   effectiveDate     DateTime @default(now())
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  payNow            String?
   employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
@@ -256,13 +257,13 @@ model User {
   id            String         @id @default(cuid())
   email         String         @unique
   password      String         @default("")
-  roles         Role[]         @default([STAFF])
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  roles         Role[]         @default([STAFF])
   accounts      Account[]
   employee      Employee?
-  sessions      Session[]
   notifications Notification[]
+  sessions      Session[]
 }
 
 model VerificationToken {
@@ -276,16 +277,16 @@ model VerificationToken {
 model CompanySettings {
   id             String   @id @default("company_settings")
   name           String   @default("Company Name")
-  shortName      String?
   uen            String?
   address        String?
   phone          String?
   email          String?
   website        String?
   logo           String?
-  approvalEmails String[] @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now())
+  approvalEmails String[] @default([])
+  shortName      String?
 }
 
 model CompanyCredential {
@@ -307,26 +308,22 @@ model OtpCode {
   @@index([email])
 }
 
-// User-customisable email template. Defaults live in code; rows here are
-// the per-tenant override of subject/body. Missing key => use default.
 model EmailTemplate {
   id        String   @id @default(cuid())
-  key       String   @unique  // OTP, LEAVE_REQUEST, LEAVE_APPROVED, LEAVE_REJECTED, EXPENSE_REQUEST, EXPENSE_APPROVED, EXPENSE_REJECTED, PASSWORD_RESET
+  key       String   @unique
   subject   String
   body      String
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
 
-// Inbound webhook receivers. Each row exposes /api/webhooks/{endpointToken}
-// that logs the request and returns 200.
 model Webhook {
   id            String       @id @default(cuid())
   name          String
   description   String?
-  httpMethod    String       @default("POST")  // GET | POST
-  endpointToken String       @unique           // opaque random, used in the public URL
-  authToken     String?                         // optional Bearer secret
+  httpMethod    String       @default("POST")
+  endpointToken String       @unique
+  authToken     String?
   enabled       Boolean      @default(true)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -334,20 +331,75 @@ model Webhook {
 }
 
 model WebhookLog {
-  id            String   @id @default(cuid())
-  webhookId     String
-  webhook       Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
-  receivedAt    DateTime @default(now())
-  httpMethod    String
-  headers       Json?
-  queryParams   Json?
-  body          Json?
-  sourceIp      String?
-  statusCode    Int      @default(200)
-  responseBody  Json?
-  errorMessage  String?
+  id           String   @id @default(cuid())
+  webhookId    String
+  receivedAt   DateTime @default(now())
+  httpMethod   String
+  headers      Json?
+  queryParams  Json?
+  body         Json?
+  sourceIp     String?
+  statusCode   Int      @default(200)
+  responseBody Json?
+  errorMessage String?
+  webhook      Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
   @@index([webhookId, receivedAt])
+}
+
+model PublicHoliday {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  name        String
+  countryCode String   @default("SG")
+  year        Int
+  createdAt   DateTime @default(now())
+
+  @@unique([date, countryCode])
+  @@index([year, countryCode])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model BankTransaction {
+  id             String   @id @default(cuid())
+  paymentDate    DateTime @db.Date
+  title          String
+  amount         Decimal  @db.Decimal(12, 2)
+  type           String   @default("Other")
+  status         String   @default("Pending")
+  gstIncluded    Boolean  @default(false)
+  recurring      String   @default("One Time")
+  remarks        String?
+  rawDescription String
+  statementRef   String?
+  importBatchId  String
+  uploadedById   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  dedupeKey      String   @unique
+  direction      String   @default("DEBIT")
+  paymentType    String   @default("Bank Transfer")
+  paymentRef     String?
+  invoiceNo      String?
+  receiptNo      String?
+
+  @@index([paymentDate])
+  @@index([direction])
+  @@index([importBatchId])
+  @@index([type])
 }
 
 enum EmployeeStatus {
@@ -377,8 +429,8 @@ enum ExpenseStatus {
   PENDING
   APPROVED
   REJECTED
-  CANCELLED
   PAID
+  CANCELLED
 }
 
 enum Gender {
@@ -415,64 +467,23 @@ enum PayslipStatus {
 
 enum Role {
   STAFF
-  INTERN
-  ACCOUNTANT
   MANAGER
   HR
   ADMIN
+  INTERN
+  ACCOUNTANT
 }
 
-model PublicHoliday {
-  id          String   @id @default(cuid())
-  date        DateTime @db.Date
-  name        String
-  countryCode String   @default("SG")
-  year        Int
-  createdAt   DateTime @default(now())
+model OtWorkLog {
+  id         String   @id @default(cuid())
+  employeeId String
+  date       DateTime @db.Date
+  type       String   // "WEEKEND" | "PUBLIC_HOLIDAY" | "OTHER"
+  note       String?
+  daysEarned Decimal  @default(1) @db.Decimal(5, 2)
+  recordedBy String?
+  createdAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@unique([date, countryCode])
-  @@index([year, countryCode])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  message   String
-  type      String   @default("INFO")
-  read      Boolean  @default(false)
-  link      String?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, read])
-}
-
-model BankTransaction {
-  id              String   @id @default(cuid())
-  paymentDate     DateTime @db.Date
-  title           String
-  amount          Decimal  @db.Decimal(12, 2)
-  direction       String   @default("DEBIT")
-  type            String   @default("Other")
-  paymentType     String   @default("Bank Transfer")
-  paymentRef      String?
-  invoiceNo       String?
-  receiptNo       String?
-  status          String   @default("Pending")
-  gstIncluded     Boolean  @default(false)
-  recurring       String   @default("One Time")
-  remarks         String?
-  rawDescription  String
-  statementRef    String?
-  dedupeKey       String   @unique
-  importBatchId   String
-  uploadedById    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([paymentDate])
-  @@index([direction])
-  @@index([importBatchId])
-  @@index([type])
+  @@index([employeeId])
 }

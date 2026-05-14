@@ -1,0 +1,80 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { hasAdminAccess } from "@/lib/utils";
+
+export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const requestedEmployeeId = searchParams.get("employeeId");
+
+  const isAdmin = hasAdminAccess(session.user.role);
+
+  // Non-admins can only fetch their own logs
+  const employeeId =
+    isAdmin && requestedEmployeeId ? requestedEmployeeId : session.user.employeeId;
+
+  if (!employeeId) return NextResponse.json([], { status: 200 });
+
+  const logs = await prisma.otWorkLog.findMany({
+    where: { employeeId },
+    orderBy: { date: "desc" },
+  });
+
+  return NextResponse.json(
+    logs.map((l) => ({
+      id: l.id,
+      date: l.date.toISOString(),
+      type: l.type,
+      note: l.note,
+      daysEarned: Number(l.daysEarned),
+      recordedBy: l.recordedBy,
+      createdAt: l.createdAt.toISOString(),
+    }))
+  );
+}
+
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user || !hasAdminAccess(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json();
+  const { employeeId, date, type, note, daysEarned } = body;
+
+  if (!employeeId || !date || !type) {
+    return NextResponse.json({ error: "employeeId, date, type are required" }, { status: 400 });
+  }
+
+  const days = Number(daysEarned ?? 1);
+  const currentYear = new Date(date).getFullYear();
+
+  const [log] = await prisma.$transaction(async (tx) => {
+    const entry = await tx.otWorkLog.create({
+      data: {
+        employeeId,
+        date: new Date(date),
+        type,
+        note: note ?? null,
+        daysEarned: days,
+        recordedBy: session.user.name ?? session.user.email ?? "Admin",
+      },
+    });
+
+    const alOtType = await tx.leaveType.findUnique({ where: { code: "AL_OT" } });
+    if (alOtType) {
+      await tx.leaveBalance.upsert({
+        where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
+        update: { earned: { increment: days } },
+        create: { employeeId, leaveTypeId: alOtType.id, year: currentYear, entitlement: 0, earned: days },
+      });
+    }
+
+    return [entry];
+  });
+
+  return NextResponse.json({ id: log.id, daysEarned: days });
+}

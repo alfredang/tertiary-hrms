@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { prorateLeave, hasAdminAccess } from "@/lib/utils";
 import { LeaveList } from "@/components/leave/leave-list";
 import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
+import { OtBreakdownDialog } from "@/components/leave/ot-breakdown-dialog";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -208,17 +209,11 @@ export default async function LeavePage() {
       {/* OT Leave Balance — show when earned > 0 OR there is a deficit */}
       {viewAs !== "admin" && otBalance !== null && (otBalance.earned > 0 || otBalance.remaining < 0) && (
         <div className={`bg-gray-950 border rounded-xl p-4 ${otBalance.remaining < 0 ? "border-red-800/50" : "border-emerald-800/40"}`}>
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <div className={`h-2 w-2 rounded-full ${otBalance.remaining < 0 ? "bg-red-400" : "bg-emerald-400"}`} />
-            <h3 className={`text-sm font-semibold ${otBalance.remaining < 0 ? "text-red-400" : "text-emerald-400"}`}>
-              Accumulated OT Leave Balance
-            </h3>
-            <span className="text-xs text-gray-500">Earned from weekend / public holiday work</span>
-            {otBalance.remaining < 0 && (
-              <span className="ml-auto text-xs text-red-300 bg-red-950/40 border border-red-800/50 rounded px-2 py-0.5">
-                {Math.abs(otBalance.remaining)} day(s) deficit — offset by future OT work
-              </span>
-            )}
+          <div className="mb-3">
+            <OtBreakdownDialog
+              otStats={otBalance}
+              employeeId={currentEmployeeId}
+            />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-gray-900 rounded-lg p-3">

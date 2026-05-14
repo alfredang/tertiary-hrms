@@ -30,12 +30,13 @@ async function getStaffStats(employeeId: string) {
   const currentYear = new Date().getFullYear();
   const yearStart = new Date(`${currentYear}-01-01`);
 
-  const [alType, mcType] = await Promise.all([
+  const [alType, mcType, alOtType] = await Promise.all([
     prisma.leaveType.findUnique({ where: { code: "AL" } }),
     prisma.leaveType.findUnique({ where: { code: "MC" } }),
+    prisma.leaveType.findUnique({ where: { code: "AL_OT" } }),
   ]);
 
-  const [alBalance, mcBalance, expenseClaims, employee] = await Promise.all([
+  const [alBalance, mcBalance, otBalance, expenseClaims, employee] = await Promise.all([
     alType
       ? prisma.leaveBalance.findUnique({
           where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alType.id, year: currentYear } },
@@ -44,6 +45,11 @@ async function getStaffStats(employeeId: string) {
     mcType
       ? prisma.leaveBalance.findUnique({
           where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: mcType.id, year: currentYear } },
+        })
+      : null,
+    alOtType
+      ? prisma.leaveBalance.findUnique({
+          where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
         })
       : null,
     prisma.expenseClaim.findMany({
@@ -77,7 +83,16 @@ async function getStaffStats(employeeId: string) {
   const mcBalanceVal = mcEntitlement + mcCarriedOver - mcUsed - mcPending;
   const expenseClaimAmount = expenseClaims.reduce((sum, c) => sum + Number(c.amount), 0);
 
-  return { leaveBalance, mcBalance: mcBalanceVal, expenseClaimAmount };
+  const otEarned = otBalance ? Number(otBalance.earned) : 0;
+  const otUsed = otBalance ? Math.max(0, Number(otBalance.used)) : 0;
+  const otAutoDeducted = otBalance ? Math.max(0, Number(otBalance.autoDeducted)) : 0;
+  const otPending = otBalance ? Math.max(0, Number(otBalance.pending)) : 0;
+  const otRemaining = otEarned - otUsed - otAutoDeducted - otPending;
+  const otStats = otEarned > 0 || otRemaining < 0
+    ? { earned: otEarned, used: otUsed, autoDeducted: otAutoDeducted, remaining: otRemaining }
+    : null;
+
+  return { leaveBalance, mcBalance: mcBalanceVal, expenseClaimAmount, otStats };
 }
 
 async function getRecentActivity(employeeId?: string) {
