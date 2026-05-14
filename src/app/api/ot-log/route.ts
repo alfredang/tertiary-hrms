@@ -66,10 +66,18 @@ export async function POST(req: Request) {
 
     const alOtType = await tx.leaveType.findUnique({ where: { code: "AL_OT" } });
     if (alOtType) {
+      const yearStart = new Date(Date.UTC(currentYear, 0, 1));
+      const yearEnd   = new Date(Date.UTC(currentYear + 1, 0, 1));
+      const allLogs = await tx.otWorkLog.findMany({
+        where: { employeeId, date: { gte: yearStart, lt: yearEnd } },
+        select: { daysEarned: true },
+      });
+      const recalcEarned = allLogs.reduce((sum, l) => sum + Number(l.daysEarned), 0);
+
       await tx.leaveBalance.upsert({
         where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
-        update: { earned: { increment: days } },
-        create: { employeeId, leaveTypeId: alOtType.id, year: currentYear, entitlement: 0, earned: days },
+        update: { earned: recalcEarned },
+        create: { employeeId, leaveTypeId: alOtType.id, year: currentYear, entitlement: 0, earned: recalcEarned },
       });
     }
 

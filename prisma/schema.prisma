@@ -101,9 +101,10 @@ model Employee {
   leaveBalances    LeaveBalance[]
   approvedLeaves   LeaveRequest[] @relation("LeaveRequest_approverIdToEmployee")
   leaveRequests    LeaveRequest[] @relation("LeaveRequest_employeeIdToEmployee")
-  payslips         Payslip[]
-  salaryInfo       SalaryInfo?
-  otWorkLogs       OtWorkLog[]
+  payslips          Payslip[]
+  salaryInfo        SalaryInfo?
+  otWorkLogs        OtWorkLog[]
+  timesheetEntries  TimesheetEntry[]
 }
 
 model ExpenseCategory {
@@ -472,6 +473,21 @@ enum Role {
   ADMIN
   INTERN
   ACCOUNTANT
+}
+
+model TimesheetEntry {
+  id                 String   @id @default(cuid())
+  employeeId         String
+  date               DateTime @db.Date
+  hours              Decimal  @default(0) @db.Decimal(4, 1)
+  otCredited         Decimal  @default(0) @db.Decimal(5, 2)
+  otAbsenceDeducted  Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
 }
 
 model OtWorkLog {

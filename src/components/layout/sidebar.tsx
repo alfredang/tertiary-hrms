@@ -30,6 +30,7 @@ import {
   Webhook,
   CalendarDays,
   Stethoscope,
+  ClipboardList,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -44,6 +45,7 @@ type NavItem = {
   noAccountant?: true;
   financeOnly?: true;
   hideForIntern?: true;
+  staffOnly?: true;   // visible only in staff/intern view (hidden for admin + accountant)
   children?: Child[];
 };
 
@@ -74,7 +76,8 @@ const navigation: NavItem[] = [
       { name: "Income Tracking",  href: "/accounting/income-tracking",  icon: TrendingUp   },
     ],
   },
-  { name: "Calendar",   href: "/calendar",    icon: Calendar,   noAccountant:   true as const },
+  { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
+  { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
   {
     name: "Settings",
     href: "/settings",
@@ -181,6 +184,7 @@ export function Sidebar({
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
             if ("hideForIntern" in item && item.hideForIntern && isInternView) return null;
+            if ("staffOnly" in item && item.staffOnly && (isAdmin || isAccountantView)) return null;
             return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} isAdmin={isAdmin} />;
           })}
         </ul>
