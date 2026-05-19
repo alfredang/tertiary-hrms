@@ -97,7 +97,7 @@ export function TransactionsTable({
 
   // Pending rows that are eligible to be sent to QB
   const pendingRows = rows.filter((r) => r.status === "Pending" && !r.qbExpenseNo);
-  const selectedPending = [...selectedIds].filter((id) =>
+  const selectedPending = Array.from(selectedIds).filter((id) =>
     pendingRows.some((r) => r.id === id),
   );
   const allPendingSelected =

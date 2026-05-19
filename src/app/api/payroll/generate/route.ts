@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculatePayroll } from "@/lib/cpf-calculator";
+import { calculatePayroll, prorateMonthlySalary } from "@/lib/cpf-calculator";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 

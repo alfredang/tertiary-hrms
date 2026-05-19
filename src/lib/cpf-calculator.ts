@@ -107,6 +107,49 @@ export function calculateCPF(
 }
 
 /**
+ * Count working days (Mon-Fri) between two dates inclusive.
+ * Used for MOM-standard prorated salary on join/leave in mid-month.
+ */
+export function countWorkingDays(start: Date, end: Date): number {
+  const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const e = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  let count = 0;
+  for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+}
+
+/**
+ * MOM-standard incomplete-month proration:
+ *   prorated = grossRate × (working days worked in month / working days in month)
+ */
+export function prorateMonthlySalary(
+  baseAmount: number,
+  startDate: Date,
+  endDate: Date,
+  payPeriodStart: Date,
+  payPeriodEnd: Date,
+): { amount: number; workingDaysWorked: number; workingDaysInMonth: number } {
+  const monthStart = new Date(payPeriodStart);
+  const monthEnd = new Date(payPeriodEnd);
+  const workStart = startDate > monthStart ? startDate : monthStart;
+  const workEnd = endDate < monthEnd ? endDate : monthEnd;
+  const workingDaysWorked = workEnd >= workStart ? countWorkingDays(workStart, workEnd) : 0;
+  const workingDaysInMonth = countWorkingDays(monthStart, monthEnd);
+  if (workingDaysInMonth === 0) {
+    return { amount: 0, workingDaysWorked: 0, workingDaysInMonth };
+  }
+  const amount = (baseAmount * workingDaysWorked) / workingDaysInMonth;
+  return {
+    amount: Math.round(amount * 100) / 100,
+    workingDaysWorked,
+    workingDaysInMonth,
+  };
+}
+
+/**
  * Calculate full payroll breakdown
  */
 export function calculatePayroll(
@@ -116,7 +159,8 @@ export function calculatePayroll(
   overtime: number = 0,
   bonus: number = 0,
   otherDeductions: number = 0,
-  incomeTaxRate: number = 0.15 // Default 15% income tax
+  incomeTaxRate: number = 0.15, // Default 15% income tax
+  options?: { cpfApplicable?: boolean },
 ): {
   basicSalary: number;
   allowances: number;
@@ -135,7 +179,10 @@ export function calculatePayroll(
   const additionalWage = overtime + bonus;
   const grossSalary = ordinaryWage + additionalWage;
 
-  const cpf = calculateCPF(ordinaryWage, additionalWage, age);
+  const cpfApplicable = options?.cpfApplicable ?? true;
+  const cpf = cpfApplicable
+    ? calculateCPF(ordinaryWage, additionalWage, age)
+    : { employeeContribution: 0, employerContribution: 0, totalContribution: 0, grossWage: grossSalary };
 
   // Calculate income tax (simplified - actual Singapore tax is progressive)
   const incomeTax = Math.round(grossSalary * incomeTaxRate);
