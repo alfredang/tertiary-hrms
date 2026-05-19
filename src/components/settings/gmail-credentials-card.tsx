@@ -153,9 +153,21 @@ export function GmailCredentialsCard({
               </button>
             </div>
           ) : (
-            <p className="text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800">
-              {clientId ? mask(clientId) : <span className="text-gray-500">Not set</span>}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800 break-all">
+                {clientId ? (visible.clientId ? clientId : mask(clientId)) : <span className="text-gray-500">Not set</span>}
+              </p>
+              {clientId && (
+                <button
+                  type="button"
+                  onClick={() => toggleVisible("clientId")}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                  aria-label={visible.clientId ? "Hide Client ID" : "Show Client ID"}
+                >
+                  {visible.clientId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -180,9 +192,21 @@ export function GmailCredentialsCard({
               </button>
             </div>
           ) : (
-            <p className="text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800">
-              {clientSecret ? mask(clientSecret) : <span className="text-gray-500">Not set</span>}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800 break-all">
+                {clientSecret ? (visible.clientSecret ? clientSecret : mask(clientSecret)) : <span className="text-gray-500">Not set</span>}
+              </p>
+              {clientSecret && (
+                <button
+                  type="button"
+                  onClick={() => toggleVisible("clientSecret")}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                  aria-label={visible.clientSecret ? "Hide Client Secret" : "Show Client Secret"}
+                >
+                  {visible.clientSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -220,9 +244,21 @@ export function GmailCredentialsCard({
               </button>
             </div>
           ) : (
-            <p className="text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800">
-              {form.refreshToken ? mask(form.refreshToken) : <span className="text-gray-500">Not set</span>}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800 break-all">
+                {form.refreshToken ? (visible.refreshToken ? form.refreshToken : mask(form.refreshToken)) : <span className="text-gray-500">Not set</span>}
+              </p>
+              {form.refreshToken && (
+                <button
+                  type="button"
+                  onClick={() => toggleVisible("refreshToken")}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                  aria-label={visible.refreshToken ? "Hide Refresh Token" : "Show Refresh Token"}
+                >
+                  {visible.refreshToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              )}
+            </div>
           )}
           <p className="text-xs text-gray-500">
             Generate at{" "}
