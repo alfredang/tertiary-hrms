@@ -203,7 +203,7 @@ export default async function EmployeeDetailPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {employee.leaveBalances
                   .filter((balance) => balance.year === new Date().getFullYear())
                   .map((balance) => {
@@ -286,7 +286,7 @@ export default async function EmployeeDetailPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {employee.leaveBalances
                     .filter((balance) => balance.year === new Date().getFullYear() - 1)
                     .map((balance) => {
