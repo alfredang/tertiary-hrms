@@ -64,11 +64,24 @@ export function AccountingClient() {
       const verifyNote = saved.verified
         ? "all rows verified in DB"
         : `WARNING: persisted ${saved.persisted} of ${saved.fresh} expected`;
+
+      const existingRows: any[] = saved.existingRows ?? [];
+      const alreadySettled = existingRows.filter((r: any) => r.qbExpenseNo);
+      let settledNote = "";
+      if (alreadySettled.length > 0) {
+        const bills = alreadySettled.map((r: any) => r.qbExpenseNo).join(", ");
+        settledNote = ` — ${alreadySettled.length} already in QB: ${bills}.`;
+      } else if (saved.skipped > 0) {
+        settledNote = ` — ${saved.skipped} duplicate${saved.skipped === 1 ? "" : "s"} already in HRMS (not yet in QB).`;
+      }
+
       setSummary(
-        `Imported ${file.name} via ${parsed.engine ?? "parser"}: ` +
-          `${saved.saved} new saved, ${saved.skipped} duplicate${saved.skipped === 1 ? "" : "s"} skipped ` +
-          `(of ${saved.submitted}). Parsed ${credits} credit${credits === 1 ? "" : "s"} / ${debits} debit${debits === 1 ? "" : "s"}. ` +
-          `(${verifyNote})`,
+        `Imported ${file.name}: ` +
+          `${saved.saved} new saved` +
+          (saved.skipped > 0 ? `, ${saved.skipped} skipped` : "") +
+          `. Parsed ${credits} credit${credits === 1 ? "" : "s"} / ${debits} debit${debits === 1 ? "" : "s"}.` +
+          settledNote +
+          ` (${verifyNote})`,
       );
       router.refresh();
     } catch (err: any) {

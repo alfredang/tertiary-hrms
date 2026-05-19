@@ -153,7 +153,6 @@ export function TransactionsTable({
     }
     setSelectedIds(new Set());
     setBulkGenerating(false);
-    router.refresh();
   }
 
   async function deleteRow(rowId: string) {

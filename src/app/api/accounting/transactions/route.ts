@@ -86,7 +86,24 @@ export async function POST(req: NextRequest) {
   // enforces this, but checking up front gives an accurate skipped count).
   const existing = await prisma.bankTransaction.findMany({
     where: { dedupeKey: { in: data.map((d) => d.dedupeKey) } },
-    select: { dedupeKey: true },
+    select: {
+      dedupeKey: true,
+      id: true,
+      status: true,
+      qbExpenseNo: true,
+      qbExpenseId: true,
+      direction: true,
+      paymentDate: true,
+      title: true,
+      amount: true,
+      type: true,
+      paymentType: true,
+      paymentRef: true,
+      invoiceNo: true,
+      receiptNo: true,
+      gstIncluded: true,
+      remarks: true,
+    },
   });
   const existingKeys = new Set(existing.map((e) => e.dedupeKey));
   const fresh = data.filter((d) => !existingKeys.has(d.dedupeKey));
@@ -104,6 +121,25 @@ export async function POST(req: NextRequest) {
   });
   const verified = persisted === result.count && persisted === fresh.length;
 
+  // Return full details for already-existing records so the UI can display
+  // their current QB status without a separate fetch.
+  const existingRows = existing.map((e) => ({
+    id: e.id,
+    paymentDate: e.paymentDate.toISOString().slice(0, 10),
+    title: e.title,
+    amount: Number(e.amount),
+    type: e.type,
+    paymentType: e.paymentType,
+    paymentRef: e.paymentRef ?? "",
+    invoiceNo: e.invoiceNo ?? "",
+    receiptNo: e.receiptNo ?? "",
+    qbExpenseNo: e.qbExpenseNo ?? "",
+    status: e.status,
+    gstIncluded: e.gstIncluded,
+    remarks: e.remarks ?? "",
+    direction: e.direction,
+  }));
+
   return NextResponse.json({
     submitted: data.length,
     fresh: fresh.length,
@@ -112,5 +148,6 @@ export async function POST(req: NextRequest) {
     persisted,
     verified,
     batchId,
+    existingRows,
   });
 }

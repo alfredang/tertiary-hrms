@@ -10,7 +10,14 @@ const QBO_BASE_URL = "https://quickbooks.api.intuit.com";
 const QBO_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
 const MINOR_VERSION = "75";
 
-async function getQBCreds() {
+interface QBCreds {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  realmId: string;
+}
+
+async function getQBCreds(): Promise<QBCreds | null> {
   const rows = await prisma.companyCredential.findMany({
     where: {
       keyName: {
@@ -32,8 +39,8 @@ async function getQBCreds() {
   };
 }
 
-async function getAccessToken(creds: Awaited<ReturnType<typeof getQBCreds>> & {}) {
-  const basic = Buffer.from(`${creds!.clientId}:${creds!.clientSecret}`).toString("base64");
+async function getAccessToken(creds: QBCreds): Promise<string> {
+  const basic = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString("base64");
   const res = await fetch(QBO_TOKEN_URL, {
     method: "POST",
     headers: {
@@ -41,11 +48,12 @@ async function getAccessToken(creds: Awaited<ReturnType<typeof getQBCreds>> & {}
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
     },
-    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(creds!.refreshToken)}`,
+    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(creds.refreshToken)}`,
   });
-  if (!res.ok) throw new Error(`QB token refresh failed: ${res.status}`);
-  const data = await res.json();
-  if (data.refresh_token && data.refresh_token !== creds!.refreshToken) {
+  const text = await res.text();
+  if (!res.ok) throw new Error(`QB token refresh failed: ${res.status} — ${text.slice(0, 200)}`);
+  const data = JSON.parse(text);
+  if (data.refresh_token && data.refresh_token !== creds.refreshToken) {
     await prisma.companyCredential.upsert({
       where: { keyName: "QUICKBOOKS_REFRESH_TOKEN" },
       update: { keyValue: data.refresh_token },
@@ -55,37 +63,49 @@ async function getAccessToken(creds: Awaited<ReturnType<typeof getQBCreds>> & {}
   return data.access_token as string;
 }
 
-async function qbQuery(base: string, token: string, query: string) {
+async function qbQuery(base: string, token: string, query: string): Promise<any> {
   const url = `${base}/query?query=${encodeURIComponent(query)}&minorversion=${MINOR_VERSION}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
-  if (!res.ok) throw new Error(`QB query failed: ${res.status}`);
-  return res.json();
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`QB query failed ${res.status}: ${text.slice(0, 200)}`);
+  return JSON.parse(text);
 }
 
-async function qbCreate(base: string, token: string, entity: string, body: object) {
+async function qbCreate(base: string, token: string, entity: string, body: object): Promise<any> {
   const url = `${base}/${entity}?minorversion=${MINOR_VERSION}`;
   const res = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const text = await res.text();
   if (!res.ok) {
-    const msg = data?.Fault?.Error?.[0]?.Message ?? `QB error ${res.status}`;
+    let msg = `QB error ${res.status}`;
+    try {
+      const parsed = JSON.parse(text);
+      msg = parsed?.Fault?.Error?.[0]?.Message ?? msg;
+    } catch { /* keep default msg */ }
     throw new Error(msg);
   }
-  return data;
+  return JSON.parse(text);
 }
 
 const QB_PAYMENT_TYPE: Record<string, string> = {
   CC: "CreditCard",
   Cash: "Cash",
+  Check: "Check",
+  Cheque: "Check",
 };
-function toQbPaymentType(t: string) {
-  return QB_PAYMENT_TYPE[t] ?? "Check";
+function toQbPaymentType(t: string): string {
+  return QB_PAYMENT_TYPE[t] ?? "Cash";
 }
 
-// Category → QB expense account name (best-effort match)
 const CATEGORY_ACCOUNT: Record<string, string[]> = {
   "Trainer Fee": ["Trainer Fee", "Trainer Fees", "Professional Fees", "Subcontractors"],
   "Payroll": ["Salaries", "Wages", "Payroll"],
@@ -95,18 +115,19 @@ const CATEGORY_ACCOUNT: Record<string, string[]> = {
   "Subscription": ["Computer", "Internet", "Software", "Subscription"],
   "Bank Charges": ["Bank Charges", "Bank Fees", "Service Charge"],
   "Allowance": ["Allowance", "Employee Benefits"],
-  "Vendor Payment": ["Purchases", "Cost of Goods Sold", "General"],
+  "Vendor Payment": ["Purchases", "Cost of Goods", "General"],
   "Payment Processor": ["Merchant Fees", "Bank Charges"],
-  "Grocery": ["Meals", "Entertainment", "Office Supplies"],
+  "Grocery": ["Meals", "Entertainment", "Office"],
   "Meal": ["Meals", "Entertainment"],
   "Entertainment": ["Entertainment"],
 };
 
-function findQbAccount(accounts: any[], keywords: string[]): any | null {
+function findAccount(accounts: any[], keywords: string[]): any | null {
   for (const kw of keywords) {
-    const found = accounts.find((a: any) =>
-      (a.Name as string).toLowerCase().includes(kw.toLowerCase()) ||
-      (a.FullyQualifiedName as string ?? "").toLowerCase().includes(kw.toLowerCase()),
+    const found = accounts.find(
+      (a: any) =>
+        String(a.Name ?? "").toLowerCase().includes(kw.toLowerCase()) ||
+        String(a.FullyQualifiedName ?? "").toLowerCase().includes(kw.toLowerCase()),
     );
     if (found) return found;
   }
@@ -132,101 +153,128 @@ async function authorize(): Promise<boolean> {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await authorize())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = await req.json();
-  if (!id) return NextResponse.json({ error: "Transaction id required" }, { status: 400 });
-
-  const txn = await prisma.bankTransaction.findUnique({ where: { id } });
-  if (!txn) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-  if (txn.direction !== "DEBIT") return NextResponse.json({ error: "Only expense (DEBIT) records can be sent to QB" }, { status: 400 });
-  if (txn.status === "Settled" && txn.qbExpenseId) {
-    return NextResponse.json({ error: "Already settled in QuickBooks", qbExpenseNo: txn.qbExpenseNo }, { status: 409 });
-  }
-
-  const creds = await getQBCreds();
-  if (!creds) return NextResponse.json({ error: "QuickBooks credentials not configured. Go to Settings → Credentials." }, { status: 503 });
-
-  let token: string;
   try {
-    token = await getAccessToken(creds);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
-  }
+    if (!(await authorize())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const base = `${QBO_BASE_URL}/v3/company/${creds.realmId}`;
+    const body = await req.json();
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: "Transaction id required" }, { status: 400 });
 
-  // Fetch QB accounts
-  let bankAccounts: any[] = [];
-  let expenseAccounts: any[] = [];
-  try {
-    const bankRes = await qbQuery(base, token, "SELECT * FROM Account WHERE AccountType = 'Bank' MAXRESULTS 100");
-    bankAccounts = bankRes?.QueryResponse?.Account ?? [];
-    const expRes = await qbQuery(base, token, "SELECT * FROM Account WHERE Classification = 'Expense' MAXRESULTS 200");
-    expenseAccounts = expRes?.QueryResponse?.Account ?? [];
-  } catch (e: any) {
-    return NextResponse.json({ error: `Failed to fetch QB accounts: ${e.message}` }, { status: 502 });
-  }
+    const txn = await prisma.bankTransaction.findUnique({ where: { id } });
+    if (!txn) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    if (txn.direction !== "DEBIT") {
+      return NextResponse.json({ error: "Only expense (DEBIT) records can be sent to QB" }, { status: 400 });
+    }
+    if (txn.status === "Settled" && txn.qbExpenseId) {
+      return NextResponse.json({ error: "Already settled in QuickBooks", qbExpenseNo: txn.qbExpenseNo }, { status: 409 });
+    }
 
-  // Find bank account — prefer DBS, fallback to first bank account
-  const bankAccount =
-    findQbAccount(bankAccounts, ["DBS", "Checking", "Current"]) ?? bankAccounts[0];
-  if (!bankAccount) {
-    return NextResponse.json({ error: "No bank account found in QuickBooks. Please set up a bank account first." }, { status: 422 });
-  }
+    const creds = await getQBCreds();
+    if (!creds) {
+      return NextResponse.json(
+        { error: "QuickBooks credentials not configured. Go to Settings → Credentials." },
+        { status: 503 },
+      );
+    }
 
-  // Find expense account based on category
-  const categoryKeywords = CATEGORY_ACCOUNT[txn.type] ?? ["General", "Expenses", "Operating"];
-  const expenseAccount =
-    findQbAccount(expenseAccounts, categoryKeywords) ??
-    findQbAccount(expenseAccounts, ["General", "Operating", "Administrative", "Expenses"]) ??
-    expenseAccounts[0];
-  if (!expenseAccount) {
-    return NextResponse.json({ error: "No expense account found in QuickBooks. Please set up expense accounts first." }, { status: 422 });
-  }
+    const token = await getAccessToken(creds);
+    const base = `${QBO_BASE_URL}/v3/company/${creds.realmId}`;
 
-  // Build DocNumber TXYYMMDD with sequence for same-day duplicates
-  const dateStr = txn.paymentDate.toISOString().slice(0, 10);
-  const sameDay = await prisma.bankTransaction.count({
-    where: { qbExpenseNo: { startsWith: `TX${dateStr.slice(2, 4)}${dateStr.slice(5, 7)}${dateStr.slice(8, 10)}` } },
-  });
-  const docNumber = buildDocNumber(dateStr, sameDay + 1);
+    // Fetch bank accounts and expense accounts from QB
+    const [bankRes, expRes] = await Promise.all([
+      qbQuery(base, token, "SELECT * FROM Account WHERE AccountType = 'Bank' MAXRESULTS 100"),
+      qbQuery(base, token, "SELECT * FROM Account WHERE Classification = 'Expense' MAXRESULTS 200"),
+    ]);
 
-  const purchaseBody = {
-    DocNumber: docNumber,
-    TxnDate: dateStr,
-    PaymentType: toQbPaymentType(txn.paymentType),
-    AccountRef: { value: String(bankAccount.Id), name: bankAccount.Name },
-    Line: [
-      {
-        Amount: Number(txn.amount),
-        DetailType: "AccountBasedExpenseLineDetail",
-        Description: txn.title.slice(0, 4000),
-        AccountBasedExpenseLineDetail: {
-          AccountRef: { value: String(expenseAccount.Id), name: expenseAccount.Name },
-          BillableStatus: "NotBillable",
+    const bankAccounts: any[] = bankRes?.QueryResponse?.Account ?? [];
+    const expenseAccounts: any[] = expRes?.QueryResponse?.Account ?? [];
+
+    const bankAccount =
+      findAccount(bankAccounts, ["DBS", "Checking", "Current", "Operating"]) ?? bankAccounts[0];
+    if (!bankAccount) {
+      return NextResponse.json(
+        { error: "No bank account found in QuickBooks. Please set up a bank account first." },
+        { status: 422 },
+      );
+    }
+
+    const categoryKeywords = CATEGORY_ACCOUNT[txn.type] ?? ["General", "Operating", "Administrative"];
+    const expenseAccount =
+      findAccount(expenseAccounts, categoryKeywords) ??
+      findAccount(expenseAccounts, ["General", "Operating", "Administrative", "Expenses"]) ??
+      expenseAccounts[0];
+    if (!expenseAccount) {
+      return NextResponse.json(
+        { error: "No expense account found in QuickBooks. Please set up expense accounts first." },
+        { status: 422 },
+      );
+    }
+
+    const dateStr = txn.paymentDate.toISOString().slice(0, 10);
+    const prefix = `TX${dateStr.slice(2, 4)}${dateStr.slice(5, 7)}${dateStr.slice(8, 10)}`;
+    const sameDay = await prisma.bankTransaction.count({
+      where: { qbExpenseNo: { startsWith: prefix } },
+    });
+    const docNumber = buildDocNumber(dateStr, sameDay + 1);
+
+    const purchaseBody = {
+      DocNumber: docNumber,
+      TxnDate: dateStr,
+      PaymentType: toQbPaymentType(txn.paymentType),
+      AccountRef: { value: String(bankAccount.Id), name: bankAccount.Name },
+      Line: [
+        {
+          Amount: Number(txn.amount),
+          DetailType: "AccountBasedExpenseLineDetail",
+          Description: txn.title.slice(0, 4000),
+          AccountBasedExpenseLineDetail: {
+            AccountRef: { value: String(expenseAccount.Id), name: expenseAccount.Name },
+            BillableStatus: "NotBillable",
+          },
         },
-      },
-    ],
-    PrivateNote: `HRMS import · ${txn.paymentType} · ${txn.rawDescription.slice(0, 500)}`,
-  };
+      ],
+      PrivateNote: `HRMS · ${txn.paymentType} · ${txn.rawDescription.slice(0, 500)}`,
+    };
 
-  let qbData: any;
-  try {
-    qbData = await qbCreate(base, token, "purchase", purchaseBody);
-  } catch (e: any) {
-    return NextResponse.json({ error: `QuickBooks error: ${e.message}` }, { status: 502 });
+    let qbExpenseId: string;
+    let qbExpenseNo = docNumber;
+
+    try {
+      const qbData = await qbCreate(base, token, "purchase", purchaseBody);
+      qbExpenseId = String(qbData?.Purchase?.Id ?? qbData?.Id ?? "");
+    } catch (createErr: any) {
+      // QB rejects duplicate DocNumbers — look up the existing expense and reuse it
+      if (/duplicate/i.test(createErr.message)) {
+        const searchRes = await qbQuery(
+          base,
+          token,
+          `SELECT * FROM Purchase WHERE DocNumber = '${docNumber}' MAXRESULTS 1`,
+        );
+        const existing = searchRes?.QueryResponse?.Purchase?.[0];
+        if (existing) {
+          qbExpenseId = String(existing.Id);
+        } else {
+          // Try with sequence suffix in case of a prior partial attempt
+          throw new Error(`QB duplicate DocNumber but could not locate existing expense: ${createErr.message}`);
+        }
+      } else {
+        throw createErr;
+      }
+    }
+
+    await prisma.bankTransaction.update({
+      where: { id },
+      data: { status: "Settled", qbExpenseId, qbExpenseNo },
+    });
+
+    return NextResponse.json({ ok: true, qbExpenseNo, qbExpenseId });
+  } catch (err: any) {
+    console.error("[generate-expense]", err);
+    return NextResponse.json(
+      { error: err?.message ?? "Internal server error" },
+      { status: 500 },
+    );
   }
-
-  const qbExpenseId = String(qbData?.Purchase?.Id ?? qbData?.Id ?? "");
-  const qbExpenseNo = docNumber;
-
-  await prisma.bankTransaction.update({
-    where: { id },
-    data: { status: "Settled", qbExpenseId, qbExpenseNo },
-  });
-
-  return NextResponse.json({ ok: true, qbExpenseNo, qbExpenseId });
 }
