@@ -93,6 +93,7 @@ model Employee {
   monthlyLeaveRate Decimal?       @db.Decimal(5, 2)
   workdays         Int[]          @default([1, 2, 3, 4, 5])
   driveFolderId    String?
+  school           String?
   department       Department?    @relation(fields: [departmentId], references: [id])
   manager          Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
   subordinates     Employee[]     @relation("EmployeeToEmployee")

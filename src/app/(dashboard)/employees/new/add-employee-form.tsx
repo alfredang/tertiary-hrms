@@ -30,9 +30,11 @@ type FormInput = z.infer<typeof formSchema>;
 
 interface AddEmployeeFormProps {
   departments: Department[];
+  intent?: "STAFF" | "INTERN";
 }
 
-export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
+export function AddEmployeeForm({ departments, intent = "STAFF" }: AddEmployeeFormProps) {
+  const isIntern = intent === "INTERN";
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const router = useRouter();
@@ -51,11 +53,12 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
         nric: "",
         address: "",
         educationLevel: "DIPLOMA",
-      },
+        school: "",
+      } as any,
       employmentInfo: {
         departmentId: "",
         position: "",
-        employmentType: "FULL_TIME",
+        employmentType: isIntern ? "INTERN" : "FULL_TIME",
         startDate: new Date().toISOString().split("T")[0],
         endDate: "",
         status: "ACTIVE",
@@ -74,7 +77,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
     },
   });
 
-  const STORAGE_KEY = "add-employee-draft";
+  const STORAGE_KEY = isIntern ? "add-intern-draft" : "add-staff-draft";
 
   // Restore draft from localStorage on mount
   useEffect(() => {
@@ -190,17 +193,21 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
       return;
     }
 
-    const salaryValid = createSalaryInfoSchema.safeParse(
-      form.getValues("salaryInfo"),
-    );
-    if (!salaryValid.success) {
-      setActiveTab("salary");
-      toast({
-        title: "Salary Info Incomplete",
-        description: salaryValid.error.issues[0].message,
-        variant: "destructive",
-      });
-      return;
+    let salaryPayload: any = undefined;
+    if (!isIntern) {
+      const salaryValid = createSalaryInfoSchema.safeParse(
+        form.getValues("salaryInfo"),
+      );
+      if (!salaryValid.success) {
+        setActiveTab("salary");
+        toast({
+          title: "Salary Info Incomplete",
+          description: salaryValid.error.issues[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
+      salaryPayload = salaryValid.data;
     }
 
     setIsLoading(true);
@@ -210,8 +217,12 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           personalInfo: personalValid.data,
-          employmentInfo: employmentValid.data,
-          salaryInfo: salaryValid.data,
+          employmentInfo: {
+            ...employmentValid.data,
+            ...(isIntern ? { employmentType: "INTERN" } : {}),
+          },
+          ...(salaryPayload ? { salaryInfo: salaryPayload } : {}),
+          role: intent,
         }),
       });
 
@@ -255,7 +266,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <CardTitle className="text-white">Add New Employee</CardTitle>
+            <CardTitle className="text-white">{isIntern ? "Create New Intern" : "Create New Staff"}</CardTitle>
           </div>
           <Button
             type="button"
@@ -271,14 +282,14 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 bg-gray-900">
+          <TabsList className={`grid w-full ${isIntern ? "grid-cols-2" : "grid-cols-3"} bg-gray-900`}>
             <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="employment">Employment</TabsTrigger>
-            <TabsTrigger value="salary">Salary</TabsTrigger>
+            {!isIntern && <TabsTrigger value="salary">Salary</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="personal" className="mt-6">
-            <PersonalInfoForm form={form} />
+            <PersonalInfoForm form={form} intent={intent} />
             <div className="flex justify-end mt-6">
               <Button
                 type="button"
@@ -291,7 +302,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
           </TabsContent>
 
           <TabsContent value="employment" className="mt-6">
-            <EmploymentInfoForm form={form} departments={departments} />
+            <EmploymentInfoForm form={form} departments={departments} intent={intent} />
             <div className="flex justify-between mt-6">
               <Button
                 type="button"
@@ -300,43 +311,63 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
               >
                 Back
               </Button>
-              <Button
-                type="button"
-                onClick={() => setActiveTab("salary")}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                Next: Salary
-              </Button>
+              {isIntern ? (
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Intern"
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => setActiveTab("salary")}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Next: Salary
+                </Button>
+              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="salary" className="mt-6">
-            <SalaryInfoForm form={form} />
-            <div className="flex justify-between mt-6">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setActiveTab("employment")}
-              >
-                Back
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create Employee"
-                )}
-              </Button>
-            </div>
-          </TabsContent>
+          {!isIntern && (
+            <TabsContent value="salary" className="mt-6">
+              <SalaryInfoForm form={form} />
+              <div className="flex justify-between mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setActiveTab("employment")}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Staff"
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </CardContent>
     </Card>

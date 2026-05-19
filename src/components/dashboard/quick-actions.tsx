@@ -6,8 +6,8 @@ import { Users, Clock, DollarSign, Calendar, ChevronRight } from "lucide-react";
 
 const adminActions = [
   {
-    title: "Add Employee",
-    description: "Register new team member",
+    title: "Create Staff",
+    description: "Register a new staff member",
     href: "/employees/new",
     icon: Users,
     iconBg: "bg-blue-500",

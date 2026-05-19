@@ -19,6 +19,7 @@ import type { Department } from "@prisma/client";
 interface EmploymentInfoFormProps {
   form: UseFormReturn<any>;
   departments: Department[];
+  intent?: "STAFF" | "INTERN";
 }
 
 const employmentTypeOptions = [
@@ -31,7 +32,9 @@ const employmentTypeOptions = [
 export function EmploymentInfoForm({
   form,
   departments,
+  intent = "STAFF",
 }: EmploymentInfoFormProps) {
+  const isIntern = intent === "INTERN";
   const errors = form.formState.errors.employmentInfo as Record<string, any> | undefined;
 
   // Use a single watch call to reduce re-renders
@@ -100,51 +103,55 @@ export function EmploymentInfoForm({
 
   return (
     <div className="space-y-4">
-      {/* Department */}
-      <div className="space-y-2">
-        <Label htmlFor="departmentId" className="text-gray-300">
-          Department
-        </Label>
-        <Select
-          value={form.watch("employmentInfo.departmentId")}
-          onValueChange={(value) =>
-            form.setValue("employmentInfo.departmentId", value)
-          }
-        >
-          <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
-            <SelectValue placeholder="Select department" />
-          </SelectTrigger>
-          <SelectContent>
-            {departments.map((dept) => (
-              <SelectItem key={dept.id} value={dept.id}>
-                {dept.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors?.departmentId && (
-          <p className="text-sm text-red-400">
-            {errors?.departmentId.message as string}
-          </p>
-        )}
-      </div>
+      {/* Department — staff only */}
+      {!isIntern && (
+        <div className="space-y-2">
+          <Label htmlFor="departmentId" className="text-gray-300">
+            Department
+          </Label>
+          <Select
+            value={form.watch("employmentInfo.departmentId")}
+            onValueChange={(value) =>
+              form.setValue("employmentInfo.departmentId", value)
+            }
+          >
+            <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+              <SelectValue placeholder="Select department" />
+            </SelectTrigger>
+            <SelectContent>
+              {departments.map((dept) => (
+                <SelectItem key={dept.id} value={dept.id}>
+                  {dept.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors?.departmentId && (
+            <p className="text-sm text-red-400">
+              {errors?.departmentId.message as string}
+            </p>
+          )}
+        </div>
+      )}
 
-      {/* Position */}
-      <div className="space-y-2">
-        <Label htmlFor="position" className="text-gray-300">
-          Position
-        </Label>
-        <Input
-          id="position"
-          {...form.register("employmentInfo.position")}
-          className="bg-gray-900 border-gray-800 text-white"
-        />
-        {errors?.position && (
-          <p className="text-sm text-red-400">
-            {errors?.position.message as string}
-          </p>
-        )}
-      </div>
+      {/* Position — staff only */}
+      {!isIntern && (
+        <div className="space-y-2">
+          <Label htmlFor="position" className="text-gray-300">
+            Position
+          </Label>
+          <Input
+            id="position"
+            {...form.register("employmentInfo.position")}
+            className="bg-gray-900 border-gray-800 text-white"
+          />
+          {errors?.position && (
+            <p className="text-sm text-red-400">
+              {errors?.position.message as string}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Employment Type */}
       <div className="space-y-2">
