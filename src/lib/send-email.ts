@@ -33,29 +33,76 @@ async function getGmailClient() {
   return { client: cachedClient, senderEmail: GMAIL_EMAIL_USER };
 }
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
 export async function sendEmail({
   to,
   subject,
   html,
+  cc,
+  attachments,
 }: {
   to: string;
   subject: string;
   html: string;
+  cc?: string | string[];
+  attachments?: EmailAttachment[];
 }) {
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
   const companyName = settings?.name || "HR Portal";
 
   const { client, senderEmail } = await getGmailClient();
 
-  const raw = [
-    `From: ${companyName} <${senderEmail}>`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    "MIME-Version: 1.0",
-    "Content-Type: text/html; charset=utf-8",
-    "",
-    html,
-  ].join("\r\n");
+  const ccList = Array.isArray(cc) ? cc : cc ? [cc] : [];
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+
+  let raw: string;
+  if (!hasAttachments) {
+    const headers = [
+      `From: ${companyName} <${senderEmail}>`,
+      `To: ${to}`,
+      ...(ccList.length ? [`Cc: ${ccList.join(", ")}`] : []),
+      `Subject: ${subject}`,
+      "MIME-Version: 1.0",
+      "Content-Type: text/html; charset=utf-8",
+      "",
+      html,
+    ];
+    raw = headers.join("\r\n");
+  } else {
+    const boundary = `=_Part_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+    const lines: string[] = [
+      `From: ${companyName} <${senderEmail}>`,
+      `To: ${to}`,
+      ...(ccList.length ? [`Cc: ${ccList.join(", ")}`] : []),
+      `Subject: ${subject}`,
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      "Content-Type: text/html; charset=utf-8",
+      "Content-Transfer-Encoding: 7bit",
+      "",
+      html,
+    ];
+    for (const att of attachments!) {
+      const b64 = att.content.toString("base64").replace(/(.{76})/g, "$1\r\n");
+      lines.push(
+        `--${boundary}`,
+        `Content-Type: ${att.contentType}; name="${att.filename}"`,
+        "Content-Transfer-Encoding: base64",
+        `Content-Disposition: attachment; filename="${att.filename}"`,
+        "",
+        b64,
+      );
+    }
+    lines.push(`--${boundary}--`, "");
+    raw = lines.join("\r\n");
+  }
 
   const encoded = Buffer.from(raw)
     .toString("base64")

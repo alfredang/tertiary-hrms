@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prorateLeave, computeYearlyEntitlement } from "@/lib/utils";
 import { format } from "date-fns";
-import { Calendar, DollarSign, FileText, Briefcase } from "lucide-react";
+import { Calendar, DollarSign, FileText, Briefcase, Users } from "lucide-react";
 import { EmployeeDetailEditable } from "@/components/employees/employee-detail-editable";
 import { AdminOtLogPanel } from "@/components/employees/admin-ot-log-panel";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -186,6 +186,9 @@ export default async function EmployeeDetailPage({
             </CardContent>
           </Card>
         )}
+
+        {/* Managers — approval emails go to these people */}
+        <ManagerCard employee={employee} />
       </div>
 
       {/* Leave Information */}
@@ -405,5 +408,53 @@ export default async function EmployeeDetailPage({
         </div>
       )}
     </div>
+  );
+}
+
+async function ManagerCard({ employee }: { employee: { id: string; managerIds: string[] } }) {
+  const ids = employee.managerIds ?? [];
+  if (ids.length === 0) {
+    return (
+      <Card className="bg-gray-950 border-gray-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Users className="h-5 w-5" />
+            Manager(s)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500">No manager assigned. Approval emails will fall back to the company default approver.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  const managers = await prisma.employee.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, email: true, position: true },
+    orderBy: { name: "asc" },
+  });
+  return (
+    <Card className="bg-gray-950 border-gray-800">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-white">
+          <Users className="h-5 w-5" />
+          Manager(s)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-gray-500 mb-3">Approval emails for leave / MC / expense claims are sent to these people.</p>
+        <ul className="space-y-2">
+          {managers.map((m) => (
+            <li key={m.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
+              <div>
+                <p className="text-sm font-medium text-white">{m.name}</p>
+                {m.position && <p className="text-xs text-gray-500">{m.position}</p>}
+              </div>
+              <p className="text-xs text-gray-400 font-mono">{m.email}</p>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

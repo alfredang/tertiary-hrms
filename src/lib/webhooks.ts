@@ -19,7 +19,7 @@ export const BUILT_IN_WEBHOOKS: BuiltInWebhook[] = [
       "When an approver clicks Accept in a leave-request email, this webhook marks the leave APPROVED and emails the requester.",
     method: "GET",
     pathTemplate: "/api/public/leave-approval/respond?token={TOKEN}&action=accept",
-    status: "planned",
+    status: "active",
   },
   {
     id: "leave-decline",
@@ -28,7 +28,7 @@ export const BUILT_IN_WEBHOOKS: BuiltInWebhook[] = [
       "When an approver clicks Decline, this webhook marks the leave REJECTED and notifies the requester.",
     method: "GET",
     pathTemplate: "/api/public/leave-approval/respond?token={TOKEN}&action=decline",
-    status: "planned",
+    status: "active",
   },
   {
     id: "expense-accept",
@@ -37,7 +37,7 @@ export const BUILT_IN_WEBHOOKS: BuiltInWebhook[] = [
       "When an approver clicks Accept in an expense-claim email, this webhook marks the claim APPROVED and emails the requester.",
     method: "GET",
     pathTemplate: "/api/public/expense-approval/respond?token={TOKEN}&action=accept",
-    status: "planned",
+    status: "active",
   },
   {
     id: "expense-decline",
@@ -46,7 +46,7 @@ export const BUILT_IN_WEBHOOKS: BuiltInWebhook[] = [
       "When an approver clicks Decline, this webhook marks the claim REJECTED and notifies the requester.",
     method: "GET",
     pathTemplate: "/api/public/expense-approval/respond?token={TOKEN}&action=decline",
-    status: "planned",
+    status: "active",
   },
 ];
 

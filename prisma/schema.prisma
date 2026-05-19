@@ -94,6 +94,7 @@ model Employee {
   workdays         Int[]          @default([1, 2, 3, 4, 5])
   driveFolderId    String?
   school           String?
+  managerIds       String[]       @default([])
   department       Department?    @relation(fields: [departmentId], references: [id])
   manager          Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
   subordinates     Employee[]     @relation("EmployeeToEmployee")
@@ -296,6 +297,19 @@ model CompanySettings {
   updatedAt      DateTime @default(now())
   approvalEmails String[] @default([])
   shortName      String?
+}
+
+model ApprovalToken {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  kind       String
+  targetId   String
+  action     String?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([targetId])
 }
 
 model CompanyCredential {

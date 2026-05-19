@@ -19,6 +19,7 @@ import type { Department } from "@prisma/client";
 interface EmploymentInfoFormProps {
   form: UseFormReturn<any>;
   departments: Department[];
+  managers?: { id: string; name: string }[];
   intent?: "STAFF" | "INTERN";
 }
 
@@ -32,9 +33,17 @@ const employmentTypeOptions = [
 export function EmploymentInfoForm({
   form,
   departments,
+  managers = [],
   intent = "STAFF",
 }: EmploymentInfoFormProps) {
   const isIntern = intent === "INTERN";
+  const selectedManagerIds: string[] = form.watch("employmentInfo.managerIds") || [];
+  const toggleManager = (id: string) => {
+    const next = selectedManagerIds.includes(id)
+      ? selectedManagerIds.filter((x) => x !== id)
+      : [...selectedManagerIds, id];
+    form.setValue("employmentInfo.managerIds", next, { shouldDirty: true });
+  };
   const errors = form.formState.errors.employmentInfo as Record<string, any> | undefined;
 
   // Use a single watch call to reduce re-renders
@@ -150,6 +159,34 @@ export function EmploymentInfoForm({
               {errors?.position.message as string}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Manager(s) */}
+      {managers.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-gray-300">
+            Manager(s) <span className="text-xs text-gray-500 font-normal">— select one or more, approval emails are sent to these people</span>
+          </Label>
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 max-h-48 overflow-y-auto space-y-1">
+            {managers.map((m) => {
+              const checked = selectedManagerIds.includes(m.id);
+              return (
+                <label
+                  key={m.id}
+                  className="flex items-center gap-2 text-sm text-gray-200 hover:bg-gray-800/60 rounded px-2 py-1 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleManager(m.id)}
+                    className="h-4 w-4 rounded border-gray-700 bg-gray-900 text-primary focus:ring-primary"
+                  />
+                  <span>{m.name}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
       )}
 

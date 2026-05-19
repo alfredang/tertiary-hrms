@@ -103,6 +103,10 @@ export async function POST(req: NextRequest) {
             : null,
           status: employmentInfo?.status || undefined,
           monthlyLeaveRate: employmentInfo?.monthlyLeaveRate ?? null,
+          managerIds: await resolveDefaultManagerIds(
+            (employmentInfo as any)?.managerIds,
+            personalInfo.email,
+          ),
         },
         include: { department: true },
       });
@@ -166,4 +170,22 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+const DEFAULT_MANAGER_EMAIL = "tansc@tertiaryinfotech.com";
+
+async function resolveDefaultManagerIds(
+  provided: string[] | undefined,
+  newEmployeeEmail?: string,
+): Promise<string[]> {
+  // If the form already chose managers, respect that.
+  if (Array.isArray(provided) && provided.length > 0) return provided;
+  // Otherwise default to Tan Soik Ching — but never set a person as their own manager.
+  const tsc = await prisma.employee.findFirst({
+    where: { email: DEFAULT_MANAGER_EMAIL },
+    select: { id: true, email: true },
+  });
+  if (!tsc) return [];
+  if (newEmployeeEmail && newEmployeeEmail.toLowerCase() === tsc.email.toLowerCase()) return [];
+  return [tsc.id];
 }

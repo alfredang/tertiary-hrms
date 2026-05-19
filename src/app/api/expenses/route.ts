@@ -7,6 +7,7 @@ import { readFile } from "fs/promises";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
 import { Readable } from "stream";
+import { sendExpenseApprovalEmail } from "@/lib/approval-email";
 
 const expenseSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
@@ -122,6 +123,22 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error(`Drive mirror failed for expense ${expenseClaim.id}:`, err);
       }
+    }
+
+    try {
+      await sendExpenseApprovalEmail({
+        expenseClaimId: expenseClaim.id,
+        employeeId: expenseClaim.employeeId,
+        employeeName: expenseClaim.employee.name,
+        category: expenseClaim.category.name,
+        amount: Number(expenseClaim.amount).toFixed(2),
+        expenseDate: expenseClaim.expenseDate.toISOString().slice(0, 10),
+        description: expenseClaim.description,
+        receiptUrl: expenseClaim.receiptUrl ?? receiptUrl ?? null,
+        receiptFileName: expenseClaim.receiptFileName ?? receiptFileName ?? null,
+      });
+    } catch (err) {
+      console.error(`Failed to send expense approval email for ${expenseClaim.id}:`, err);
     }
 
     return NextResponse.json(expenseClaim, { status: 201 });

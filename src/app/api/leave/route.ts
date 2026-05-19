@@ -9,6 +9,7 @@ import { readFile } from "fs/promises";
 import { Readable } from "stream";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
+import { sendLeaveApprovalEmail } from "@/lib/approval-email";
 
 const leaveRequestSchema = z.object({
   leaveTypeId: z.string().min(1, "Leave type is required"),
@@ -332,6 +333,24 @@ export async function POST(req: NextRequest) {
       });
     } catch {
       // Non-critical
+    }
+
+    // Send approval email to the manager (best effort)
+    try {
+      await sendLeaveApprovalEmail({
+        leaveRequestId: leaveRequest.id,
+        employeeId: leaveRequest.employeeId,
+        employeeName: leaveRequest.employee.name,
+        leaveType: leaveRequest.leaveType.name,
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+        days: Number(leaveRequest.days),
+        reason,
+        documentUrl,
+        documentFileName,
+      });
+    } catch (err) {
+      console.error(`Failed to send leave approval email for ${leaveRequest.id}:`, err);
     }
 
     return NextResponse.json(leaveRequest, { status: 201 });

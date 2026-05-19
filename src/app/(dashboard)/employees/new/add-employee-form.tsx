@@ -28,12 +28,19 @@ const formSchema = z.object({
 
 type FormInput = z.infer<typeof formSchema>;
 
+interface ManagerOption {
+  id: string;
+  name: string;
+}
+
 interface AddEmployeeFormProps {
   departments: Department[];
+  managers?: ManagerOption[];
+  defaultManagerIds?: string[];
   intent?: "STAFF" | "INTERN";
 }
 
-export function AddEmployeeForm({ departments, intent = "STAFF" }: AddEmployeeFormProps) {
+export function AddEmployeeForm({ departments, managers = [], defaultManagerIds = [], intent = "STAFF" }: AddEmployeeFormProps) {
   const isIntern = intent === "INTERN";
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
@@ -63,7 +70,8 @@ export function AddEmployeeForm({ departments, intent = "STAFF" }: AddEmployeeFo
         endDate: "",
         status: "ACTIVE",
         monthlyLeaveRate: null,
-      },
+        managerIds: defaultManagerIds,
+      } as any,
       salaryInfo: {
         basicSalary: 0,
         allowances: 0,
@@ -302,7 +310,7 @@ export function AddEmployeeForm({ departments, intent = "STAFF" }: AddEmployeeFo
           </TabsContent>
 
           <TabsContent value="employment" className="mt-6">
-            <EmploymentInfoForm form={form} departments={departments} intent={intent} />
+            <EmploymentInfoForm form={form} departments={departments} managers={managers} intent={intent} />
             <div className="flex justify-between mt-6">
               <Button
                 type="button"

@@ -39,6 +39,7 @@ export const employmentInfoSchema = z.object({
   status: z.nativeEnum(EmployeeStatus),
   workdays: z.array(z.number().int().min(1).max(7)).optional(),
   monthlyLeaveRate: z.number().min(0).max(30).optional().nullable(),
+  managerIds: z.array(z.string()).optional(),
 });
 
 export const salaryInfoSchema = z.object({
@@ -123,6 +124,7 @@ export const createEmploymentInfoSchema = z.object({
     }),
   status: z.nativeEnum(EmployeeStatus).optional(),
   monthlyLeaveRate: z.number().min(0).max(30).optional().nullable(),
+  managerIds: z.array(z.string()).optional(),
 });
 
 export const createSalaryInfoSchema = z.object({
