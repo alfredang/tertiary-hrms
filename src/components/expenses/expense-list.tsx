@@ -69,6 +69,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkRejecting, setBulkRejecting] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
@@ -146,6 +147,41 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
       });
     } finally {
       setBulkApproving(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    if (selectedIds.size === 0) return;
+    const reason = window.prompt(
+      `Reject ${selectedIds.size} expense claim${selectedIds.size === 1 ? "" : "s"}. Optional rejection reason:`,
+      "",
+    );
+    if (reason === null) return;
+    setBulkRejecting(true);
+    try {
+      const res = await fetch(`/api/expenses/bulk-reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds), reason: reason.trim() || undefined }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Bulk reject failed");
+      const data = await res.json();
+      toast({
+        title: `Rejected ${data.rejected} claim${data.rejected === 1 ? "" : "s"}`,
+        description: data.requested !== data.rejected
+          ? `${data.requested - data.rejected} skipped (already actioned).`
+          : "All selected claims rejected.",
+      });
+      setSelectedIds(new Set());
+      router.refresh();
+    } catch (err) {
+      toast({
+        title: "Bulk reject failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkRejecting(false);
     }
   };
 
@@ -470,10 +506,20 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             <span className="font-semibold">{selectedIds.size}</span> claim{selectedIds.size === 1 ? "" : "s"} selected
           </p>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())} disabled={bulkApproving}>
+            <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())} disabled={bulkApproving || bulkRejecting}>
               Clear
             </Button>
-            <Button size="sm" variant="success" onClick={handleBulkApprove} disabled={bulkApproving}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkReject}
+              disabled={bulkApproving || bulkRejecting}
+              className="text-red-400 border-red-700 hover:bg-red-950/40 hover:text-red-300"
+            >
+              <X className="h-4 w-4 mr-1" />
+              {bulkRejecting ? "Rejecting..." : `Reject ${selectedIds.size}`}
+            </Button>
+            <Button size="sm" variant="success" onClick={handleBulkApprove} disabled={bulkApproving || bulkRejecting}>
               <Check className="h-4 w-4 mr-1" />
               {bulkApproving ? "Approving..." : `Approve ${selectedIds.size}`}
             </Button>
