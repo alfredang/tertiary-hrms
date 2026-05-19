@@ -28,6 +28,7 @@ export default async function DashboardLayout({
   const role = isDevAuthSkipped() ? "ADMIN" : session?.user?.role;
   const isAdmin = hasAdminAccess(role);
   const companyShortName = companySettings?.shortName || companySettings?.name || "HR Portal";
+  const companyFullName = companySettings?.name || "Tertiary Infotech Academy Pte Ltd";
   const companyLogo = companySettings?.logo || null;
 
   // User-record lookup depends on session, so it runs after the parallel batch.
@@ -64,6 +65,9 @@ export default async function DashboardLayout({
             <main className="py-6 px-4 pb-20 sm:px-6 lg:px-8 lg:pb-6">
               {children}
             </main>
+            <footer className="px-4 sm:px-6 lg:px-8 pb-24 lg:pb-6 pt-2 text-center text-xs text-gray-500">
+              Powered by <span className="text-gray-400">{companyFullName}</span>
+            </footer>
           </PullToRefresh>
         </div>
 

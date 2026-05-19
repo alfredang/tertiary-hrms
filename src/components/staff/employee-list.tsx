@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,10 +72,18 @@ function formatDate(d: Date | string | null | undefined): string {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+const PAGE_SIZE = 20;
+
 export function EmployeeList({ employees, departments, isAdmin = true }: EmployeeListProps) {
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<string>("ACTIVE");
+  const [page, setPage] = useState(1);
+
+  // Reset to first page whenever filters/search change
+  useEffect(() => {
+    setPage(1);
+  }, [search, departmentFilter, statusFilter]);
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
@@ -92,12 +100,12 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
       statusFilter === "all" || employee.status === statusFilter;
 
     return matchesSearch && matchesDepartment && matchesStatus;
-  }).sort((a, b) => {
-    const aRank = Math.min(...(a.user.roles ?? []).map((r) => rolePriority[r]), 99);
-    const bRank = Math.min(...(b.user.roles ?? []).map((r) => rolePriority[r]), 99);
-    if (aRank !== bRank) return aRank - bRank;
-    return a.employeeId.localeCompare(b.employeeId);
-  });
+  }).sort((a, b) => a.employeeId.localeCompare(b.employeeId, undefined, { numeric: true }));
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginatedEmployees = filteredEmployees.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
     <div className="space-y-4">
@@ -167,9 +175,9 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
               <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-800">
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Employee ID</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Name</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">Type</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Role</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Job Function</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Email</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Tel</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Start Date</th>
@@ -178,7 +186,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {filteredEmployees.map((employee) => (
+              {paginatedEmployees.map((employee) => (
                 <tr
                   key={employee.id}
                   className="group hover:bg-gray-900 transition-colors cursor-pointer"
@@ -237,6 +245,38 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
       {filteredEmployees.length === 0 && (
         <div className="text-center py-12">
           <p className="text-gray-400">No employees found</p>
+        </div>
+      )}
+
+      {filteredEmployees.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <p className="text-xs text-gray-400">
+            Showing <span className="text-white">{pageStart + 1}</span>–
+            <span className="text-white">{pageStart + paginatedEmployees.length}</span> of{" "}
+            <span className="text-white">{filteredEmployees.length}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-gray-400 px-2">
+              Page <span className="text-white">{currentPage}</span> of{" "}
+              <span className="text-white">{totalPages}</span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
     </div>

@@ -478,11 +478,11 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Field label="Role" icon={<Building2 className="h-4 w-4 text-gray-400" />}>
+            <Field label="Job Function" icon={<Building2 className="h-4 w-4 text-gray-400" />}>
               {editing ? (
                 <Select value={form.departmentId} onValueChange={(v) => set("departmentId", v)}>
                   <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
-                    <SelectValue placeholder="Select role" />
+                    <SelectValue placeholder="Select job function" />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((d) => (

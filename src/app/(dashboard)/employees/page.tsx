@@ -25,28 +25,17 @@ async function getEmployees(viewAs: string, currentEmployeeId?: string) {
     return [];
   }
 
-  // Admin view: show all employees, sorted by status priority then name
+  // Admin view: show all employees, sorted by employeeId (natural numeric order)
   const employees = await prisma.employee.findMany({
     include: {
       department: true,
       user: true,
     },
-    orderBy: { name: "asc" },
   });
 
-  const statusOrder: Record<string, number> = {
-    ACTIVE: 0,
-    ON_LEAVE: 1,
-    RESIGNED: 2,
-    TERMINATED: 3,
-    INACTIVE: 4,
-  };
-
-  employees.sort((a, b) => {
-    const statusDiff = (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
-    if (statusDiff !== 0) return statusDiff;
-    return a.name.localeCompare(b.name);
-  });
+  employees.sort((a, b) =>
+    a.employeeId.localeCompare(b.employeeId, undefined, { numeric: true }),
+  );
 
   return employees;
 }

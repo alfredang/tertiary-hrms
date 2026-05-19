@@ -46,22 +46,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate employee ID — find actual numeric max to avoid string-sort issues (e.g. EMP999 > EMP100)
+    // Generate employee ID — interns get I####, everyone else gets E####.
+    // Find numeric max to avoid string-sort issues (e.g. E0099 > E0100).
+    const prefix = effectiveRole === "INTERN" ? "I" : "E";
     const allEmployees = await prisma.employee.findMany({
       select: { employeeId: true },
-      where: { employeeId: { startsWith: "EMP" } },
     });
     const maxNum = allEmployees.reduce((max, emp) => {
-      const num = parseInt(emp.employeeId.replace("EMP", ""), 10);
+      // Match exactly: prefix immediately followed by digits to end (so "E0001" doesn't match prefix "EMP").
+      const re = new RegExp(`^${prefix}(\\d+)$`);
+      const m = emp.employeeId.match(re);
+      if (!m) return max;
+      const num = parseInt(m[1], 10);
       return isNaN(num) ? max : Math.max(max, num);
     }, 0);
-    const employeeId = `EMP${String(maxNum + 1).padStart(3, "0")}`;
+    const employeeId = `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Reuse existing User (Google OAuth sign-in) or create new one
+      // Reuse existing User (Google OAuth sign-in) or create new one.
+      // For interns, force roles to exactly ["INTERN"] — an intern is always an intern,
+      // regardless of any role a prior OAuth-only user may have accumulated.
       let user;
       if (existingUser) {
-        user = existingUser;
+        if (effectiveRole === "INTERN") {
+          user = await tx.user.update({
+            where: { id: existingUser.id },
+            data: { roles: ["INTERN"] },
+          });
+        } else {
+          user = existingUser;
+        }
       } else {
         const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || randomUUID().slice(0, 12);
         const hashedPassword = await bcrypt.hash(defaultPassword, 12);

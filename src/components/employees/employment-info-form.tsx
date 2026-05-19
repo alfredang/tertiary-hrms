@@ -200,18 +200,22 @@ export function EmploymentInfoForm({
           onValueChange={(value) =>
             form.setValue("employmentInfo.employmentType", value as EmploymentType)
           }
+          disabled={isIntern}
         >
-          <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+          <SelectTrigger className="bg-gray-900 border-gray-800 text-white disabled:opacity-70">
             <SelectValue placeholder="Select employment type" />
           </SelectTrigger>
           <SelectContent>
-            {employmentTypeOptions.map((option) => (
+            {(isIntern ? employmentTypeOptions.filter((o) => o.value === "INTERN") : employmentTypeOptions).map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {isIntern && (
+          <p className="text-xs text-gray-500">Locked to Intern for this form.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
