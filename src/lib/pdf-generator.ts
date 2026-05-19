@@ -5,18 +5,21 @@ interface PayslipData {
   company: {
     name: string;
     address: string;
+    logo?: string | null;
   };
   employee: {
     name: string;
     id: string;
     department: string;
     position: string;
+    nric?: string | null;
   };
   payPeriod: {
     start: Date;
     end: Date;
   };
   paymentDate: Date;
+  remarks?: string | null;
   earnings: {
     basicSalary: number;
     allowances: number;
@@ -53,33 +56,51 @@ function formatDate(date: Date): string {
   }).format(date);
 }
 
+function monthTitle(d: Date): string {
+  return new Intl.DateTimeFormat("en-SG", { month: "long", year: "numeric" }).format(d);
+}
+
 export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Header - Company Name
-  doc.setFontSize(20);
-  doc.setTextColor(79, 70, 229); // Indigo
-  doc.text(data.company.name, pageWidth / 2, 20, { align: "center" });
-
-  if (data.company.address) {
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(data.company.address, pageWidth / 2, 27, { align: "center" });
+  let logoTop = 12;
+  // Optional logo (data URL or http URL) — only data URLs work reliably with jsPDF on the server
+  if (data.company.logo && data.company.logo.startsWith("data:image")) {
+    try {
+      const fmt = data.company.logo.includes("image/png") ? "PNG" : "JPEG";
+      doc.addImage(data.company.logo, fmt, 14, 10, 25, 25);
+      logoTop = 10;
+    } catch {
+      // Ignore logo failures
+    }
   }
 
-  // Title
-  doc.setFontSize(16);
-  doc.setTextColor(0);
-  doc.text("PAYSLIP", pageWidth / 2, 40, { align: "center" });
+  // Header - Company Name
+  doc.setFontSize(18);
+  doc.setTextColor(79, 70, 229);
+  doc.text(data.company.name, pageWidth / 2, 18, { align: "center" });
 
-  // Pay Period
+  if (data.company.address) {
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(data.company.address, pageWidth / 2, 25, { align: "center" });
+  }
+
+  // Title — "Payslip for May 2026"
+  doc.setFontSize(15);
+  doc.setTextColor(0);
+  doc.text(`Payslip for ${monthTitle(data.payPeriod.start)}`, pageWidth / 2, 40, {
+    align: "center",
+  });
+
+  // Pay Period + Payment Date
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text(
     `Pay Period: ${formatDate(data.payPeriod.start)} - ${formatDate(data.payPeriod.end)}`,
     14,
-    50
+    50,
   );
   doc.text(`Payment Date: ${formatDate(data.paymentDate)}`, pageWidth - 14, 50, {
     align: "right",
@@ -92,6 +113,7 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
     body: [
       ["Name", data.employee.name],
       ["Employee ID", data.employee.id],
+      ...(data.employee.nric ? [["NRIC", data.employee.nric]] : []),
       ["Department", data.employee.department],
       ["Position", data.employee.position],
     ],
@@ -182,13 +204,21 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
     },
   });
 
-  // Net Salary
+  // Take Home Pay
   const netY = (doc as any).lastAutoTable.finalY + 15;
   doc.setFontSize(14);
   doc.setTextColor(79, 70, 229);
-  doc.text(`Net Salary: SGD ${formatCurrency(data.netSalary)}`, pageWidth / 2, netY, {
+  doc.text(`Take Home Pay: SGD ${formatCurrency(data.netSalary)}`, pageWidth / 2, netY, {
     align: "center",
   });
+
+  // Remarks (optional, from template)
+  if (data.remarks) {
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    const lines = doc.splitTextToSize(data.remarks, pageWidth - 28);
+    doc.text(lines, 14, netY + 12);
+  }
 
   // Footer
   doc.setFontSize(8);
@@ -196,8 +226,8 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
   doc.text(
     "This is a computer-generated document. No signature is required.",
     pageWidth / 2,
-    280,
-    { align: "center" }
+    285,
+    { align: "center" },
   );
 
   // Convert to ArrayBuffer for API response

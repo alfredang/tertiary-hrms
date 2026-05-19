@@ -297,6 +297,7 @@ model CompanySettings {
   updatedAt      DateTime @default(now())
   approvalEmails String[] @default([])
   shortName      String?
+  payslipRemarks String?
 }
 
 model ApprovalToken {

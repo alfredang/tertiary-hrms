@@ -103,6 +103,8 @@ const navigation: NavItem[] = [
         })),
       },
       { name: "Webhooks", href: "/settings/webhooks", icon: Webhook },
+      { name: "Payslip Template", href: "/settings/payslip-template", icon: DollarSign },
+      { name: "Cron Jobs", href: "/settings/cron-jobs", icon: Clock },
     ],
   },
 ];

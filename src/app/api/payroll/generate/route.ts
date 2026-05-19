@@ -82,10 +82,43 @@ export async function POST(req: NextRequest) {
         }
 
         const salary = employee.salaryInfo;
+
+        // Pro-rate basic + allowances if employee starts mid-month (MOM standard, working days)
+        let proratedBasic = Number(salary.basicSalary);
+        let proratedAllowances = Number(salary.allowances);
+        if (employee.startDate) {
+          const start = new Date(employee.startDate);
+          const end = employee.endDate ? new Date(employee.endDate) : new Date(8640000000000000);
+          if (start > payPeriodStart || end < payPeriodEnd) {
+            const basicProrated = prorateMonthlySalary(
+              Number(salary.basicSalary),
+              start,
+              end,
+              payPeriodStart,
+              payPeriodEnd,
+            );
+            const allowancesProrated = prorateMonthlySalary(
+              Number(salary.allowances),
+              start,
+              end,
+              payPeriodStart,
+              payPeriodEnd,
+            );
+            proratedBasic = basicProrated.amount;
+            proratedAllowances = allowancesProrated.amount;
+          }
+        }
+
+        const isIntern = employee.employmentType === "INTERN";
         const payroll = calculatePayroll(
-          Number(salary.basicSalary),
-          Number(salary.allowances),
-          employee.dateOfBirth
+          proratedBasic,
+          proratedAllowances,
+          employee.dateOfBirth,
+          0,
+          0,
+          0,
+          isIntern ? 0 : 0.15,
+          { cpfApplicable: !isIntern && (salary.cpfApplicable ?? true) },
         );
 
         const created = await prisma.payslip.create({

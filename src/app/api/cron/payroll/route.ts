@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calculatePayroll } from "@/lib/cpf-calculator";
+import { calculatePayroll, prorateMonthlySalary } from "@/lib/cpf-calculator";
 import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 
 // Auto-generate payroll on the 28th of each month
@@ -71,10 +71,32 @@ export async function GET(req: NextRequest) {
         }
 
         const salary = employee.salaryInfo;
+
+        let proratedBasic = Number(salary.basicSalary);
+        let proratedAllowances = Number(salary.allowances);
+        if (employee.startDate) {
+          const start = new Date(employee.startDate);
+          const end = employee.endDate ? new Date(employee.endDate) : new Date(8640000000000000);
+          if (start > payPeriodStart || end < payPeriodEnd) {
+            proratedBasic = prorateMonthlySalary(
+              Number(salary.basicSalary), start, end, payPeriodStart, payPeriodEnd,
+            ).amount;
+            proratedAllowances = prorateMonthlySalary(
+              Number(salary.allowances), start, end, payPeriodStart, payPeriodEnd,
+            ).amount;
+          }
+        }
+
+        const isIntern = employee.employmentType === "INTERN";
         const payroll = calculatePayroll(
-          Number(salary.basicSalary),
-          Number(salary.allowances),
-          employee.dateOfBirth
+          proratedBasic,
+          proratedAllowances,
+          employee.dateOfBirth,
+          0,
+          0,
+          0,
+          isIntern ? 0 : 0.15,
+          { cpfApplicable: !isIntern && (salary.cpfApplicable ?? true) },
         );
 
         const created = await prisma.payslip.create({

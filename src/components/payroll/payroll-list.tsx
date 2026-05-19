@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, Calendar, Download } from "lucide-react";
+import { Search, Calendar, Download, Pencil, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { PayslipStatus } from "@prisma/client";
 
 interface Payslip {
@@ -57,6 +58,42 @@ function formatPayPeriod(date: Date): string {
 }
 
 export function PayrollList({ payslips, isHR }: PayrollListProps) {
+  const router = useRouter();
+  const [editing, setEditing] = useState<Payslip | null>(null);
+  const [editGross, setEditGross] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEdit = (p: Payslip) => {
+    setEditing(p);
+    setEditGross(String(Number(p.grossSalary)));
+  };
+  const closeEdit = () => {
+    setEditing(null);
+    setEditGross("");
+  };
+  const saveEdit = async () => {
+    if (!editing) return;
+    const gross = Number(editGross);
+    if (!Number.isFinite(gross) || gross < 0) {
+      alert("Gross pay must be a non-negative number");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/payroll/payslip/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grossSalary: gross, basicSalary: gross }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to save");
+      closeEdit();
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -199,15 +236,26 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
                       {formatCurrency(Number(payslip.netSalary))}
                     </td>
                     <td className="px-4 py-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownloadPDF(payslip.id)}
-                        className="h-8 px-3 text-sm"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Payslip
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(payslip.id)}
+                          className="h-8 px-3 text-sm"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Payslip
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(payslip)}
+                          className="h-8 px-2 text-gray-300 hover:text-white"
+                          title="Edit gross pay"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -317,6 +365,44 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
             )}
           </div>
         </>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md bg-gray-950 border border-gray-800 rounded-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Edit Gross Pay</h2>
+              <button onClick={closeEdit} className="p-1 text-gray-400 hover:text-white">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-400">
+              {editing.employee.name} — {formatPayPeriod(editing.payPeriodStart)}
+            </p>
+            <div className="space-y-1">
+              <label className="text-sm text-gray-300">Gross Pay (SGD)</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={editGross}
+                onChange={(e) => setEditGross(e.target.value)}
+                className="bg-gray-900 border-gray-800 text-white"
+              />
+              <p className="text-xs text-gray-500">
+                CPF and net pay are recalculated from this gross. The PDF in Drive is replaced automatically.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={closeEdit} disabled={savingEdit}>
+                Cancel
+              </Button>
+              <Button onClick={saveEdit} disabled={savingEdit}>
+                {savingEdit ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
