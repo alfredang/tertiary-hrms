@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { PasswordChangeCard } from "@/components/profile/password-change-card";
+import { ThemeCard } from "@/components/profile/theme-card";
 import { EmployeeDetailEditable } from "@/components/employees/employee-detail-editable";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,8 @@ export default async function ProfilePage() {
         departments={departments}
         canEdit={true}
       />
+
+      <ThemeCard />
 
       <PasswordChangeCard />
     </div>

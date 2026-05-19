@@ -71,6 +71,89 @@ body.capacitor {
   overscroll-behavior-y: contain;
 }
 
+/*
+ * Light theme overrides.
+ *
+ * The app was built dark-first with hardcoded Tailwind classes
+ * (bg-gray-950, text-white, border-gray-800, etc.). Rather than refactor
+ * every component to use semantic tokens, we remap those specific classes
+ * to readable light equivalents — but ONLY when html has class="light".
+ * Dark mode (default) is completely untouched.
+ */
+html.light body {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+html.light .bg-gray-950 { background-color: #ffffff !important; }
+html.light .bg-gray-900 { background-color: #f8fafc !important; }
+html.light .bg-gray-800 { background-color: #f1f5f9 !important; }
+html.light .bg-gray-700 { background-color: #e2e8f0 !important; }
+
+html.light .hover\:bg-gray-900:hover { background-color: #f1f5f9 !important; }
+html.light .hover\:bg-gray-800:hover { background-color: #e2e8f0 !important; }
+
+html.light .border-gray-950,
+html.light .border-gray-900,
+html.light .border-gray-800,
+html.light .border-gray-700 { border-color: #e2e8f0 !important; }
+
+html.light .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0 !important; }
+
+html.light .text-white { color: #0f172a !important; }
+html.light .text-gray-100 { color: #1e293b !important; }
+html.light .text-gray-200 { color: #1e293b !important; }
+html.light .text-gray-300 { color: #334155 !important; }
+html.light .text-gray-400 { color: #475569 !important; }
+html.light .text-gray-500 { color: #64748b !important; }
+
+html.light .hover\:text-white:hover { color: #0f172a !important; }
+html.light .hover\:text-gray-200:hover { color: #1e293b !important; }
+
+/* Translucent admin/info banners — keep tint, lighten background */
+html.light .bg-amber-950\/30 { background-color: #fef3c7 !important; }
+html.light .bg-amber-950\/50 { background-color: #fef3c7 !important; }
+html.light .bg-amber-900\/20 { background-color: #fef3c7 !important; }
+html.light .text-amber-200,
+html.light .text-amber-300 { color: #92400e !important; }
+
+html.light .bg-green-950\/50 { background-color: #dcfce7 !important; }
+html.light .text-green-300 { color: #166534 !important; }
+
+html.light .bg-red-950\/30 { background-color: #fee2e2 !important; }
+html.light .text-red-200,
+html.light .text-red-300 { color: #991b1b !important; }
+
+html.light .bg-blue-950\/50 { background-color: #dbeafe !important; }
+html.light .text-blue-300 { color: #1e40af !important; }
+
+html.light .bg-emerald-950\/40 { background-color: #d1fae5 !important; }
+html.light .border-emerald-800\/40 { border-color: #6ee7b7 !important; }
+
+/* KPI / stat numbers — adjust bright dark-mode tones for readability on white */
+html.light .text-amber-400 { color: #b45309 !important; }
+html.light .text-green-400 { color: #15803d !important; }
+html.light .text-emerald-400 { color: #047857 !important; }
+html.light .text-red-400 { color: #b91c1c !important; }
+html.light .text-blue-400 { color: #1d4ed8 !important; }
+html.light .text-purple-400 { color: #7e22ce !important; }
+
+/* Inputs/selects that hardcode dark bg */
+html.light .bg-gray-900.border-gray-700,
+html.light input.bg-gray-900,
+html.light textarea.bg-gray-900,
+html.light select.bg-gray-900 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Pill / selected-tab look (e.g. status filter) */
+html.light .bg-white.text-gray-900 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
