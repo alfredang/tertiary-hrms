@@ -67,4 +67,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Run db push at startup (when DATABASE_URL is available) then start the server
-CMD ["sh", "-c", "node_modules/.bin/prisma db push --accept-data-loss --skip-generate 2>&1 && node server.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma db push --accept-data-loss --skip-generate 2>&1 || echo '[startup] db push failed (non-fatal), starting server anyway'; node server.js"]
