@@ -5,6 +5,7 @@ import { createEmployeeSchema } from "@/lib/validations/employee";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { provisionEmployeeFolder } from "@/lib/drive";
 
 export async function POST(req: NextRequest) {
   try {
@@ -140,6 +141,17 @@ export async function POST(req: NextRequest) {
 
       return employee;
     });
+
+    // Provision Drive folder + subfolders + permissions (best-effort)
+    try {
+      await provisionEmployeeFolder({
+        employeeId: result.id,
+        name: personalInfo.fullName,
+        email: personalInfo.email,
+      });
+    } catch (err) {
+      console.error(`Drive provisioning failed for employee ${result.id}:`, err);
+    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

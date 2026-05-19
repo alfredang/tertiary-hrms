@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generatePayslipPDF } from "@/lib/pdf-generator";
-import { getCompanyBranding } from "@/lib/company-settings";
+import { buildPayslipPdfBuffer, uploadPayslipToDrive, payslipFileName } from "@/lib/payslip-drive";
+import { downloadFileBuffer } from "@/lib/drive";
 
 export async function GET(
   req: NextRequest,
@@ -10,86 +10,62 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-
     const payslip = await prisma.payslip.findUnique({
       where: { id },
-      include: {
-        employee: {
-          include: {
-            department: true,
-          },
-        },
+      select: {
+        id: true,
+        employeeId: true,
+        payPeriodStart: true,
+        driveFileId: true,
+        employee: { select: { employeeId: true } },
       },
     });
-
     if (!payslip) {
       return NextResponse.json({ error: "Payslip not found" }, { status: 404 });
     }
 
-    // Check authorization - user can only view their own payslip unless HR/Admin
     const isHR = session.user.role === "HR" || session.user.role === "ADMIN";
     const isOwner = session.user.employeeId === payslip.employeeId;
-
     if (!isHR && !isOwner) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const company = await getCompanyBranding();
+    const fileName = payslipFileName(payslip.employee.employeeId, payslip.payPeriodStart);
 
-    const pdfData = generatePayslipPDF({
-      company: {
-        name: company.name,
-        address: company.address,
-      },
-      employee: {
-        name: payslip.employee.name,
-        id: payslip.employee.employeeId,
-        department: payslip.employee.department?.name ?? "—",
-        position: payslip.employee.position ?? "—",
-      },
-      payPeriod: {
-        start: payslip.payPeriodStart,
-        end: payslip.payPeriodEnd,
-      },
-      paymentDate: payslip.paymentDate,
-      earnings: {
-        basicSalary: Number(payslip.basicSalary),
-        allowances: Number(payslip.allowances),
-        overtime: Number(payslip.overtime),
-        bonus: Number(payslip.bonus),
-        gross: Number(payslip.grossSalary),
-      },
-      deductions: {
-        cpfEmployee: Number(payslip.cpfEmployee),
-        incomeTax: Number(payslip.incomeTax),
-        other: Number(payslip.otherDeductions),
-        total: Number(payslip.totalDeductions),
-      },
-      cpf: {
-        employee: Number(payslip.cpfEmployee),
-        employer: Number(payslip.cpfEmployer),
-        total: Number(payslip.cpfEmployee) + Number(payslip.cpfEmployer),
-      },
-      netSalary: Number(payslip.netSalary),
-    });
+    // Prefer Drive copy if available
+    if (payslip.driveFileId) {
+      try {
+        const buf = await downloadFileBuffer(payslip.driveFileId);
+        return new Response(new Uint8Array(buf), {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${fileName}"`,
+          },
+        });
+      } catch (err) {
+        console.error(`Drive download failed for payslip ${payslip.id}, regenerating:`, err);
+      }
+    }
 
-    return new Response(pdfData, {
+    // Fallback: generate locally and opportunistically upload to Drive
+    const pdfBuffer = await buildPayslipPdfBuffer(payslip.id);
+    uploadPayslipToDrive(payslip.id).catch((err) =>
+      console.error(`Background Drive upload failed for payslip ${payslip.id}:`, err),
+    );
+
+    return new Response(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="payslip-${payslip.employee.employeeId}-${payslip.payPeriodStart.toISOString().slice(0, 7)}.pdf"`,
+        "Content-Disposition": `attachment; filename="${fileName}"`,
       },
     });
   } catch (error) {
     console.error("Error generating PDF:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -116,7 +116,7 @@ export function ExpenseSubmitForm({ categories }: ExpenseSubmitFormProps) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="bg-gray-950 border-gray-800 max-w-2xl">
+      <Card className="bg-gray-950 border-gray-800 w-full">
         <CardHeader>
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-primary" />

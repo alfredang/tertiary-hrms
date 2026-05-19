@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import * as z from "zod";
+import path from "path";
+import { readFile } from "fs/promises";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { getEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
+import { Readable } from "stream";
 
 const expenseSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
@@ -96,6 +100,30 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Mirror the receipt to the employee's Expense Claims Drive folder
+    if (receiptUrl) {
+      try {
+        const driveResult = await mirrorReceiptToDrive({
+          employeeId,
+          receiptUrl,
+          receiptFileName,
+          expenseId: expenseClaim.id,
+          expenseDate,
+        });
+        if (driveResult) {
+          await prisma.expenseClaim.update({
+            where: { id: expenseClaim.id },
+            data: {
+              driveFileId: driveResult.id,
+              driveWebViewLink: driveResult.webViewLink ?? undefined,
+            },
+          });
+        }
+      } catch (err) {
+        console.error(`Drive mirror failed for expense ${expenseClaim.id}:`, err);
+      }
+    }
+
     return NextResponse.json(expenseClaim, { status: 201 });
   } catch (error) {
     console.error("Error creating expense claim:", error);
@@ -104,4 +132,44 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+const EXTENSION_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf",
+};
+
+async function mirrorReceiptToDrive(args: {
+  employeeId: string;
+  receiptUrl: string;
+  receiptFileName?: string;
+  expenseId: string;
+  expenseDate: string;
+}): Promise<{ id: string; webViewLink: string | null } | null> {
+  const localPrefix = "/api/uploads/";
+  if (!args.receiptUrl.startsWith(localPrefix)) return null;
+  const uniqueName = args.receiptUrl.slice(localPrefix.length);
+  const uploadsDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+  const filePath = path.join(uploadsDir, uniqueName);
+  const buffer = await readFile(filePath);
+  const ext = path.extname(uniqueName).toLowerCase();
+  const mime = EXTENSION_TO_MIME[ext] || "application/octet-stream";
+
+  const folderId = await getEmployeeSubfolderId(args.employeeId, "Expense Claims");
+  if (!folderId) return null;
+
+  const driveName = `${args.expenseDate.slice(0, 10)}_${args.expenseId}${args.receiptFileName ? `_${args.receiptFileName}` : ext}`;
+  const drive = await getDriveClient();
+  const created = await drive.files.create({
+    requestBody: { name: driveName, parents: [folderId] },
+    media: { mimeType: mime, body: Readable.from(buffer) },
+    fields: "id, webViewLink",
+    supportsAllDrives: true,
+  });
+  if (!created.data.id) return null;
+  return { id: created.data.id, webViewLink: created.data.webViewLink ?? null };
 }

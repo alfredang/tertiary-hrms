@@ -52,7 +52,12 @@ async function getAlData(employeeId: string): Promise<{
   return { earned, fullAvailable, personalEntitlement };
 }
 
-export default async function LeaveRequestPage() {
+export default async function LeaveRequestPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ type?: string }>;
+}) {
+  const params = (await searchParams) ?? {};
   let employeeId: string | undefined;
 
   if (isDevAuthSkipped()) {
@@ -85,6 +90,7 @@ export default async function LeaveRequestPage() {
         alEarned={alData.earned}
         alFullAvailable={alData.fullAvailable}
         alPersonalEntitlement={alData.personalEntitlement}
+        defaultLeaveTypeCode={params.type}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import ExcelJS from "exceljs";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 
 export async function POST(req: NextRequest) {
   try {
@@ -142,14 +143,16 @@ export async function POST(req: NextRequest) {
           status: "GENERATED" as const,
         };
 
+        let payslipId: string;
         if (existing) {
           await prisma.payslip.update({
             where: { id: existing.id },
             data: payslipData,
           });
+          payslipId = existing.id;
           results.updated++;
         } else {
-          await prisma.payslip.create({
+          const created = await prisma.payslip.create({
             data: {
               employeeId: matchedEmployee.id,
               payPeriodStart,
@@ -157,7 +160,13 @@ export async function POST(req: NextRequest) {
               ...payslipData,
             },
           });
+          payslipId = created.id;
           results.created++;
+        }
+        try {
+          await uploadPayslipToDrive(payslipId);
+        } catch (err) {
+          console.error(`Drive upload failed for payslip ${payslipId}:`, err);
         }
       } catch (error) {
         results.errors++;

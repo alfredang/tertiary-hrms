@@ -13,17 +13,17 @@ import { PersonalInfoForm } from "@/components/employees/personal-info-form";
 import { EmploymentInfoForm } from "@/components/employees/employment-info-form";
 import { SalaryInfoForm } from "@/components/employees/salary-info-form";
 import {
-  personalInfoSchema,
-  employmentInfoSchema,
-  salaryInfoSchema,
+  createPersonalInfoSchema,
+  createEmploymentInfoSchema,
+  createSalaryInfoSchema,
 } from "@/lib/validations/employee";
 import { ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import type { Department } from "@prisma/client";
 
 const formSchema = z.object({
-  personalInfo: personalInfoSchema,
-  employmentInfo: employmentInfoSchema,
-  salaryInfo: salaryInfoSchema,
+  personalInfo: createPersonalInfoSchema,
+  employmentInfo: createEmploymentInfoSchema,
+  salaryInfo: createSalaryInfoSchema,
 });
 
 type FormInput = z.infer<typeof formSchema>;
@@ -164,7 +164,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
 
   const handleSubmit = async () => {
     // Validate all tabs — jump to first tab with errors
-    const personalValid = personalInfoSchema.safeParse(
+    const personalValid = createPersonalInfoSchema.safeParse(
       form.getValues("personalInfo"),
     );
     if (!personalValid.success) {
@@ -177,7 +177,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
       return;
     }
 
-    const employmentValid = employmentInfoSchema.safeParse(
+    const employmentValid = createEmploymentInfoSchema.safeParse(
       form.getValues("employmentInfo"),
     );
     if (!employmentValid.success) {
@@ -190,7 +190,7 @@ export function AddEmployeeForm({ departments }: AddEmployeeFormProps) {
       return;
     }
 
-    const salaryValid = salaryInfoSchema.safeParse(
+    const salaryValid = createSalaryInfoSchema.safeParse(
       form.getValues("salaryInfo"),
     );
     if (!salaryValid.success) {
