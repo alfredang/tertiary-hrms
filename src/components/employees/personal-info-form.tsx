@@ -174,7 +174,7 @@ export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps)
         {/* Date of Birth */}
         <div className="space-y-2">
           <Label htmlFor="dateOfBirth" className="text-gray-300 block">
-            <span>Date of Birth <span className="text-red-400">*</span></span>
+            <span>Date of Birth</span>
             <span className="block text-xs text-gray-500 font-normal">(year from NRIC, correct day/month)</span>
           </Label>
           <DatePicker
@@ -190,7 +190,7 @@ export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps)
         {/* Gender */}
         <div className="space-y-2">
           <Label htmlFor="gender" className="text-gray-300">
-            Gender <span className="text-red-400">*</span>
+            Gender
           </Label>
           <Select
             value={form.watch("personalInfo.gender")}
@@ -212,7 +212,7 @@ export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps)
         {/* Nationality */}
         <div className="space-y-2">
           <Label htmlFor="nationality" className="text-gray-300">
-            Nationality <span className="text-red-400">*</span>
+            Nationality
           </Label>
           <Input
             id="nationality"
@@ -227,7 +227,7 @@ export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps)
         {/* Education Level */}
         <div className="space-y-2">
           <Label htmlFor="educationLevel" className="text-gray-300">
-            Education Level <span className="text-red-400">*</span>
+            Education Level
           </Label>
           <Select
             value={form.watch("personalInfo.educationLevel")}

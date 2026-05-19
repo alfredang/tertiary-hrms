@@ -4,7 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates, computeAlFullEntitlement } from "@/lib/utils";
 import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import * as z from "zod";
+import path from "path";
+import { readFile } from "fs/promises";
+import { Readable } from "stream";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { getEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
 
 const leaveRequestSchema = z.object({
   leaveTypeId: z.string().min(1, "Leave type is required"),
@@ -265,6 +269,31 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Mirror supporting document to Drive (MC → Medical Certificates folder)
+    if (documentUrl) {
+      try {
+        const driveResult = await mirrorLeaveDocToDrive({
+          employeeId,
+          documentUrl,
+          documentFileName,
+          leaveRequestId: leaveRequest.id,
+          leaveTypeCode: leaveRequest.leaveType.code,
+          startDate,
+        });
+        if (driveResult) {
+          await prisma.leaveRequest.update({
+            where: { id: leaveRequest.id },
+            data: {
+              driveFileId: driveResult.id,
+              driveWebViewLink: driveResult.webViewLink ?? undefined,
+            },
+          });
+        }
+      } catch (err) {
+        console.error(`Drive mirror failed for leave ${leaveRequest.id}:`, err);
+      }
+    }
+
     // Update AL balance pending
     await prisma.leaveBalance.update({
       where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: currentYear } },
@@ -311,4 +340,47 @@ export async function POST(req: NextRequest) {
     const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+const EXTENSION_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf",
+};
+
+async function mirrorLeaveDocToDrive(args: {
+  employeeId: string;
+  documentUrl: string;
+  documentFileName?: string;
+  leaveRequestId: string;
+  leaveTypeCode: string;
+  startDate: string;
+}): Promise<{ id: string; webViewLink: string | null } | null> {
+  const localPrefix = "/api/uploads/";
+  if (!args.documentUrl.startsWith(localPrefix)) return null;
+  const uniqueName = args.documentUrl.slice(localPrefix.length);
+  const uploadsDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+  const filePath = path.join(uploadsDir, uniqueName);
+  const buffer = await readFile(filePath);
+  const ext = path.extname(uniqueName).toLowerCase();
+  const mime = EXTENSION_TO_MIME[ext] || "application/octet-stream";
+
+  const isMedical = ["MC", "SL", "MEDICAL"].includes(args.leaveTypeCode);
+  const subfolder = isMedical ? "Medical Certificates" : "Other Documents";
+  const folderId = await getEmployeeSubfolderId(args.employeeId, subfolder);
+  if (!folderId) return null;
+
+  const driveName = `${args.startDate.slice(0, 10)}_${args.leaveRequestId}${args.documentFileName ? `_${args.documentFileName}` : ext}`;
+  const drive = await getDriveClient();
+  const created = await drive.files.create({
+    requestBody: { name: driveName, parents: [folderId] },
+    media: { mimeType: mime, body: Readable.from(buffer) },
+    fields: "id, webViewLink",
+    supportsAllDrives: true,
+  });
+  if (!created.data.id) return null;
+  return { id: created.data.id, webViewLink: created.data.webViewLink ?? null };
 }

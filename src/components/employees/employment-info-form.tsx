@@ -103,7 +103,7 @@ export function EmploymentInfoForm({
       {/* Department */}
       <div className="space-y-2">
         <Label htmlFor="departmentId" className="text-gray-300">
-          Department <span className="text-red-400">*</span>
+          Department
         </Label>
         <Select
           value={form.watch("employmentInfo.departmentId")}
@@ -132,7 +132,7 @@ export function EmploymentInfoForm({
       {/* Position */}
       <div className="space-y-2">
         <Label htmlFor="position" className="text-gray-300">
-          Position <span className="text-red-400">*</span>
+          Position
         </Label>
         <Input
           id="position"
@@ -149,7 +149,7 @@ export function EmploymentInfoForm({
       {/* Employment Type */}
       <div className="space-y-2">
         <Label htmlFor="employmentType" className="text-gray-300">
-          Employment Type <span className="text-red-400">*</span>
+          Employment Type
         </Label>
         <Select
           value={form.watch("employmentInfo.employmentType")}
@@ -174,7 +174,7 @@ export function EmploymentInfoForm({
         {/* Start Date */}
         <div className="space-y-2">
           <Label htmlFor="startDate" className="text-gray-300">
-            Start Date <span className="text-red-400">*</span>
+            Start Date
           </Label>
           <DatePicker
             id="startDate"

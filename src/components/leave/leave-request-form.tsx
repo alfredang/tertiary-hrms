@@ -31,6 +31,7 @@ interface LeaveRequestFormProps {
   alEarned?: number;         // AL accrued to today
   alFullAvailable?: number;  // full-year entitlement minus used/pending
   alPersonalEntitlement?: number; // total days entitled this year (for display)
+  defaultLeaveTypeCode?: string; // e.g. "MC" to pre-select Medical Leave
   // legacy prop — kept for backwards compat when form is reused elsewhere
   alAvailable?: number;
 }
@@ -41,6 +42,7 @@ export function LeaveRequestForm({
   alEarned = 0,
   alFullAvailable = 0,
   alPersonalEntitlement = 12,
+  defaultLeaveTypeCode,
   alAvailable,
 }: LeaveRequestFormProps) {
   // alEarned falls back to legacy alAvailable prop
@@ -49,7 +51,10 @@ export function LeaveRequestForm({
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const defaultLeaveTypeId = defaultLeaveTypeCode
+    ? leaveTypes.find((t) => t.code === defaultLeaveTypeCode)?.id ?? ""
+    : "";
+  const [leaveTypeId, setLeaveTypeId] = useState(defaultLeaveTypeId);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [days, setDays] = useState("");
@@ -386,7 +391,7 @@ export function LeaveRequestForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="bg-gray-950 border-gray-800 max-w-2xl">
+      <Card className="bg-gray-950 border-gray-800 w-full">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />

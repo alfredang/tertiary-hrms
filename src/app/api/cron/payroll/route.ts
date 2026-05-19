@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculatePayroll } from "@/lib/cpf-calculator";
+import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 
 // Auto-generate payroll on the 28th of each month
 // Can be triggered by external scheduler or manually
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
           employee.dateOfBirth
         );
 
-        await prisma.payslip.create({
+        const created = await prisma.payslip.create({
           data: {
             id: `ps_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
             employeeId: employee.id,
@@ -97,6 +98,12 @@ export async function GET(req: NextRequest) {
             status: "GENERATED",
           },
         });
+
+        try {
+          await uploadPayslipToDrive(created.id);
+        } catch (err) {
+          console.error(`Drive upload failed for payslip ${created.id}:`, err);
+        }
 
         results.created++;
       } catch (error) {

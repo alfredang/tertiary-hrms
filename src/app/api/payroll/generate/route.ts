@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculatePayroll } from "@/lib/cpf-calculator";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 
 export async function POST(req: NextRequest) {
   try {
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
           employee.dateOfBirth
         );
 
-        await prisma.payslip.create({
+        const created = await prisma.payslip.create({
           data: {
             id: `ps_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
             employeeId: employee.id,
@@ -108,6 +109,12 @@ export async function POST(req: NextRequest) {
             status: "GENERATED",
           },
         });
+
+        try {
+          await uploadPayslipToDrive(created.id);
+        } catch (err) {
+          console.error(`Drive upload failed for payslip ${created.id}:`, err);
+        }
 
         results.created++;
       } catch (error) {

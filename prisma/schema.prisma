@@ -92,6 +92,7 @@ model Employee {
   name             String
   monthlyLeaveRate Decimal?       @db.Decimal(5, 2)
   workdays         Int[]          @default([1, 2, 3, 4, 5])
+  driveFolderId    String?
   department       Department?    @relation(fields: [departmentId], references: [id])
   manager          Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
   subordinates     Employee[]     @relation("EmployeeToEmployee")
@@ -129,6 +130,8 @@ model ExpenseClaim {
   expenseDate      DateTime
   receiptUrl       String?
   receiptFileName  String?
+  driveFileId      String?
+  driveWebViewLink String?
   status           ExpenseStatus   @default(PENDING)
   approverId       String?
   approvedAt       DateTime?
@@ -179,6 +182,8 @@ model LeaveRequest {
   updatedAt        DateTime    @updatedAt
   documentFileName String?
   documentUrl      String?
+  driveFileId      String?
+  driveWebViewLink String?
   dayType          DayType     @default(FULL_DAY)
   halfDayPosition  String?
   deficitDays      Decimal     @default(0) @db.Decimal(5, 2)
@@ -222,6 +227,8 @@ model Payslip {
   netSalary       Decimal       @db.Decimal(12, 2)
   status          PayslipStatus @default(DRAFT)
   pdfUrl          String?
+  driveFileId     String?
+  driveWebViewLink String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   employee        Employee      @relation(fields: [employeeId], references: [id])

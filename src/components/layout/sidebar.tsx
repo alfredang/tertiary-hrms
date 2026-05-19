@@ -31,11 +31,12 @@ import {
   CalendarDays,
   Stethoscope,
   ClipboardList,
+  FolderOpen,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
 type Grandchild = { name: string; href: string };
-type Child = { name: string; href: string; icon?: IconType; children?: Grandchild[] };
+type Child = { name: string; href: string; icon?: IconType; children?: Grandchild[]; external?: boolean };
 type NavItem = {
   name: string;
   adminName?: string; // override label shown in admin view
@@ -74,6 +75,12 @@ const navigation: NavItem[] = [
     children: [
       { name: "Expense Tracking", href: "/accounting/expense-tracking", icon: TrendingDown },
       { name: "Income Tracking",  href: "/accounting/income-tracking",  icon: TrendingUp   },
+      {
+        name: "Bank Statements",
+        href: "https://drive.google.com/drive/u/1/folders/1U6MCWuKZQ4wWZqn36AVHUeOD7a-URAaY",
+        icon: FolderOpen,
+        external: true,
+      },
     ],
   },
   { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
@@ -310,17 +317,31 @@ function NestedChildRow({
               : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
         )}
       >
-        <Link href={child.href} className="flex items-center gap-x-3 flex-1 px-3 py-2 min-w-0">
-          {child.icon && (
-            <child.icon
-              className={cn(
-                "h-4 w-4 shrink-0",
-                childActive ? "text-white" : "text-gray-500 group-hover:text-gray-200",
-              )}
-            />
-          )}
-          <span className="flex-1 truncate">{child.name}</span>
-        </Link>
+        {child.external ? (
+          <a
+            href={child.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-x-3 flex-1 px-3 py-2 min-w-0"
+          >
+            {child.icon && (
+              <child.icon className="h-4 w-4 shrink-0 text-gray-500 group-hover:text-gray-200" />
+            )}
+            <span className="flex-1 truncate">{child.name}</span>
+          </a>
+        ) : (
+          <Link href={child.href} className="flex items-center gap-x-3 flex-1 px-3 py-2 min-w-0">
+            {child.icon && (
+              <child.icon
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  childActive ? "text-white" : "text-gray-500 group-hover:text-gray-200",
+                )}
+              />
+            )}
+            <span className="flex-1 truncate">{child.name}</span>
+          </Link>
+        )}
         {grandchildren && (
           <button
             type="button"
