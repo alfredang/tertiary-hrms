@@ -139,7 +139,25 @@ export default async function ExpensesPage() {
         </div>
       )}
 
+      {isFinanceView && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Total Requests" value={claims.length} color="text-white" />
+          <KpiCard label="Pending" value={claims.filter((c) => c.status === "PENDING").length} color="text-amber-400" />
+          <KpiCard label="Approved" value={claims.filter((c) => c.status === "APPROVED").length} color="text-green-400" />
+          <KpiCard label="Rejected" value={claims.filter((c) => c.status === "REJECTED").length} color="text-red-400" />
+        </div>
+      )}
+
       <ExpenseList claims={claims} categories={categories} isManager={isFinanceView} />
+    </div>
+  );
+}
+
+function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+      <p className="text-xs sm:text-sm text-gray-400 mb-1">{label}</p>
+      <p className={`text-2xl sm:text-3xl font-bold ${color}`}>{value}</p>
     </div>
   );
 }

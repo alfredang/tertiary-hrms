@@ -183,7 +183,25 @@ export default async function MedicalLeavePage() {
         </div>
       )}
 
+      {viewAs === "admin" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Total Requests" value={requests.length} color="text-white" />
+          <KpiCard label="Pending" value={requests.filter((r) => r.status === "PENDING").length} color="text-amber-400" />
+          <KpiCard label="Approved" value={requests.filter((r) => r.status === "APPROVED").length} color="text-green-400" />
+          <KpiCard label="Rejected" value={requests.filter((r) => r.status === "REJECTED").length} color="text-red-400" />
+        </div>
+      )}
+
       <LeaveList requests={requests} isManager={viewAs === "admin"} />
+    </div>
+  );
+}
+
+function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+      <p className="text-xs sm:text-sm text-gray-400 mb-1">{label}</p>
+      <p className={`text-2xl sm:text-3xl font-bold ${color}`}>{value}</p>
     </div>
   );
 }
