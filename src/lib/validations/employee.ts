@@ -101,6 +101,7 @@ export const createPersonalInfoSchema = z.object({
   nric: z.string().optional(),
   address: z.string().optional(),
   educationLevel: z.nativeEnum(EducationLevel).optional(),
+  school: z.string().optional(),
 });
 
 export const createEmploymentInfoSchema = z.object({
@@ -147,6 +148,7 @@ export const createEmployeeSchema = z.object({
   personalInfo: createPersonalInfoSchema,
   employmentInfo: createEmploymentInfoSchema.optional(),
   salaryInfo: createSalaryInfoSchema.optional(),
+  role: z.enum(["STAFF", "INTERN"]).default("STAFF").optional(),
 });
 
 export type PersonalInfoInput = z.infer<typeof personalInfoSchema>;

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { AddEmployeeForm } from "./add-employee-form";
+import { AddEmployeeForm } from "../new/add-employee-form";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ async function getDepartments() {
   return prisma.department.findMany({ orderBy: { name: "asc" } });
 }
 
-export default async function AddEmployeePage() {
+export default async function CreateInternPage() {
   const session = await auth();
 
   if (!isDevAuthSkipped()) {
@@ -27,10 +27,10 @@ export default async function AddEmployeePage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">Create Staff</h1>
-        <p className="text-gray-400 mt-1">Register a new staff member</p>
+        <h1 className="text-3xl font-bold text-white">Create Intern</h1>
+        <p className="text-gray-400 mt-1">Register a new intern</p>
       </div>
-      <AddEmployeeForm departments={departments} intent="STAFF" />
+      <AddEmployeeForm departments={departments} intent="INTERN" />
     </div>
   );
 }

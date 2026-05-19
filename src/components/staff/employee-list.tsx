@@ -148,7 +148,13 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
             <Link href="/employees/new" className="flex-1 sm:flex-none">
               <Button className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Employee
+                Create Staff
+              </Button>
+            </Link>
+            <Link href="/employees/new-intern" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Intern
               </Button>
             </Link>
           </div>

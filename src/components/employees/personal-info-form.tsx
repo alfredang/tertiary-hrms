@@ -17,7 +17,23 @@ import { useToast } from "@/hooks/use-toast";
 interface PersonalInfoFormProps {
   form: UseFormReturn<any>;
   mode?: "create" | "edit";
+  intent?: "STAFF" | "INTERN";
 }
+
+const SCHOOL_OPTIONS = [
+  "National University of Singapore (NUS)",
+  "Nanyang Technological University (NTU)",
+  "Singapore Management University (SMU)",
+  "Singapore University of Technology and Design (SUTD)",
+  "Singapore University of Social Sciences (SUSS)",
+  "Singapore Institute of Technology (SIT)",
+  "Singapore Polytechnic (SP)",
+  "Ngee Ann Polytechnic (NP)",
+  "Temasek Polytechnic (TP)",
+  "Nanyang Polytechnic (NYP)",
+  "Republic Polytechnic (RP)",
+  "Institute of Technical Education (ITE)",
+];
 
 const genderOptions = [
   { value: "MALE",   label: "Male"   },
@@ -59,7 +75,8 @@ function parseNRIC(nric: string): { birthYear?: number; nationality?: string } {
   return { birthYear, nationality };
 }
 
-export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps) {
+export function PersonalInfoForm({ form, mode = "edit", intent = "STAFF" }: PersonalInfoFormProps) {
+  const isIntern = intent === "INTERN";
   const errors = form.formState.errors.personalInfo as Record<string, any> | undefined;
   const { toast } = useToast();
 
@@ -171,21 +188,23 @@ export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps)
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-end">
-        {/* Date of Birth */}
-        <div className="space-y-2">
-          <Label htmlFor="dateOfBirth" className="text-gray-300 block">
-            <span>Date of Birth</span>
-            <span className="block text-xs text-gray-500 font-normal">(year from NRIC, correct day/month)</span>
-          </Label>
-          <DatePicker
-            id="dateOfBirth"
-            value={form.watch("personalInfo.dateOfBirth") || ""}
-            onChange={(val) => form.setValue("personalInfo.dateOfBirth", val)}
-          />
-          {errors?.dateOfBirth && (
-            <p className="text-sm text-red-400">{errors?.dateOfBirth.message as string}</p>
-          )}
-        </div>
+        {/* Date of Birth — staff only */}
+        {!isIntern && (
+          <div className="space-y-2">
+            <Label htmlFor="dateOfBirth" className="text-gray-300 block">
+              <span>Date of Birth</span>
+              <span className="block text-xs text-gray-500 font-normal">(year from NRIC, correct day/month)</span>
+            </Label>
+            <DatePicker
+              id="dateOfBirth"
+              value={form.watch("personalInfo.dateOfBirth") || ""}
+              onChange={(val) => form.setValue("personalInfo.dateOfBirth", val)}
+            />
+            {errors?.dateOfBirth && (
+              <p className="text-sm text-red-400">{errors?.dateOfBirth.message as string}</p>
+            )}
+          </div>
+        )}
 
         {/* Gender */}
         <div className="space-y-2">
@@ -224,38 +243,62 @@ export function PersonalInfoForm({ form, mode = "edit" }: PersonalInfoFormProps)
           )}
         </div>
 
-        {/* Education Level */}
-        <div className="space-y-2">
-          <Label htmlFor="educationLevel" className="text-gray-300">
-            Education Level
-          </Label>
-          <Select
-            value={form.watch("personalInfo.educationLevel")}
-            onValueChange={(value) =>
-              form.setValue("personalInfo.educationLevel", value as EducationLevel)
-            }
-          >
-            <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
-              <SelectValue placeholder="Select education level" />
-            </SelectTrigger>
-            <SelectContent>
-              {educationOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Education Level — staff only */}
+        {!isIntern && (
+          <div className="space-y-2">
+            <Label htmlFor="educationLevel" className="text-gray-300">
+              Education Level
+            </Label>
+            <Select
+              value={form.watch("personalInfo.educationLevel")}
+              onValueChange={(value) =>
+                form.setValue("personalInfo.educationLevel", value as EducationLevel)
+              }
+            >
+              <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+                <SelectValue placeholder="Select education level" />
+              </SelectTrigger>
+              <SelectContent>
+                {educationOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* School — intern only */}
+        {isIntern && (
+          <div className="space-y-2">
+            <Label htmlFor="school" className="text-gray-300">School</Label>
+            <Select
+              value={form.watch("personalInfo.school") || ""}
+              onValueChange={(value) => form.setValue("personalInfo.school", value)}
+            >
+              <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+                <SelectValue placeholder="Select school" />
+              </SelectTrigger>
+              <SelectContent>
+                {SCHOOL_OPTIONS.map((opt) => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
-      {/* Address */}
-      <div className="space-y-2">
-        <Label htmlFor="address" className="text-gray-300">Address</Label>
-        <Input
-          id="address"
-          {...form.register("personalInfo.address")}
-          className="bg-gray-900 border-gray-800 text-white"
-        />
-      </div>
+      {/* Address — staff only */}
+      {!isIntern && (
+        <div className="space-y-2">
+          <Label htmlFor="address" className="text-gray-300">Address</Label>
+          <Input
+            id="address"
+            {...form.register("personalInfo.address")}
+            className="bg-gray-900 border-gray-800 text-white"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { personalInfo, employmentInfo, salaryInfo } = validation.data;
+    const { personalInfo, employmentInfo, salaryInfo, role } = validation.data;
+    const effectiveRole = role ?? "STAFF";
 
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
           data: {
             email: personalInfo.email,
             password: hashedPassword,
-            roles: ["STAFF"],
+            roles: [effectiveRole],
           },
         });
       }
@@ -89,10 +90,11 @@ export async function POST(req: NextRequest) {
           nric: personalInfo.nric || null,
           address: personalInfo.address || null,
           educationLevel: personalInfo.educationLevel || undefined,
+          school: (personalInfo as any).school || null,
           // Employment info (all optional with DB defaults)
           departmentId: employmentInfo?.departmentId || null,
           position: employmentInfo?.position || null,
-          employmentType: employmentInfo?.employmentType || undefined,
+          employmentType: effectiveRole === "INTERN" ? "INTERN" : (employmentInfo?.employmentType || undefined),
           startDate: employmentInfo?.startDate
             ? new Date(employmentInfo.startDate)
             : null,
@@ -105,8 +107,8 @@ export async function POST(req: NextRequest) {
         include: { department: true },
       });
 
-      // Create salary info if provided
-      if (salaryInfo && (salaryInfo.basicSalary || salaryInfo.basicSalary === 0)) {
+      // Create salary info if provided (skip for interns)
+      if (effectiveRole !== "INTERN" && salaryInfo && (salaryInfo.basicSalary || salaryInfo.basicSalary === 0)) {
         await tx.salaryInfo.create({
           data: {
             employeeId: employee.id,
@@ -126,12 +128,15 @@ export async function POST(req: NextRequest) {
       const leaveTypes = await tx.leaveType.findMany();
       const currentYear = new Date().getFullYear();
       for (const lt of leaveTypes) {
+        // Interns get a flat 3 days annual leave; other leave types use default
+        const entitlement =
+          effectiveRole === "INTERN" && lt.code === "AL" ? 3 : lt.defaultDays;
         await tx.leaveBalance.create({
           data: {
             employeeId: employee.id,
             leaveTypeId: lt.id,
             year: currentYear,
-            entitlement: lt.defaultDays,
+            entitlement,
             carriedOver: 0,
             used: 0,
             pending: 0,
