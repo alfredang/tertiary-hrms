@@ -52,6 +52,10 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
+# Copy Prisma CLI + schema engine so db push can run at container startup
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+
 # Create writable uploads directory for runtime file uploads
 RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads && chmod 700 /app/uploads
 
@@ -62,4 +66,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Run db push at startup (when DATABASE_URL is available) then start the server
+CMD ["sh", "-c", "node_modules/.bin/prisma db push --accept-data-loss --skip-generate 2>&1 && node server.js"]
