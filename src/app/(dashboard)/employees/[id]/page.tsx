@@ -411,8 +411,8 @@ export default async function EmployeeDetailPage({
   );
 }
 
-async function ManagerCard({ employee }: { employee: { id: string; managerIds: string[] } }) {
-  const ids = employee.managerIds ?? [];
+async function ManagerCard({ employee }: { employee: { id: string; managerId: string | null } }) {
+  const ids = employee.managerId ? [employee.managerId] : [];
   if (ids.length === 0) {
     return (
       <Card className="bg-gray-950 border-gray-800">

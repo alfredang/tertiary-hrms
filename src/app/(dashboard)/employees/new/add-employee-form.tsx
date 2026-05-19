@@ -70,7 +70,7 @@ export function AddEmployeeForm({ departments, managers = [], defaultManagerIds 
         endDate: "",
         status: "ACTIVE",
         monthlyLeaveRate: null,
-        managerIds: defaultManagerIds,
+        managerId: defaultManagerIds?.[0] ?? null,
       } as any,
       salaryInfo: {
         basicSalary: 0,

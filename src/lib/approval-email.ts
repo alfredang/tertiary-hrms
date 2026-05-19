@@ -47,9 +47,9 @@ async function getApproverEmails(employeeId?: string): Promise<{ to: string[]; c
   if (employeeId) {
     const emp = await prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { managerIds: true },
+      select: { managerId: true },
     });
-    const ids = emp?.managerIds ?? [];
+    const ids = emp?.managerId ? [emp.managerId] : [];
     if (ids.length) {
       const managers = await prisma.employee.findMany({
         where: { id: { in: ids } },

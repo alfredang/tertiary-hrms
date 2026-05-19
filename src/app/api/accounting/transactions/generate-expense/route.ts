@@ -98,6 +98,7 @@ async function qbCreate(base: string, token: string, entity: string, body: objec
 
 const QB_PAYMENT_TYPE: Record<string, string> = {
   CC: "CreditCard",
+  "Credit Card": "CreditCard",
   Cash: "Cash",
   Check: "Check",
   Cheque: "Check",
@@ -106,23 +107,57 @@ function toQbPaymentType(t: string): string {
   return QB_PAYMENT_TYPE[t] ?? "Cash";
 }
 
+// Maps HRMS payment type → QB PaymentMethod name keywords (in priority order)
+const PAYMENT_METHOD_KEYWORDS: Record<string, string[]> = {
+  "CC":           ["Credit Card", "Visa", "Master", "Amex", "AMEX"],
+  "Credit Card":  ["Credit Card", "Visa", "Master", "Amex", "AMEX"],
+  "PayNow":       ["PayNow", "Pay Now", "Bank Transfer", "FAST"],
+  "GIRO":         ["GIRO", "Bank Transfer", "EFT"],
+  "Bank Transfer":["Bank Transfer", "FAST", "EFT", "Electronic"],
+  "Cash":         ["Cash"],
+  "Cheque":       ["Cheque", "Check", "POSB"],
+  "Check":        ["Cheque", "Check", "POSB"],
+  "DBS Business Debit Card": ["DBS Business", "DBS Debit", "Debit Card", "DBS"],
+};
+
+function findPaymentMethod(methods: any[], hrmsType: string): any | null {
+  const keywords = PAYMENT_METHOD_KEYWORDS[hrmsType] ?? [hrmsType];
+  for (const kw of keywords) {
+    const found = methods.find((m: any) =>
+      String(m.Name ?? "").toLowerCase().includes(kw.toLowerCase()),
+    );
+    if (found) return found;
+  }
+  return null;
+}
+
 const CATEGORY_ACCOUNT: Record<string, string[]> = {
-  "Trainer Fee": ["Trainer Fee", "Trainer Fees", "Professional Fees", "Subcontractors"],
-  "Payroll": ["Salaries", "Wages", "Payroll"],
-  "CPF": ["CPF", "Employee Benefits", "Employer Contributions"],
-  "Income Tax": ["Income Tax", "Taxes"],
-  "Rental": ["Rent", "Rental"],
-  "Subscription": ["Computer", "Internet", "Software", "Subscription"],
-  "Bank Charges": ["Bank Charges", "Bank Fees", "Service Charge"],
-  "Allowance": ["Allowance", "Employee Benefits"],
-  "Vendor Payment": ["Purchases", "Cost of Goods", "General"],
-  "Payment Processor": ["Merchant Fees", "Bank Charges"],
-  "Grocery": ["Meals", "Entertainment", "Office"],
-  "Meal": ["Meals", "Entertainment"],
-  "Entertainment": ["Entertainment"],
+  "Trainer Fee":      ["Trainer Fee", "Trainer Fees", "Professional Fees", "Subcontractors"],
+  "Payroll":          ["Salaries", "Wages", "Payroll"],
+  "CPF":              ["CPF", "Employee Benefits", "Employer Contributions"],
+  "Income Tax":       ["Income Tax", "Taxes"],
+  "Rental":           ["Rent", "Rental"],
+  "Subscription":     ["Subscription", "Computer", "Internet", "Software"],
+  "Bank Charges":     ["Bank Charges", "Bank Fees", "Service Charge"],
+  "Allowance":        ["Allowance", "Employee Benefits"],
+  "Vendor Payment":   ["Purchases", "Cost of Goods", "General"],
+  "Payment Processor":["Merchant Fees", "Bank Charges"],
+  "Grocery":          ["Meals", "Entertainment", "Office"],
+  "Meal":             ["Meals", "Entertainment"],
+  "Entertainment":    ["Entertainment"],
 };
 
 function findAccount(accounts: any[], keywords: string[]): any | null {
+  // Exact name match first
+  for (const kw of keywords) {
+    const found = accounts.find(
+      (a: any) =>
+        String(a.Name ?? "").toLowerCase() === kw.toLowerCase() ||
+        String(a.FullyQualifiedName ?? "").toLowerCase() === kw.toLowerCase(),
+    );
+    if (found) return found;
+  }
+  // Partial match fallback
   for (const kw of keywords) {
     const found = accounts.find(
       (a: any) =>
@@ -182,14 +217,16 @@ export async function POST(req: NextRequest) {
     const token = await getAccessToken(creds);
     const base = `${QBO_BASE_URL}/v3/company/${creds.realmId}`;
 
-    // Fetch bank accounts and expense accounts from QB
-    const [bankRes, expRes] = await Promise.all([
+    // Fetch bank accounts, expense accounts, and payment methods from QB in parallel
+    const [bankRes, expRes, pmRes] = await Promise.all([
       qbQuery(base, token, "SELECT * FROM Account WHERE AccountType = 'Bank' MAXRESULTS 100"),
       qbQuery(base, token, "SELECT * FROM Account WHERE Classification = 'Expense' MAXRESULTS 200"),
+      qbQuery(base, token, "SELECT * FROM PaymentMethod MAXRESULTS 100"),
     ]);
 
     const bankAccounts: any[] = bankRes?.QueryResponse?.Account ?? [];
     const expenseAccounts: any[] = expRes?.QueryResponse?.Account ?? [];
+    const paymentMethods: any[] = pmRes?.QueryResponse?.PaymentMethod ?? [];
 
     const bankAccount =
       findAccount(bankAccounts, ["DBS", "Checking", "Current", "Operating"]) ?? bankAccounts[0];
@@ -219,7 +256,9 @@ export async function POST(req: NextRequest) {
     });
     const docNumber = buildDocNumber(dateStr, sameDay + 1);
 
-    const purchaseBody = {
+    const qbPaymentMethod = findPaymentMethod(paymentMethods, txn.paymentType);
+
+    const purchaseBody: Record<string, any> = {
       DocNumber: docNumber,
       TxnDate: dateStr,
       PaymentType: toQbPaymentType(txn.paymentType),
@@ -237,6 +276,9 @@ export async function POST(req: NextRequest) {
       ],
       PrivateNote: `HRMS · ${txn.paymentType} · ${txn.rawDescription.slice(0, 500)}`,
     };
+    if (qbPaymentMethod) {
+      purchaseBody.PaymentMethodRef = { value: String(qbPaymentMethod.Id), name: qbPaymentMethod.Name };
+    }
 
     let qbExpenseId: string;
     let qbExpenseNo = docNumber;
