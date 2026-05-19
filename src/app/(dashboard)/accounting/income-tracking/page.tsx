@@ -82,6 +82,7 @@ export default async function IncomeTrackingPage({
     paymentRef: t.paymentRef ?? "",
     invoiceNo: t.invoiceNo ?? "",
     receiptNo: t.receiptNo ?? "",
+    qbExpenseNo: t.qbExpenseNo ?? "",
     status: t.status,
     gstIncluded: t.gstIncluded,
     remarks: t.remarks ?? "",

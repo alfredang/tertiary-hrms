@@ -34,16 +34,18 @@ function extractInvoiceNo(desc: string): string {
 
 function extractPaymentRef(parts: string[]): string {
   // DBS refs look like EBGPP6050..., EBLVT604..., MCT202605..., IPS7785...,
-  // 20260504DBSSSGSGBRT..., long alphanumeric, often >= 18 chars.
+  // 20260504DBSSSGSGBRT..., long alphanumeric, often >= 14 chars.
+  // GIRO AP refs look like: 260514103137AP0038633 (digits + AP + digits) — also capture these.
   const candidates: string[] = [];
   for (const p of parts) {
     const tokens = p.split(/\s+/);
     for (const t of tokens) {
       if (/^[A-Z0-9]{14,}$/i.test(t)) candidates.push(t);
+      // GIRO AP ref: 10+ digits optionally followed by AP+digits
+      if (/^\d{10,}(?:AP\d+)?$/i.test(t) && t.length >= 10) candidates.push(t);
     }
   }
   if (candidates.length === 0) return "";
-  // Prefer the longest token (most specific ref)
   candidates.sort((a, b) => b.length - a.length);
   return candidates[0].slice(0, 80);
 }
@@ -115,13 +117,28 @@ export function splitNameAndRef(label: string): { name: string; ref: string } {
   return { name, ref };
 }
 
+/**
+ * For GIRO payments, DBS descParts[1] follows the format:
+ *   "{DD/MM/YYYY} {seq_no} {vendor name + purpose} {bank_AP_ref}"
+ * e.g. "15/05/2026 80000 Samuel Huang Jan classesx3 260514103137AP0038633"
+ * Strip the date, sequence number, and trailing bank ref to get the clean name.
+ */
+function extractFromGiroDesc(s: string): string {
+  let cleaned = s.trim();
+  cleaned = cleaned.replace(/^\d{1,2}\/\d{1,2}\/\d{4}\s+/, "");   // strip DD/MM/YYYY
+  cleaned = cleaned.replace(/^\d{3,6}\s+/, "");                      // strip leading seq no
+  cleaned = cleaned.replace(/\s+\d{6,}(?:AP\d+)?$/i, "").trim();   // strip trailing AP/bank ref
+  cleaned = cleaned.replace(/\s+[A-Z0-9]{12,}$/i, "").trim();      // strip any remaining long ref
+  return cleaned;
+}
+
 function pickTitle(parts: string[], rawDesc: string): string {
   const isJunk = (s: string) => {
     const u = s.toUpperCase().trim();
     if (!u) return true;
     if (u.length < 4) return true;
     if (/^SGD\s/i.test(s)) return true;
-    if (/^\d/.test(s)) return true; // ref codes / amounts
+    if (/^\d/.test(s)) return true; // ref codes / amounts / date-prefixed strings
     if (/^[A-Z0-9]{16,}$/.test(s)) return true; // long alphanumeric refs
     if (
       [
@@ -151,8 +168,21 @@ function pickTitle(parts: string[], rawDesc: string): string {
       return true;
     return false;
   };
+
   const candidate = parts.find((p) => !isJunk(p));
   if (candidate) return candidate.slice(0, 120);
+
+  // GIRO special case: descParts[1] starts with a date prefix (DD/MM/YYYY)
+  // containing the vendor name embedded after the date and sequence number.
+  for (const p of parts) {
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(p)) {
+      const extracted = extractFromGiroDesc(p);
+      if (extracted && extracted.length >= 3 && !/^[A-Z0-9]{12,}$/.test(extracted)) {
+        return extracted.slice(0, 120);
+      }
+    }
+  }
+
   // Fallback to first non-empty part, then raw
   return (parts[0] ?? rawDesc).slice(0, 120) || "Transaction";
 }
@@ -206,9 +236,12 @@ export function categorize(desc: string): string {
     return "Meal";
   }
   if (u.includes("CINEMA") || u.includes(" KTV") || u.includes(" CLUB ")) return "Entertainment";
+  // GIRO payments that mention class/training keywords → Trainer Fee
+  if (u.includes("GIRO") && /\bCLASS(ES)?(X\d+)?\b|\bTRAINER\b|\bTEACHING\b|\bLECTURER?\b|\bCOURSE\b/i.test(u)) return "Trainer Fee";
   if (u.includes("INTERBANK GIRO") || u.includes("REMITTANCE")) return "Vendor Payment";
   if (u.includes("FAST PAYMENT") && (u.includes("CLASS") || u.includes("CLASSES") || u.includes("FEES & CHARGES"))) return "Trainer Fee";
   if (u.includes("FAST PAYMENT")) return "Vendor Payment";
+  if (u.includes("GIRO PAYMENT")) return "Vendor Payment"; // generic GIRO not matched above
   return "Other";
 }
 

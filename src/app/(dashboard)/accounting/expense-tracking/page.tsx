@@ -79,6 +79,7 @@ export default async function ExpenseTrackingPage({
     paymentRef: t.paymentRef ?? "",
     invoiceNo: t.invoiceNo ?? "",
     receiptNo: t.receiptNo ?? "",
+    qbExpenseNo: t.qbExpenseNo ?? "",
     status: t.status,
     gstIncluded: t.gstIncluded,
     remarks: t.remarks ?? "",
@@ -102,9 +103,9 @@ export default async function ExpenseTrackingPage({
       <TransactionsTable
         rows={rows}
         emptyText="No expenses match the current filters."
-        paymentRefLabel="Bill No"
-        invoiceNoLabel="Expense No"
+        paymentRefLabel="Bank Ref"
         showCategory
+        showGenerateExpense
         direction="DEBIT"
       />
       <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} />

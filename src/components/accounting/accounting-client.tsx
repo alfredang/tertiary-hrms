@@ -40,6 +40,9 @@ export function AccountingClient() {
         recurring: t.recurring ?? "One Time",
         remarks: t.remarks ?? file.name,
         rawDescription: t.rawDescription ?? t.title,
+        paymentType: t.paymentType ?? "Bank Transfer",
+        paymentRef: t.paymentRef ?? "",
+        invoiceNo: t.invoiceNo ?? "",
       }));
 
       if (rows.length === 0) {

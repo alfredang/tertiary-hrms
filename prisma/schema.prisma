@@ -396,6 +396,8 @@ model BankTransaction {
   paymentRef     String?
   invoiceNo      String?
   receiptNo      String?
+  qbExpenseId    String?
+  qbExpenseNo    String?
 
   @@index([paymentDate])
   @@index([direction])

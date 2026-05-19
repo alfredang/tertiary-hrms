@@ -11,6 +11,7 @@ import {
   enrichTransactionsWithAgent,
 } from "@/lib/claude-parse-statement";
 import { prisma } from "@/lib/prisma";
+import { uploadFileToDrive } from "@/lib/google-drive";
 
 async function archiveStatement(buffer: Buffer, originalName: string): Promise<void> {
   try {
@@ -50,8 +51,11 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const name = file.name.toLowerCase();
 
-  // Archive uploaded statement to .bank_statements/ (gitignored — contains PII).
+  // Archive uploaded statement locally and to Google Drive (non-blocking — failures don't abort the parse).
   await archiveStatement(buffer, file.name);
+  uploadFileToDrive(buffer, file.name).catch((err) =>
+    console.error("Google Drive upload failed (non-fatal):", err),
+  );
   // XLSX magic: ZIP "PK\x03\x04". Old .xls (CFB/OLE2) magic: D0 CF 11 E0 A1 B1 1A E1.
   const isXlsxMagic =
     buffer.length >= 4 &&
@@ -76,33 +80,15 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      // 2. Claude Agent SDK enrichment — refines title / type / paymentType / refs.
-      //    Auth flows through the host's `claude` CLI session (subscription).
-      try {
-        const enriched = await enrichTransactionsWithAgent(rows, file.name);
-        const credits = enriched.filter((t) => t.direction === "CREDIT").length;
-        const debits = enriched.length - credits;
-        return NextResponse.json({
-          transactions: enriched,
-          count: enriched.length,
-          credits,
-          debits,
-          engine: "xls+agent-sdk",
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("Agent SDK enrichment failed, returning deterministic rows:", msg);
-        const credits = rows.filter((t) => t.direction === "CREDIT").length;
-        const debits = rows.length - credits;
-        return NextResponse.json({
-          transactions: rows,
-          count: rows.length,
-          credits,
-          debits,
-          engine: "xls-rules",
-          warning: `Agent SDK enrichment skipped: ${msg}`,
-        });
-      }
+      const credits = rows.filter((t) => t.direction === "CREDIT").length;
+      const debits = rows.length - credits;
+      return NextResponse.json({
+        transactions: rows,
+        count: rows.length,
+        credits,
+        debits,
+        engine: "xls-rules",
+      });
     }
     return NextResponse.json(
       {
