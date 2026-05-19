@@ -15,7 +15,11 @@ export async function GET() {
   const err = await requireAdmin();
   if (err) return NextResponse.json({ error: err }, { status: err === "unauthorized" ? 401 : 403 });
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-  return NextResponse.json({ payslipRemarks: settings?.payslipRemarks ?? "" });
+  return NextResponse.json({
+    payslipRemarks: settings?.payslipRemarks ?? "",
+    payslipTitle: (settings as any)?.payslipTitle ?? "",
+    payslipHeaderNote: (settings as any)?.payslipHeaderNote ?? "",
+  });
 }
 
 export async function PUT(req: NextRequest) {
@@ -23,10 +27,12 @@ export async function PUT(req: NextRequest) {
   if (err) return NextResponse.json({ error: err }, { status: err === "unauthorized" ? 401 : 403 });
   const body = await req.json();
   const payslipRemarks: string | null = typeof body.payslipRemarks === "string" ? body.payslipRemarks : null;
+  const payslipTitle: string | null = typeof body.payslipTitle === "string" ? body.payslipTitle : null;
+  const payslipHeaderNote: string | null = typeof body.payslipHeaderNote === "string" ? body.payslipHeaderNote : null;
   await prisma.companySettings.upsert({
     where: { id: "company_settings" },
-    create: { id: "company_settings", payslipRemarks },
-    update: { payslipRemarks },
+    create: { id: "company_settings", payslipRemarks, payslipTitle, payslipHeaderNote },
+    update: { payslipRemarks, payslipTitle, payslipHeaderNote },
   });
   return NextResponse.json({ ok: true });
 }

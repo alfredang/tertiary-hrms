@@ -67,6 +67,8 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
@@ -107,6 +109,45 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
     if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
     return 0;
   });
+
+  const togglePending = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkApproving(true);
+    try {
+      const res = await fetch(`/api/expenses/bulk-approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Bulk approve failed");
+      const data = await res.json();
+      toast({
+        title: `Approved ${data.approved} claim${data.approved === 1 ? "" : "s"}`,
+        description: data.requested !== data.approved
+          ? `${data.requested - data.approved} skipped (already actioned).`
+          : "All selected claims approved.",
+      });
+      setSelectedIds(new Set());
+      router.refresh();
+    } catch (err) {
+      toast({
+        title: "Bulk approve failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkApproving(false);
+    }
+  };
 
   const handleApprove = async (id: string) => {
     setIsLoading(id);
@@ -423,6 +464,23 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
         </div>
       </div>
 
+      {isManager && selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-700/40 bg-amber-950/30 px-4 py-2">
+          <p className="text-sm text-amber-200">
+            <span className="font-semibold">{selectedIds.size}</span> claim{selectedIds.size === 1 ? "" : "s"} selected
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())} disabled={bulkApproving}>
+              Clear
+            </Button>
+            <Button size="sm" variant="success" onClick={handleBulkApprove} disabled={bulkApproving}>
+              <Check className="h-4 w-4 mr-1" />
+              {bulkApproving ? "Approving..." : `Approve ${selectedIds.size}`}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isManager ? (
         /* Admin View */
         <>
@@ -464,6 +522,21 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="bg-gray-950 border-b border-gray-800">
+                  <th className="px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all pending"
+                      checked={(() => {
+                        const pending = sortedClaims.filter((c) => c.status === "PENDING");
+                        return pending.length > 0 && pending.every((c) => selectedIds.has(c.id));
+                      })()}
+                      onChange={(e) => {
+                        const pending = sortedClaims.filter((c) => c.status === "PENDING").map((c) => c.id);
+                        setSelectedIds(e.target.checked ? new Set(pending) : new Set());
+                      }}
+                      className="h-4 w-4 rounded border-gray-700 bg-gray-900 accent-amber-500"
+                    />
+                  </th>
                   {renderSortTh("Employee", "employee")}
                   {renderSortTh("Category", "description")}
                   {renderSortTh("Description", "description")}
@@ -476,6 +549,17 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               <tbody className="divide-y divide-gray-800">
                 {sortedClaims.map((claim) => (
                   <tr key={claim.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                    <td className="px-4 py-3 w-8">
+                      {claim.status === "PENDING" && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${claim.employee.name} claim`}
+                          checked={selectedIds.has(claim.id)}
+                          onChange={() => togglePending(claim.id)}
+                          className="h-4 w-4 rounded border-gray-700 bg-gray-900 accent-amber-500"
+                        />
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-white whitespace-nowrap">
                       {claim.employee.name}
                     </td>

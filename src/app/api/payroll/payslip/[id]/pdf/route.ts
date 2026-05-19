@@ -22,7 +22,7 @@ export async function GET(
         employeeId: true,
         payPeriodStart: true,
         driveFileId: true,
-        employee: { select: { employeeId: true } },
+        employee: { select: { employeeId: true, name: true } },
       },
     });
     if (!payslip) {
@@ -35,7 +35,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const fileName = payslipFileName(payslip.employee.employeeId, payslip.payPeriodStart);
+    const fileName = payslipFileName(payslip.employee.employeeId, payslip.payPeriodStart, payslip.employee.name);
 
     // Prefer Drive copy if available
     if (payslip.driveFileId) {

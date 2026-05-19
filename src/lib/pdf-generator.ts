@@ -20,6 +20,8 @@ interface PayslipData {
   };
   paymentDate: Date;
   remarks?: string | null;
+  titleTemplate?: string | null;
+  headerNote?: string | null;
   earnings: {
     basicSalary: number;
     allowances: number;
@@ -87,12 +89,21 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
     doc.text(data.company.address, pageWidth / 2, 25, { align: "center" });
   }
 
-  // Title — "Payslip for May 2026"
+  // Optional editable header note (e.g. tagline) just below address
+  let titleY = 40;
+  if (data.headerNote && data.headerNote.trim()) {
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(data.headerNote.trim(), pageWidth / 2, 31, { align: "center" });
+    titleY = 42;
+  }
+
+  // Title — editable template, defaults to "Payslip for the Month {MONTH}"
+  const titleTpl = data.titleTemplate?.trim() || "Payslip for the Month {MONTH}";
+  const renderedTitle = titleTpl.replace(/\{MONTH\}/g, monthTitle(data.payPeriod.start));
   doc.setFontSize(15);
   doc.setTextColor(0);
-  doc.text(`Payslip for ${monthTitle(data.payPeriod.start)}`, pageWidth / 2, 40, {
-    align: "center",
-  });
+  doc.text(renderedTitle, pageWidth / 2, titleY, { align: "center" });
 
   // Pay Period + Payment Date
   doc.setFontSize(10);

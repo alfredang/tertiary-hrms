@@ -298,6 +298,8 @@ model CompanySettings {
   approvalEmails String[] @default([])
   shortName      String?
   payslipRemarks String?
+  payslipTitle   String?
+  payslipHeaderNote String?
 }
 
 model ApprovalToken {

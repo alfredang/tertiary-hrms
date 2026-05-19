@@ -62,6 +62,8 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
@@ -101,6 +103,45 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
     if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
     return 0;
   });
+
+  const togglePending = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkApproving(true);
+    try {
+      const res = await fetch(`/api/leave/bulk-approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Bulk approve failed");
+      const data = await res.json();
+      toast({
+        title: `Approved ${data.approved.length} request${data.approved.length === 1 ? "" : "s"}`,
+        description: data.skipped.length
+          ? `${data.skipped.length} skipped (already actioned or invalid).`
+          : "All selected requests approved.",
+      });
+      setSelectedIds(new Set());
+      router.refresh();
+    } catch (err) {
+      toast({
+        title: "Bulk approve failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkApproving(false);
+    }
+  };
 
   const handleApprove = async (id: string) => {
     setIsLoading(id);
@@ -466,6 +507,33 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
         </div>
       </div>
 
+      {isManager && selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-700/40 bg-amber-950/30 px-4 py-2">
+          <p className="text-sm text-amber-200">
+            <span className="font-semibold">{selectedIds.size}</span> request{selectedIds.size === 1 ? "" : "s"} selected
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelectedIds(new Set())}
+              disabled={bulkApproving}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              variant="success"
+              onClick={handleBulkApprove}
+              disabled={bulkApproving}
+            >
+              <Check className="h-4 w-4 mr-1" />
+              {bulkApproving ? "Approving..." : `Approve ${selectedIds.size}`}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isManager ? (
         /* Admin View */
         <>
@@ -506,6 +574,21 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="bg-gray-950 border-b border-gray-800">
+                  <th className="px-2 sm:px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all pending"
+                      checked={(() => {
+                        const pending = sortedRequests.filter((r) => r.status === "PENDING");
+                        return pending.length > 0 && pending.every((r) => selectedIds.has(r.id));
+                      })()}
+                      onChange={(e) => {
+                        const pending = sortedRequests.filter((r) => r.status === "PENDING").map((r) => r.id);
+                        setSelectedIds(e.target.checked ? new Set(pending) : new Set());
+                      }}
+                      className="h-4 w-4 rounded border-gray-700 bg-gray-900 accent-amber-500"
+                    />
+                  </th>
                   {renderSortTh("Employee", "employee")}
                   {renderSortTh("Type", "type")}
                   {renderSortTh("Start", "startDate")}
@@ -519,6 +602,17 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
               <tbody className="divide-y divide-gray-800">
                 {sortedRequests.map((request) => (
                   <tr key={request.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
+                    <td className="px-2 sm:px-4 py-3 w-8">
+                      {request.status === "PENDING" && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${request.employee.name} request`}
+                          checked={selectedIds.has(request.id)}
+                          onChange={() => togglePending(request.id)}
+                          className="h-4 w-4 rounded border-gray-700 bg-gray-900 accent-amber-500"
+                        />
+                      )}
+                    </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-white whitespace-nowrap">
                       {request.employee.name}
                     </td>

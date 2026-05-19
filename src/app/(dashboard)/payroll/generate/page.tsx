@@ -153,7 +153,7 @@ export default function ProcessPayrollPage() {
       </div>
 
       {/* Month/Year Selection */}
-      <Card className="bg-gray-950 border-gray-800 max-w-2xl">
+      <Card className="bg-gray-950 border-gray-800">
         <CardHeader>
           <CardTitle className="text-white">Pay Period</CardTitle>
         </CardHeader>
@@ -194,7 +194,7 @@ export default function ProcessPayrollPage() {
       </Card>
 
       {/* Excel Upload */}
-      <Card className="bg-gray-950 border-gray-800 max-w-2xl">
+      <Card className="bg-gray-950 border-gray-800">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Upload className="h-5 w-5 text-primary" />
@@ -298,7 +298,7 @@ export default function ProcessPayrollPage() {
       </Card>
 
       {/* Auto Generate */}
-      <Card className="bg-gray-950 border-gray-800 max-w-2xl">
+      <Card className="bg-gray-950 border-gray-800">
         <CardHeader>
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-primary" />
@@ -352,7 +352,7 @@ export default function ProcessPayrollPage() {
         </CardContent>
       </Card>
 
-      <div className="max-w-2xl">
+      <div>
         <Button
           type="button"
           variant="outline"

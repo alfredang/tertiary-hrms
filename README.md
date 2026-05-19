@@ -46,6 +46,36 @@ The native apps load the deployed URL inside a WebView via Capacitor, sharing a 
 
 ---
 
+## What's New
+
+Recent additions (May 2026):
+
+- **Editable Compensation cards on the employee profile**
+  - Staff card always renders (even before any salary is entered); admin edits **Basic Salary** inline with a pencil-icon Save flow.
+  - **Intern Compensation** card is allowance-only with CPF rows fixed at $0 (CPF skipped).
+  - Saving either card auto-regenerates the **current-month payslip** and replaces the Drive PDF.
+- **Managers card** — admin can **add or remove approvers** directly from the employee detail page (dropdown of all active staff). Approval emails for leave / MC / expense claims are sent to this list.
+- **Bulk approval** — admins / managers can select multiple PENDING items (checkbox column with select-all) and approve in one shot on:
+  - Leave / Medical Leave (`/api/leave/bulk-approve`) — keeps balance accounting, calendar events, and notifications consistent
+  - Expense Claims (`/api/expenses/bulk-approve`)
+- **Editable Payslip Template** (Settings → Payslip Template):
+  - Editable **Title** (e.g. `Payslip for the Month {MONTH}`), **Header Note**, and **Footer / Remarks**
+  - Live full-document preview (logo, salary table, CPF rows) rendered with dummy values
+- **Editable Email Templates** with live render preview (Subject + Body) using dummy variable values.
+- **Payroll page revamp**:
+  - Removed Total Paid / Pending Payments KPI cards
+  - Pagination at **50 / page**, sorted by date descending
+  - Per-row **Regenerate** icon to rebuild a payslip's PDF after edits, and an **Edit Gross** modal
+  - Payslip filenames are now `<Name>-MM-YYYY.pdf`
+- **Auto-monthly payroll** — `0 1 28 * *` cron at `/api/cron/payroll` creates payslips for all active employees on the 28th and uploads PDFs to each employee's Drive folder.
+- **Employee directory polish**:
+  - `E####` for staff, `I####` for interns (4-digit, separate counters)
+  - Default sort by `employeeId`, default filter to **Active**, **20 / page** pagination
+  - **Create Intern** form locks employment type to "Intern"; `User.roles` is force-set to `["INTERN"]` even when reusing a Google OAuth account
+  - "Role" column renamed to "Job Function" for clarity; new **Accounting** job function; the old "Intern" job function renamed to "Software Development"
+- **Branding-aware footer** — "Powered by <Company Name>" pulled from `CompanySettings.name`, shown on every dashboard page.
+- **Dev server pinned to port 3080** (`npm run dev` runs `next dev --turbo -p 3080`).
+
 ## Features
 
 ### Authentication & Authorization

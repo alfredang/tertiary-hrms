@@ -4,48 +4,12 @@ import { PayrollList } from "@/components/payroll/payroll-list";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, DollarSign, TrendingUp, FolderOpen } from "lucide-react";
+import { Plus, FolderOpen } from "lucide-react";
 import { buildFolderWebUrl, getEmployeeSubfolderId } from "@/lib/drive";
-import { formatCurrency, hasAdminAccess } from "@/lib/utils";
+import { hasAdminAccess } from "@/lib/utils";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
-
-async function getPayrollStats(employeeId?: string) {
-  const baseWhere = employeeId ? { employeeId } : {};
-
-  const payslips = await prisma.payslip.findMany({
-    where: {
-      ...baseWhere,
-      status: "PAID",
-    },
-    select: {
-      netSalary: true,
-    },
-  });
-
-  const totalPaid = payslips.reduce(
-    (sum, p) => sum + Number(p.netSalary),
-    0
-  );
-
-  const pendingPayslips = await prisma.payslip.findMany({
-    where: {
-      ...baseWhere,
-      status: { in: ["DRAFT", "GENERATED"] },
-    },
-    select: {
-      netSalary: true,
-    },
-  });
-
-  const pendingAmount = pendingPayslips.reduce(
-    (sum, p) => sum + Number(p.netSalary),
-    0
-  );
-
-  return { totalPaid, pendingAmount };
-}
 
 async function getPayslips(employeeId?: string) {
   const where = employeeId ? { employeeId } : {};
@@ -106,10 +70,7 @@ export default async function PayrollPage() {
     );
   }
 
-  const [stats, payslips] = await Promise.all([
-    getPayrollStats(filterByEmployeeId),
-    getPayslips(filterByEmployeeId),
-  ]);
+  const payslips = await getPayslips(filterByEmployeeId);
 
   let payrollFolderUrl: string | null = null;
   if (!isFinanceView && currentEmployeeId) {
@@ -152,38 +113,6 @@ export default async function PayrollPage() {
           </a>
         )}
       </div>
-
-      {/* Stats Cards - finance view */}
-      {isFinanceView && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-gray-950 border border-green-800 rounded-2xl p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Paid</p>
-                <p className="text-2xl sm:text-3xl font-bold text-green-400 mt-1">
-                  {formatCurrency(stats.totalPaid)}
-                </p>
-              </div>
-              <div className="p-2 sm:p-3 rounded-xl bg-green-950/50">
-                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-green-400" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-950 border border-amber-800 rounded-2xl p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Pending Payments</p>
-                <p className="text-2xl sm:text-3xl font-bold text-amber-400 mt-1">
-                  {formatCurrency(stats.pendingAmount)}
-                </p>
-              </div>
-              <div className="p-2 sm:p-3 rounded-xl bg-amber-950/50">
-                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-amber-400" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <PayrollList payslips={payslips} isHR={isFinanceView} />
     </div>

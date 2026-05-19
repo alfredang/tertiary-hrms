@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, Calendar, Download, Pencil, X } from "lucide-react";
+import { Search, Calendar, Download, Pencil, X, RefreshCw, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { PayslipStatus } from "@prisma/client";
 
@@ -57,11 +58,34 @@ function formatPayPeriod(date: Date): string {
   });
 }
 
+const PAGE_SIZE = 50;
+
 export function PayrollList({ payslips, isHR }: PayrollListProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [editing, setEditing] = useState<Payslip | null>(null);
   const [editGross, setEditGross] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  const regenerate = async (payslipId: string) => {
+    setRegeneratingId(payslipId);
+    try {
+      const res = await fetch(`/api/payroll/payslip/${payslipId}/regenerate`, { method: "POST" });
+      if (!res.ok) throw new Error((await res.json()).error || "Regenerate failed");
+      toast({ title: "Payslip regenerated", description: "Drive copy was replaced." });
+      router.refresh();
+    } catch (err) {
+      toast({
+        title: "Regenerate failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
 
   const openEdit = (p: Payslip) => {
     setEditing(p);
@@ -108,7 +132,19 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
       statusFilter === "all" || payslip.status === statusFilter;
 
     return matchesSearch && matchesStatus;
-  });
+  }).sort(
+    (a, b) =>
+      new Date(b.payPeriodStart).getTime() - new Date(a.payPeriodStart).getTime(),
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPayslips.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginatedPayslips = filteredPayslips.slice(pageStart, pageStart + PAGE_SIZE);
 
   const handleDownloadPDF = async (payslipId: string) => {
     try {
@@ -162,7 +198,7 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
         <>
           {/* Mobile Cards */}
           <div className="sm:hidden space-y-3">
-            {filteredPayslips.map((payslip) => (
+            {paginatedPayslips.map((payslip) => (
               <div key={payslip.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-white">{payslip.employee.name}</span>
@@ -215,7 +251,7 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {filteredPayslips.map((payslip) => (
+                {paginatedPayslips.map((payslip) => (
                   <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
                     <td className="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">
                       {formatPayPeriod(payslip.payPeriodStart)}
@@ -255,6 +291,20 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => regenerate(payslip.id)}
+                          disabled={regeneratingId === payslip.id}
+                          className="h-8 px-2 text-gray-300 hover:text-white"
+                          title="Regenerate PDF"
+                        >
+                          {regeneratingId === payslip.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -274,7 +324,7 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
         <>
           {/* Mobile Cards */}
           <div className="sm:hidden space-y-3">
-            {filteredPayslips.map((payslip) => (
+            {paginatedPayslips.map((payslip) => (
               <div key={payslip.id} className="bg-gray-950 border border-gray-800 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-white">{formatPayPeriod(payslip.payPeriodStart)}</span>
@@ -325,7 +375,7 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {filteredPayslips.map((payslip) => (
+                {paginatedPayslips.map((payslip) => (
                   <tr key={payslip.id} className="bg-gray-950 hover:bg-gray-900 transition-colors">
                     <td className="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">
                       {formatPayPeriod(payslip.payPeriodStart)}
@@ -365,6 +415,38 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
             )}
           </div>
         </>
+      )}
+
+      {filteredPayslips.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <p className="text-xs text-gray-400">
+            Showing <span className="text-white">{pageStart + 1}</span>–
+            <span className="text-white">{pageStart + paginatedPayslips.length}</span> of{" "}
+            <span className="text-white">{filteredPayslips.length}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-gray-400 px-2">
+              Page <span className="text-white">{currentPage}</span> of{" "}
+              <span className="text-white">{totalPages}</span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       )}
 
       {editing && (

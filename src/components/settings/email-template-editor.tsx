@@ -2,7 +2,49 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, RotateCcw, Save, Loader2 } from "lucide-react";
+import { Mail, RotateCcw, Save, Loader2, Eye } from "lucide-react";
+
+const DUMMY_VALUES: Record<string, string> = {
+  COMPANY_NAME: "Tertiary Infotech Academy Pte Ltd",
+  COMPANY_SHORT_NAME: "Tertiary Infotech",
+  SITE_URL: "https://hr.tertiaryinfotech.com",
+  USER_EMAIL: "jane.doe@example.com",
+  EMPLOYEE_NAME: "Jane Doe Tan",
+  APPROVER_NAME: "Tan Soik Ching",
+  MANAGER_NAME: "Tan Soik Ching",
+  LEAVE_TYPE: "Annual Leave",
+  START_DATE: "01 Jun 2026",
+  END_DATE: "03 Jun 2026",
+  DAYS: "3",
+  REASON: "Family vacation",
+  ACCEPT_URL: "https://hr.tertiaryinfotech.com/approve/abc123",
+  DECLINE_URL: "https://hr.tertiaryinfotech.com/decline/abc123",
+  ACTION_BUTTONS: "[ Approve ]   [ Decline ]",
+  OTP: "482917",
+  EXPIRY_MINUTES: "10",
+  AMOUNT: "1,234.56",
+  CLAIM_TYPE: "Travel",
+  PAYMENT_DATE: "31 May 2026",
+  MONTH: "May 2026",
+};
+
+function dummyFor(name: string): string {
+  if (DUMMY_VALUES[name]) return DUMMY_VALUES[name];
+  if (/_URL$/.test(name)) return "https://example.com/link";
+  if (/_DATE$/.test(name)) return "01 Jun 2026";
+  if (/_NAME$/.test(name)) return "Jane Doe";
+  if (/EMAIL$/.test(name)) return "jane.doe@example.com";
+  if (/AMOUNT|SALARY|PAY/.test(name)) return "1,234.56";
+  return `[${name}]`;
+}
+
+function renderWithDummies(template: string, variables: { name: string }[]): string {
+  let out = template;
+  for (const v of variables) {
+    out = out.replaceAll(`{${v.name}}`, dummyFor(v.name));
+  }
+  return out;
+}
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -158,6 +200,32 @@ export function EmailTemplateEditor({ def, initialSubject, initialBody, isCustom
             rows={16}
             className="bg-gray-800 border-gray-700 text-white font-mono text-sm leading-relaxed"
           />
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
+        <div className="flex items-center gap-2">
+          <Eye className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium text-white">Preview</p>
+          <span className="text-xs text-gray-500">(dummy values)</span>
+        </div>
+        <div className="bg-white text-gray-900 rounded-md border border-gray-300 overflow-hidden">
+          <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
+            <p className="text-xs text-gray-500">Subject</p>
+            <p className="text-sm font-semibold">
+              {renderWithDummies(subject, def.variables) || (
+                <span className="text-gray-400 font-normal">(empty)</span>
+              )}
+            </p>
+          </div>
+          <div className="px-4 py-3 max-h-[28rem] overflow-y-auto">
+            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+              {renderWithDummies(body, def.variables) || (
+                <span className="text-gray-400">Body is empty.</span>
+              )}
+            </pre>
+          </div>
         </div>
       </div>
     </div>

@@ -7,6 +7,9 @@ import { prorateLeave, computeYearlyEntitlement } from "@/lib/utils";
 import { format } from "date-fns";
 import { Calendar, DollarSign, FileText, Briefcase, Users } from "lucide-react";
 import { EmployeeDetailEditable } from "@/components/employees/employee-detail-editable";
+import { InternCompensationCard } from "@/components/employees/intern-compensation-card";
+import { StaffCompensationCard } from "@/components/employees/staff-compensation-card";
+import { ManagersCard } from "@/components/employees/managers-card";
 import { AdminOtLogPanel } from "@/components/employees/admin-ot-log-panel";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
@@ -85,6 +88,25 @@ export default async function EmployeeDetailPage({
     notFound();
   }
 
+  // Manager candidates: all active non-intern employees except this one
+  const candidateManagers = await prisma.employee.findMany({
+    where: {
+      id: { not: id },
+      status: "ACTIVE",
+      employmentType: { not: "INTERN" },
+    },
+    select: { id: true, name: true, email: true, position: true },
+    orderBy: { name: "asc" },
+  });
+
+  const currentManagers = employee.managerIds?.length
+    ? await prisma.employee.findMany({
+        where: { id: { in: employee.managerIds } },
+        select: { id: true, name: true, email: true, position: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
+
   // Determine role
   const role = isDevAuthSkipped() ? "ADMIN" : (session?.user?.role || "STAFF");
   const isAdmin = role === "ADMIN";
@@ -98,97 +120,39 @@ export default async function EmployeeDetailPage({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* Compensation */}
-        {employee.salaryInfo && (
-          <Card className="bg-gray-950 border-gray-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <DollarSign className="h-5 w-5" />
-                Compensation & CPF
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-400">Basic Salary (Monthly)</p>
-                <p className="text-2xl font-bold text-white mt-1">
-                  ${Number(employee.salaryInfo.basicSalary).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </p>
-              </div>
-              {Number(employee.salaryInfo.allowances) > 0 && (
-                <div>
-                  <p className="text-sm text-gray-400">Allowances (Monthly)</p>
-                  <p className="text-lg font-medium text-gray-300">
-                    ${Number(employee.salaryInfo.allowances).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </div>
-              )}
-              <div className="pt-2 border-t border-gray-800">
-                <p className="text-sm text-gray-400">Gross Salary (Monthly)</p>
-                <p className="text-xl font-bold text-white mt-1">
-                  ${(Number(employee.salaryInfo.basicSalary) + Number(employee.salaryInfo.allowances)).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </p>
-              </div>
-              {employee.salaryInfo.payNow && (
-                <div>
-                  <p className="text-sm text-gray-400">PayNow</p>
-                  <p className="font-medium text-white mt-1">{employee.salaryInfo.payNow}</p>
-                </div>
-              )}
-              {employee.salaryInfo.cpfApplicable && (
-                <>
-                  <div className="pt-2 border-t border-gray-800">
-                    <p className="text-sm font-medium text-gray-300 mb-2">CPF Contributions</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">
-                          Employee ({Number(employee.salaryInfo.cpfEmployeeRate)}%)
-                        </span>
-                        <span className="text-orange-400 font-medium">
-                          -${((Number(employee.salaryInfo.basicSalary) * Number(employee.salaryInfo.cpfEmployeeRate)) / 100).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">
-                          Employer ({Number(employee.salaryInfo.cpfEmployerRate)}%)
-                        </span>
-                        <span className="text-blue-400 font-medium">
-                          +${((Number(employee.salaryInfo.basicSalary) * Number(employee.salaryInfo.cpfEmployerRate)) / 100).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-gray-800">
-                    <p className="text-sm text-gray-400">Take Home Pay</p>
-                    <p className="text-2xl font-bold text-green-400 mt-1">
-                      ${((Number(employee.salaryInfo.basicSalary) + Number(employee.salaryInfo.allowances)) - ((Number(employee.salaryInfo.basicSalary) * Number(employee.salaryInfo.cpfEmployeeRate)) / 100)).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </p>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+        {/* Compensation — Intern variant: allowance-only, no CPF */}
+        {employee.employmentType === "INTERN" && (
+          <InternCompensationCard
+            employeeId={employee.id}
+            initialAllowance={Number(employee.salaryInfo?.allowances ?? 0)}
+            canEdit={canEdit}
+          />
         )}
 
-        {/* Managers — approval emails go to these people */}
-        <ManagerCard employee={employee} />
+        {/* Compensation — staff (always rendered; editable basic salary; auto-regenerates current-month payslip) */}
+        {employee.employmentType !== "INTERN" && (
+          <StaffCompensationCard
+            employeeId={employee.id}
+            initial={{
+              basicSalary: Number(employee.salaryInfo?.basicSalary ?? 0),
+              allowances: Number(employee.salaryInfo?.allowances ?? 0),
+              cpfApplicable: employee.salaryInfo?.cpfApplicable ?? true,
+              cpfEmployeeRate: Number(employee.salaryInfo?.cpfEmployeeRate ?? 20),
+              cpfEmployerRate: Number(employee.salaryInfo?.cpfEmployerRate ?? 17),
+              payNow: employee.salaryInfo?.payNow ?? null,
+            }}
+            canEdit={canEdit}
+            hasSalaryInfo={!!employee.salaryInfo}
+          />
+        )}
+
+        {/* Managers — admin can add / remove via the card */}
+        <ManagersCard
+          employeeId={employee.id}
+          initialManagers={currentManagers}
+          candidates={candidateManagers}
+          canEdit={canEdit}
+        />
       </div>
 
       {/* Leave Information */}
@@ -411,50 +375,3 @@ export default async function EmployeeDetailPage({
   );
 }
 
-async function ManagerCard({ employee }: { employee: { id: string; managerId: string | null } }) {
-  const ids = employee.managerId ? [employee.managerId] : [];
-  if (ids.length === 0) {
-    return (
-      <Card className="bg-gray-950 border-gray-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Users className="h-5 w-5" />
-            Manager(s)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-500">No manager assigned. Approval emails will fall back to the company default approver.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-  const managers = await prisma.employee.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, name: true, email: true, position: true },
-    orderBy: { name: "asc" },
-  });
-  return (
-    <Card className="bg-gray-950 border-gray-800">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <Users className="h-5 w-5" />
-          Manager(s)
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-gray-500 mb-3">Approval emails for leave / MC / expense claims are sent to these people.</p>
-        <ul className="space-y-2">
-          {managers.map((m) => (
-            <li key={m.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-white">{m.name}</p>
-                {m.position && <p className="text-xs text-gray-500">{m.position}</p>}
-              </div>
-              <p className="text-xs text-gray-400 font-mono">{m.email}</p>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
-  );
-}
