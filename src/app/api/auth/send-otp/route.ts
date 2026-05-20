@@ -108,7 +108,10 @@ export async function POST(req: NextRequest) {
             }
           }
         }
-        if (!tokenReady) return;
+        if (!tokenReady) {
+          console.error("[send-otp] Gmail OAuth token could not be obtained after 3 attempts — check refresh token in Settings → Credentials");
+          return;
+        }
 
         const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
@@ -145,14 +148,18 @@ export async function POST(req: NextRequest) {
           .replace(/\//g, "_")
           .replace(/=+$/, "");
 
+        let sendError: any = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             await gmail.users.messages.send({
               userId: "me",
               requestBody: { raw: encodedMessage },
             });
+            sendError = null;
+            console.log(`[send-otp] Email sent to ${normalizedEmail}`);
             break;
           } catch (err: any) {
+            sendError = err;
             if (attempt < 3) {
               await new Promise((r) => setTimeout(r, attempt * 1000));
               if (err?.code === 401 || err?.message?.includes("invalid_grant")) {
@@ -167,8 +174,11 @@ export async function POST(req: NextRequest) {
             }
           }
         }
-      } catch {
-        // Background email errors are non-fatal
+        if (sendError) {
+          console.error("[send-otp] Gmail send failed after 3 attempts:", sendError?.message ?? sendError);
+        }
+      } catch (err: any) {
+        console.error("[send-otp] Background email error:", err?.message ?? err);
       }
     })();
 

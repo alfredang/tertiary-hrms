@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2 } from "lucide-react";
+import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
 
 interface GmailCredentialsCardProps {
   emailUser: string;
@@ -27,6 +27,7 @@ export function GmailCredentialsCard({
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [form, setForm] = useState({ emailUser, clientId, clientSecret, refreshToken });
   const [visible, setVisible] = useState({ clientId: false, clientSecret: false, refreshToken: false });
 
@@ -68,6 +69,35 @@ export function GmailCredentialsCard({
     }
   };
 
+  const handleTest = async () => {
+    if (!form.emailUser) {
+      toast({ title: "No Gmail address set", variant: "destructive" });
+      return;
+    }
+    setTesting(true);
+    try {
+      const res = await fetch("/api/settings/test-gmail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: form.emailUser }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast({ title: "Gmail working", description: data.message });
+      } else {
+        toast({
+          title: `Gmail test failed (${data.step})`,
+          description: data.hint || data.error,
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Test request failed", variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const mask = (val: string) =>
     val ? val.slice(0, 4) + "•".repeat(Math.max(0, val.length - 8)) + val.slice(-4) : "—";
 
@@ -86,15 +116,29 @@ export function GmailCredentialsCard({
             )}
           </div>
           {!editing ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setEditing(true)}
-              className="text-gray-400 hover:text-white hover:bg-gray-800"
-            >
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
+            <div className="flex items-center gap-2">
+              {isConfigured && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleTest}
+                  disabled={testing}
+                  className="text-gray-400 hover:text-cyan-400 hover:bg-gray-800"
+                >
+                  {testing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FlaskConical className="h-4 w-4 mr-1" />}
+                  Test
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditing(true)}
+                className="text-gray-400 hover:text-white hover:bg-gray-800"
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            </div>
           ) : (
             <Button
               variant="ghost"
