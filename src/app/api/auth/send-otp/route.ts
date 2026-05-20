@@ -23,6 +23,102 @@ function getOrCreateOAuth2Client(clientId: string, clientSecret: string, refresh
   return client;
 }
 
+async function sendOtpEmail(
+  to: string,
+  code: string,
+  creds: { GMAIL_EMAIL_USER: string; GMAIL_CLIENT_ID: string; GMAIL_CLIENT_SECRET: string; GMAIL_REFRESH_TOKEN: string }
+) {
+  const { GMAIL_EMAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = creds;
+
+  let oauth2Client = getOrCreateOAuth2Client(GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN);
+
+  // Warm up access token with retry
+  let tokenReady = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await oauth2Client.getAccessToken();
+      tokenReady = true;
+      break;
+    } catch (err: any) {
+      cachedOAuth2Client = null;
+      cachedOAuth2Key = "";
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, attempt * 500));
+        oauth2Client = getOrCreateOAuth2Client(GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN);
+      } else {
+        const msg = err?.message ?? String(err);
+        const isExpired = msg.includes("invalid_grant") || msg.includes("Token has been expired");
+        throw new Error(
+          isExpired
+            ? "Gmail refresh token is expired or revoked. Go to Settings → Credentials and generate a new refresh token from OAuth Playground."
+            : `Gmail auth failed: ${msg}`
+        );
+      }
+    }
+  }
+  if (!tokenReady) throw new Error("Could not obtain Gmail access token");
+
+  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+  const { renderEmail, plainTextToHtml } = await import("@/lib/email-templates/render");
+  const { subject, body } = await renderEmail("OTP", {
+    OTP: code,
+    EXPIRY_MINUTES: 30,
+    USER_EMAIL: to,
+  });
+
+  const htmlBody = plainTextToHtml(body).replace(
+    new RegExp(code, "g"),
+    `<strong style="font-size:20px;letter-spacing:3px;color:#1d4ed8;">${code}</strong>`,
+  );
+
+  const branding = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
+  const companyName = branding?.name || "HR Portal";
+
+  const rawEmail = [
+    `From: ${companyName} <${GMAIL_EMAIL_USER}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/html; charset=utf-8",
+    "",
+    htmlBody,
+  ].join("\r\n");
+
+  const encodedMessage = Buffer.from(rawEmail)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  let lastErr: any;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await gmail.users.messages.send({
+        userId: "me",
+        requestBody: { raw: encodedMessage },
+      });
+      console.log(`[send-otp] Email sent to ${to}`);
+      return;
+    } catch (err: any) {
+      lastErr = err;
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, attempt * 1000));
+        if (err?.code === 401 || err?.message?.includes("invalid_grant")) {
+          try {
+            oauth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
+            await oauth2Client.getAccessToken();
+          } catch {
+            cachedOAuth2Client = null;
+            cachedOAuth2Key = "";
+          }
+        }
+      }
+    }
+  }
+  throw new Error(`Gmail send failed: ${lastErr?.message ?? lastErr}`);
+}
+
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
 
@@ -72,120 +168,29 @@ export async function POST(req: NextRequest) {
     const { GMAIL_EMAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = creds;
 
     if (!GMAIL_EMAIL_USER || !GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
-      // OTP stored but email not configured — admin needs to set up Gmail credentials
+      console.error("[send-otp] Gmail credentials not configured in CompanyCredential table");
       return NextResponse.json({
-        success: true,
-        message: "OTP generated. Email delivery requires Gmail credentials to be configured in Settings → Credentials.",
-        emailConfigured: false,
-      });
+        success: false,
+        error: "Email is not configured on this server. Please contact the administrator.",
+      }, { status: 503 });
     }
 
-    // Return 200 immediately — email sent in background (avoids OAuth cold-start delay)
-    const response = NextResponse.json({
-      success: true,
-      message: "OTP has been sent to your email address",
-      emailConfigured: true,
+    await sendOtpEmail(normalizedEmail, code, {
+      GMAIL_EMAIL_USER,
+      GMAIL_CLIENT_ID,
+      GMAIL_CLIENT_SECRET,
+      GMAIL_REFRESH_TOKEN,
     });
 
-    // Fire-and-forget: send OTP email asynchronously
-    (async () => {
-      try {
-        let oauth2Client = getOrCreateOAuth2Client(GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN);
-
-        // Warm up access token with retry (avoids first-attempt failure after cold start)
-        let tokenReady = false;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            await oauth2Client.getAccessToken();
-            tokenReady = true;
-            break;
-          } catch {
-            cachedOAuth2Client = null;
-            cachedOAuth2Key = "";
-            if (attempt < 3) {
-              await new Promise((r) => setTimeout(r, attempt * 500));
-              oauth2Client = getOrCreateOAuth2Client(GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN);
-            }
-          }
-        }
-        if (!tokenReady) {
-          console.error("[send-otp] Gmail OAuth token could not be obtained after 3 attempts — check refresh token in Settings → Credentials");
-          return;
-        }
-
-        const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-        // Render OTP email from the (possibly user-customised) EmailTemplate.
-        const { renderEmail, plainTextToHtml } = await import("@/lib/email-templates/render");
-        const { subject, body } = await renderEmail("OTP", {
-          OTP: code,
-          EXPIRY_MINUTES: 30,
-          USER_EMAIL: email,
-        });
-
-        // Highlight the OTP code in the HTML rendering so it pops visually.
-        const htmlBody = plainTextToHtml(body).replace(
-          new RegExp(code, "g"),
-          `<strong style="font-size:20px;letter-spacing:3px;color:#1d4ed8;">${code}</strong>`,
-        );
-
-        const branding = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-        const companyName = branding?.name || "HR Portal";
-
-        const rawEmail = [
-          `From: ${companyName} <${GMAIL_EMAIL_USER}>`,
-          `To: ${email}`,
-          `Subject: ${subject}`,
-          "MIME-Version: 1.0",
-          "Content-Type: text/html; charset=utf-8",
-          "",
-          htmlBody,
-        ].join("\r\n");
-
-        const encodedMessage = Buffer.from(rawEmail)
-          .toString("base64")
-          .replace(/\+/g, "-")
-          .replace(/\//g, "_")
-          .replace(/=+$/, "");
-
-        let sendError: any = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            await gmail.users.messages.send({
-              userId: "me",
-              requestBody: { raw: encodedMessage },
-            });
-            sendError = null;
-            console.log(`[send-otp] Email sent to ${normalizedEmail}`);
-            break;
-          } catch (err: any) {
-            sendError = err;
-            if (attempt < 3) {
-              await new Promise((r) => setTimeout(r, attempt * 1000));
-              if (err?.code === 401 || err?.message?.includes("invalid_grant")) {
-                try {
-                  oauth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
-                  await oauth2Client.getAccessToken();
-                } catch {
-                  cachedOAuth2Client = null;
-                  cachedOAuth2Key = "";
-                }
-              }
-            }
-          }
-        }
-        if (sendError) {
-          console.error("[send-otp] Gmail send failed after 3 attempts:", sendError?.message ?? sendError);
-        }
-      } catch (err: any) {
-        console.error("[send-otp] Background email error:", err?.message ?? err);
-      }
-    })();
-
-    return response;
+    return NextResponse.json({
+      success: true,
+      message: "OTP has been sent to your email address",
+    });
   } catch (err: any) {
+    const message = err?.message || "Failed to send OTP";
+    console.error("[send-otp] Error:", message);
     return NextResponse.json(
-      { success: false, error: err.message || "Failed to send OTP" },
+      { success: false, error: message },
       { status: 500 }
     );
   }
