@@ -146,7 +146,7 @@ async function main() {
 
   // Create Admin User
   console.log("Creating admin user...");
-  const seedPassword = process.env.SEED_PASSWORD || "123456";
+  const seedPassword = process.env.SEED_PASSWORD || "Password123";
   const hashedPassword = await bcrypt.hash(seedPassword, 12);
 
   const adminUser = await prisma.user.upsert({
