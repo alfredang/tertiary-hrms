@@ -14,22 +14,22 @@ const MIME_TO_EXT: Record<string, string> = {
 
 const ALLOWED_MIMES = new Set(Object.keys(MIME_TO_EXT));
 
-// PDF magic bytes: %PDF (hex 25 50 44 46)
-const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+const MAGIC = {
+  pdf:  Buffer.from([0x25, 0x50, 0x44, 0x46]),       // %PDF
+  jpeg: Buffer.from([0xff, 0xd8, 0xff]),              // JPEG SOI
+  png:  Buffer.from([0x89, 0x50, 0x4e, 0x47]),        // \x89PNG
+  gif:  Buffer.from([0x47, 0x49, 0x46, 0x38]),        // GIF8
+  riff: Buffer.from([0x52, 0x49, 0x46, 0x46]),        // RIFF (WebP container)
+};
 
-async function detectMimeFromBuffer(buffer: Buffer): Promise<string | null> {
-  // Use file-type for binary detection (ESM dynamic import)
-  const { fileTypeFromBuffer } = await import("file-type");
-  const detected = await fileTypeFromBuffer(buffer);
-  if (detected && ALLOWED_MIMES.has(detected.mime)) {
-    return detected.mime;
-  }
-
-  // Fallback: check PDF magic bytes manually (file-type may miss PDFs with BOM)
-  if (buffer.length >= 4 && buffer.subarray(0, 4).equals(PDF_MAGIC)) {
-    return "application/pdf";
-  }
-
+function detectMimeFromBuffer(buffer: Buffer): string | null {
+  if (buffer.length < 4) return null;
+  if (buffer.subarray(0, 4).equals(MAGIC.pdf))  return "application/pdf";
+  if (buffer.subarray(0, 3).equals(MAGIC.jpeg)) return "image/jpeg";
+  if (buffer.subarray(0, 4).equals(MAGIC.png))  return "image/png";
+  if (buffer.subarray(0, 4).equals(MAGIC.gif))  return "image/gif";
+  if (buffer.length >= 12 && buffer.subarray(0, 4).equals(MAGIC.riff) &&
+      buffer.subarray(8, 12).toString("ascii") === "WEBP") return "image/webp";
   return null;
 }
 
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     // Second-pass: validate actual file content via magic bytes
-    const detectedMime = await detectMimeFromBuffer(buffer);
+    const detectedMime = detectMimeFromBuffer(buffer);
     if (!detectedMime) {
       return NextResponse.json(
         { error: "File content does not match an allowed type" },
