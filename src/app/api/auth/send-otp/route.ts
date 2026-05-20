@@ -150,8 +150,13 @@ export async function POST(req: NextRequest) {
       data: { email: normalizedEmail, code, expiresAt: new Date(Date.now() + 30 * 60 * 1000) },
     });
 
-    // Try SMTP first, then Gmail OAuth
-    const smtpSent = await sendViaSmtp(normalizedEmail, code);
+    // Try SMTP first (if configured), fall back to Gmail OAuth
+    let smtpSent = false;
+    try {
+      smtpSent = await sendViaSmtp(normalizedEmail, code);
+    } catch (smtpErr: any) {
+      console.warn("[send-otp] SMTP failed, trying Gmail OAuth:", smtpErr?.message);
+    }
     if (!smtpSent) {
       // Fall back to Gmail OAuth
       const credRows = await prisma.companyCredential.findMany({

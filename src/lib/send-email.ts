@@ -82,23 +82,27 @@ export async function sendEmail({
   const companyName = settings?.name || "HR Portal";
   const ccList = Array.isArray(cc) ? cc : cc ? [cc] : [];
 
-  // ── Try SMTP first (simpler, no token expiry) ────────────────────────────
+  // ── Try SMTP first (if configured); fall back to Gmail OAuth on failure ──
   const smtpTransport = getSmtpTransport();
   if (smtpTransport) {
-    const fromAddr = process.env.SMTP_FROM || process.env.SMTP_USER || "";
-    await smtpTransport.sendMail({
-      from: `${companyName} <${fromAddr}>`,
-      to,
-      cc: ccList.length ? ccList.join(", ") : undefined,
-      subject,
-      html,
-      attachments: attachments?.map((a) => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: a.contentType,
-      })),
-    });
-    return;
+    try {
+      const fromAddr = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+      await smtpTransport.sendMail({
+        from: `${companyName} <${fromAddr}>`,
+        to,
+        cc: ccList.length ? ccList.join(", ") : undefined,
+        subject,
+        html,
+        attachments: attachments?.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        })),
+      });
+      return;
+    } catch (smtpErr: any) {
+      console.warn("[send-email] SMTP failed, trying Gmail OAuth:", smtpErr?.message);
+    }
   }
 
   // ── Fall back to Gmail OAuth ─────────────────────────────────────────────
