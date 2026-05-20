@@ -43,33 +43,49 @@ const FALLBACK_APPROVERS = ["tansc@tertiaryinfotech.com"];
 const ALWAYS_CC = ["angch@tertiaryinfotech.com"];
 
 async function getApproverEmails(employeeId?: string): Promise<{ to: string[]; cc: string[] }> {
-  // Prefer the employee's managers if set
+  const recipients = new Set<string>();
+
+  // Always include users with ADMIN or HR role
+  const adminUsers = await prisma.user.findMany({
+    where: { roles: { hasSome: ["ADMIN", "HR"] } },
+    select: { email: true },
+  });
+  for (const u of adminUsers) {
+    if (u.email) recipients.add(u.email.toLowerCase());
+  }
+
+  // Also include the employee's direct manager if set
   if (employeeId) {
     const emp = await prisma.employee.findUnique({
       where: { id: employeeId },
       select: { managerId: true },
     });
-    const ids = emp?.managerId ? [emp.managerId] : [];
-    if (ids.length) {
-      const managers = await prisma.employee.findMany({
-        where: { id: { in: ids } },
+    if (emp?.managerId) {
+      const manager = await prisma.employee.findUnique({
+        where: { id: emp.managerId },
         select: { email: true },
       });
-      const to = managers.map((m) => m.email).filter(Boolean);
-      if (to.length) {
-        return { to, cc: ALWAYS_CC.filter((c) => !to.includes(c)) };
-      }
+      if (manager?.email) recipients.add(manager.email.toLowerCase());
     }
   }
 
-  // Fall back to CompanySettings.approvalEmails, then hard-coded default
+  // Also include CompanySettings.approvalEmails
   const settings = await prisma.companySettings.findUnique({
     where: { id: "company_settings" },
     select: { approvalEmails: true },
   });
-  const configured = (settings?.approvalEmails ?? []).filter(Boolean);
-  const to = configured.length ? configured : FALLBACK_APPROVERS;
-  return { to, cc: ALWAYS_CC.filter((c) => !to.includes(c)) };
+  for (const email of settings?.approvalEmails ?? []) {
+    if (email) recipients.add(email.toLowerCase());
+  }
+
+  // Fall back to hard-coded defaults if nothing found
+  if (recipients.size === 0) {
+    for (const email of FALLBACK_APPROVERS) recipients.add(email);
+  }
+
+  const toList = Array.from(recipients);
+  const ccList = ALWAYS_CC.filter((c) => !recipients.has(c.toLowerCase()));
+  return { to: toList, cc: ccList };
 }
 
 function buildActionButtonsHtml(acceptUrl: string, declineUrl: string): string {

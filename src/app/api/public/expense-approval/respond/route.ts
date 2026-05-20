@@ -95,6 +95,7 @@ export async function GET(req: NextRequest) {
           AMOUNT: Number(claim.amount).toFixed(2),
           EXPENSE_DATE: claim.expenseDate.toISOString().slice(0, 10),
           DESCRIPTION: claim.description,
+          APPROVER_NAME: "HR",
         },
       });
     }

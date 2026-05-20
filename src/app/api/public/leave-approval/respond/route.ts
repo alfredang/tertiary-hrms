@@ -139,6 +139,7 @@ export async function GET(req: NextRequest) {
           START_DATE: leave.startDate.toISOString().slice(0, 10),
           END_DATE: leave.endDate.toISOString().slice(0, 10),
           DAYS: String(Number(leave.days)),
+          APPROVER_NAME: "HR",
         },
       });
     }
