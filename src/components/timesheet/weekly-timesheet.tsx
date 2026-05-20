@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Save, Loader2, Lock, Clock, Sun } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Loader2, Lock, Clock, Sun, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DayEntry {
@@ -10,6 +10,7 @@ interface DayEntry {
   isWeekend: boolean;
   isPublicHoliday: boolean;
   phName: string | null;
+  isOnLeave: boolean;
   hours: number;
   otCredited: number;
   isEditable: boolean;
@@ -22,7 +23,6 @@ interface WeekData {
 }
 
 function getMonday(d: Date): string {
-  // Use UTC to avoid local-timezone day shifts
   const day = d.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
   const mon = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + diff));
@@ -72,6 +72,7 @@ export function WeeklyTimesheet() {
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const fetchWeek = useCallback(async (ws: string) => {
     setLoading(true);
@@ -83,7 +84,6 @@ export function WeeklyTimesheet() {
       const initial: Record<string, number> = {};
       for (const day of d.days) initial[day.date] = day.hours;
       setDraft(initial);
-      // Start in edit mode only if no hours have been saved yet for this week
       const hasEntries = d.days.some((day) => day.hours > 0);
       setIsEditing(!hasEntries && !d.isLocked);
     } finally {
@@ -103,8 +103,9 @@ export function WeeklyTimesheet() {
   const isCurrentWeek = weekStart === currentWeekStart;
   const isFutureWeek = weekStart > currentWeekStart;
 
-  const handleSave = async () => {
+  const doSave = async () => {
     if (!data || data.isLocked) return;
+    setShowConfirm(false);
     setSaving(true);
     setSavedMsg("");
     try {
@@ -148,6 +149,32 @@ export function WeeklyTimesheet() {
 
   return (
     <div className="space-y-5">
+      {/* Confirmation dialog */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-white font-semibold text-base">Save timesheet?</h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  Once saved, <strong className="text-white">you will not be able to edit today&apos;s entry again</strong> after 10:00 PM SGT. Please make sure your hours are correct before confirming.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-1">
+              <Button variant="ghost" size="sm" onClick={() => setShowConfirm(false)}>
+                Go Back
+              </Button>
+              <Button size="sm" onClick={doSave} disabled={saving}>
+                {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                Confirm &amp; Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Week navigation */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
@@ -249,6 +276,11 @@ export function WeeklyTimesheet() {
                         Weekend
                       </span>
                     )}
+                    {day.isOnLeave && (
+                      <span className="hidden sm:inline text-[10px] font-semibold px-1.5 py-0.5 rounded border text-purple-400 bg-purple-950/30 border-purple-800/40">
+                        On Leave
+                      </span>
+                    )}
                   </div>
 
                   {/* Hours — edit buttons only for editable days, read-only otherwise */}
@@ -278,20 +310,26 @@ export function WeeklyTimesheet() {
                     <div
                       className="flex items-center gap-2 group"
                       onDoubleClick={() => { if (day.isEditable) setIsEditing(true); }}
-                      title={day.isEditable ? "Double-click to edit" : "Available to edit after 11:30 AM"}
+                      title={
+                        day.isOnLeave
+                          ? "Auto-set to 0 hours (on approved leave)"
+                          : day.isEditable
+                          ? "Double-click to edit"
+                          : "Editable between 11:30 AM – 10:00 PM SGT"
+                      }
                     >
                       <span className={`text-sm font-semibold min-w-[32px]
-                        ${hours === 0 ? "text-gray-600" : isOtDay ? "text-emerald-400" : "text-white"}
+                        ${day.isOnLeave ? "text-purple-500" : hours === 0 ? "text-gray-600" : isOtDay ? "text-emerald-400" : "text-white"}
                       `}>
-                        {hours === 0 ? "—" : `${hours}h`}
+                        {day.isOnLeave ? "0h" : hours === 0 ? "—" : `${hours}h`}
                       </span>
-                      {hours > 0 && (
+                      {!day.isOnLeave && hours > 0 && (
                         <span className="text-xs text-gray-600">
                           {hours === 8 ? "Full day" : "Half day"}
                         </span>
                       )}
-                      {!day.isEditable && !data.isLocked && (
-                        <span title="Available after 11:30 AM">
+                      {!day.isOnLeave && !day.isEditable && !data.isLocked && (
+                        <span title="Editable between 11:30 AM – 10:00 PM SGT">
                           <Lock className="h-3 w-3 text-gray-700" />
                         </span>
                       )}
@@ -338,7 +376,6 @@ export function WeeklyTimesheet() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      // reset draft to saved values
                       const reset: Record<string, number> = {};
                       for (const day of data.days) reset[day.date] = day.hours;
                       setDraft(reset);
@@ -348,7 +385,7 @@ export function WeeklyTimesheet() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleSave} disabled={saving} size="sm">
+                  <Button onClick={() => setShowConfirm(true)} disabled={saving} size="sm">
                     {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
                     Save Timesheet
                   </Button>
@@ -360,7 +397,7 @@ export function WeeklyTimesheet() {
           {/* OT info note */}
           {!data.isLocked && isEditing && (
             <p className="text-xs text-gray-600">
-              Hours logged on weekends and public holidays automatically accrue OT leave (4h = 0.5 day, 8h = 1 day).
+              Hours can be edited between 11:30 AM – 10:00 PM SGT. Hours logged on weekends and public holidays automatically accrue OT leave (4h = 0.5 day, 8h = 1 day).
             </p>
           )}
         </>

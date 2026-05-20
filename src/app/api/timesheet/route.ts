@@ -29,12 +29,14 @@ function isWeekendUTC(d: Date): boolean {
   return day === 0 || day === 6;
 }
 
-// A day becomes editable after 11:30 AM SGT (= 03:30 UTC) of that day.
+// A day is editable between 11:30 AM SGT (03:30 UTC) and 10:00 PM SGT (14:00 UTC).
 // dateStr is "YYYY-MM-DD" in the SGT calendar day.
 function isDayEditable(dateStr: string): boolean {
   const [y, m, d] = dateStr.split("-").map(Number);
-  const unlockUTC = Date.UTC(y, m - 1, d, 3, 30); // 11:30 AM SGT = 03:30 UTC
-  return Date.now() >= unlockUTC;
+  const unlockUTC = Date.UTC(y, m - 1, d, 3, 30);  // 11:30 AM SGT = 03:30 UTC
+  const lockUTC   = Date.UTC(y, m - 1, d, 14, 0);  // 10:00 PM SGT = 14:00 UTC
+  const now = Date.now();
+  return now >= unlockUTC && now < lockUTC;
 }
 
 function otForHours(hours: number): number {
@@ -76,17 +78,36 @@ export async function GET(req: Request) {
 
   const weekEnd = days[6];
 
-  const [entries, holidays] = await Promise.all([
+  const employeeId = session.user.employeeId;
+
+  const [entries, holidays, approvedLeaves] = await Promise.all([
     prisma.timesheetEntry.findMany({
-      where: {
-        employeeId: session.user.employeeId,
-        date: { gte: weekStart, lte: weekEnd },
-      },
+      where: { employeeId, date: { gte: weekStart, lte: weekEnd } },
     }),
     prisma.publicHoliday.findMany({
       where: { date: { gte: weekStart, lte: weekEnd }, countryCode: "SG" },
     }),
+    prisma.leaveRequest.findMany({
+      where: {
+        employeeId,
+        status: "APPROVED",
+        startDate: { lte: weekEnd },
+        endDate: { gte: weekStart },
+      },
+      select: { startDate: true, endDate: true },
+    }),
   ]);
+
+  // Build set of dates covered by approved leave
+  const leaveCoveredDates = new Set<string>();
+  for (const lr of approvedLeaves) {
+    let cur = new Date(Date.UTC(lr.startDate.getUTCFullYear(), lr.startDate.getUTCMonth(), lr.startDate.getUTCDate()));
+    const end = new Date(Date.UTC(lr.endDate.getUTCFullYear(), lr.endDate.getUTCMonth(), lr.endDate.getUTCDate()));
+    while (cur <= end) {
+      leaveCoveredDates.add(cur.toISOString().slice(0, 10));
+      cur = new Date(cur.getTime() + 86400000);
+    }
+  }
 
   const entryMap = new Map(entries.map((e) => [fmtKey(e.date), e]));
   const holidayMap = new Map(holidays.map((h) => [fmtKey(h.date), h.name]));
@@ -99,16 +120,19 @@ export async function GET(req: Request) {
       const key = fmtKey(d);
       const entry = entryMap.get(key);
       const phName = holidayMap.get(key) ?? null;
+      const isOnLeave = leaveCoveredDates.has(key);
       return {
         date: key,
         dayName: DAY_NAMES[d.getUTCDay()],
         isWeekend: isWeekendUTC(d),
         isPublicHoliday: !!phName,
         phName,
-        hours: entry ? Number(entry.hours) : 0,
+        isOnLeave,
+        // Leave days are auto-zero; don't override a saved entry
+        hours: isOnLeave ? 0 : (entry ? Number(entry.hours) : 0),
         otCredited: entry ? Number(entry.otCredited) : 0,
-        // Locked weeks are never editable; for current week, each day unlocks after 23:30 SGT
-        isEditable: !isLocked && isDayEditable(key),
+        // Leave days and locked weeks are never editable; current week unlocks 11:30 AM–10 PM SGT
+        isEditable: !isLocked && !isOnLeave && isDayEditable(key),
       };
     }),
   });
@@ -204,7 +228,7 @@ export async function POST(req: Request) {
       if (!isDayEditable(dateKey)) {
         const prev = Number(existingMap.get(dateKey)?.hours ?? 0);
         if (entry.hours !== prev) {
-          throw new Error(`Day ${dateKey} is not yet editable (unlocks at 11:30 AM SGT)`);
+          throw new Error(`Day ${dateKey} is not editable (open 11:30 AM – 10:00 PM SGT)`);
         }
         continue;
       }
