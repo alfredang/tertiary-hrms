@@ -1,5 +1,30 @@
 import { google } from "googleapis";
 import { prisma } from "./prisma";
+import nodemailer from "nodemailer";
+
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
+// ── SMTP transport (nodemailer) ──────────────────────────────────────────────
+
+function getSmtpTransport() {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+
+  return nodemailer.createTransport({
+    host,
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: { user, pass },
+  });
+}
+
+// ── Gmail OAuth transport ────────────────────────────────────────────────────
 
 let cachedClient: InstanceType<typeof google.auth.OAuth2> | null = null;
 let cachedKey = "";
@@ -20,7 +45,7 @@ async function getGmailClient() {
   const GMAIL_REFRESH_TOKEN = creds["GMAIL_REFRESH_TOKEN"] || process.env.GMAIL_REFRESH_TOKEN || "";
 
   if (!GMAIL_EMAIL_USER || !GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
-    throw new Error("Gmail credentials not configured. Add GMAIL_* env vars in Coolify or go to Settings → Credentials.");
+    return null;
   }
 
   const key = `${GMAIL_CLIENT_ID}:${GMAIL_REFRESH_TOKEN}`;
@@ -38,11 +63,7 @@ async function getGmailClient() {
   return { client: cachedClient, senderEmail: GMAIL_EMAIL_USER };
 }
 
-export interface EmailAttachment {
-  filename: string;
-  content: Buffer;
-  contentType: string;
-}
+// ── Public sendEmail ─────────────────────────────────────────────────────────
 
 export async function sendEmail({
   to,
@@ -59,15 +80,41 @@ export async function sendEmail({
 }) {
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
   const companyName = settings?.name || "HR Portal";
-
-  const { client, senderEmail } = await getGmailClient();
-
   const ccList = Array.isArray(cc) ? cc : cc ? [cc] : [];
+
+  // ── Try SMTP first (simpler, no token expiry) ────────────────────────────
+  const smtpTransport = getSmtpTransport();
+  if (smtpTransport) {
+    const fromAddr = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+    await smtpTransport.sendMail({
+      from: `${companyName} <${fromAddr}>`,
+      to,
+      cc: ccList.length ? ccList.join(", ") : undefined,
+      subject,
+      html,
+      attachments: attachments?.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      })),
+    });
+    return;
+  }
+
+  // ── Fall back to Gmail OAuth ─────────────────────────────────────────────
+  const gmailAuth = await getGmailClient();
+  if (!gmailAuth) {
+    throw new Error(
+      "Email not configured. Add SMTP_HOST/SMTP_USER/SMTP_PASS env vars in Coolify, or configure Gmail OAuth in Settings → Credentials."
+    );
+  }
+
+  const { client, senderEmail } = gmailAuth;
   const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 
   let raw: string;
   if (!hasAttachments) {
-    const headers = [
+    raw = [
       `From: ${companyName} <${senderEmail}>`,
       `To: ${to}`,
       ...(ccList.length ? [`Cc: ${ccList.join(", ")}`] : []),
@@ -76,8 +123,7 @@ export async function sendEmail({
       "Content-Type: text/html; charset=utf-8",
       "",
       html,
-    ];
-    raw = headers.join("\r\n");
+    ].join("\r\n");
   } else {
     const boundary = `=_Part_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
     const lines: string[] = [
@@ -109,12 +155,7 @@ export async function sendEmail({
     raw = lines.join("\r\n");
   }
 
-  const encoded = Buffer.from(raw)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
+  const encoded = Buffer.from(raw).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const gmail = google.gmail({ version: "v1", auth: client });
   await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } });
 }
