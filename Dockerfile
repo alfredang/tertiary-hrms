@@ -42,6 +42,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apk add --no-cache su-exec
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
@@ -56,15 +58,13 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
 
-# Create writable uploads directory for runtime file uploads
-RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads && chmod 700 /app/uploads
-
-USER nextjs
+# uploads dir created at startup (see CMD below — root fixes perms, then drops to nextjs)
 
 EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Run db push at startup (when DATABASE_URL is available) then start the server
-CMD ["sh", "-c", "node_modules/.bin/prisma db push --accept-data-loss --skip-generate 2>&1 || echo '[startup] db push failed (non-fatal), starting server anyway'; node server.js"]
+# Run as root so we can fix the uploads volume permissions (Coolify mounts volumes as root).
+# After fixing perms we exec the server as the unprivileged nextjs user.
+CMD ["sh", "-c", "mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads && chmod 750 /app/uploads; node_modules/.bin/prisma db push --accept-data-loss --skip-generate 2>&1 || echo '[startup] db push failed (non-fatal), starting server anyway'; exec su-exec nextjs node server.js"]
