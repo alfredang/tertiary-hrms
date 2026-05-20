@@ -132,10 +132,10 @@ export async function PATCH(
       if (personalInfo?.email && personalInfo.email !== employee.email) {
         userUpdates.email = personalInfo.email;
       }
-      if (roles && JSON.stringify(roles.sort()) !== JSON.stringify([...(employee.user.roles ?? [])].sort())) {
+      if (roles && JSON.stringify(roles.sort()) !== JSON.stringify([...((employee.user?.roles) ?? [])].sort())) {
         userUpdates.roles = roles;
       }
-      if (Object.keys(userUpdates).length > 0) {
+      if (Object.keys(userUpdates).length > 0 && employee.userId) {
         await tx.user.update({
           where: { id: employee.userId },
           data: userUpdates,
