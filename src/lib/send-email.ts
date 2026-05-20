@@ -13,9 +13,14 @@ async function getGmailClient() {
   const creds: Record<string, string> = {};
   for (const r of rows) creds[r.keyName] = r.keyValue;
 
-  const { GMAIL_EMAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = creds;
+  // DB-stored credentials take priority; fall back to environment variables
+  const GMAIL_EMAIL_USER    = creds["GMAIL_EMAIL_USER"]    || process.env.GMAIL_EMAIL_USER    || "";
+  const GMAIL_CLIENT_ID     = creds["GMAIL_CLIENT_ID"]     || process.env.GMAIL_CLIENT_ID     || "";
+  const GMAIL_CLIENT_SECRET = creds["GMAIL_CLIENT_SECRET"] || process.env.GMAIL_CLIENT_SECRET || "";
+  const GMAIL_REFRESH_TOKEN = creds["GMAIL_REFRESH_TOKEN"] || process.env.GMAIL_REFRESH_TOKEN || "";
+
   if (!GMAIL_EMAIL_USER || !GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
-    throw new Error("Gmail credentials not configured. Go to Settings → Credentials to set them up.");
+    throw new Error("Gmail credentials not configured. Add GMAIL_* env vars in Coolify or go to Settings → Credentials.");
   }
 
   const key = `${GMAIL_CLIENT_ID}:${GMAIL_REFRESH_TOKEN}`;

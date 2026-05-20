@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
       data: { email: normalizedEmail, code, expiresAt },
     });
 
-    // Read Gmail OAuth credentials from CompanyCredential table
+    // Read Gmail OAuth credentials — DB first, fall back to environment variables
     const credRows = await prisma.companyCredential.findMany({
       where: {
         keyName: {
@@ -165,7 +165,10 @@ export async function POST(req: NextRequest) {
     const creds: Record<string, string> = {};
     for (const r of credRows) creds[r.keyName] = r.keyValue;
 
-    const { GMAIL_EMAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = creds;
+    const GMAIL_EMAIL_USER    = creds["GMAIL_EMAIL_USER"]    || process.env.GMAIL_EMAIL_USER    || "";
+    const GMAIL_CLIENT_ID     = creds["GMAIL_CLIENT_ID"]     || process.env.GMAIL_CLIENT_ID     || "";
+    const GMAIL_CLIENT_SECRET = creds["GMAIL_CLIENT_SECRET"] || process.env.GMAIL_CLIENT_SECRET || "";
+    const GMAIL_REFRESH_TOKEN = creds["GMAIL_REFRESH_TOKEN"] || process.env.GMAIL_REFRESH_TOKEN || "";
 
     if (!GMAIL_EMAIL_USER || !GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
       console.error("[send-otp] Gmail credentials not configured in CompanyCredential table");
