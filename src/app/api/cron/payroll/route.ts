@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculatePayroll, prorateMonthlySalary } from "@/lib/cpf-calculator";
 import { uploadPayslipToDrive } from "@/lib/payslip-drive";
+import { emailPayslipToEmployee } from "@/lib/payslip-email";
 
 // Auto-generate payroll on the 28th of each month
 // Can be triggered by external scheduler or manually
@@ -125,6 +126,12 @@ export async function GET(req: NextRequest) {
           await uploadPayslipToDrive(created.id);
         } catch (err) {
           console.error(`Drive upload failed for payslip ${created.id}:`, err);
+        }
+
+        try {
+          await emailPayslipToEmployee(created.id);
+        } catch (err) {
+          console.error(`Payslip email failed for ${created.id}:`, err);
         }
 
         results.created++;
