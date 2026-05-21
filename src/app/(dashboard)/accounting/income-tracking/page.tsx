@@ -109,6 +109,7 @@ export default async function IncomeTrackingPage({
         titleLabel="Customer Name"
         showGst={false}
         showReceiptNo
+        showReceivePayment
         direction="CREDIT"
         emptyText="No income matches the current filters."
       />

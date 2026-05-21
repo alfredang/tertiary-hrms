@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Trash2, Send } from "lucide-react";
+import { Loader2, Trash2, Send, CreditCard } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 type Row = {
@@ -51,6 +51,7 @@ export function TransactionsTable({
   showCategory = false,
   showReceiptNo = false,
   showGenerateExpense = false,
+  showReceivePayment = false,
   paymentRefLabel = "Bank Ref",
   invoiceNoLabel = "Invoice No",
   direction = "DEBIT",
@@ -62,6 +63,7 @@ export function TransactionsTable({
   showCategory?: boolean;
   showReceiptNo?: boolean;
   showGenerateExpense?: boolean;
+  showReceivePayment?: boolean;
   paymentRefLabel?: string;
   invoiceNoLabel?: string;
   direction?: "DEBIT" | "CREDIT";
@@ -73,9 +75,13 @@ export function TransactionsTable({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [generateErrors, setGenerateErrors] = useState<Record<string, string>>({});
+  const [receivingIds, setReceivingIds] = useState<Set<string>>(new Set());
+  const [receiveErrors, setReceiveErrors] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkReceiving, setBulkReceiving] = useState(false);
 
+  const showQbAction = showGenerateExpense || showReceivePayment;
   const storageKey = `acct-cols-v3-${direction}`;
   const [widths, setWidths] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -153,6 +159,41 @@ export function TransactionsTable({
     }
     setSelectedIds(new Set());
     setBulkGenerating(false);
+  }
+
+  async function receiveOnePayment(rowId: string): Promise<boolean> {
+    setReceivingIds((s) => new Set(s).add(rowId));
+    setReceiveErrors((e) => { const { [rowId]: _, ...rest } = e; return rest; });
+    try {
+      const res = await fetch("/api/accounting/transactions/receive-payment", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: rowId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to receive payment in QB");
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === rowId ? { ...r, status: "Settled", qbExpenseNo: data.qbPaymentNo ?? "" } : r,
+        ),
+      );
+      return true;
+    } catch (err: any) {
+      setReceiveErrors((e) => ({ ...e, [rowId]: err.message ?? "QB error" }));
+      return false;
+    } finally {
+      setReceivingIds((s) => { const next = new Set(s); next.delete(rowId); return next; });
+    }
+  }
+
+  async function bulkReceivePayments() {
+    if (selectedPending.length === 0) return;
+    setBulkReceiving(true);
+    for (const id of selectedPending) {
+      await receiveOnePayment(id);
+    }
+    setSelectedIds(new Set());
+    setBulkReceiving(false);
   }
 
   async function deleteRow(rowId: string) {
@@ -237,6 +278,20 @@ export function TransactionsTable({
               Generate QB Expense{selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}
             </button>
           )}
+          {showReceivePayment && selectedPending.length > 0 && (
+            <button
+              onClick={bulkReceivePayments}
+              disabled={bulkReceiving}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-60 text-white transition-colors"
+            >
+              {bulkReceiving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CreditCard className="h-3.5 w-3.5" />
+              )}
+              Receive Payment{selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}
+            </button>
+          )}
         </div>
         <p className="text-sm text-gray-300">
           Total <span className="font-semibold text-white">{formatCurrency(total)}</span>
@@ -249,14 +304,14 @@ export function TransactionsTable({
           style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}
         >
           <colgroup>
-            {showGenerateExpense && <col style={{ width: "40px" }} />}
+            {showQbAction && <col style={{ width: "40px" }} />}
             <Col id="title" widths={widths} defaultW={360} />
             <Col id="paymentDate" widths={widths} defaultW={150} />
             <Col id="amount" widths={widths} defaultW={110} />
             {showGst && <Col id="gstIncluded" widths={widths} defaultW={80} />}
             <Col id="paymentType" widths={widths} defaultW={140} />
             {showCategory && <Col id="type" widths={widths} defaultW={150} />}
-            {showGenerateExpense && <Col id="qbExpenseNo" widths={widths} defaultW={120} />}
+            {showQbAction && <Col id="qbExpenseNo" widths={widths} defaultW={140} />}
             <Col id="paymentRef" widths={widths} defaultW={160} />
             <Col id="invoiceNo" widths={widths} defaultW={200} />
             {showReceiptNo && <Col id="receiptNo" widths={widths} defaultW={180} />}
@@ -267,7 +322,7 @@ export function TransactionsTable({
 
           <thead className="bg-gray-900 text-gray-400">
             <tr>
-              {showGenerateExpense && (
+              {showQbAction && (
                 <th className="p-3">
                   <input
                     type="checkbox"
@@ -301,9 +356,9 @@ export function TransactionsTable({
                   Category
                 </ResizableTh>
               )}
-              {showGenerateExpense && (
-                <ResizableTh id="qbExpenseNo" widths={widths} setWidth={setWidth} defaultW={120}>
-                  Bill No
+              {showQbAction && (
+                <ResizableTh id="qbExpenseNo" widths={widths} setWidth={setWidth} defaultW={140}>
+                  {showReceivePayment ? "QB Payment" : "Bill No"}
                 </ResizableTh>
               )}
               <ResizableTh id="paymentRef" widths={widths} setWidth={setWidth} defaultW={160}>
@@ -333,6 +388,7 @@ export function TransactionsTable({
               const errorOf = (f: string) => errors[`${r.id}:${f}`];
               const isPending = r.status === "Pending" && !r.qbExpenseNo;
               const isGenerating = generatingIds.has(r.id);
+              const isReceiving = receivingIds.has(r.id);
 
               return (
                 <tr
@@ -343,7 +399,7 @@ export function TransactionsTable({
                   }
                 >
                   {/* Checkbox */}
-                  {showGenerateExpense && (
+                  {showQbAction && (
                     <td className="p-3 text-center align-middle">
                       {isPending ? (
                         <input
@@ -445,12 +501,13 @@ export function TransactionsTable({
                     </td>
                   )}
 
-                  {/* Bill No — QB expense number, read-only */}
-                  {showGenerateExpense && (
+                  {/* QB reference — Bill No (expense) or QB Payment (income), read-only */}
+                  {showQbAction && (
                     <td className="p-2 align-middle">
-                      {isGenerating ? (
+                      {(isGenerating || isReceiving) ? (
                         <span className="flex items-center gap-1 text-xs text-gray-400">
-                          <Loader2 className="h-3 w-3 animate-spin" /> Sending…
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          {isReceiving ? "Processing…" : "Sending…"}
                         </span>
                       ) : r.qbExpenseNo ? (
                         <span className="text-green-400 text-xs font-mono">{r.qbExpenseNo}</span>
@@ -458,6 +515,7 @@ export function TransactionsTable({
                         <span className="text-gray-600 text-xs">—</span>
                       )}
                       {generateErrors[r.id] && <ErrText msg={generateErrors[r.id]!} />}
+                      {receiveErrors[r.id] && <ErrText msg={receiveErrors[r.id]!} />}
                     </td>
                   )}
 

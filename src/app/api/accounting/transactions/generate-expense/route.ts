@@ -3,98 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
+import {
+  getQBCreds,
+  getQBAccessToken,
+  qboBase,
+  qbQuery,
+  qbCreate,
+  findPaymentMethod,
+} from "@/lib/qb-api";
 
 export const dynamic = "force-dynamic";
-
-const QBO_BASE_URL = "https://quickbooks.api.intuit.com";
-const QBO_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
-const MINOR_VERSION = "75";
-
-interface QBCreds {
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
-  realmId: string;
-}
-
-async function getQBCreds(): Promise<QBCreds | null> {
-  const rows = await prisma.companyCredential.findMany({
-    where: {
-      keyName: {
-        in: ["QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET", "QUICKBOOKS_REFRESH_TOKEN", "QUICKBOOKS_REALM_ID"],
-      },
-    },
-  });
-  const map: Record<string, string> = {};
-  for (const r of rows) map[r.keyName] = r.keyValue;
-  const { QUICKBOOKS_CLIENT_ID, QUICKBOOKS_CLIENT_SECRET, QUICKBOOKS_REFRESH_TOKEN, QUICKBOOKS_REALM_ID } = map;
-  if (!QUICKBOOKS_CLIENT_ID || !QUICKBOOKS_CLIENT_SECRET || !QUICKBOOKS_REFRESH_TOKEN || !QUICKBOOKS_REALM_ID) {
-    return null;
-  }
-  return {
-    clientId: QUICKBOOKS_CLIENT_ID,
-    clientSecret: QUICKBOOKS_CLIENT_SECRET,
-    refreshToken: QUICKBOOKS_REFRESH_TOKEN,
-    realmId: QUICKBOOKS_REALM_ID,
-  };
-}
-
-async function getAccessToken(creds: QBCreds): Promise<string> {
-  const basic = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString("base64");
-  const res = await fetch(QBO_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${basic}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json",
-    },
-    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(creds.refreshToken)}`,
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`QB token refresh failed: ${res.status} — ${text.slice(0, 200)}`);
-  const data = JSON.parse(text);
-  if (data.refresh_token && data.refresh_token !== creds.refreshToken) {
-    await prisma.companyCredential.upsert({
-      where: { keyName: "QUICKBOOKS_REFRESH_TOKEN" },
-      update: { keyValue: data.refresh_token },
-      create: { keyName: "QUICKBOOKS_REFRESH_TOKEN", keyValue: data.refresh_token },
-    });
-  }
-  return data.access_token as string;
-}
-
-async function qbQuery(base: string, token: string, query: string): Promise<any> {
-  const url = `${base}/query?query=${encodeURIComponent(query)}&minorversion=${MINOR_VERSION}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`QB query failed ${res.status}: ${text.slice(0, 200)}`);
-  return JSON.parse(text);
-}
-
-async function qbCreate(base: string, token: string, entity: string, body: object): Promise<any> {
-  const url = `${base}/${entity}?minorversion=${MINOR_VERSION}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    let msg = `QB error ${res.status}`;
-    try {
-      const parsed = JSON.parse(text);
-      msg = parsed?.Fault?.Error?.[0]?.Message ?? msg;
-    } catch { /* keep default msg */ }
-    throw new Error(msg);
-  }
-  return JSON.parse(text);
-}
 
 const QB_PAYMENT_TYPE: Record<string, string> = {
   CC: "CreditCard",
@@ -107,29 +25,6 @@ function toQbPaymentType(t: string): string {
   return QB_PAYMENT_TYPE[t] ?? "Cash";
 }
 
-// Maps HRMS payment type → QB PaymentMethod name keywords (in priority order)
-const PAYMENT_METHOD_KEYWORDS: Record<string, string[]> = {
-  "CC":           ["Credit Card", "Visa", "Master", "Amex", "AMEX"],
-  "Credit Card":  ["Credit Card", "Visa", "Master", "Amex", "AMEX"],
-  "PayNow":       ["PayNow", "Pay Now", "Bank Transfer", "FAST"],
-  "GIRO":         ["GIRO", "Bank Transfer", "EFT"],
-  "Bank Transfer":["Bank Transfer", "FAST", "EFT", "Electronic"],
-  "Cash":         ["Cash"],
-  "Cheque":       ["Cheque", "Check", "POSB"],
-  "Check":        ["Cheque", "Check", "POSB"],
-  "DBS Business Debit Card": ["DBS Business", "DBS Debit", "Debit Card", "DBS"],
-};
-
-function findPaymentMethod(methods: any[], hrmsType: string): any | null {
-  const keywords = PAYMENT_METHOD_KEYWORDS[hrmsType] ?? [hrmsType];
-  for (const kw of keywords) {
-    const found = methods.find((m: any) =>
-      String(m.Name ?? "").toLowerCase().includes(kw.toLowerCase()),
-    );
-    if (found) return found;
-  }
-  return null;
-}
 
 const CATEGORY_ACCOUNT: Record<string, string[]> = {
   "Trainer Fee":      ["Trainer Fee", "Trainer Fees", "Professional Fees", "Subcontractors"],
@@ -214,8 +109,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const token = await getAccessToken(creds);
-    const base = `${QBO_BASE_URL}/v3/company/${creds.realmId}`;
+    const token = await getQBAccessToken(creds);
+    const base = qboBase(creds.realmId);
 
     // Fetch bank accounts, expense accounts, and payment methods from QB in parallel
     const [bankRes, expRes, pmRes] = await Promise.all([
