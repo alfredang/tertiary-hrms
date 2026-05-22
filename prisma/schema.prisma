@@ -196,18 +196,19 @@ model LeaveRequest {
 }
 
 model LeaveType {
-  id            String         @id @default(cuid())
-  name          String         @unique
-  code          String         @unique
-  description   String?
-  defaultDays   Int
-  carryOver     Boolean        @default(false)
-  maxCarryOver  Int            @default(0)
-  paid          Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  leaveBalances LeaveBalance[]
-  leaveRequests LeaveRequest[]
+  id                String         @id @default(cuid())
+  name              String         @unique
+  code              String         @unique
+  description       String?
+  defaultDays       Int
+  internDefaultDays Int            @default(0)
+  carryOver         Boolean        @default(false)
+  maxCarryOver      Int            @default(0)
+  paid              Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  leaveBalances     LeaveBalance[]
+  leaveRequests     LeaveRequest[]
 }
 
 model Payslip {

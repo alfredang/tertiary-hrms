@@ -32,6 +32,7 @@ import {
   Stethoscope,
   ClipboardList,
   FolderOpen,
+  FileSliders,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -103,6 +104,7 @@ const navigation: NavItem[] = [
           href: `/settings/email-templates/${k.toLowerCase().replace(/_/g, "-")}`,
         })),
       },
+      { name: "Leave Policy", href: "/settings/leave-policy", icon: FileSliders },
       { name: "Webhooks", href: "/settings/webhooks", icon: Webhook },
       { name: "Payslip Template", href: "/settings/payslip-template", icon: DollarSign },
       { name: "Cron Jobs", href: "/settings/cron-jobs", icon: Clock },

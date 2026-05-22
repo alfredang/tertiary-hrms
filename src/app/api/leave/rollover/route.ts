@@ -30,12 +30,6 @@ export async function POST(request: Request) {
   const targetYear = fromYear + 1;
 
   try {
-    // Ensure AL has carryOver: true
-    await prisma.leaveType.updateMany({
-      where: { code: "AL" },
-      data: { carryOver: true, maxCarryOver: 0 },
-    });
-
     // Get all active employees
     const employees = await prisma.employee.findMany({
       where: { status: "ACTIVE" },
@@ -63,9 +57,10 @@ export async function POST(request: Request) {
         const entitlement = Number(bal.entitlement);
         const used = Number(bal.used);
         const pending = Number(bal.pending);
-        const unused = Math.max(0, entitlement - used);
+        // Only carry forward fresh entitlement remainder — carriedOver days expire after 1 year
+        const freshUnused = Math.max(0, entitlement - used);
         const maxCarry = bal.leaveType.maxCarryOver;
-        const carryAmount = maxCarry > 0 ? Math.min(unused, maxCarry) : unused;
+        const carryAmount = maxCarry > 0 ? Math.min(freshUnused, maxCarry) : freshUnused;
 
         let warning: string | undefined;
         if (pending > 0) {

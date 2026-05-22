@@ -166,23 +166,15 @@ export function hasAdminAccess(role: string | null | undefined): boolean {
 }
 
 /**
- * Yearly AL entitlement based on completed years of service at Jan 1 of forYear.
- *   < 1 completed year → 12 days  (1 day/month, eligible after 6 months service)
- *   1 completed year   → 13 days
- *   2+ completed years → 14 days  (cap)
+ * Yearly AL entitlement — flat value from company policy (configurable via leave settings).
+ * The defaultDays parameter should come from the AL LeaveType record (default 7).
  */
 export function computeYearlyEntitlement(
-  startDate: Date,
-  forYear: number = new Date().getFullYear(),
+  _startDate: Date,
+  _forYear: number = new Date().getFullYear(),
+  defaultDays: number = 7,
 ): number {
-  const yearStart = new Date(forYear, 0, 1);
-  if (startDate >= yearStart) return 12;
-  const monthsAtJan1 =
-    (yearStart.getFullYear() - startDate.getFullYear()) * 12 +
-    (yearStart.getMonth() - startDate.getMonth());
-  if (monthsAtJan1 >= 24) return 14;
-  if (monthsAtJan1 >= 12) return 13;
-  return 12;
+  return defaultDays;
 }
 
 /**
@@ -193,26 +185,24 @@ export function computeYearlyEntitlement(
 export function computeAlFullEntitlement(
   startDate: Date | string | null | undefined,
   monthlyLeaveRate?: number | null,
+  annualDays: number = 7,
 ): number {
-  if (!startDate) return 12;
-  const start = typeof startDate === "string" ? new Date(startDate) : startDate;
-  const yearly = computeYearlyEntitlement(start);
+  if (!startDate) return annualDays;
   if (monthlyLeaveRate != null && monthlyLeaveRate < 12) return monthlyLeaveRate;
-  return yearly;
+  return annualDays;
 }
 
 /**
  * Prorated leave for the current year.
  *
  * When useALRules = true (Annual Leave):
- *   - No accrual until employee has completed 6 months total service
- *   - Yearly entitlement scales with seniority: 12 → 13 → 14 days (cap)
- *   - Accrues at entitlement/12 per month once eligible
+ *   - Accrues at annualEntitlement/12 per month from month 1
+ *   - Rounded UP to the nearest whole day: ceil((annualEntitlement / 12) * monthsElapsed)
+ *   - e.g. February = ceil((7/12) * 1) = 1 day
  *
  * When useALRules = false (MC and other leave types):
  *   - Simple proration: annualEntitlement × elapsed months / 12
- *
- * Rounded to nearest 0.5 day.
+ *   - Rounded to nearest 0.5 day
  */
 export function prorateLeave(
   annualEntitlement: number,
@@ -225,6 +215,9 @@ export function prorateLeave(
   const yearStart = new Date(currentYear, 0, 1);
 
   if (!employeeStartDate) {
+    if (useALRules) {
+      return Math.min(Math.ceil((annualEntitlement * (now.getMonth() + 1)) / 12), annualEntitlement);
+    }
     return roundToHalf((annualEntitlement * (now.getMonth() + 1)) / 12);
   }
 
@@ -237,31 +230,22 @@ export function prorateLeave(
 
   // Annual Leave rules
   if (useALRules) {
-    const totalMonthsService =
-      (now.getFullYear() - startDate.getFullYear()) * 12 +
-      (now.getMonth() - startDate.getMonth()) + 1;
-
-    // Day-based elapsed time (matches the period breakdown table)
     const effectiveStart = startDate > yearStart ? startDate : yearStart;
     const daysElapsed = (now.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24);
     const monthsElapsed = daysElapsed / 30.44;
     if (monthsElapsed <= 0) return 0;
 
     if (monthlyLeaveRate != null && monthlyLeaveRate < 6) {
-      // Short contract (< 6 months): accrue 1 day/month up to admin-set total
-      return Math.min(roundToHalf(monthsElapsed), monthlyLeaveRate);
+      // Short contract (< 6 months): 1 day/month up to admin-set total
+      return Math.min(Math.ceil(monthsElapsed), monthlyLeaveRate);
     }
 
-    // Long contract (>= 6 months), FT, or no rate set: accrue from month 1, no waiting period
-    const yearlyEntitlement = computeYearlyEntitlement(startDate, currentYear);
-    const accrued = (yearlyEntitlement / 12) * monthsElapsed;
-    // Cap at monthlyLeaveRate when it's a fixed contract (< 12 days total)
-    const cap = monthlyLeaveRate != null && monthlyLeaveRate < 12 ? monthlyLeaveRate : yearlyEntitlement;
-    return Math.min(roundToHalf(accrued), cap);
+    const accrued = (annualEntitlement / 12) * monthsElapsed;
+    const cap = monthlyLeaveRate != null && monthlyLeaveRate < 12 ? monthlyLeaveRate : annualEntitlement;
+    return Math.min(Math.ceil(accrued), cap);
   }
 
-  // Standard proration (MC and other leave types)
-  // Fixed-term contracts >= 10 months: cap MC at 12 days (no proration)
+  // Standard proration (MC and other leave types) — round to nearest 0.5
   if (monthlyLeaveRate != null && monthlyLeaveRate >= 10) return Math.min(annualEntitlement, 12);
   const effectiveStart = startDate > yearStart ? startDate : yearStart;
   const elapsed = now.getMonth() - effectiveStart.getMonth() + 1;
