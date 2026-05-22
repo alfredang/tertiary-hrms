@@ -41,5 +41,39 @@ export async function PATCH(req: NextRequest) {
   }
 
   const updated = await prisma.leaveType.update({ where: { id }, data });
+
+  // Immediately propagate entitlement changes to all active employees' current-year balances
+  if (typeof defaultDays === "number" || typeof internDefaultDays === "number") {
+    const currentYear = new Date().getFullYear();
+    const staffDays = updated.defaultDays;
+    const internDays = updated.internDefaultDays > 0 ? updated.internDefaultDays : updated.defaultDays;
+
+    // Update all active non-intern staff
+    await prisma.leaveBalance.updateMany({
+      where: {
+        leaveTypeId: id,
+        year: currentYear,
+        employee: {
+          status: "ACTIVE",
+          employmentType: { not: "INTERN" },
+        },
+      },
+      data: { entitlement: staffDays },
+    });
+
+    // Update interns
+    await prisma.leaveBalance.updateMany({
+      where: {
+        leaveTypeId: id,
+        year: currentYear,
+        employee: {
+          status: "ACTIVE",
+          employmentType: "INTERN",
+        },
+      },
+      data: { entitlement: internDays },
+    });
+  }
+
   return NextResponse.json(updated);
 }

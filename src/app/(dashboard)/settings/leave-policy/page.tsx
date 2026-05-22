@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
 
 interface LeaveType {
   id: string;
@@ -29,12 +25,22 @@ const CODE_LABEL: Record<string, string> = {
   MC: "Medical Leave",
   CL: "Compassionate Leave",
   NPL: "No Pay Leave",
-  AL_OT: "Accumulated Leave (OT)",
 };
 
 const READONLY_CODES = new Set(["AL_OT"]);
 
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-gray-400">{label}</p>
+      {children}
+      {hint && <p className="text-xs text-gray-600">{hint}</p>}
+    </div>
+  );
+}
+
 export default function LeavePolicyPage() {
+  const { toast } = useToast();
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -43,13 +49,14 @@ export default function LeavePolicyPage() {
   useEffect(() => {
     fetch("/api/settings/leave-types")
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: LeaveType[]) => {
         setLeaveTypes(data);
         const initial: Record<string, Partial<LeaveType>> = {};
         for (const lt of data) initial[lt.id] = { ...lt };
         setEdits(initial);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   function update(id: string, field: keyof LeaveType, value: unknown) {
@@ -66,19 +73,22 @@ export default function LeavePolicyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: lt.id,
-          defaultDays: patch.defaultDays,
-          internDefaultDays: patch.internDefaultDays,
+          defaultDays: Number(patch.defaultDays),
+          internDefaultDays: Number(patch.internDefaultDays),
           carryOver: patch.carryOver,
-          maxCarryOver: patch.maxCarryOver,
+          maxCarryOver: Number(patch.maxCarryOver),
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
       const updated = await res.json();
       setLeaveTypes((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       setEdits((prev) => ({ ...prev, [updated.id]: { ...updated } }));
-      toast.success(`${lt.name} updated`);
-    } catch {
-      toast.error("Failed to save changes");
+      toast({ title: "Saved", description: `${lt.name} policy updated successfully.` });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e?.message ?? "Unknown error", variant: "destructive" });
     } finally {
       setSaving(null);
     }
@@ -86,138 +96,130 @@ export default function LeavePolicyPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-gray-400 h-6 w-6" />
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="animate-spin text-gray-500 h-6 w-6" />
       </div>
     );
   }
+
+  const visible = leaveTypes.filter((lt) => !READONLY_CODES.has(lt.code));
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-white">Leave Policy</h2>
         <p className="text-sm text-gray-400 mt-1">
-          Configure default entitlements, intern allocations, and carry-forward rules.
-          Changes apply to new employees and future rollover cycles — existing balances are not retroactively adjusted.
+          Set entitlements and carry-forward rules per leave type. Changes apply to new employees and future year-end rollovers only — existing balances are unaffected.
         </p>
       </div>
 
-      <div className="grid gap-4">
-        {leaveTypes
-          .filter((lt) => !READONLY_CODES.has(lt.code))
-          .map((lt) => {
-            const patch = edits[lt.id] ?? lt;
-            const isSaving = saving === lt.id;
-
-            return (
-              <Card key={lt.id} className="bg-gray-900 border-gray-700">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-base text-white">
-                      {CODE_LABEL[lt.code] ?? lt.name}
-                    </CardTitle>
-                    <Badge variant={lt.paid ? "default" : "secondary"} className="text-xs">
-                      {lt.paid ? "Paid" : "Unpaid"}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">
-                      {lt.code}
-                    </Badge>
-                  </div>
-                  {lt.description && (
-                    <p className="text-xs text-gray-500">{lt.description}</p>
-                  )}
-                </CardHeader>
-
-                <Separator className="bg-gray-700" />
-
-                <CardContent className="pt-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-400">Staff Default (days/year)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={365}
-                        value={patch.defaultDays ?? lt.defaultDays}
-                        onChange={(e) => update(lt.id, "defaultDays", Number(e.target.value))}
-                        className="bg-gray-800 border-gray-600 text-white h-8 text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-400">
-                        Intern Default (days/year)
-                        <span className="ml-1 text-gray-600">0 = same as staff</span>
-                      </Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={365}
-                        value={patch.internDefaultDays ?? lt.internDefaultDays}
-                        onChange={(e) => update(lt.id, "internDefaultDays", Number(e.target.value))}
-                        className="bg-gray-800 border-gray-600 text-white h-8 text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-400">Max Carry-Forward (days)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={365}
-                        disabled={!(patch.carryOver ?? lt.carryOver)}
-                        value={patch.carryOver ?? lt.carryOver ? (patch.maxCarryOver ?? lt.maxCarryOver) : 0}
-                        onChange={(e) => update(lt.id, "maxCarryOver", Number(e.target.value))}
-                        className="bg-gray-800 border-gray-600 text-white h-8 text-sm disabled:opacity-40"
-                      />
-                      <p className="text-xs text-gray-600">0 = unlimited</p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-400">Allow Carry-Forward</Label>
-                      <div className="flex items-center gap-2 h-8">
-                        <Switch
-                          checked={patch.carryOver ?? lt.carryOver}
-                          onCheckedChange={(v) => update(lt.id, "carryOver", v)}
-                        />
-                        <span className="text-xs text-gray-400">
-                          {patch.carryOver ?? lt.carryOver ? "Yes" : "No"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600">Unused days roll to next year only</p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      onClick={() => save(lt)}
-                      disabled={isSaving}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                      ) : (
-                        <Save className="h-3.5 w-3.5 mr-1.5" />
-                      )}
-                      Save
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+      {/* Proration note */}
+      <div className="rounded-lg border border-blue-800 bg-blue-950/40 px-4 py-3 text-xs text-blue-300">
+        <span className="font-semibold">Proration:</span> Annual leave accrues as{" "}
+        <code className="bg-blue-900/60 px-1 rounded">ceil(days / 12 × months worked)</code>.
+        Example — Feb join = ceil(7 ÷ 12 × 1) = <strong>1 day</strong>.
+        Carried-forward days expire after <strong>1 year</strong> and cannot roll again.
       </div>
 
-      <Card className="bg-gray-900 border-gray-700 border-dashed">
-        <CardContent className="py-4">
-          <p className="text-xs text-gray-500">
-            <strong className="text-gray-400">Proration rule:</strong> Annual leave is prorated as{" "}
-            <code className="bg-gray-800 px-1 rounded">ceil(staffDays / 12 × months worked)</code>.
-            Carried-forward days expire after one year (they are not rolled forward again).
-          </p>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        {visible.map((lt) => {
+          const patch = edits[lt.id] ?? lt;
+          const isSaving = saving === lt.id;
+          const carryOn = !!(patch.carryOver ?? lt.carryOver);
+
+          return (
+            <Card key={lt.id} className="bg-gray-900 border-gray-700">
+              <CardContent className="p-0">
+                {/* Header row */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-white text-sm">
+                      {CODE_LABEL[lt.code] ?? lt.name}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full border border-gray-600 text-gray-400">
+                      {lt.code}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${lt.paid ? "bg-emerald-900 text-emerald-300" : "bg-gray-800 text-gray-400"}`}>
+                      {lt.paid ? "Paid" : "Unpaid"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Fields */}
+                <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-5">
+                  <Field label="Staff days / year">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={365}
+                      value={patch.defaultDays ?? lt.defaultDays}
+                      onChange={(e) => update(lt.id, "defaultDays", e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white h-9"
+                    />
+                  </Field>
+
+                  <Field label="Intern days / year" hint="0 = same as staff">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={365}
+                      value={patch.internDefaultDays ?? lt.internDefaultDays}
+                      onChange={(e) => update(lt.id, "internDefaultDays", e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white h-9"
+                    />
+                  </Field>
+
+                  <Field label="Max carry-forward days" hint="0 = unlimited">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={365}
+                      disabled={!carryOn}
+                      value={carryOn ? (patch.maxCarryOver ?? lt.maxCarryOver) : 0}
+                      onChange={(e) => update(lt.id, "maxCarryOver", e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white h-9 disabled:opacity-40"
+                    />
+                  </Field>
+
+                  <Field label="Carry-forward" hint="Unused days roll to next year">
+                    <button
+                      type="button"
+                      onClick={() => update(lt.id, "carryOver", !carryOn)}
+                      className={`w-full h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-between px-3 ${
+                        carryOn
+                          ? "bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
+                          : "bg-gray-800 border-gray-600 text-gray-400 hover:bg-gray-700"
+                      }`}
+                    >
+                      <span>{carryOn ? "Enabled" : "Disabled"}</span>
+                      {carryOn ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
+                  </Field>
+                </div>
+
+                {/* Footer */}
+                <div className="px-5 pb-4 flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => save(lt)}
+                    disabled={isSaving}
+                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[80px]"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5 mr-1.5" />
+                        Save
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
