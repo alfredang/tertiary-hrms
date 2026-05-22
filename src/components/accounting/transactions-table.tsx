@@ -311,7 +311,6 @@ export function TransactionsTable({
             {showGst && <Col id="gstIncluded" widths={widths} defaultW={80} />}
             <Col id="paymentType" widths={widths} defaultW={140} />
             {showCategory && <Col id="type" widths={widths} defaultW={150} />}
-            {showQbAction && <Col id="qbExpenseNo" widths={widths} defaultW={140} />}
             <Col id="paymentRef" widths={widths} defaultW={160} />
             <Col id="invoiceNo" widths={widths} defaultW={200} />
             {showReceiptNo && <Col id="receiptNo" widths={widths} defaultW={180} />}
@@ -354,11 +353,6 @@ export function TransactionsTable({
               {showCategory && (
                 <ResizableTh id="type" widths={widths} setWidth={setWidth} defaultW={150}>
                   Category
-                </ResizableTh>
-              )}
-              {showQbAction && (
-                <ResizableTh id="qbExpenseNo" widths={widths} setWidth={setWidth} defaultW={140}>
-                  {showReceivePayment ? "QB Payment" : "Bill No"}
                 </ResizableTh>
               )}
               <ResizableTh id="paymentRef" widths={widths} setWidth={setWidth} defaultW={160}>
@@ -501,23 +495,6 @@ export function TransactionsTable({
                     </td>
                   )}
 
-                  {/* QB reference — Bill No (expense) or QB Payment (income), read-only */}
-                  {showQbAction && (
-                    <td className="p-2 align-middle">
-                      {(isGenerating || isReceiving) ? (
-                        <span className="flex items-center gap-1 text-xs text-gray-400">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          {isReceiving ? "Processing…" : "Sending…"}
-                        </span>
-                      ) : r.qbExpenseNo ? (
-                        <span className="text-green-400 text-xs font-mono">{r.qbExpenseNo}</span>
-                      ) : (
-                        <span className="text-gray-600 text-xs">—</span>
-                      )}
-                      {generateErrors[r.id] && <ErrText msg={generateErrors[r.id]!} />}
-                      {receiveErrors[r.id] && <ErrText msg={receiveErrors[r.id]!} />}
-                    </td>
-                  )}
 
                   {/* Bank Ref */}
                   <td className="p-2 font-mono overflow-hidden">
@@ -559,17 +536,26 @@ export function TransactionsTable({
 
                   {/* Status */}
                   <td className="p-2">
-                    <SelectCell
-                      value={r.status}
-                      options={STATUSES}
-                      onChange={(v) => {
-                        setField(r.id, "status", v);
-                        commitField(r.id, "status", v, { refresh: true });
-                      }}
-                      saving={isSaving("status")}
-                      error={errorOf("status")}
-                      tone={r.status === "Settled" ? "green" : "orange"}
-                    />
+                    {(isGenerating || isReceiving) ? (
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {isReceiving ? "Processing…" : "Sending…"}
+                      </span>
+                    ) : (
+                      <SelectCell
+                        value={r.status}
+                        options={STATUSES}
+                        onChange={(v) => {
+                          setField(r.id, "status", v);
+                          commitField(r.id, "status", v, { refresh: true });
+                        }}
+                        saving={isSaving("status")}
+                        error={errorOf("status")}
+                        tone={r.status === "Settled" ? "green" : "orange"}
+                      />
+                    )}
+                    {generateErrors[r.id] && <ErrText msg={generateErrors[r.id]!} />}
+                    {receiveErrors[r.id] && <ErrText msg={receiveErrors[r.id]!} />}
                   </td>
 
                   {/* Remark */}

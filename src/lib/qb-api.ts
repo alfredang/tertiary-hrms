@@ -17,7 +17,29 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 let inflightRefresh: Promise<string> | null = null;
 
 export async function getQBCreds(): Promise<QBCreds | null> {
-  // Try DB first (HRMS CompanyCredential table)
+  // When reference project proxy is configured, only need realmId (used for qboBase fallback)
+  // so return a stub that passes the null-check in callers
+  if (process.env.REFERENCE_PROJECT_URL) {
+    try {
+      const rows = await prisma.companyCredential.findMany({
+        where: { keyName: { in: ["QUICKBOOKS_REALM_ID", "QUICKBOOKS_REFRESH_TOKEN", "QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"] } },
+      });
+      const map: Record<string, string> = {};
+      for (const r of rows) map[r.keyName] = r.keyValue;
+      const realmId = map["QUICKBOOKS_REALM_ID"] || process.env.QBO_REALM_ID || "proxy";
+      // Return minimal creds — token will not be used, proxy handles auth
+      return {
+        clientId: map["QUICKBOOKS_CLIENT_ID"] || "proxy",
+        clientSecret: map["QUICKBOOKS_CLIENT_SECRET"] || "proxy",
+        refreshToken: map["QUICKBOOKS_REFRESH_TOKEN"] || "proxy",
+        realmId,
+      };
+    } catch {
+      return { clientId: "proxy", clientSecret: "proxy", refreshToken: "proxy", realmId: "proxy" };
+    }
+  }
+
+  // Direct QB mode: read full credentials from DB
   try {
     const rows = await prisma.companyCredential.findMany({
       where: {
@@ -43,10 +65,9 @@ export async function getQBCreds(): Promise<QBCreds | null> {
       return { clientId, clientSecret, refreshToken, realmId };
     }
   } catch {
-    // ignore, fall through to env vars
+    // fall through to env vars
   }
 
-  // Fall back to environment variables (same names as reference project)
   const clientId = process.env.QBO_CLIENT_ID;
   const clientSecret = process.env.QBO_CLIENT_SECRET;
   const refreshToken = process.env.QBO_REFRESH_TOKEN;
@@ -60,6 +81,10 @@ export async function getQBCreds(): Promise<QBCreds | null> {
 }
 
 export async function getQBAccessToken(creds: QBCreds): Promise<string> {
+  // When reference project proxy is configured, skip local token management entirely —
+  // the proxy handles auth using the reference project's always-valid credentials.
+  if (process.env.REFERENCE_PROJECT_URL) return "proxy";
+
   if (cachedToken && Date.now() < cachedToken.expiresAt) return cachedToken.token;
   if (inflightRefresh) return inflightRefresh;
 
@@ -84,7 +109,6 @@ export async function getQBAccessToken(creds: QBCreds): Promise<string> {
     let usedRefreshToken = creds.refreshToken;
     let r = await refreshOnce(usedRefreshToken);
 
-    // On invalid_grant, retry with fallback token (matches reference project behaviour)
     if (!r.ok && String(r.data?.error ?? "").toLowerCase() === "invalid_grant" && creds.fallbackRefreshToken) {
       usedRefreshToken = creds.fallbackRefreshToken;
       r = await refreshOnce(usedRefreshToken);
@@ -94,7 +118,6 @@ export async function getQBAccessToken(creds: QBCreds): Promise<string> {
       throw new Error(`QB token refresh failed: ${r.status} — ${r.rawText.slice(0, 200)}`);
     }
 
-    // Persist rotated refresh token back to DB (best-effort)
     if (r.data.refresh_token && r.data.refresh_token !== usedRefreshToken) {
       const newToken: string = r.data.refresh_token;
       try {
@@ -106,7 +129,6 @@ export async function getQBAccessToken(creds: QBCreds): Promise<string> {
       } catch {
         // ignore
       }
-      // Push the new token to the reference project so both apps stay in sync
       pushTokenToReferenceProject(newToken);
     }
 
@@ -125,7 +147,6 @@ export async function getQBAccessToken(creds: QBCreds): Promise<string> {
 }
 
 // Fire-and-forget: push the rotated token to the reference project's sync endpoint.
-// Requires TOKEN_SYNC_SECRET and REFERENCE_PROJECT_URL env vars on the HRMS server.
 function pushTokenToReferenceProject(newToken: string): void {
   const syncUrl = process.env.REFERENCE_PROJECT_URL;
   const secret = process.env.TOKEN_SYNC_SECRET;
@@ -141,37 +162,91 @@ export function qboBase(realmId: string): string {
   return `${QBO_BASE_URL}/v3/company/${realmId}`;
 }
 
-export async function qbQuery(base: string, token: string, query: string): Promise<any> {
-  const url = `${base}/query?query=${encodeURIComponent(query)}&minorversion=${QBO_MINOR_VERSION}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`QB query failed ${res.status}: ${text.slice(0, 200)}`);
-  return JSON.parse(text);
+/**
+ * QBO often returns Message: "A business validation error has occurred..."
+ * while the real reason is in Error[].Detail — surface both.
+ */
+export function formatQboFaultMessage(data: unknown): string {
+  if (!data || typeof data !== "object") return "QuickBooks returned an error with no details";
+  const d = data as Record<string, unknown>;
+  const fault = d.Fault as { Error?: Array<{ Message?: string; Detail?: string; code?: string }> } | undefined;
+  const errors = fault?.Error;
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return (d as { message?: string }).message || JSON.stringify(data).slice(0, 800);
+  }
+  return errors
+    .map((e) => {
+      const parts = [e.Message, e.Detail].filter(Boolean);
+      if (e.code) parts.push(`(code ${e.code})`);
+      return parts.join(" — ");
+    })
+    .join(" | ");
 }
 
-export async function qbCreate(base: string, token: string, entity: string, body: object): Promise<any> {
-  const url = `${base}/${entity}?minorversion=${QBO_MINOR_VERSION}`;
-  const res = await fetch(url, {
-    method: "POST",
+// Direct QB fetch — used when REFERENCE_PROJECT_URL is not configured
+async function qboFetchJson(opts: {
+  token: string;
+  url: string;
+  method?: string;
+  body?: object;
+}): Promise<any> {
+  const res = await fetch(opts.url, {
+    method: opts.method ?? "GET",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${opts.token}`,
       Accept: "application/json",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(body),
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  const text = await res.text();
+  const data = await res.json().catch(() => null);
   if (!res.ok) {
-    let msg = `QB error ${res.status}`;
-    try {
-      const parsed = JSON.parse(text);
-      msg = parsed?.Fault?.Error?.[0]?.Message ?? msg;
-    } catch { /* keep default */ }
-    throw new Error(msg);
+    throw new Error(formatQboFaultMessage(data) || `QB error ${res.status}`);
   }
-  return JSON.parse(text);
+  if (data?.Fault?.Error?.length) {
+    throw new Error(formatQboFaultMessage(data));
+  }
+  return data;
+}
+
+export async function qbQuery(base: string, token: string, query: string): Promise<any> {
+  const refUrl = process.env.REFERENCE_PROJECT_URL;
+  if (refUrl) {
+    // Extract entity name from "SELECT * FROM EntityName WHERE..." for the proxy
+    const entity = (query.match(/FROM\s+(\w+)/i)?.[1] ?? "invoice").toLowerCase();
+    const res = await fetch(`${refUrl}/api/quickbooks/proxy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "query", entity, query }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error ?? `QB proxy error ${res.status}`);
+    }
+    return json.data;
+  }
+  const url = `${base}/query?query=${encodeURIComponent(query)}&minorversion=${QBO_MINOR_VERSION}`;
+  return qboFetchJson({ token, url });
+}
+
+export async function qbCreate(base: string, token: string, entity: string, body: object): Promise<any> {
+  const refUrl = process.env.REFERENCE_PROJECT_URL;
+  if (refUrl) {
+    const res = await fetch(`${refUrl}/api/quickbooks/proxy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "create", entity, body }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      const details = json?.details;
+      const errMsg = details ? formatQboFaultMessage(details) : (json?.error ?? `QB proxy error ${res.status}`);
+      throw new Error(errMsg);
+    }
+    return json.data;
+  }
+  const url = `${base}/${entity}?minorversion=${QBO_MINOR_VERSION}`;
+  return qboFetchJson({ token, url, method: "POST", body });
 }
 
 export const PAYMENT_METHOD_KEYWORDS: Record<string, string[]> = {

@@ -14,11 +14,36 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Extract TC26-XXXX-XXXXXX style invoice number from a string
+// TC invoice pattern — handles hyphens, no-hyphens, and TCS typo; last segment 2–6 chars
+const TC_INVOICE_RE = /TC[A-Z]?\d{2}[-\s]?[\w]{4}[-\s]?[\w]{2,6}/gi;
+
+function normaliseInvoiceNo(raw: string): string {
+  let s = raw.replace(/\s/g, "-").toUpperCase();
+  // Remove accidental extra letter: TCS26-... → TC26-...
+  s = s.replace(/^TC([A-Z])(\d{2}-)/, "TC$2");
+  // Insert hyphens if missing: TC26051130 → TC26-0511-30, TC260516050377 → TC26-0516-050377
+  if (!s.includes("-")) {
+    s = s.replace(/^TC(\d{2})(\w{4})(\w+)/, "TC$1-$2-$3");
+  }
+  return s;
+}
+
+// Extract TC26-XXXX-XXXXXX style invoice number from invoiceNo column, then from title
 function extractInvoiceNo(invoiceNo: string, title: string): string | null {
-  if (invoiceNo?.trim()) return invoiceNo.trim();
-  const match = title.match(/TC\d{2}[-\s]?[\w]{4}[-\s]?[\w]{6}/i);
-  return match ? match[0].replace(/\s/g, "-").toUpperCase() : null;
+  if (invoiceNo?.trim()) return normaliseInvoiceNo(invoiceNo.trim());
+  TC_INVOICE_RE.lastIndex = 0;
+  const match = title?.match(TC_INVOICE_RE);
+  return match ? normaliseInvoiceNo(match[0]) : null;
+}
+
+// Strip any TC invoice number pattern from a title to get the pure customer name portion
+function extractCustomerName(title: string): string {
+  if (!title) return "";
+  TC_INVOICE_RE.lastIndex = 0;
+  return title
+    .replace(TC_INVOICE_RE, "")
+    .replace(/^[\s\-|/\\]+|[\s\-|/\\]+$/g, "")
+    .trim();
 }
 
 // Find QB invoice by DocNumber
@@ -28,19 +53,40 @@ async function findInvoiceByDocNumber(base: string, token: string, docNumber: st
   return res?.QueryResponse?.Invoice?.[0] ?? null;
 }
 
-// Find QB customer by DisplayName — strip one char from the right until match or empty
+// Noise words and tokens that should never be used as customer name fragments
+const NAME_NOISE = new Set([
+  "SGD", "USD", "EUR", "GBP", "AUD", "MYR",
+  "OTHER", "AND", "THE", "FOR", "VIA", "REF",
+  "TRF", "TT", "FAST", "PAYNOW", "GIRO", "ATM",
+  "INWARD", "OUTWARD", "TELEGRAPHIC", "TRANSFER",
+  "PAYMENT", "RECEIPT", "CREDIT", "DEBIT",
+]);
+
+// Find QB customer by DisplayName using a sliding window over cleaned alphabetic words.
+// Handles titles like "Jeffrey teo PIB26... C11... OTHER TEO LENG KWANG JEFFREY 2026..."
+// by removing digit-containing tokens and trying every consecutive-word window (longest first).
 async function findCustomerByName(base: string, token: string, name: string): Promise<any | null> {
-  let search = name.trim();
-  while (search.length > 0) {
-    const safe = search.replace(/'/g, "\\'").replace(/%/g, "\\%");
-    const res = await qbQuery(
-      base,
-      token,
-      `SELECT * FROM Customer WHERE DisplayName LIKE '%${safe}%' MAXRESULTS 5`,
-    );
-    const customers: any[] = res?.QueryResponse?.Customer ?? [];
-    if (customers.length > 0) return customers[0];
-    search = search.slice(0, -1).trimEnd();
+  if (!name || !/[a-zA-Z]/.test(name)) return null;
+
+  // Keep only purely alphabetic tokens of 2+ chars that aren't noise words
+  const words = name.trim().split(/\s+/).filter(
+    (w) => /^[a-zA-Z]+$/.test(w) && w.length >= 2 && !NAME_NOISE.has(w.toUpperCase()),
+  );
+  if (words.length === 0) return null;
+
+  // Try all consecutive-word windows from longest to shortest (min 2 words)
+  for (let size = words.length; size >= 2; size--) {
+    for (let start = 0; start <= words.length - size; start++) {
+      const search = words.slice(start, start + size).join(" ");
+      const safe = search.replace(/'/g, "\\'").replace(/%/g, "\\%");
+      const res = await qbQuery(
+        base,
+        token,
+        `SELECT * FROM Customer WHERE DisplayName LIKE '%${safe}%' MAXRESULTS 5`,
+      );
+      const customers: any[] = res?.QueryResponse?.Customer ?? [];
+      if (customers.length > 0) return customers[0];
+    }
   }
   return null;
 }
@@ -129,7 +175,9 @@ export async function POST(req: NextRequest) {
       qbInvoice = await findInvoiceByDocNumber(base, token, invoiceNo);
     }
     if (!qbInvoice) {
-      const customer = await findCustomerByName(base, token, txn.title);
+      // Use customer name extracted from title (TC invoice pattern removed, skip if purely numeric)
+      const customerName = extractCustomerName(txn.title);
+      const customer = await findCustomerByName(base, token, customerName || txn.title);
       if (customer) {
         qbInvoice = await findInvoiceForCustomer(base, token, String(customer.Id), amount);
       }
@@ -175,8 +223,9 @@ export async function POST(req: NextRequest) {
     // Cap payment to remaining balance to avoid overpayment
     const paymentAmount = Math.min(amount, qbBalance);
 
-    // Reference no: bank ref if available, else invoice number
-    const paymentRefNum = txn.paymentRef?.trim() || invoiceNo || qbInvoice.DocNumber || "";
+    // QB doc_num limit is 21 chars — use bank ref when available, fall back to invoice number
+    const rawRef = txn.paymentRef?.trim() || invoiceNo || qbInvoice.DocNumber || "";
+    const paymentRefNum = rawRef.slice(0, 21);
 
     const qbPaymentMethod = findPaymentMethod(paymentMethods, txn.paymentType);
 

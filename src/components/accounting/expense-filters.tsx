@@ -27,18 +27,22 @@ export const EXPENSE_CATEGORY_OPTIONS = [
 
 export const INCOME_CATEGORY_OPTIONS = ["All", "Income", "Refund", "Other"];
 
+export const INCOME_PAYMENT_TYPE_OPTIONS = ["All", "Bank Transfer", "PayNow", "GIRO", "CC", "Cash", "e-invoice"];
+
 export function ExpenseFilters({
   status,
   category,
   from,
   to,
   categoryOptions = EXPENSE_CATEGORY_OPTIONS,
+  categoryLabel = "Category",
 }: {
   status: string;
   category: string;
   from: string;
   to: string;
   categoryOptions?: string[];
+  categoryLabel?: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -78,7 +82,7 @@ export function ExpenseFilters({
           ))}
         </select>
       </Field>
-      <Field label="Category">
+      <Field label={categoryLabel}>
         <select
           value={category}
           onChange={(e) => update("category", e.target.value)}
