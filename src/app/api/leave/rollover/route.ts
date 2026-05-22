@@ -71,7 +71,7 @@ export async function POST(request: Request) {
           employee: emp.name,
           employeeId: emp.employeeId,
           leaveType: bal.leaveType.code,
-          unused,
+          unused: freshUnused,
           carried: carryAmount,
           warning,
         });
