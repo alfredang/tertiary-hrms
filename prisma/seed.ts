@@ -60,8 +60,8 @@ async function main() {
   });
   const medicalLeave = await prisma.leaveType.upsert({
     where: { code: "MC" },
-    update: { defaultDays: 14 },
-    create: { id: randomUUID(), name: "Medical Leave", code: "MC", defaultDays: 14, description: "Medical leave", carryOver: false },
+    update: { defaultDays: 14, paidDays: 7 },
+    create: { id: randomUUID(), name: "Medical Leave", code: "MC", defaultDays: 14, paidDays: 7, description: "Medical leave", carryOver: false },
   });
   const compassionateLeave = await prisma.leaveType.upsert({
     where: { code: "CL" },

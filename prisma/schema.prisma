@@ -202,6 +202,7 @@ model LeaveType {
   description       String?
   defaultDays       Int
   internDefaultDays Int            @default(0)
+  paidDays          Int            @default(0)
   carryOver         Boolean        @default(false)
   maxCarryOver      Int            @default(0)
   paid              Boolean        @default(true)

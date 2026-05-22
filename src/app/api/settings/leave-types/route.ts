@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { id, defaultDays, internDefaultDays, carryOver, maxCarryOver } = body;
+  const { id, defaultDays, internDefaultDays, paidDays, carryOver, maxCarryOver } = body;
 
   if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -33,6 +33,7 @@ export async function PATCH(req: NextRequest) {
   const data: Record<string, unknown> = {};
   if (typeof defaultDays === "number" && defaultDays >= 0) data.defaultDays = defaultDays;
   if (typeof internDefaultDays === "number" && internDefaultDays >= 0) data.internDefaultDays = internDefaultDays;
+  if (typeof paidDays === "number" && paidDays >= 0) data.paidDays = paidDays;
   if (typeof carryOver === "boolean") data.carryOver = carryOver;
   if (typeof maxCarryOver === "number" && maxCarryOver >= 0) data.maxCarryOver = maxCarryOver;
 

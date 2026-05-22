@@ -14,6 +14,7 @@ interface LeaveType {
   description: string | null;
   defaultDays: number;
   internDefaultDays: number;
+  paidDays: number;
   carryOver: boolean;
   maxCarryOver: number;
   paid: boolean;
@@ -75,6 +76,7 @@ export default function LeavePolicyPage() {
           id: lt.id,
           defaultDays: Number(patch.defaultDays),
           internDefaultDays: Number(patch.internDefaultDays),
+          paidDays: Number(patch.paidDays ?? 0),
           carryOver: patch.carryOver,
           maxCarryOver: Number(patch.maxCarryOver),
         }),
@@ -146,7 +148,7 @@ export default function LeavePolicyPage() {
                 </div>
 
                 {/* Fields */}
-                <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-5">
+                <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-5">
                   <Field label="Staff days / year">
                     <Input
                       type="number"
@@ -168,6 +170,19 @@ export default function LeavePolicyPage() {
                       className="bg-gray-800 border-gray-600 text-white h-9"
                     />
                   </Field>
+
+                  {lt.paid && (
+                    <Field label="Paid days (staff)" hint="0 = all days are paid">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={patch.defaultDays ?? lt.defaultDays}
+                        value={patch.paidDays ?? lt.paidDays}
+                        onChange={(e) => update(lt.id, "paidDays", e.target.value)}
+                        className="bg-gray-800 border-gray-600 text-white h-9"
+                      />
+                    </Field>
+                  )}
 
                   <Field label="Max carry-forward days" hint="0 = unlimited">
                     <Input
