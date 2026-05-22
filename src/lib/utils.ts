@@ -246,7 +246,8 @@ export function prorateLeave(
   }
 
   // Standard proration (MC and other leave types) — round to nearest 0.5
-  if (monthlyLeaveRate != null && monthlyLeaveRate >= 10) return Math.min(annualEntitlement, 12);
+  // Long contracts (10+ months): give full annual entitlement, no proration needed
+  if (monthlyLeaveRate != null && monthlyLeaveRate >= 10) return annualEntitlement;
   const effectiveStart = startDate > yearStart ? startDate : yearStart;
   const elapsed = now.getMonth() - effectiveStart.getMonth() + 1;
   if (elapsed <= 0) return 0;
