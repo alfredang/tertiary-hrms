@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
 
-// Runs at 10:00 UTC = 6:00 PM SGT, Mon–Fri
-// Schedule in Coolify: 0 10 * * 1-5
+// Runs at 09:30 UTC = 5:30 PM SGT, Mon–Fri
+// Schedule in Coolify: 30 9 * * 1-5
 // Header: Authorization: Bearer <CRON_SECRET>
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
