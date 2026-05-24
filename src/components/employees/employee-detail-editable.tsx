@@ -399,9 +399,9 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                 <Badge
                   variant="outline"
                   className={
-                    employee.nationality === "Singaporean"
+                    /^singaporean$/i.test(employee.nationality ?? "")
                       ? "border-green-500 text-green-400 bg-green-950/30"
-                      : employee.nationality === "PR" || employee.nationality === "Permanent Resident"
+                      : /^(PR|permanent resident)$/i.test(employee.nationality ?? "")
                       ? "border-blue-500 text-blue-400 bg-blue-950/30"
                       : "border-amber-500 text-amber-400 bg-amber-950/30"
                   }
