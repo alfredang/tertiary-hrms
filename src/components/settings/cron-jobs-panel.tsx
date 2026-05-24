@@ -26,7 +26,11 @@ export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
   const runNow = async (job: CronJobView) => {
     setRunning(job.id);
     try {
-      const res = await fetch(job.path, { method: job.method });
+      const res = await fetch("/api/cron/run-now", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: job.path, method: job.method }),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
       toast({
