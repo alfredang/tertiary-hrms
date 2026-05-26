@@ -60,6 +60,7 @@ const NAME_NOISE = new Set([
   "TRF", "TT", "FAST", "PAYNOW", "GIRO", "ATM",
   "INWARD", "OUTWARD", "TELEGRAPHIC", "TRANSFER",
   "PAYMENT", "RECEIPT", "CREDIT", "DEBIT",
+  "INVOICE", "BILL", "FROM", "TO", "BY",
 ]);
 
 // Find QB customer by DisplayName using a sliding window over cleaned alphabetic words.
@@ -107,6 +108,29 @@ async function findInvoiceForCustomer(
   if (!invoices.length) return null;
   const exact = invoices.find((inv) => Math.abs(Number(inv.TotalAmt) - amount) < 0.01);
   return exact ?? invoices[0];
+}
+
+// Last-resort fallback: find open invoices by exact amount, disambiguate by name words
+async function findInvoiceByAmountAndName(
+  base: string,
+  token: string,
+  amount: number,
+  nameWords: string[],
+): Promise<any | null> {
+  const res = await qbQuery(
+    base,
+    token,
+    `SELECT * FROM Invoice WHERE Balance > '0' AND TotalAmt = '${amount.toFixed(2)}' MAXRESULTS 20`,
+  );
+  const invoices: any[] = res?.QueryResponse?.Invoice ?? [];
+  if (!invoices.length) return null;
+  if (invoices.length === 1) return invoices[0];
+  // Multiple matches — prefer one whose customer name overlaps with our name words
+  for (const inv of invoices) {
+    const custName = String(inv.CustomerRef?.name ?? "").toUpperCase();
+    if (nameWords.some((w) => custName.includes(w.toUpperCase()))) return inv;
+  }
+  return invoices[0];
 }
 
 async function authorize(): Promise<boolean> {
@@ -169,18 +193,29 @@ export async function POST(req: NextRequest) {
     // 1. Extract invoice number from invoiceNo field or title
     const invoiceNo = extractInvoiceNo(txn.invoiceNo ?? "", txn.title);
 
-    // 2. Find QB Invoice — by DocNumber first, then by customer name
+    // 2. Find QB Invoice — by DocNumber → customer name → amount+name fallback
     let qbInvoice: any = null;
+
+    // Step 1: exact DocNumber match
     if (invoiceNo) {
       qbInvoice = await findInvoiceByDocNumber(base, token, invoiceNo);
     }
+
+    // Step 2: customer name sliding window
     if (!qbInvoice) {
-      // Use customer name extracted from title (TC invoice pattern removed, skip if purely numeric)
       const customerName = extractCustomerName(txn.title);
       const customer = await findCustomerByName(base, token, customerName || txn.title);
       if (customer) {
         qbInvoice = await findInvoiceForCustomer(base, token, String(customer.Id), amount);
       }
+    }
+
+    // Step 3: fallback — search open invoices by exact amount, use name words to pick best match
+    if (!qbInvoice) {
+      const nameWords = (extractCustomerName(txn.title) || txn.title)
+        .split(/\s+/)
+        .filter((w) => /^[a-zA-Z]+$/.test(w) && w.length >= 2 && !NAME_NOISE.has(w.toUpperCase()));
+      qbInvoice = await findInvoiceByAmountAndName(base, token, amount, nameWords);
     }
 
     if (!qbInvoice) {
