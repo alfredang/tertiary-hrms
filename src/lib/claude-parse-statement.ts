@@ -351,8 +351,8 @@ export async function enrichTransactionsWithAgent(
     "  - else Bank Transfer (default for FAST PAYMENT / INWARD TT / REMITTANCE / etc.).",
     "",
     "REFS:",
-    "  - paymentRef: bank ref code (long alphanumeric ≥14 chars). Empty string if none.",
-    "  - invoiceNo: invoice number if visible. Empty string if none.",
+    "  - paymentRef: bank ref code (long alphanumeric ≥14 chars). FTB-XXXX codes go HERE, never in invoiceNo. Empty string if none.",
+    "  - invoiceNo: ONLY TC-format numbers (e.g. TC26-0501-000951). FTB-, PF-, INV-, and words like PAYMENT are NOT invoice numbers — leave empty for those. Empty string if none.",
   ].join("\n");
 
   const userPrompt = [
