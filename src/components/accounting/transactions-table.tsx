@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trash2, Send, CreditCard } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 type Row = {
   id: string;
@@ -69,6 +70,7 @@ export function TransactionsTable({
   direction?: "DEBIT" | "CREDIT";
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [savingKeys, setSavingKeys] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -154,11 +156,21 @@ export function TransactionsTable({
   async function bulkGenerate() {
     if (selectedPending.length === 0) return;
     setBulkGenerating(true);
+    let succeeded = 0;
     for (const id of selectedPending) {
-      await generateOneExpense(id);
+      const ok = await generateOneExpense(id);
+      if (ok) succeeded++;
     }
     setSelectedIds(new Set());
     setBulkGenerating(false);
+    const failed = selectedPending.length - succeeded;
+    toast({
+      title: succeeded > 0 ? "QB Expenses Generated" : "Generation Failed",
+      description: failed === 0
+        ? `${succeeded} expense${succeeded === 1 ? "" : "s"} successfully sent to QuickBooks.`
+        : `${succeeded} succeeded, ${failed} failed — check the error messages on each row.`,
+      variant: failed === selectedPending.length ? "destructive" : "default",
+    });
   }
 
   async function receiveOnePayment(rowId: string): Promise<boolean> {
@@ -189,11 +201,21 @@ export function TransactionsTable({
   async function bulkReceivePayments() {
     if (selectedPending.length === 0) return;
     setBulkReceiving(true);
+    let succeeded = 0;
     for (const id of selectedPending) {
-      await receiveOnePayment(id);
+      const ok = await receiveOnePayment(id);
+      if (ok) succeeded++;
     }
     setSelectedIds(new Set());
     setBulkReceiving(false);
+    const failed = selectedPending.length - succeeded;
+    toast({
+      title: succeeded > 0 ? "Payments Received" : "Processing Failed",
+      description: failed === 0
+        ? `${succeeded} payment${succeeded === 1 ? "" : "s"} successfully received in QuickBooks.`
+        : `${succeeded} succeeded, ${failed} failed — check the error messages on each row.`,
+      variant: failed === selectedPending.length ? "destructive" : "default",
+    });
   }
 
   async function deleteRow(rowId: string) {
