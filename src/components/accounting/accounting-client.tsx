@@ -75,13 +75,20 @@ export function AccountingClient() {
         settledNote = ` — ${saved.skipped} duplicate${saved.skipped === 1 ? "" : "s"} already in HRMS (not yet in QB).`;
       }
 
+      const driveNote = parsed.driveWarning
+        ? ` ⚠️ Google Drive upload failed: ${parsed.driveWarning}`
+        : parsed.driveFileId
+          ? " ✓ Saved to Google Drive."
+          : "";
+
       setSummary(
         `Imported ${file.name}: ` +
           `${saved.saved} new saved` +
           (saved.skipped > 0 ? `, ${saved.skipped} skipped` : "") +
           `. Parsed ${credits} credit${credits === 1 ? "" : "s"} / ${debits} debit${debits === 1 ? "" : "s"}.` +
           settledNote +
-          ` (${verifyNote})`,
+          ` (${verifyNote})` +
+          driveNote,
       );
       router.refresh();
     } catch (err: any) {
