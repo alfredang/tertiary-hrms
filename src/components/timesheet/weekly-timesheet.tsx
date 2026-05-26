@@ -158,7 +158,7 @@ export function WeeklyTimesheet() {
               <div>
                 <h3 className="text-white font-semibold text-base">Save timesheet?</h3>
                 <p className="text-gray-400 text-sm mt-1">
-                  Once saved, <strong className="text-white">you will not be able to edit today&apos;s entry again</strong> after 10:00 PM SGT. Please make sure your hours are correct before confirming.
+                  Once saved, <strong className="text-white">you will not be able to edit today&apos;s entry again</strong> after 11:30 PM SGT. Please make sure your hours are correct before confirming.
                 </p>
               </div>
             </div>
@@ -315,7 +315,7 @@ export function WeeklyTimesheet() {
                           ? "Auto-set to 0 hours (on approved leave)"
                           : day.isEditable
                           ? "Double-click to edit"
-                          : "Editable between 11:30 AM – 10:00 PM SGT"
+                          : "Editable between 11:30 AM – 11:30 PM SGT"
                       }
                     >
                       <span className={`text-sm font-semibold min-w-[32px]
@@ -329,7 +329,7 @@ export function WeeklyTimesheet() {
                         </span>
                       )}
                       {!day.isOnLeave && !day.isEditable && !data.isLocked && (
-                        <span title="Editable between 11:30 AM – 10:00 PM SGT">
+                        <span title="Editable between 11:30 AM – 11:30 PM SGT">
                           <Lock className="h-3 w-3 text-gray-700" />
                         </span>
                       )}
@@ -397,7 +397,7 @@ export function WeeklyTimesheet() {
           {/* OT info note */}
           {!data.isLocked && isEditing && (
             <p className="text-xs text-gray-600">
-              Hours can be edited between 11:30 AM – 10:00 PM SGT. Hours logged on weekends and public holidays automatically accrue OT leave (4h = 0.5 day, 8h = 1 day).
+              Hours can be edited between 11:30 AM – 11:30 PM SGT. Hours logged on weekends and public holidays automatically accrue OT leave (4h = 0.5 day, 8h = 1 day).
             </p>
           )}
         </>

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
 
-// Runs at 09:30 UTC = 5:30 PM SGT, Mon–Fri
-// Schedule in Coolify: 30 9 * * 1-5
+// Runs at 09:30 UTC = 5:30 PM SGT, every day
+// Schedule in Coolify: 30 9 * * *
 // Header: Authorization: Bearer <CRON_SECRET>
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -19,12 +19,6 @@ export async function GET(req: NextRequest) {
   const sgtMs = nowUTC + 8 * 60 * 60 * 1000;
   const sgtDate = new Date(sgtMs);
   const todayKey = sgtDate.toISOString().slice(0, 10); // YYYY-MM-DD in SGT
-
-  // Skip weekends (0=Sun, 6=Sat in SGT)
-  const sgtDay = sgtDate.getUTCDay();
-  if (sgtDay === 0 || sgtDay === 6) {
-    return NextResponse.json({ ok: true, skipped: "weekend" });
-  }
 
   const todayDate = new Date(Date.UTC(
     Number(todayKey.slice(0, 4)),
@@ -89,14 +83,14 @@ export async function GET(req: NextRequest) {
         html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p>Hi ${emp.name},</p>
 <p>This is a reminder that your work hours for today (<strong>${todayKey}</strong>) have not been logged in the HR Portal yet.</p>
-<p>Please enter your hours before <strong>10:00 PM SGT</strong> tonight — the timesheet locks after that and cannot be edited.</p>
+<p>Please enter your hours before <strong>11:30 PM SGT</strong> tonight — the timesheet locks after that and cannot be edited.</p>
 <p style="margin:20px 0;">
   <a href="${siteUrl}/timesheet"
      style="display:inline-block;background:#2563eb;color:#ffffff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-family:Arial,sans-serif;">
     Go to Timesheet
   </a>
 </p>
-<p style="color:#6b7280;font-size:12px;">If you are on leave today, you can ignore this email — your hours will be recorded as 0 automatically.</p>
+<p style="color:#6b7280;font-size:12px;">If today is not a working day for you, please ignore this reminder. If you are on approved leave, your hours will be recorded as 0 automatically.</p>
 <p>— ${companyName}</p>
 </div>`,
       });

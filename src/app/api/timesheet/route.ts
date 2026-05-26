@@ -29,12 +29,12 @@ function isWeekendUTC(d: Date): boolean {
   return day === 0 || day === 6;
 }
 
-// A day is editable between 11:30 AM SGT (03:30 UTC) and 10:00 PM SGT (14:00 UTC).
+// A day is editable between 11:30 AM SGT (03:30 UTC) and 11:30 PM SGT (15:30 UTC).
 // dateStr is "YYYY-MM-DD" in the SGT calendar day.
 function isDayEditable(dateStr: string): boolean {
   const [y, m, d] = dateStr.split("-").map(Number);
   const unlockUTC = Date.UTC(y, m - 1, d, 3, 30);  // 11:30 AM SGT = 03:30 UTC
-  const lockUTC   = Date.UTC(y, m - 1, d, 14, 0);  // 10:00 PM SGT = 14:00 UTC
+  const lockUTC   = Date.UTC(y, m - 1, d, 15, 30); // 11:30 PM SGT = 15:30 UTC
   const now = Date.now();
   return now >= unlockUTC && now < lockUTC;
 }
@@ -228,7 +228,7 @@ export async function POST(req: Request) {
       if (!isDayEditable(dateKey)) {
         const prev = Number(existingMap.get(dateKey)?.hours ?? 0);
         if (entry.hours !== prev) {
-          throw new Error(`Day ${dateKey} is not editable (open 11:30 AM – 10:00 PM SGT)`);
+          throw new Error(`Day ${dateKey} is not editable (open 11:30 AM – 11:30 PM SGT)`);
         }
         continue;
       }

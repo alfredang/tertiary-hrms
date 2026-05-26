@@ -29,9 +29,9 @@ export const BUILT_IN_CRON_JOBS: BuiltInCronJob[] = [
     id: "timesheet-reminder",
     name: "Timesheet Reminder",
     description:
-      "Sends a 5:30 PM email reminder to all active employees who have not yet logged their work hours for the day. Skips employees on approved leave (their hours are auto-zeroed) and anyone who has already saved a timesheet entry. Runs Monday–Friday, skips public holidays.",
-    schedule: "Weekdays at 17:30 SGT",
-    cron: "30 9 * * 1-5",
+      "Sends a 5:30 PM email reminder to all active employees who have not yet logged their work hours for the day. Skips employees on approved leave (their hours are auto-zeroed) and anyone who has already saved a timesheet entry. Runs every day, skips public holidays.",
+    schedule: "Daily at 17:30 SGT",
+    cron: "30 9 * * *",
     method: "GET",
     path: "/api/cron/timesheet-reminder",
     status: "active",
