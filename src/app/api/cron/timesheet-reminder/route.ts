@@ -26,14 +26,6 @@ export async function GET(req: NextRequest) {
     Number(todayKey.slice(8, 10)),
   ));
 
-  // Skip public holidays
-  const holiday = await prisma.publicHoliday.findFirst({
-    where: { date: todayDate, countryCode: "SG" },
-  });
-  if (holiday) {
-    return NextResponse.json({ ok: true, skipped: `public holiday: ${holiday.name}` });
-  }
-
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
   const companyName = settings?.name || "HR Portal";
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "";
