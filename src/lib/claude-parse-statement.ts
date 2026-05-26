@@ -60,12 +60,12 @@ const TxnSchema = z.object({
   paymentRef: z
     .string()
     .describe(
-      "Bank's internal reference code for this transaction (e.g. 'EBGPP60505392144', 'MCT2026050100038833081', '20260504DBSSSGSGBRT6240060'). Empty string if none visible.",
+      "Bank's internal reference code for this transaction (e.g. 'EBGPP60505392144', 'MCT2026050100038833081', '20260504DBSSSGSGBRT6240060', 'FTB-2605-001321'). FTB-XXXX codes are bank references — always put them here, never in invoiceNo. Empty string if none visible.",
     ),
   invoiceNo: z
     .string()
     .describe(
-      "Invoice number if the row references one (e.g. 'TC26-0501-000951', 'INV-19604', 'PF-100041159', 'FTB-2605-001321'). Empty string if none.",
+      "Invoice number if the row references one (e.g. 'TC26-0501-000951', 'INV-19604', 'PF-100041159'). FTB-XXXX is a bank reference NOT an invoice — put it in paymentRef. Empty string if none.",
     ),
   remarks: z.string().describe("Source reference, e.g. statement filename + transaction ref"),
 });
@@ -151,12 +151,12 @@ export async function parseStatementWithClaude(opts: {
     "- 'PayNow' – marker contains PAYNOW (Inward PayNow, PayNow-Others Incoming, OUTWARD PAYNOW, PAYNOW TRANSFER, etc.).",
     "- 'GIRO' – marker contains GIRO (INTERBANK GIRO, IBG GIRO, GIRO PAYROLL, GIRO PAYMENT, GIRO COLLECTION).",
     "- 'CC' – BAT / Business Advance Card / Visa / Mastercard / Stripe / Hitpay anywhere in the description.",
-    "- 'e-invoice' – references an invoice number (TC..-, INV-, PF-, FTB-) and none of the above fit.",
+    "- 'e-invoice' – references an invoice number (TC..-, INV-, PF-) and none of the above fit. FTB- is a bank reference, not an invoice — do NOT use e-invoice for FTB transactions.",
     "- 'Bank Transfer' – default for FAST PAYMENT / FAST INWARD / INWARD TT / REMITTANCE / OUTWARD TT and any marker not matching the others.",
     "",
     "## REFERENCES",
-    "- 'paymentRef' – bank internal ref code if visible (e.g. 'EBGPP60505392144', 'MCT2026050100038833081'). Empty string if none.",
-    "- 'invoiceNo' – invoice number referenced in the row (TC26-0501-000951, INV-19604, PF-100041159, FTB-2605-001321). Empty string if none.",
+    "- 'paymentRef' – bank internal ref code if visible (e.g. 'EBGPP60505392144', 'MCT2026050100038833081', 'FTB-2605-001321'). FTB-XXXX are bank references — always goes here. Empty string if none.",
+    "- 'invoiceNo' – invoice number referenced in the row (TC26-0501-000951, INV-19604, PF-100041159). FTB-XXXX is NOT an invoice number. Empty string if none.",
     "- 'remarks' – include the source filename plus any other useful reference info.",
     "",
     "## GST (Singapore)",
@@ -347,7 +347,7 @@ export async function enrichTransactionsWithAgent(
     "  - PayNow if descParts[0] contains PAYNOW.",
     "  - GIRO if descParts[0] contains GIRO (INTERBANK GIRO, IBG GIRO, GIRO PAYROLL, GIRO PAYMENT, GIRO COLLECTION).",
     "  - CC if BAT / Business Advance Card / Visa / Mastercard / Stripe / Hitpay anywhere in the row.",
-    "  - e-invoice if an invoice ref (TC..-, INV-, PF-, FTB-) appears and none of the above fit.",
+    "  - e-invoice if an invoice ref (TC..-, INV-, PF-) appears and none of the above fit. FTB- is a bank ref not an invoice.",
     "  - else Bank Transfer (default for FAST PAYMENT / INWARD TT / REMITTANCE / etc.).",
     "",
     "REFS:",
