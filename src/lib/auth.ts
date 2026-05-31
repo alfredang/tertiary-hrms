@@ -194,26 +194,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         if (user.id) token.sub = user.id;
         (token as any).role = user.role;
         (token as any).roles = user.roles;
         (token as any).employeeId = user.employeeId;
         (token as any).needsSetup = !user.employeeId;
+        return token;
       }
 
-      if (token.email && !user) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email },
-          include: { employee: true },
-        });
-        if (dbUser) {
-          const roles = dbUser.roles.length > 0 ? dbUser.roles : ["STAFF" as Role];
-          (token as any).role = getPrimaryRole(roles);
-          (token as any).roles = roles;
-          (token as any).employeeId = dbUser.employee?.id;
-          (token as any).needsSetup = !dbUser.employee?.id;
+      // Only re-fetch from DB on explicit update (e.g., role change) or if
+      // the token is missing role data. Querying every request races with
+      // RSC navigation and can throw, which would clear the session cookie.
+      const needsRefresh = trigger === "update" || !(token as any).role;
+      if (needsRefresh && token.email) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email },
+            include: { employee: true },
+          });
+          if (dbUser) {
+            const roles = dbUser.roles.length > 0 ? dbUser.roles : ["STAFF" as Role];
+            (token as any).role = getPrimaryRole(roles);
+            (token as any).roles = roles;
+            (token as any).employeeId = dbUser.employee?.id;
+            (token as any).needsSetup = !dbUser.employee?.id;
+          }
+        } catch (err) {
+          console.error("[auth] jwt DB lookup failed, keeping existing token:", err);
         }
       }
 
