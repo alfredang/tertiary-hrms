@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function ExpenseTrackingPage({
   searchParams,
 }: {
-  searchParams?: { status?: string; category?: string; from?: string; to?: string; page?: string };
+  searchParams?: { status?: string; category?: string; from?: string; to?: string; page?: string; q?: string };
 }) {
   const session = await auth();
 
@@ -43,10 +43,21 @@ export default async function ExpenseTrackingPage({
   const categoryFilter = searchParams?.category ?? "All";
   const fromFilter = searchParams?.from ?? "";
   const toFilter = searchParams?.to ?? "";
+  const qFilter = (searchParams?.q ?? "").trim();
 
   const where: any = { direction: "DEBIT" };
   if (statusFilter !== "All") where.status = statusFilter;
   if (categoryFilter !== "All") where.type = categoryFilter;
+  if (qFilter) {
+    where.OR = [
+      { title: { contains: qFilter, mode: "insensitive" } },
+      { rawDescription: { contains: qFilter, mode: "insensitive" } },
+      { paymentRef: { contains: qFilter, mode: "insensitive" } },
+      { invoiceNo: { contains: qFilter, mode: "insensitive" } },
+      { receiptNo: { contains: qFilter, mode: "insensitive" } },
+      { remarks: { contains: qFilter, mode: "insensitive" } },
+    ];
+  }
   if (fromFilter || toFilter) {
     where.paymentDate = {};
     if (fromFilter) where.paymentDate.gte = new Date(fromFilter);
@@ -99,6 +110,7 @@ export default async function ExpenseTrackingPage({
         category={categoryFilter}
         from={fromFilter}
         to={toFilter}
+        q={qFilter}
       />
       <TransactionsTable
         rows={rows}

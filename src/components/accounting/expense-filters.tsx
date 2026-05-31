@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 const STATUS_OPTIONS = ["Pending", "Settled", "All"];
 
@@ -34,6 +34,7 @@ export function ExpenseFilters({
   category,
   from,
   to,
+  q = "",
   categoryOptions = EXPENSE_CATEGORY_OPTIONS,
   categoryLabel = "Category",
 }: {
@@ -41,12 +42,25 @@ export function ExpenseFilters({
   category: string;
   from: string;
   to: string;
+  q?: string;
   categoryOptions?: string[];
   categoryLabel?: string;
 }) {
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const [query, setQuery] = useState(q);
+
+  useEffect(() => {
+    setQuery(q);
+  }, [q]);
+
+  useEffect(() => {
+    if (query === (q ?? "")) return;
+    const t = setTimeout(() => update("q", query.trim()), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   function update(key: string, value: string) {
     const next = new URLSearchParams(params.toString());
@@ -70,6 +84,16 @@ export function ExpenseFilters({
 
   return (
     <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-wrap items-end gap-3">
+      <Field label="Search" className="flex-1 min-w-[200px]">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Title, description, ref…"
+          disabled={pending}
+          className="bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-sm text-white w-full"
+        />
+      </Field>
       <Field label="Status">
         <select
           value={status}
@@ -112,10 +136,11 @@ export function ExpenseFilters({
           className="bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-sm text-white"
         />
       </Field>
-      {(status !== "Pending" || category !== "All" || from || to) && (
+      {(status !== "Pending" || category !== "All" || from || to || query) && (
         <button
           type="button"
           onClick={() => {
+            setQuery("");
             startTransition(() => router.replace("?", { scroll: false }));
           }}
           disabled={pending}
@@ -128,9 +153,17 @@ export function ExpenseFilters({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className={`flex flex-col gap-1 ${className}`}>
       <span className="text-xs text-gray-400">{label}</span>
       {children}
     </label>
