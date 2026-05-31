@@ -55,12 +55,10 @@ export function ExpenseFilters({
     setQuery(q);
   }, [q]);
 
-  useEffect(() => {
-    if (query === (q ?? "")) return;
-    const t = setTimeout(() => update("q", query.trim()), 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  function commitSearch() {
+    if (query.trim() === (q ?? "").trim()) return;
+    update("q", query.trim());
+  }
 
   function update(key: string, value: string) {
     const next = new URLSearchParams(params.toString());
@@ -89,7 +87,14 @@ export function ExpenseFilters({
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Title, description, ref…"
+          onBlur={commitSearch}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitSearch();
+            }
+          }}
+          placeholder="Type and press Enter…"
           disabled={pending}
           className="bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-sm text-white w-full"
         />
