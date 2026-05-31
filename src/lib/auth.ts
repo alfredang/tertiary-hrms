@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import type { Role } from "@prisma/client";
-import { randomUUID } from "crypto";
+import { authConfig } from "./auth.config";
 
 const ROLE_PRIORITY: Role[] = ["ADMIN", "HR", "MANAGER", "ACCOUNTANT", "STAFF", "INTERN"];
 
@@ -46,12 +46,7 @@ declare module "next-auth" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 }, // 30 days
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
+  ...authConfig,
   providers: [
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [
@@ -167,7 +162,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!existingUser) {
             const newUser = await prisma.user.create({
               data: {
-                id: randomUUID(),
+                id: crypto.randomUUID(),
                 email: user.email,
                 password: "",
                 roles: ["STAFF"],
