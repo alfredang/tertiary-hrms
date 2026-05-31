@@ -1,23 +1,32 @@
-import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import { authConfig } from "@/lib/auth.config";
+import type { NextRequest } from "next/server";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
-const VALID_ROLES = ["ADMIN", "HR", "MANAGER", "STAFF", "INTERN", "ACCOUNTANT"] as const;
+// Middleware only checks for the *presence* of a session cookie, not its
+// validity. Validating the JWT in middleware required a second NextAuth
+// instance whose derived encryption key drifted from the main one's after
+// session refreshes — causing valid sessions to look invalid here and
+// bouncing users to /login mid-action. Real auth + role checks happen in
+// the layout and pages, which use the full NextAuth config from auth.ts.
 
-const { auth } = NextAuth(authConfig);
+const SESSION_COOKIE_NAMES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+];
 
-export default auth((req) => {
+function hasSessionCookie(req: NextRequest): boolean {
+  for (const name of SESSION_COOKIE_NAMES) {
+    if (req.cookies.get(name)) return true;
+  }
+  return false;
+}
+
+export function middleware(req: NextRequest) {
   if (isDevAuthSkipped()) return NextResponse.next();
 
-  const session = req.auth;
-  const isLoggedIn = !!session?.user;
   const { pathname } = req.nextUrl;
-
-  const role = session?.user?.role;
-  const tokenRole =
-    typeof role === "string" && (VALID_ROLES as readonly string[]).includes(role) ? role : null;
-  const needsSetup = (session?.user as { needsSetup?: boolean } | undefined)?.needsSetup === true;
 
   const publicRoutes = [
     "/login",
@@ -33,34 +42,18 @@ export default auth((req) => {
   ];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
+  const isLoggedIn = hasSessionCookie(req);
+
   if (!isLoggedIn && !isPublicRoute) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
-  }
-
-  if (
-    isLoggedIn &&
-    needsSetup &&
-    !pathname.startsWith("/pending-setup") &&
-    !pathname.startsWith("/api/auth") &&
-    !pathname.startsWith("/login")
-  ) {
-    return NextResponse.redirect(new URL("/pending-setup", req.nextUrl));
   }
 
   if (isLoggedIn && (pathname === "/login" || pathname === "/register" || pathname === "/")) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
-  const hrManagementRoutes = ["/employees", "/payroll/generate", "/settings"];
-  const isHRRoute = hrManagementRoutes.some((route) => pathname.startsWith(route));
-  const hrAllowedRoles = ["ADMIN", "HR", "MANAGER"];
-
-  if (isHRRoute && (!tokenRole || !hrAllowedRoles.includes(tokenRole))) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
-  }
-
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
