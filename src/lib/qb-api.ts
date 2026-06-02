@@ -16,10 +16,25 @@ export interface QBCreds {
 let cachedToken: { token: string; expiresAt: number } | null = null;
 let inflightRefresh: Promise<string> | null = null;
 
+// Proxy URL cache — read from DB (QUICKBOOKS_PROXY_URL), fall back to REFERENCE_PROJECT_URL env var
+let cachedProxyUrl: { url: string | null; expiresAt: number } | null = null;
+
+async function getProxyUrl(): Promise<string | null> {
+  if (cachedProxyUrl && Date.now() < cachedProxyUrl.expiresAt) return cachedProxyUrl.url;
+  try {
+    const row = await prisma.companyCredential.findUnique({ where: { keyName: "QUICKBOOKS_PROXY_URL" } });
+    const url = row?.keyValue?.trim() || process.env.REFERENCE_PROJECT_URL || null;
+    cachedProxyUrl = { url, expiresAt: Date.now() + 5 * 60 * 1000 };
+    return url;
+  } catch {
+    return process.env.REFERENCE_PROJECT_URL || null;
+  }
+}
+
 export async function getQBCreds(): Promise<QBCreds | null> {
   // When reference project proxy is configured, only need realmId (used for qboBase fallback)
   // so return a stub that passes the null-check in callers
-  if (process.env.REFERENCE_PROJECT_URL) {
+  if (await getProxyUrl()) {
     try {
       const rows = await prisma.companyCredential.findMany({
         where: { keyName: { in: ["QUICKBOOKS_REALM_ID", "QUICKBOOKS_REFRESH_TOKEN", "QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"] } },
@@ -83,7 +98,7 @@ export async function getQBCreds(): Promise<QBCreds | null> {
 export async function getQBAccessToken(creds: QBCreds): Promise<string> {
   // When reference project proxy is configured, skip local token management entirely —
   // the proxy handles auth using the reference project's always-valid credentials.
-  if (process.env.REFERENCE_PROJECT_URL) return "proxy";
+  if (await getProxyUrl()) return "proxy";
 
   if (cachedToken && Date.now() < cachedToken.expiresAt) return cachedToken.token;
   if (inflightRefresh) return inflightRefresh;
@@ -148,14 +163,16 @@ export async function getQBAccessToken(creds: QBCreds): Promise<string> {
 
 // Fire-and-forget: push the rotated token to the reference project's sync endpoint.
 function pushTokenToReferenceProject(newToken: string): void {
-  const syncUrl = process.env.REFERENCE_PROJECT_URL;
   const secret = process.env.TOKEN_SYNC_SECRET;
-  if (!syncUrl || !secret) return;
-  fetch(`${syncUrl}/api/internal/sync-qb-token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
-    body: JSON.stringify({ refreshToken: newToken }),
-  }).catch(() => {/* best-effort, never throw */});
+  if (!secret) return;
+  getProxyUrl().then((syncUrl) => {
+    if (!syncUrl) return;
+    fetch(`${syncUrl}/api/internal/sync-qb-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ refreshToken: newToken }),
+    }).catch(() => {/* best-effort, never throw */});
+  }).catch(() => {});
 }
 
 export function qboBase(realmId: string): string {
@@ -210,7 +227,7 @@ async function qboFetchJson(opts: {
 }
 
 export async function qbQuery(base: string, token: string, query: string): Promise<any> {
-  const refUrl = process.env.REFERENCE_PROJECT_URL;
+  const refUrl = await getProxyUrl();
   if (refUrl) {
     // Extract entity name from "SELECT * FROM EntityName WHERE..." for the proxy
     const entity = (query.match(/FROM\s+(\w+)/i)?.[1] ?? "invoice").toLowerCase();
@@ -230,7 +247,7 @@ export async function qbQuery(base: string, token: string, query: string): Promi
 }
 
 export async function qbCreate(base: string, token: string, entity: string, body: object): Promise<any> {
-  const refUrl = process.env.REFERENCE_PROJECT_URL;
+  const refUrl = await getProxyUrl();
   if (refUrl) {
     const res = await fetch(`${refUrl}/api/quickbooks/proxy`, {
       method: "POST",
