@@ -17,9 +17,10 @@ export async function GET(req: NextRequest) {
     return html("Missing Parameters", "Missing authorization code or realmId.", false);
   }
 
-  const [clientIdRow, clientSecretRow] = await Promise.all([
+  const [clientIdRow, clientSecretRow, redirectUriRow] = await Promise.all([
     prisma.companyCredential.findUnique({ where: { keyName: "QUICKBOOKS_CLIENT_ID" } }),
     prisma.companyCredential.findUnique({ where: { keyName: "QUICKBOOKS_CLIENT_SECRET" } }),
+    prisma.companyCredential.findUnique({ where: { keyName: "QUICKBOOKS_REDIRECT_URI" } }),
   ]);
 
   const clientId = clientIdRow?.keyValue;
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   }
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
-  const redirectUri = `${appUrl}/api/quickbooks/oauth/callback`;
+  const redirectUri = redirectUriRow?.keyValue?.trim() || `${appUrl}/api/quickbooks/oauth/callback`;
 
   try {
     const tokenRes = await fetch(QBO_TOKEN_URL, {

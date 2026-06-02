@@ -5,9 +5,10 @@ const QBO_AUTH_URL = "https://appcenter.intuit.com/connect/oauth2";
 const SCOPES = "com.intuit.quickbooks.accounting";
 
 export async function GET(req: NextRequest) {
-  const clientIdRow = await prisma.companyCredential.findUnique({
-    where: { keyName: "QUICKBOOKS_CLIENT_ID" },
-  });
+  const [clientIdRow, redirectUriRow] = await Promise.all([
+    prisma.companyCredential.findUnique({ where: { keyName: "QUICKBOOKS_CLIENT_ID" } }),
+    prisma.companyCredential.findUnique({ where: { keyName: "QUICKBOOKS_REDIRECT_URI" } }),
+  ]);
 
   const clientId = clientIdRow?.keyValue;
   if (!clientId) {
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
   }
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
-  const redirectUri = `${appUrl}/api/quickbooks/oauth/callback`;
+  const redirectUri = redirectUriRow?.keyValue?.trim() || `${appUrl}/api/quickbooks/oauth/callback`;
   const state = `hrms_${Date.now()}`;
 
   const authUrl =

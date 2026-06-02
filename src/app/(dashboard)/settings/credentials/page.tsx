@@ -14,6 +14,7 @@ async function getCredentials() {
           "QUICKBOOKS_CLIENT_SECRET",
           "QUICKBOOKS_REFRESH_TOKEN",
           "QUICKBOOKS_REALM_ID",
+          "QUICKBOOKS_REDIRECT_URI",
           "GMAIL_EMAIL_USER",
           "GMAIL_CLIENT_ID",
           "GMAIL_CLIENT_SECRET",
@@ -43,6 +44,7 @@ export default async function CredentialsPage() {
         clientSecret={credentials["QUICKBOOKS_CLIENT_SECRET"] ?? ""}
         refreshToken={credentials["QUICKBOOKS_REFRESH_TOKEN"] ?? ""}
         realmId={credentials["QUICKBOOKS_REALM_ID"] ?? ""}
+        redirectUri={credentials["QUICKBOOKS_REDIRECT_URI"] ?? ""}
       />
       <ClaudeCredentialsCard apiKey={credentials["CLAUDE_API_KEY"] ?? ""} />
     </div>

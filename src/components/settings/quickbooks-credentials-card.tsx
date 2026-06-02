@@ -14,6 +14,7 @@ interface QuickBooksCredentialsCardProps {
   clientSecret: string;
   refreshToken: string;
   realmId: string;
+  redirectUri: string;
 }
 
 export function QuickBooksCredentialsCard({
@@ -21,13 +22,14 @@ export function QuickBooksCredentialsCard({
   clientSecret,
   refreshToken,
   realmId,
+  redirectUri,
 }: QuickBooksCredentialsCardProps) {
   const router = useRouter();
   const { toast } = useToast();
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ clientId, clientSecret, refreshToken, realmId });
+  const [form, setForm] = useState({ clientId, clientSecret, refreshToken, realmId, redirectUri });
   const [visible, setVisible] = useState({ clientId: false, clientSecret: false, refreshToken: false });
 
   const isConnected = !!form.refreshToken && !!form.realmId;
@@ -36,7 +38,7 @@ export function QuickBooksCredentialsCard({
     setVisible((prev) => ({ ...prev, [field]: !prev[field] }));
 
   const handleCancel = () => {
-    setForm({ clientId, clientSecret, refreshToken, realmId });
+    setForm({ clientId, clientSecret, refreshToken, realmId, redirectUri });
     setEditing(false);
   };
 
@@ -59,6 +61,7 @@ export function QuickBooksCredentialsCard({
           QUICKBOOKS_CLIENT_SECRET: form.clientSecret.trim(),
           ...(form.refreshToken.trim() && { QUICKBOOKS_REFRESH_TOKEN: form.refreshToken.trim() }),
           ...(form.realmId.trim() && { QUICKBOOKS_REALM_ID: form.realmId.trim() }),
+          ...(form.redirectUri.trim() && { QUICKBOOKS_REDIRECT_URI: form.redirectUri.trim() }),
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
@@ -239,6 +242,27 @@ export function QuickBooksCredentialsCard({
             ) : (
               <p className="text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800">
                 {form.realmId || <span className="text-gray-500">Not set</span>}
+              </p>
+            )}
+          </div>
+
+          {/* Redirect URI */}
+          <div className="space-y-2">
+            <Label className="text-gray-300">
+              Redirect URI{" "}
+              <span className="text-xs text-gray-500 font-normal">(must match Intuit Developer Portal)</span>
+            </Label>
+            {editing ? (
+              <Input
+                type="text"
+                value={form.redirectUri}
+                onChange={(e) => setForm((p) => ({ ...p, redirectUri: e.target.value }))}
+                className="bg-gray-900 border-gray-700 text-white"
+                placeholder="https://hrms.tertiaryinfotech.com/api/quickbooks/oauth/callback"
+              />
+            ) : (
+              <p className="text-white font-mono text-sm bg-gray-900 rounded-md px-3 py-2 border border-gray-800 break-all">
+                {form.redirectUri || <span className="text-gray-500">Auto (derived from app URL)</span>}
               </p>
             )}
           </div>
