@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Copy, CheckCircle2 } from "lucide-react";
+import { Clock, Play, Copy, CheckCircle2, Mail } from "lucide-react";
 
 interface CronJobView {
   id: string;
@@ -22,6 +22,25 @@ export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
   const { toast } = useToast();
   const [running, setRunning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [testingEmail, setTestingEmail] = useState(false);
+
+  const sendTestEmail = async () => {
+    setTestingEmail(true);
+    try {
+      const res = await fetch("/api/admin/test-email", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
+      toast({ title: "Test email sent", description: `Delivered to ${body.sentTo}` });
+    } catch (err) {
+      toast({
+        title: "Email failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
 
   const runNow = async (job: CronJobView) => {
     setRunning(job.id);
@@ -33,12 +52,10 @@ export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
-      toast({
-        title: `${job.name} triggered`,
-        description: body && typeof body === "object"
-          ? `${Object.entries(body).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(", ")}`
-          : "Job started.",
-      });
+      const details = body && typeof body === "object"
+        ? Object.entries(body).slice(0, 6).map(([k, v]) => `${k}: ${v}`).join("  |  ")
+        : "Job started.";
+      toast({ title: `${job.name} triggered`, description: details });
     } catch (err) {
       toast({
         title: "Run failed",
@@ -63,10 +80,16 @@ export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
           <Clock className="h-5 w-5 text-primary" />
           <CardTitle className="text-white">Cron Jobs</CardTitle>
         </div>
-        <p className="text-sm text-gray-400 mt-1">
-          Scheduled tasks triggered by an external scheduler (Coolify cron, GitHub Action). The app itself
-          does not run a timer — point your scheduler at the URLs below on the listed cadence.
-        </p>
+        <div className="flex items-center justify-between gap-3 mt-2 flex-wrap">
+          <p className="text-sm text-gray-400">
+            Scheduled tasks triggered by an external scheduler (Coolify cron, GitHub Action). The app itself
+            does not run a timer — point your scheduler at the URLs below on the listed cadence.
+          </p>
+          <Button variant="outline" size="sm" onClick={sendTestEmail} disabled={testingEmail} className="shrink-0">
+            <Mail className="h-3.5 w-3.5 mr-1.5" />
+            {testingEmail ? "Sending..." : "Send Test Email"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {jobs.map((j) => (
