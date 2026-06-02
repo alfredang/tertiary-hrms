@@ -52,9 +52,10 @@ export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
-      const details = body && typeof body === "object"
-        ? Object.entries(body).slice(0, 6).map(([k, v]) => `${k}: ${v}`).join("  |  ")
-        : "Job started.";
+      const entries = body && typeof body === "object" ? Object.entries(body) : [];
+      const details = entries.length > 0
+        ? entries.slice(0, 6).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join("  |  ")
+        : "Job completed (no response body).";
       toast({ title: `${job.name} triggered`, description: details });
     } catch (err) {
       toast({
