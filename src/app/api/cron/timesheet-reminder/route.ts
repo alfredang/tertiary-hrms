@@ -57,25 +57,27 @@ export async function GET(req: NextRequest) {
 
   let sent = 0;
   let skipped = 0;
+  let noEmail = 0;
+  const emailErrors: string[] = [];
 
   for (const emp of employees) {
-    // Skip employees on approved leave today (auto-zero, no entry needed)
+    // Skip employees on approved leave today
     if (emp.leaveRequests.length > 0) { skipped++; continue; }
 
     // Skip if they've already saved an entry for today
     if (emp.timesheetEntries.length > 0) { skipped++; continue; }
 
     const toEmail = emp.email || emp.user?.email;
-    if (!toEmail) { skipped++; continue; }
+    if (!toEmail) { noEmail++; continue; }
 
     try {
       await sendEmail({
         to: toEmail,
-        subject: `Reminder: Log your work hours for today — ${companyName}`,
+        subject: `Reminder: Log your work hours for today - ${companyName}`,
         html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p>Hi ${emp.name},</p>
 <p>This is a reminder that your work hours for today (<strong>${todayKey}</strong>) have not been logged in the HR Portal yet.</p>
-<p>Please enter your hours before <strong>11:30 PM SGT</strong> tonight — the timesheet locks after that and cannot be edited.</p>
+<p>Please enter your hours before <strong>11:30 PM SGT</strong> tonight - the timesheet locks after that and cannot be edited.</p>
 <p style="margin:20px 0;">
   <a href="${siteUrl}/timesheet"
      style="display:inline-block;background:#2563eb;color:#ffffff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-family:Arial,sans-serif;">
@@ -83,15 +85,24 @@ export async function GET(req: NextRequest) {
   </a>
 </p>
 <p style="color:#6b7280;font-size:12px;">If today is not a working day for you, please ignore this reminder. If you are on approved leave, your hours will be recorded as 0 automatically.</p>
-<p>— ${companyName}</p>
+<p>- ${companyName}</p>
 </div>`,
       });
       sent++;
-    } catch (err) {
+    } catch (err: any) {
+      const msg = `${emp.name}: ${err?.message ?? "unknown error"}`;
+      emailErrors.push(msg);
       console.error(`[timesheet-reminder] Failed to send to ${toEmail}:`, err);
     }
   }
 
-  console.log(`[timesheet-reminder] ${todayKey}: sent=${sent}, skipped=${skipped}`);
-  return NextResponse.json({ ok: true, date: todayKey, sent, skipped });
+  console.log(`[timesheet-reminder] ${todayKey}: sent=${sent}, skipped=${skipped}, noEmail=${noEmail}, errors=${emailErrors.length}`);
+  return NextResponse.json({
+    ok: true,
+    date: todayKey,
+    sent,
+    skipped,
+    noEmail,
+    ...(emailErrors.length > 0 ? { emailErrors } : {}),
+  });
 }
