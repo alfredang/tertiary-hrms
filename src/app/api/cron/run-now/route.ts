@@ -27,11 +27,19 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const url = `${appUrl}${path}`;
 
-  const res = await fetch(url, {
-    method,
-    headers: { Authorization: `Bearer ${secret}` },
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: `Failed to reach cron endpoint: ${err?.message ?? err}`, url }, { status: 502 });
+  }
 
-  const body = await res.json().catch(() => ({}));
+  const rawText = await res.text().catch(() => "");
+  let body: any = {};
+  try { body = rawText ? JSON.parse(rawText) : {}; } catch { body = { rawResponse: rawText.slice(0, 200) }; }
+
   return NextResponse.json(body, { status: res.status });
 }
