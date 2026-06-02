@@ -24,10 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
   }
 
-  // Always call localhost in dev so local Run Now doesn't hit the live site
-  const appUrl = process.env.NODE_ENV === "production"
-    ? (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")
-    : "http://localhost:3000";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const url = `${appUrl}${path}`;
 
   const res = await fetch(url, {

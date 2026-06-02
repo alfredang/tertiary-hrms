@@ -24,7 +24,7 @@ export async function POST() {
   try {
     await sendEmail({
       to: toEmail,
-      subject: "HRMS - Test Email",
+      subject: "HRMS — Test Email",
       html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p>Hi,</p>
 <p>This is a test email from your HRMS system. If you are reading this, email sending is working correctly.</p>
