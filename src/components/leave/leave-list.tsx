@@ -419,15 +419,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           </div>
         </div>
       ) : (
-        <div className="flex gap-2 sm:w-auto w-full">
+        <div className="flex gap-1.5">
           <Button
             variant="success"
             size="sm"
             onClick={() => { setApproveConfirm(id); setRejectConfirm(null); setApproveComment(""); }}
             disabled={isLoading === id}
-            className="h-8 px-3 text-sm flex-1 sm:flex-none"
+            className="h-7 px-2.5 text-xs"
           >
-            <Check className="h-4 w-4 mr-1" />
+            <Check className="h-3 w-3 mr-1" />
             Approve
           </Button>
           <Button
@@ -435,9 +435,9 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
             size="sm"
             onClick={() => { setRejectConfirm(id); setResetConfirm(null); setApproveConfirm(null); setRejectReason(""); }}
             disabled={isLoading === id}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm flex-1 sm:flex-none"
+            className="h-7 px-2.5 text-xs text-red-400 border-red-800/50 hover:bg-red-950/30 hover:text-red-300"
           >
-            <X className="h-4 w-4 mr-1" />
+            <X className="h-3 w-3 mr-1" />
             Reject
           </Button>
         </div>
@@ -700,8 +700,13 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                         />
                       )}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-white whitespace-nowrap">
-                      {request.employee.name}
+                    <td className="px-2 sm:px-4 py-3">
+                      <p className="text-xs sm:text-sm text-white whitespace-nowrap">{request.employee.name}</p>
+                      {request.reason && (
+                        <p className="text-[11px] text-gray-500 mt-0.5 max-w-[180px] truncate" title={request.reason}>
+                          {request.reason}
+                        </p>
+                      )}
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                       {request.leaveType.name}
