@@ -384,7 +384,7 @@ export function LeaveRequestForm({
 
   const leaveTypeLabel = (type: LeaveType) => {
     if (type.code === "AL_OT") return `${type.name} (${otBalance} days available)`;
-    if (type.code === "AL") return `${type.name} (${alPersonalEntitlement} days)`;
+    if (type.code === "AL") return `${type.name} (${earnedToday} days available)`;
     if (type.defaultDays > 0) return `${type.name} (${type.defaultDays} days/year)`;
     return type.name;
   };
