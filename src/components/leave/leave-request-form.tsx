@@ -140,7 +140,7 @@ export function LeaveRequestForm({
     e.preventDefault();
 
     if (isOT && daysNum > otBalance) {
-      toast({ title: "Insufficient OT Leave", description: `You only have ${otBalance} OT day(s) available.`, variant: "destructive" });
+      toast({ title: "Insufficient Off In Lieu", description: `You only have ${otBalance} Off In Lieu day(s) available.`, variant: "destructive" });
       return;
     }
 
@@ -261,7 +261,7 @@ export function LeaveRequestForm({
               <p className="text-base font-bold text-cyan-400">{alPersonalEntitlement}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">OT Available</p>
+              <p className="text-xs text-gray-500">Off In Lieu Available</p>
               <p className="text-base font-bold text-emerald-400">{otBalance}</p>
             </div>
           </div>
@@ -271,9 +271,9 @@ export function LeaveRequestForm({
         {isAL && otBalance > 0 && nonEarnedDays > 0 && (
           <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
             <div>
-              <p className="text-sm text-white font-medium">Use OT days for this request</p>
+              <p className="text-sm text-white font-medium">Use Off In Lieu days for this request</p>
               <p className="text-xs text-gray-500">
-                {otBalance} OT day(s) available
+                {otBalance} Off In Lieu day(s) available
                 {deficitBeforeOt > 0
                   ? ` — offset the ${deficitBeforeOt} day deficit`
                   : ` — cover advance leave ahead of accrual`}
@@ -293,7 +293,7 @@ export function LeaveRequestForm({
         {useOt && isAL && otBalance > 0 && nonEarnedDays > 0 && (
           <div className="bg-emerald-950/30 border border-emerald-800/40 rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-emerald-300 text-xs">OT days to use</Label>
+              <Label className="text-emerald-300 text-xs">Off In Lieu days to use</Label>
               <span className="text-emerald-400 font-bold text-sm">{otDaysToUse} day(s)</span>
             </div>
             <input
@@ -336,7 +336,7 @@ export function LeaveRequestForm({
             {/* OT used portion */}
             {effectiveOtUsed > 0 && (
               <div className="flex justify-between">
-                <span className="text-gray-400">OT days used:</span>
+                <span className="text-gray-400">Off In Lieu days used:</span>
                 <span className="text-emerald-400 font-medium">{effectiveOtUsed} day(s)</span>
               </div>
             )}
@@ -362,7 +362,7 @@ export function LeaveRequestForm({
               <div className="flex items-start gap-1.5 text-red-300 pt-1">
                 <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
                 <span>
-                  {deficitDays.toFixed(1)} day(s) exceed your full entitlement. These will be recorded as a deficit, offset by future OT earnings from weekend/holiday work.
+                  {deficitDays.toFixed(1)} day(s) exceed your full entitlement. These will be recorded as a deficit, offset by future Off In Lieu days earned from weekend/holiday work.
                 </span>
               </div>
             )}
@@ -371,7 +371,7 @@ export function LeaveRequestForm({
                 <CheckCircle2 className="h-3 w-3 shrink-0" />
                 <span>
                   {effectiveOtUsed > 0
-                    ? `Covered by earned AL + ${effectiveOtUsed} OT day(s).`
+                    ? `Covered by earned AL + ${effectiveOtUsed} Off In Lieu day(s).`
                     : "Fully covered by your earned AL balance."}
                 </span>
               </div>
@@ -416,7 +416,7 @@ export function LeaveRequestForm({
             {isOT && (
               <p className="text-xs text-emerald-400 flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                You have <span className="font-semibold">{otBalance}</span> OT day(s) earned from weekend/public holiday work.
+                You have <span className="font-semibold">{otBalance}</span> Off In Lieu day(s) earned from weekend/public holiday work.
               </p>
             )}
           </div>
@@ -456,7 +456,7 @@ export function LeaveRequestForm({
 
           {isOT && days && parseFloat(days) > otBalance && (
             <div className="bg-red-950/30 border border-red-800 rounded-lg p-3">
-              <p className="text-sm text-red-400">Insufficient accumulated leave. Available: {otBalance} day(s).</p>
+              <p className="text-sm text-red-400">Insufficient Off In Lieu balance. Available: {otBalance} day(s).</p>
             </div>
           )}
 

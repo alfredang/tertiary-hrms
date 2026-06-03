@@ -26,11 +26,24 @@ export async function GET(req: NextRequest) {
     Number(todayKey.slice(8, 10)),
   ));
 
+  // Only send reminders on weekends or public holidays
+  const dayOfWeek = sgtDate.getUTCDay(); // 0=Sun, 6=Sat
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  const holiday = await prisma.publicHoliday.findFirst({
+    where: { date: todayDate, countryCode: "SG" },
+  });
+  const isNonWorkDay = isWeekend || !!holiday;
+
+  if (!isNonWorkDay) {
+    return NextResponse.json({ ok: true, skipped: "weekday — no reminder needed" });
+  }
+
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
   const companyName = settings?.name || "HR Portal";
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const dayLabel = holiday ? `Public Holiday (${holiday.name})` : "Weekend";
 
-  // Fetch all active employees with leave and timesheet status for today
+  // Fetch all active employees who haven't submitted hours for today
   const employees = await prisma.employee.findMany({
     where: { status: "ACTIVE" },
     select: {
@@ -48,7 +61,7 @@ export async function GET(req: NextRequest) {
         take: 1,
       },
       timesheetEntries: {
-        where: { date: todayDate },
+        where: { date: todayDate, hours: { gt: 0 } },
         select: { hours: true },
         take: 1,
       },
@@ -63,8 +76,7 @@ export async function GET(req: NextRequest) {
   for (const emp of employees) {
     // Skip employees on approved leave today
     if (emp.leaveRequests.length > 0) { skipped++; continue; }
-
-    // Skip if they've already saved an entry for today
+    // Skip if they've already submitted hours
     if (emp.timesheetEntries.length > 0) { skipped++; continue; }
 
     const toEmail = emp.email || emp.user?.email;
@@ -73,18 +85,17 @@ export async function GET(req: NextRequest) {
     try {
       await sendEmail({
         to: toEmail,
-        subject: `Reminder: Log your work hours for today - ${companyName}`,
+        subject: `Are you working today? Log your hours for Off In Lieu - ${companyName}`,
         html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p>Hi ${emp.name},</p>
-<p>This is a reminder that your work hours for today (<strong>${todayKey}</strong>) have not been logged in the HR Portal yet.</p>
-<p>Please enter your hours before <strong>11:30 PM SGT</strong> tonight - the timesheet locks after that and cannot be edited.</p>
+<p>Today (<strong>${todayKey}</strong>) is a <strong>${dayLabel}</strong>. If you are working today, please log your hours in the HR Portal before <strong>11:30 PM SGT</strong> to earn Off In Lieu days.</p>
 <p style="margin:20px 0;">
   <a href="${siteUrl}/timesheet"
      style="display:inline-block;background:#2563eb;color:#ffffff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-family:Arial,sans-serif;">
-    Go to Timesheet
+    Log Hours
   </a>
 </p>
-<p style="color:#6b7280;font-size:12px;">If today is not a working day for you, please ignore this reminder. If you are on approved leave, your hours will be recorded as 0 automatically.</p>
+<p style="color:#6b7280;font-size:12px;">If you are not working today, please ignore this reminder. Off In Lieu days are credited after admin approval.</p>
 <p>- ${companyName}</p>
 </div>`,
       });
@@ -100,6 +111,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     date: todayKey,
+    dayLabel,
     sent,
     skipped,
     noEmail,

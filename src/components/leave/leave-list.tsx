@@ -34,6 +34,8 @@ interface LeaveRequest {
   createdAt: Date;
   otDaysUsed?: any;
   deficitDays?: any;
+  rejectionReason?: string | null;
+  approvalComment?: string | null;
   employee: {
     id: string;
     name: string;
@@ -69,12 +71,14 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [approveConfirm, setApproveConfirm] = useState<string | null>(null);
+  const [approveComment, setApproveComment] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
   const { toast } = useToast();
 
   type LeaveSortKey = "employee" | "type" | "startDate" | "endDate" | "days" | "createdAt" | "status";
-  const [sortKey, setSortKey] = useState<LeaveSortKey>("startDate");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortKey, setSortKey] = useState<LeaveSortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const filteredRequests = requests.filter((r) => {
     const matchesSearch =
@@ -182,9 +186,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const handleApprove = async (id: string) => {
     setIsLoading(id);
     try {
-      const res = await fetch(`/api/leave/${id}/approve`, { method: "POST" });
+      const res = await fetch(`/api/leave/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approvalComment: approveComment.trim() || undefined }),
+      });
       if (!res.ok) throw new Error("Failed to approve");
       toast({ title: "Leave request approved", description: "The employee has been notified." });
+      setApproveConfirm(null);
+      setApproveComment("");
       router.refresh();
     } catch {
       toast({ title: "Error", description: "Failed to approve leave request", variant: "destructive" });
@@ -348,7 +358,37 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   // Admin PENDING row actions (render function)
   const renderAdminPendingActions = (id: string) => (
     <>
-      {rejectConfirm === id ? (
+      {approveConfirm === id ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-green-400">Approval comment (optional):</span>
+          <textarea
+            value={approveComment}
+            onChange={(e) => setApproveComment(e.target.value)}
+            placeholder="Add a note for the employee..."
+            rows={2}
+            className="text-xs rounded bg-gray-900 border border-gray-700 text-white px-2 py-1 resize-none w-full max-w-xs"
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              onClick={() => handleApprove(id)}
+              disabled={isLoading === id}
+              className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-white"
+            >
+              {isLoading === id ? "Approving..." : "Confirm Approve"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setApproveConfirm(null); setApproveComment(""); }}
+              disabled={isLoading === id}
+              className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : rejectConfirm === id ? (
         <div className="flex flex-col gap-2">
           <span className="text-xs text-red-400">Rejection reason (optional):</span>
           <textarea
@@ -383,7 +423,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           <Button
             variant="success"
             size="sm"
-            onClick={() => handleApprove(id)}
+            onClick={() => { setApproveConfirm(id); setRejectConfirm(null); setApproveComment(""); }}
             disabled={isLoading === id}
             className="h-8 px-3 text-sm flex-1 sm:flex-none"
           >
@@ -393,7 +433,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { setRejectConfirm(id); setResetConfirm(null); setRejectReason(""); }}
+            onClick={() => { setRejectConfirm(id); setResetConfirm(null); setApproveConfirm(null); setRejectReason(""); }}
             disabled={isLoading === id}
             className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm flex-1 sm:flex-none"
           >
@@ -450,7 +490,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
         {base}
         {otUsed > 0 && (
           <span className="text-xs bg-emerald-950/40 text-emerald-400 border border-emerald-800/50 rounded px-1.5 py-0.5">
-            +{otUsed}d OT
+            +{otUsed}d OIL
           </span>
         )}
         {deficit > 0 && (
@@ -642,6 +682,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                   {renderSortTh("Days", "days")}
                   {renderSortTh("Applied", "createdAt")}
                   {renderSortTh("Status", "status")}
+                  <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Admin Comment</th>
                   <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Action</th>
                 </tr>
               </thead>
@@ -681,6 +722,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>
                         {request.status}
                       </Badge>
+                    </td>
+                    <td className="px-2 sm:px-4 py-3 max-w-[200px]">
+                      {request.status === "APPROVED" && request.approvalComment ? (
+                        <span className="text-xs text-green-400">{request.approvalComment}</span>
+                      ) : request.status === "REJECTED" && request.rejectionReason ? (
+                        <span className="text-xs text-red-400">{request.rejectionReason}</span>
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
+                      )}
                     </td>
                     <td className="px-2 sm:px-4 py-3 min-w-[200px]">
                       <div className="flex items-start gap-2">
@@ -748,6 +798,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                   {renderSortTh("Days", "days")}
                   {renderSortTh("Applied", "createdAt")}
                   {renderSortTh("Status", "status")}
+                  <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Comment</th>
                   <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
@@ -773,6 +824,15 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>
                         {request.status}
                       </Badge>
+                    </td>
+                    <td className="px-4 py-3 max-w-[180px]">
+                      {request.status === "APPROVED" && request.approvalComment ? (
+                        <span className="text-xs text-green-400">{request.approvalComment}</span>
+                      ) : request.status === "REJECTED" && request.rejectionReason ? (
+                        <span className="text-xs text-red-400">{request.rejectionReason}</span>
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-2">

@@ -18,6 +18,8 @@ export async function POST(
     }
 
     const { id } = await params;
+    const body = await req.json().catch(() => ({}));
+    const approvalComment: string | undefined = body?.approvalComment?.trim() || undefined;
 
     const leaveRequest = await prisma.leaveRequest.findUnique({
       where: { id },
@@ -43,6 +45,7 @@ export async function POST(
         status: "APPROVED",
         approverId: session.user.employeeId,
         approvedAt: new Date(),
+        ...(approvalComment ? { approvalComment } : {}),
       },
     });
 
@@ -119,8 +122,9 @@ export async function POST(
     // Notify employee
     try {
       let msg = `Your ${leaveRequest.leaveType.name} request (${Number(leaveRequest.days)} day(s)) has been approved.`;
+      if (approvalComment) msg += ` Note: ${approvalComment}`;
       if (deficitDays > 0) {
-        msg += ` Note: ${deficitDays} day(s) will be recorded as deficit and offset by future OT earnings.`;
+        msg += ` ${deficitDays} day(s) will be recorded as deficit and offset by future Off In Lieu earnings.`;
       }
       await prisma.notification.create({
         data: {

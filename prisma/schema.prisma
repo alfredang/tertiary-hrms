@@ -68,46 +68,46 @@ model Department {
 }
 
 model Employee {
-  id               String         @id @default(cuid())
-  userId           String         @unique
-  employeeId       String         @unique
-  email            String         @unique
+  id               String           @id @default(cuid())
+  userId           String           @unique
+  employeeId       String           @unique
+  email            String           @unique
   phone            String?
   dateOfBirth      DateTime?
-  gender           Gender         @default(MALE)
-  nationality      String         @default("Singaporean")
-  nric             String?        @unique
+  gender           Gender           @default(MALE)
+  nationality      String           @default("Singaporean")
+  nric             String?          @unique
   address          String?
   departmentId     String?
   position         String?
-  employmentType   EmploymentType @default(FULL_TIME)
+  employmentType   EmploymentType   @default(FULL_TIME)
   startDate        DateTime?
   endDate          DateTime?
-  status           EmployeeStatus @default(ACTIVE)
+  status           EmployeeStatus   @default(ACTIVE)
   managerId        String?
   avatarUrl        String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  educationLevel   EducationLevel @default(DIPLOMA)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  educationLevel   EducationLevel   @default(DIPLOMA)
   name             String
-  monthlyLeaveRate Decimal?       @db.Decimal(5, 2)
-  workdays         Int[]          @default([1, 2, 3, 4, 5])
+  monthlyLeaveRate Decimal?         @db.Decimal(5, 2)
+  workdays         Int[]            @default([1, 2, 3, 4, 5])
   driveFolderId    String?
   school           String?
-  managerIds       String[]       @default([])
-  department       Department?    @relation(fields: [departmentId], references: [id])
-  manager          Employee?      @relation("EmployeeToEmployee", fields: [managerId], references: [id])
-  subordinates     Employee[]     @relation("EmployeeToEmployee")
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approvedExpenses ExpenseClaim[] @relation("ExpenseClaim_approverIdToEmployee")
-  expenseClaims    ExpenseClaim[] @relation("ExpenseClaim_employeeIdToEmployee")
+  managerIds       String[]         @default([])
+  department       Department?      @relation(fields: [departmentId], references: [id])
+  manager          Employee?        @relation("EmployeeToEmployee", fields: [managerId], references: [id])
+  subordinates     Employee[]       @relation("EmployeeToEmployee")
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedExpenses ExpenseClaim[]   @relation("ExpenseClaim_approverIdToEmployee")
+  expenseClaims    ExpenseClaim[]   @relation("ExpenseClaim_employeeIdToEmployee")
   leaveBalances    LeaveBalance[]
-  approvedLeaves   LeaveRequest[] @relation("LeaveRequest_approverIdToEmployee")
-  leaveRequests    LeaveRequest[] @relation("LeaveRequest_employeeIdToEmployee")
-  payslips          Payslip[]
-  salaryInfo        SalaryInfo?
-  otWorkLogs        OtWorkLog[]
-  timesheetEntries  TimesheetEntry[]
+  approvedLeaves   LeaveRequest[]   @relation("LeaveRequest_approverIdToEmployee")
+  leaveRequests    LeaveRequest[]   @relation("LeaveRequest_employeeIdToEmployee")
+  payslips         Payslip[]
+  salaryInfo       SalaryInfo?
+  otWorkLogs       OtWorkLog[]
+  timesheetEntries TimesheetEntry[]
 }
 
 model ExpenseCategory {
@@ -180,6 +180,7 @@ model LeaveRequest {
   approvedAt       DateTime?
   rejectedAt       DateTime?
   rejectionReason  String?
+  approvalComment  String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   documentFileName String?
@@ -213,29 +214,29 @@ model LeaveType {
 }
 
 model Payslip {
-  id              String        @id @default(cuid())
-  employeeId      String
-  payPeriodStart  DateTime
-  payPeriodEnd    DateTime
-  paymentDate     DateTime
-  basicSalary     Decimal       @db.Decimal(12, 2)
-  allowances      Decimal       @default(0) @db.Decimal(12, 2)
-  overtime        Decimal       @default(0) @db.Decimal(12, 2)
-  bonus           Decimal       @default(0) @db.Decimal(12, 2)
-  grossSalary     Decimal       @db.Decimal(12, 2)
-  cpfEmployee     Decimal       @default(0) @db.Decimal(12, 2)
-  cpfEmployer     Decimal       @default(0) @db.Decimal(12, 2)
-  incomeTax       Decimal       @default(0) @db.Decimal(12, 2)
-  otherDeductions Decimal       @default(0) @db.Decimal(12, 2)
-  totalDeductions Decimal       @db.Decimal(12, 2)
-  netSalary       Decimal       @db.Decimal(12, 2)
-  status          PayslipStatus @default(DRAFT)
-  pdfUrl          String?
-  driveFileId     String?
+  id               String        @id @default(cuid())
+  employeeId       String
+  payPeriodStart   DateTime
+  payPeriodEnd     DateTime
+  paymentDate      DateTime
+  basicSalary      Decimal       @db.Decimal(12, 2)
+  allowances       Decimal       @default(0) @db.Decimal(12, 2)
+  overtime         Decimal       @default(0) @db.Decimal(12, 2)
+  bonus            Decimal       @default(0) @db.Decimal(12, 2)
+  grossSalary      Decimal       @db.Decimal(12, 2)
+  cpfEmployee      Decimal       @default(0) @db.Decimal(12, 2)
+  cpfEmployer      Decimal       @default(0) @db.Decimal(12, 2)
+  incomeTax        Decimal       @default(0) @db.Decimal(12, 2)
+  otherDeductions  Decimal       @default(0) @db.Decimal(12, 2)
+  totalDeductions  Decimal       @db.Decimal(12, 2)
+  netSalary        Decimal       @db.Decimal(12, 2)
+  status           PayslipStatus @default(DRAFT)
+  pdfUrl           String?
+  driveFileId      String?
   driveWebViewLink String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  employee        Employee      @relation(fields: [employeeId], references: [id])
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  employee         Employee      @relation(fields: [employeeId], references: [id])
 
   @@unique([employeeId, payPeriodStart, payPeriodEnd])
 }
@@ -287,20 +288,20 @@ model VerificationToken {
 }
 
 model CompanySettings {
-  id             String   @id @default("company_settings")
-  name           String   @default("Company Name")
-  uen            String?
-  address        String?
-  phone          String?
-  email          String?
-  website        String?
-  logo           String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now())
-  approvalEmails String[] @default([])
-  shortName      String?
-  payslipRemarks String?
-  payslipTitle   String?
+  id                String   @id @default("company_settings")
+  name              String   @default("Company Name")
+  uen               String?
+  address           String?
+  phone             String?
+  email             String?
+  website           String?
+  logo              String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+  approvalEmails    String[] @default([])
+  shortName         String?
+  payslipRemarks    String?
+  payslipTitle      String?
   payslipHeaderNote String?
 }
 
@@ -505,15 +506,17 @@ enum Role {
 }
 
 model TimesheetEntry {
-  id                 String   @id @default(cuid())
-  employeeId         String
-  date               DateTime @db.Date
-  hours              Decimal  @default(0) @db.Decimal(4, 1)
-  otCredited         Decimal  @default(0) @db.Decimal(5, 2)
-  otAbsenceDeducted  Decimal  @default(0) @db.Decimal(5, 2)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  employeeId        String
+  date              DateTime @db.Date
+  hours             Decimal  @default(0) @db.Decimal(4, 1)
+  otCredited        Decimal  @default(0) @db.Decimal(5, 2)
+  otAbsenceDeducted Decimal  @default(0) @db.Decimal(5, 2)
+  status            String   @default("PENDING")
+  adminComment      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, date])
   @@index([employeeId])
@@ -523,7 +526,7 @@ model OtWorkLog {
   id         String   @id @default(cuid())
   employeeId String
   date       DateTime @db.Date
-  type       String   // "WEEKEND" | "PUBLIC_HOLIDAY" | "OTHER"
+  type       String // "WEEKEND" | "PUBLIC_HOLIDAY" | "OTHER"
   note       String?
   daysEarned Decimal  @default(1) @db.Decimal(5, 2)
   recordedBy String?

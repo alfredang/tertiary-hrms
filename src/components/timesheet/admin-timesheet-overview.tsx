@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Loader2, CheckCircle2, AlertCircle, Clock, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, CheckCircle2, AlertCircle, Clock, Users, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface DayHeader {
   date: string;
@@ -29,6 +30,19 @@ interface EmployeeRow {
   missingWorkdays: number;
   totalWorkdays: number;
   status: "complete" | "partial" | "missing" | "na";
+}
+
+interface OilEntry {
+  id: string;
+  employeeName: string;
+  employeeCode: string;
+  date: string;
+  dayName: string;
+  isPublicHoliday: boolean;
+  hours: number;
+  otCredited: number;
+  status: string;
+  adminComment: string | null;
 }
 
 interface OverviewData {
@@ -136,6 +150,12 @@ export function AdminTimesheetOverview() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | "missing" | "partial" | "complete">("all");
+  const [oilEntries, setOilEntries] = useState<OilEntry[]>([]);
+  const [oilLoading, setOilLoading] = useState(true);
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [commentId, setCommentId] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
+  const { toast } = useToast();
 
   const fetchData = useCallback(async (ws: string) => {
     setLoading(true);
@@ -148,7 +168,42 @@ export function AdminTimesheetOverview() {
     }
   }, []);
 
+  const fetchOilEntries = useCallback(async () => {
+    setOilLoading(true);
+    try {
+      const res = await fetch("/api/timesheet/admin");
+      const d: OilEntry[] = await res.json();
+      setOilEntries(d);
+    } finally {
+      setOilLoading(false);
+    }
+  }, []);
+
   useEffect(() => { fetchData(weekStart); }, [weekStart, fetchData]);
+  useEffect(() => { fetchOilEntries(); }, [fetchOilEntries]);
+
+  const handleAction = async (entryId: string, action: "APPROVE" | "REJECT") => {
+    setActioningId(entryId);
+    try {
+      const res = await fetch("/api/timesheet/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryId, action, comment: comment.trim() || undefined }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      toast({
+        title: action === "APPROVE" ? "Approved" : "Rejected",
+        description: action === "APPROVE" ? "Off In Lieu days credited to employee." : "Submission rejected.",
+      });
+      setCommentId(null);
+      setComment("");
+      fetchOilEntries();
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
+    } finally {
+      setActioningId(null);
+    }
+  };
 
   const isCurrentWeek = weekStart === currentWeekStart;
 
@@ -156,8 +211,119 @@ export function AdminTimesheetOverview() {
     filterStatus === "all" ? true : r.status === filterStatus,
   ) ?? [];
 
+  const pendingOil = oilEntries.filter((e) => e.status === "PENDING");
+  const recentOil  = oilEntries.filter((e) => e.status !== "PENDING").slice(0, 10);
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
+
+      {/* Off In Lieu Approvals */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold text-white">Off In Lieu Approvals</h3>
+          {pendingOil.length > 0 && (
+            <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/50 rounded-full px-2 py-0.5">
+              {pendingOil.length} pending
+            </span>
+          )}
+        </div>
+
+        {oilLoading ? (
+          <div className="flex items-center gap-2 text-gray-500 py-4">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+          </div>
+        ) : pendingOil.length === 0 && recentOil.length === 0 ? (
+          <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-6 text-center text-gray-500 text-sm">
+            No weekend/public holiday submissions yet.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-gray-800 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-800 bg-gray-900">
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Employee</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Date</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Hours</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Off In Lieu</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Status</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {[...pendingOil, ...recentOil].map((entry) => (
+                  <tr key={entry.id} className="hover:bg-gray-900/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="text-white font-medium">{entry.employeeName}</p>
+                      <p className="text-[10px] text-gray-500">{entry.employeeCode}</p>
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 whitespace-nowrap">
+                      <span>{entry.dayName}, {entry.date}</span>
+                      {entry.isPublicHoliday && (
+                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded border text-amber-400 bg-amber-950/30 border-amber-800/40">PH</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-300">{entry.hours}h</td>
+                    <td className="px-4 py-3 text-emerald-400 font-semibold">+{entry.otCredited}d</td>
+                    <td className="px-4 py-3">
+                      {entry.status === "PENDING" ? (
+                        <span className="text-xs text-amber-400 bg-amber-950/30 border border-amber-800/50 rounded px-2 py-0.5">Pending</span>
+                      ) : entry.status === "APPROVED" ? (
+                        <div>
+                          <span className="text-xs text-green-400 bg-green-950/30 border border-green-800/50 rounded px-2 py-0.5">Approved</span>
+                          {entry.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{entry.adminComment}</p>}
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="text-xs text-red-400 bg-red-950/30 border border-red-800/50 rounded px-2 py-0.5">Rejected</span>
+                          {entry.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{entry.adminComment}</p>}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {entry.status === "PENDING" && (
+                        commentId === entry.id ? (
+                          <div className="flex flex-col gap-1.5 min-w-[200px]">
+                            <textarea
+                              value={comment}
+                              onChange={(e) => setComment(e.target.value)}
+                              placeholder="Comment (optional)..."
+                              rows={2}
+                              className="text-xs rounded bg-gray-900 border border-gray-700 text-white px-2 py-1 resize-none w-full"
+                            />
+                            <div className="flex gap-1.5">
+                              <Button size="sm" onClick={() => handleAction(entry.id, "APPROVE")} disabled={actioningId === entry.id}
+                                className="h-6 px-2 text-xs bg-green-700 hover:bg-green-600 text-white">
+                                <Check className="h-3 w-3 mr-1" />{actioningId === entry.id ? "..." : "Approve"}
+                              </Button>
+                              <Button size="sm" onClick={() => handleAction(entry.id, "REJECT")} disabled={actioningId === entry.id}
+                                className="h-6 px-2 text-xs bg-red-800 hover:bg-red-700 text-white">
+                                <X className="h-3 w-3 mr-1" />{actioningId === entry.id ? "..." : "Reject"}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => { setCommentId(null); setComment(""); }}
+                                className="h-6 px-2 text-xs text-gray-400">Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <Button size="sm" variant="outline"
+                              onClick={() => { setCommentId(entry.id); setComment(""); }}
+                              className="h-7 px-2 text-xs border-gray-700 text-gray-300 hover:text-white">
+                              Review
+                            </Button>
+                          </div>
+                        )
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Weekly overview */}
+      <div className="space-y-5">
       {/* Week nav + filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -321,6 +487,7 @@ export function AdminTimesheetOverview() {
       <p className="text-xs text-gray-600">
         Compliance is measured against workdays up to and including today. Future days are not counted. Weekends and public holidays are excluded.
       </p>
+      </div>
     </div>
   );
 }

@@ -85,7 +85,7 @@ export function AdminOtLogPanel({ employeeId }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-400">
-          Record days worked on weekends or public holidays to credit OT leave.
+          Record days worked on weekends or public holidays to credit Off In Lieu leave.
         </p>
         <Button
           size="sm"
@@ -164,7 +164,7 @@ export function AdminOtLogPanel({ employeeId }: Props) {
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-gray-600">
           <Calendar className="h-7 w-7 opacity-30" />
-          <p className="text-sm">No OT work entries recorded yet.</p>
+          <p className="text-sm">No Off In Lieu entries recorded yet.</p>
         </div>
       ) : (
         <div className="space-y-2">
