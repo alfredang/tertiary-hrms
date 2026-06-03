@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye, MessageSquare } from "lucide-react";
+import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
 import { useToast } from "@/hooks/use-toast";
 import type { LeaveStatus } from "@prisma/client";
@@ -73,7 +73,6 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const [rejectReason, setRejectReason] = useState("");
   const [approveConfirm, setApproveConfirm] = useState<string | null>(null);
   const [approveComment, setApproveComment] = useState("");
-  const [expandedReason, setExpandedReason] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
   const { toast } = useToast();
 
@@ -706,28 +705,10 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       {request.employee.name}
                     </td>
                     <td className="px-2 sm:px-4 py-3 max-w-[160px]">
-                      {request.reason ? (
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => setExpandedReason(expandedReason === request.id ? null : request.id)}
-                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
-                          >
-                            <MessageSquare className="h-3 w-3 shrink-0" />
-                            <span className="truncate max-w-[100px]">{request.reason}</span>
-                            {expandedReason === request.id
-                              ? <ChevronUp className="h-3 w-3 shrink-0" />
-                              : <ChevronDown className="h-3 w-3 shrink-0" />}
-                          </button>
-                          {expandedReason === request.id && (
-                            <p className="mt-1.5 text-xs text-gray-300 bg-gray-900 rounded-lg p-2 border border-gray-700 whitespace-pre-wrap max-w-[200px]">
-                              {request.reason}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-600">—</span>
-                      )}
+                      {request.reason
+                        ? <span className="text-xs text-white">{request.reason}</span>
+                        : <span className="text-xs text-gray-600">—</span>
+                      }
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                       {request.leaveType.name}
