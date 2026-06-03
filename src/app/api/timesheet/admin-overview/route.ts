@@ -81,7 +81,13 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  const dayHeaders = days.map((d) => ({
+  // Only show weekend and public holiday columns
+  const nonWorkDays = days.filter((d) => {
+    const key = fmtKey(d);
+    return d.getUTCDay() === 0 || d.getUTCDay() === 6 || holidaySet.has(key);
+  });
+
+  const dayHeaders = nonWorkDays.map((d) => ({
     date: fmtKey(d),
     dayName: DAY_NAMES[d.getUTCDay()],
     isWeekend: d.getUTCDay() === 0 || d.getUTCDay() === 6,
@@ -92,8 +98,19 @@ export async function GET(req: NextRequest) {
     ? fmtKey(todayUTC)
     : null;
 
+  // Fetch timesheet entries with status for non-work days
+  const allEntries = await prisma.timesheetEntry.findMany({
+    where: {
+      date: { gte: weekStart, lte: weekEnd },
+      employeeId: { in: employees.map((e) => e.id) },
+    },
+    select: { employeeId: true, date: true, hours: true, status: true },
+  });
+  const entryByEmpDate = new Map(
+    allEntries.map((e) => [`${e.employeeId}__${fmtKey(e.date)}`, e]),
+  );
+
   const rows = employees.map((emp) => {
-    const entryMap = new Map(emp.timesheetEntries.map((e) => [fmtKey(e.date), Number(e.hours)]));
 
     // Build leave coverage set
     const leaveCoveredDates = new Map<string, string>(); // date → leave type name
@@ -107,50 +124,34 @@ export async function GET(req: NextRequest) {
     }
 
     let totalHours = 0;
-    let missingWorkdays = 0;
-    let submittedWorkdays = 0;
-    let totalWorkdays = 0;
+    let approved = 0;
+    let pending = 0;
 
-    const dayStatuses = days.map((d) => {
+    const dayStatuses = nonWorkDays.map((d) => {
       const key = fmtKey(d);
       const isWeekend = d.getUTCDay() === 0 || d.getUTCDay() === 6;
       const isHoliday = holidaySet.has(key);
-      const isNonWorkday = isWeekend || isHoliday;
-      const onLeave = leaveCoveredDates.get(key);
-      const hours = entryMap.get(key) ?? null;
+      const entry = entryByEmpDate.get(`${emp.id}__${key}`);
+      const hours = entry ? Number(entry.hours) : null;
+      const status = entry?.status ?? null;
 
-      // Only count past/today workdays for compliance (future days not required yet)
-      const isPastOrToday = key <= (todayKey ?? fmtKey(todayUTC));
-
-      if (!isNonWorkday && !onLeave && isPastOrToday) {
-        totalWorkdays++;
-        if (hours !== null && hours >= 0) {
-          submittedWorkdays++;
-          totalHours += hours;
-        } else {
-          missingWorkdays++;
-        }
-      } else if (!isNonWorkday && !onLeave && hours !== null) {
+      if (hours && hours > 0) {
         totalHours += hours;
+        if (status === "APPROVED") approved++;
+        else if (status === "PENDING") pending++;
       }
 
-      return {
-        date: key,
-        hours,
-        onLeave: onLeave ?? null,
-        isWeekend,
-        isHoliday,
-      };
+      return { date: key, hours, isWeekend, isHoliday, status };
     });
 
-    const status =
-      totalWorkdays === 0
+    const overallStatus =
+      dayStatuses.every((d) => !d.hours || d.hours === 0)
         ? "na"
-        : missingWorkdays === 0
-        ? "complete"
-        : submittedWorkdays === 0
-        ? "missing"
-        : "partial";
+        : pending > 0 && approved === 0
+        ? "pending"
+        : approved > 0 && pending === 0
+        ? "approved"
+        : "mixed";
 
     return {
       id: emp.id,
@@ -158,10 +159,9 @@ export async function GET(req: NextRequest) {
       employmentType: emp.employmentType,
       days: dayStatuses,
       totalHours,
-      submittedWorkdays,
-      missingWorkdays,
-      totalWorkdays,
-      status,
+      approved,
+      pending,
+      status: overallStatus,
     };
   });
 
@@ -173,9 +173,9 @@ export async function GET(req: NextRequest) {
     rows,
     summary: {
       total: rows.length,
-      complete: rows.filter((r) => r.status === "complete").length,
-      partial: rows.filter((r) => r.status === "partial").length,
-      missing: rows.filter((r) => r.status === "missing").length,
+      approved: rows.filter((r) => r.status === "approved").length,
+      pending: rows.filter((r) => r.status === "pending" || r.status === "mixed").length,
+      none: rows.filter((r) => r.status === "na").length,
     },
   });
 }

@@ -15,9 +15,9 @@ interface DayHeader {
 interface DayStatus {
   date: string;
   hours: number | null;
-  onLeave: string | null;
   isWeekend: boolean;
   isHoliday: boolean;
+  status: string | null;
 }
 
 interface EmployeeRow {
@@ -26,10 +26,9 @@ interface EmployeeRow {
   employmentType: string;
   days: DayStatus[];
   totalHours: number;
-  submittedWorkdays: number;
-  missingWorkdays: number;
-  totalWorkdays: number;
-  status: "complete" | "partial" | "missing" | "na";
+  approved: number;
+  pending: number;
+  status: "approved" | "pending" | "mixed" | "na";
 }
 
 interface OilEntry {
@@ -51,7 +50,7 @@ interface OverviewData {
   todayKey: string | null;
   dayHeaders: DayHeader[];
   rows: EmployeeRow[];
-  summary: { total: number; complete: number; partial: number; missing: number };
+  summary: { total: number; approved: number; pending: number; none: number };
 }
 
 function addWeeks(dateStr: string, n: number): string {
@@ -80,67 +79,41 @@ function formatShortDate(dateStr: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-SG", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
-function HoursCell({ day, todayKey }: { day: DayStatus; todayKey: string | null }) {
-  const isToday = day.date === todayKey;
+function HoursCell({ day }: { day: DayStatus }) {
+  if (!day.hours || day.hours === 0) return <span className="text-xs text-gray-600">—</span>;
 
-  if (day.isWeekend || day.isHoliday) {
-    return (
-      <span className="text-xs text-gray-700 font-medium">
-        {day.isHoliday ? "PH" : "—"}
-      </span>
-    );
-  }
-  if (day.onLeave) {
-    return (
-      <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded border text-purple-400 bg-purple-950/30 border-purple-800/40 leading-tight">
-        Leave
-      </span>
-    );
-  }
-  if (day.hours === null) {
-    // Future day — no expectation yet
-    if (!isToday && day.date > (todayKey ?? "")) {
-      return <span className="text-xs text-gray-700">—</span>;
-    }
-    // Past or today with no entry
-    return (
-      <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded border text-red-400 bg-red-950/30 border-red-800/40 leading-tight">
-        Missing
-      </span>
-    );
-  }
-  if (day.hours === 0) {
-    return <span className="text-xs text-gray-500">0h</span>;
-  }
+  const statusColors: Record<string, string> = {
+    APPROVED: "text-green-400",
+    PENDING:  "text-amber-400",
+    REJECTED: "text-red-400",
+  };
+  const color = day.status ? (statusColors[day.status] ?? "text-white") : "text-white";
   return (
-    <span className={`text-xs font-semibold ${isToday ? "text-primary" : "text-white"}`}>
-      {day.hours}h
-    </span>
+    <div className="flex flex-col items-center gap-0.5">
+      <span className={`text-xs font-semibold ${color}`}>{day.hours}h</span>
+      {day.status && (
+        <span className={`text-[9px] font-medium ${color} opacity-80`}>{day.status}</span>
+      )}
+    </div>
   );
 }
 
 function StatusBadge({ status }: { status: EmployeeRow["status"] }) {
-  if (status === "complete") {
-    return (
-      <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-        <CheckCircle2 className="h-3 w-3" /> Complete
-      </span>
-    );
-  }
-  if (status === "partial") {
-    return (
-      <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-400">
-        <Clock className="h-3 w-3" /> Partial
-      </span>
-    );
-  }
-  if (status === "missing") {
-    return (
-      <span className="flex items-center gap-1 text-[11px] font-semibold text-red-400">
-        <AlertCircle className="h-3 w-3" /> Missing
-      </span>
-    );
-  }
+  if (status === "approved") return (
+    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+      <CheckCircle2 className="h-3 w-3" /> Approved
+    </span>
+  );
+  if (status === "pending") return (
+    <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-400">
+      <Clock className="h-3 w-3" /> Pending
+    </span>
+  );
+  if (status === "mixed") return (
+    <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-400">
+      <Clock className="h-3 w-3" /> Mixed
+    </span>
+  );
   return <span className="text-xs text-gray-600">—</span>;
 }
 
@@ -149,7 +122,7 @@ export function AdminTimesheetOverview() {
   const [weekStart, setWeekStart] = useState(currentWeekStart);
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<"all" | "missing" | "partial" | "complete">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "na">("all");
   const [oilEntries, setOilEntries] = useState<OilEntry[]>([]);
   const [oilLoading, setOilLoading] = useState(true);
   const [actioningId, setActioningId] = useState<string | null>(null);
@@ -208,7 +181,9 @@ export function AdminTimesheetOverview() {
   const isCurrentWeek = weekStart === currentWeekStart;
 
   const filteredRows = data?.rows.filter((r) =>
-    filterStatus === "all" ? true : r.status === filterStatus,
+    filterStatus === "all" ? true :
+    filterStatus === "pending" ? (r.status === "pending" || r.status === "mixed") :
+    r.status === filterStatus,
   ) ?? [];
 
   const pendingOil = oilEntries.filter((e) => e.status === "PENDING");
@@ -351,23 +326,23 @@ export function AdminTimesheetOverview() {
 
         {/* Status filter */}
         <div className="flex items-center gap-1.5">
-          {(["all", "missing", "partial", "complete"] as const).map((f) => (
+          {(["all", "pending", "approved", "na"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilterStatus(f)}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors capitalize
                 ${filterStatus === f
-                  ? f === "missing" ? "bg-red-900/60 text-red-300 border border-red-700"
-                  : f === "partial" ? "bg-amber-900/60 text-amber-300 border border-amber-700"
-                  : f === "complete" ? "bg-emerald-900/60 text-emerald-300 border border-emerald-700"
+                  ? f === "pending" ? "bg-amber-900/60 text-amber-300 border border-amber-700"
+                  : f === "approved" ? "bg-emerald-900/60 text-emerald-300 border border-emerald-700"
+                  : f === "na" ? "bg-gray-700 text-gray-300 border border-gray-600"
                   : "bg-gray-700 text-white border border-gray-600"
                   : "bg-gray-900 text-gray-400 border border-gray-800 hover:border-gray-600"
                 }`}
             >
-              {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === "all" ? "All" : f === "na" ? "Not Submitted" : f.charAt(0).toUpperCase() + f.slice(1)}
               {data && f !== "all" && (
                 <span className="ml-1 opacity-70">
-                  ({f === "missing" ? data.summary.missing : f === "partial" ? data.summary.partial : data.summary.complete})
+                  ({f === "pending" ? data.summary.pending : f === "approved" ? data.summary.approved : data.summary.none})
                 </span>
               )}
             </button>
@@ -386,21 +361,21 @@ export function AdminTimesheetOverview() {
           </div>
           <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/20 px-4 py-3">
             <div className="flex items-center gap-2 text-emerald-400 text-xs mb-1">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Complete
+              <CheckCircle2 className="h-3.5 w-3.5" /> Approved
             </div>
-            <p className="text-2xl font-bold text-emerald-400">{data.summary.complete}</p>
+            <p className="text-2xl font-bold text-emerald-400">{data.summary.approved}</p>
           </div>
           <div className="rounded-xl border border-amber-900/50 bg-amber-950/20 px-4 py-3">
             <div className="flex items-center gap-2 text-amber-400 text-xs mb-1">
-              <Clock className="h-3.5 w-3.5" /> Partial
+              <Clock className="h-3.5 w-3.5" /> Pending
             </div>
-            <p className="text-2xl font-bold text-amber-400">{data.summary.partial}</p>
+            <p className="text-2xl font-bold text-amber-400">{data.summary.pending}</p>
           </div>
-          <div className="rounded-xl border border-red-900/50 bg-red-950/20 px-4 py-3">
-            <div className="flex items-center gap-2 text-red-400 text-xs mb-1">
-              <AlertCircle className="h-3.5 w-3.5" /> Missing
+          <div className="rounded-xl border border-gray-700/50 bg-gray-900/40 px-4 py-3">
+            <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+              <AlertCircle className="h-3.5 w-3.5" /> Not Submitted
             </div>
-            <p className="text-2xl font-bold text-red-400">{data.summary.missing}</p>
+            <p className="text-2xl font-bold text-gray-400">{data.summary.none}</p>
           </div>
         </div>
       )}
@@ -465,7 +440,7 @@ export function AdminTimesheetOverview() {
                           ${day.date === data.todayKey ? "bg-primary/5" : ""}
                         `}
                       >
-                        <HoursCell day={day} todayKey={data.todayKey} />
+                        <HoursCell day={day} />
                       </td>
                     ))}
                     <td className="text-center px-3 py-3">
@@ -485,7 +460,7 @@ export function AdminTimesheetOverview() {
       ) : null}
 
       <p className="text-xs text-gray-600">
-        Compliance is measured against workdays up to and including today. Future days are not counted. Weekends and public holidays are excluded.
+        Shows weekend and public holiday submissions only. Off In Lieu days are credited after admin approval.
       </p>
       </div>
     </div>
