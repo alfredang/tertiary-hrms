@@ -109,6 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.otp) return null;
 
         const normalizedEmail = (credentials.email as string).toLowerCase().trim();
+        const submittedOtp = (credentials.otp as string).trim();
 
         const otpRecord = await prisma.otpCode.findFirst({
           where: {
@@ -119,8 +120,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           orderBy: { createdAt: "desc" },
         });
 
-        if (!otpRecord) return null;
-        if (otpRecord.code !== credentials.otp) return null;
+        if (!otpRecord) {
+          // Check if there's an expired/used record to give a better hint
+          const anyRecord = await prisma.otpCode.findFirst({
+            where: { email: normalizedEmail },
+            orderBy: { createdAt: "desc" },
+          });
+          console.warn(`[auth/otp] No valid OTP for ${normalizedEmail}. Last record: used=${anyRecord?.used}, expired=${anyRecord ? anyRecord.expiresAt < new Date() : "none"}`);
+          return null;
+        }
+
+        if (otpRecord.code !== submittedOtp) {
+          console.warn(`[auth/otp] Wrong OTP for ${normalizedEmail}. Expected length: ${otpRecord.code.length}, got length: ${submittedOtp.length}`);
+          return null;
+        }
 
         // Mark OTP as used
         await prisma.otpCode.update({
@@ -133,8 +146,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           include: { employee: true },
         });
 
-        if (!user) return null;
-        if (user.employee?.status === "INACTIVE") return null;
+        if (!user) {
+          console.warn(`[auth/otp] OTP valid but user not found for ${normalizedEmail}`);
+          return null;
+        }
+        if (user.employee?.status === "INACTIVE") {
+          console.warn(`[auth/otp] OTP valid but employee INACTIVE for ${normalizedEmail}`);
+          return null;
+        }
 
         const roles = user.roles.length > 0 ? user.roles : ["STAFF" as Role];
         return {
