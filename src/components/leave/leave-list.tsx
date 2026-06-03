@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye, ExternalLink } from "lucide-react";
+import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye, MessageSquare } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
 import { useToast } from "@/hooks/use-toast";
 import type { LeaveStatus } from "@prisma/client";
@@ -73,6 +72,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const [rejectReason, setRejectReason] = useState("");
   const [approveConfirm, setApproveConfirm] = useState<string | null>(null);
   const [approveComment, setApproveComment] = useState("");
+  const [expandedReason, setExpandedReason] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
   const { toast } = useToast();
 
@@ -676,6 +676,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                     />
                   </th>
                   {renderSortTh("Employee", "employee")}
+                  <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Reason</th>
                   {renderSortTh("Type", "type")}
                   {renderSortTh("Start", "startDate")}
                   {renderSortTh("End", "endDate")}
@@ -700,12 +701,31 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                         />
                       )}
                     </td>
-                    <td className="px-2 sm:px-4 py-3">
-                      <p className="text-xs sm:text-sm text-white whitespace-nowrap">{request.employee.name}</p>
-                      {request.reason && (
-                        <p className="text-[11px] text-gray-500 mt-0.5 max-w-[180px] truncate" title={request.reason}>
-                          {request.reason}
-                        </p>
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-white whitespace-nowrap">
+                      {request.employee.name}
+                    </td>
+                    <td className="px-2 sm:px-4 py-3 max-w-[160px]">
+                      {request.reason ? (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedReason(expandedReason === request.id ? null : request.id)}
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
+                          >
+                            <MessageSquare className="h-3 w-3 shrink-0" />
+                            <span className="truncate max-w-[100px]">{request.reason}</span>
+                            {expandedReason === request.id
+                              ? <ChevronUp className="h-3 w-3 shrink-0" />
+                              : <ChevronDown className="h-3 w-3 shrink-0" />}
+                          </button>
+                          {expandedReason === request.id && (
+                            <p className="mt-1.5 text-xs text-gray-300 bg-gray-900 rounded-lg p-2 border border-gray-700 whitespace-pre-wrap max-w-[200px]">
+                              {request.reason}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
                       )}
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
@@ -737,13 +757,8 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                         <span className="text-xs text-gray-600">—</span>
                       )}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 min-w-[200px]">
+                    <td className="px-2 sm:px-4 py-3 min-w-[180px]">
                       <div className="flex items-start gap-2 flex-wrap">
-                        <Link href={`/leave/${request.id}`}>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800" title="View details">
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </Link>
                         {renderDocButton(request)}
                         {request.status === "PENDING"
                           ? renderAdminPendingActions(request.id)
@@ -846,11 +861,6 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-2">
-                        <Link href={`/leave/${request.id}`}>
-                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800" title="View details">
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </Link>
                         {renderDocButton(request)}
                         {request.status === "PENDING" && renderStaffActions(request.id)}
                       </div>
