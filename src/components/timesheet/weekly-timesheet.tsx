@@ -214,7 +214,7 @@ export function WeeklyTimesheet() {
             </div>
           ) : (
             <div className="rounded-xl border border-gray-800 overflow-hidden">
-              <div className="grid grid-cols-[80px_1fr_160px_120px_auto] gap-3 bg-gray-900 border-b border-gray-800 px-4 py-2.5">
+              <div className="grid grid-cols-[80px_1fr_160px_120px_160px] gap-3 bg-gray-900 border-b border-gray-800 px-4 py-2.5">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Day</p>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Date</p>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Hours</p>
@@ -233,7 +233,7 @@ export function WeeklyTimesheet() {
                 return (
                   <div
                     key={day.date}
-                    className={`grid grid-cols-[80px_1fr_160px_120px_auto] items-center gap-3 px-4 py-3 border-b border-gray-800 last:border-0 transition-colors
+                    className={`grid grid-cols-[80px_1fr_160px_120px_160px] items-center gap-3 px-4 py-3 border-b border-gray-800 last:border-0 transition-colors
                       ${day.isPublicHoliday ? "bg-amber-950/10" : "bg-emerald-950/10"}
                       ${isToday ? "border-l-2 border-l-primary" : ""}
                     `}
@@ -298,7 +298,7 @@ export function WeeklyTimesheet() {
                     </div>
 
                     {/* Status */}
-                    <div className="min-w-[120px]">
+                    <div>
                       {statusBadge ? (
                         <div>
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadge.className}`}>
