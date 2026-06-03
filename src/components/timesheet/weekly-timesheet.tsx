@@ -214,7 +214,7 @@ export function WeeklyTimesheet() {
             </div>
           ) : (
             <div className="rounded-xl border border-gray-800 overflow-hidden">
-              <div className="grid grid-cols-[80px_1fr_160px_120px_auto] gap-0 bg-gray-900 border-b border-gray-800 px-4 py-2.5">
+              <div className="grid grid-cols-[80px_1fr_160px_120px_auto] gap-3 bg-gray-900 border-b border-gray-800 px-4 py-2.5">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Day</p>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Date</p>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Hours</p>
