@@ -118,11 +118,27 @@ export async function POST(req: NextRequest) {
     if (oilEarned > 0) {
       const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
       if (alOtType) {
-        // Recalculate earned from all approved OtWorkLog entries
         const yearStart = new Date(Date.UTC(year, 0, 1));
         const yearEnd   = new Date(Date.UTC(year + 1, 0, 1));
+        const phName = (await prisma.publicHoliday.findFirst({
+          where: { date: entry.date, countryCode: "SG" },
+        }))?.name ?? null;
+        const type = entry.date.getUTCDay() === 0 || entry.date.getUTCDay() === 6 ? "WEEKEND" : "PUBLIC_HOLIDAY";
 
-        // Update OtWorkLog entry to mark it as approved (keep existing)
+        // Create OtWorkLog now (only on approval)
+        await prisma.otWorkLog.deleteMany({ where: { employeeId: entry.employeeId, date: entry.date } });
+        await prisma.otWorkLog.create({
+          data: {
+            employeeId: entry.employeeId,
+            date: entry.date,
+            type,
+            note: phName,
+            daysEarned: oilEarned,
+            recordedBy: session?.user?.name ?? "Admin",
+          },
+        });
+
+        // Recalculate earned from all approved OtWorkLog entries
         const allLogs = await prisma.otWorkLog.findMany({
           where: { employeeId: entry.employeeId, date: { gte: yearStart, lt: yearEnd } },
           select: { daysEarned: true },
@@ -164,7 +180,7 @@ export async function POST(req: NextRequest) {
     } catch { /* non-critical */ }
 
   } else {
-    // REJECT — remove OtWorkLog entry, mark rejected
+    // REJECT — remove OtWorkLog entry, mark rejected, recalculate balance
     await prisma.timesheetEntry.update({
       where: { id: entryId },
       data: { status: "REJECTED", adminComment: comment ?? null, otCredited: 0 },
@@ -173,6 +189,23 @@ export async function POST(req: NextRequest) {
     await prisma.otWorkLog.deleteMany({
       where: { employeeId: entry.employeeId, date: entry.date },
     });
+
+    // Recalculate earned balance after removal
+    const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+    if (alOtType) {
+      const year = entry.date.getUTCFullYear();
+      const yearStart = new Date(Date.UTC(year, 0, 1));
+      const yearEnd   = new Date(Date.UTC(year + 1, 0, 1));
+      const allLogs = await prisma.otWorkLog.findMany({
+        where: { employeeId: entry.employeeId, date: { gte: yearStart, lt: yearEnd } },
+        select: { daysEarned: true },
+      });
+      const recalcEarned = allLogs.reduce((sum, l) => sum + Number(l.daysEarned), 0);
+      await prisma.leaveBalance.updateMany({
+        where: { employeeId: entry.employeeId, leaveTypeId: alOtType.id, year },
+        data: { earned: recalcEarned },
+      });
+    }
 
     // Notify employee
     try {

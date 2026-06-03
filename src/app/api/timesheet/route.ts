@@ -169,20 +169,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // Maintain OtWorkLog for reference
+    // Remove OtWorkLog on (re)submission — only created on admin approval
     await prisma.otWorkLog.deleteMany({ where: { employeeId, date: d } });
-    if (entry.hours > 0) {
-      await prisma.otWorkLog.create({
-        data: {
-          employeeId,
-          date: d,
-          type,
-          note: phName,
-          daysEarned: otForHours(entry.hours),
-          recordedBy: session.user.name ?? "Employee",
-        },
-      });
-    }
   }
 
   return NextResponse.json({ ok: true });
