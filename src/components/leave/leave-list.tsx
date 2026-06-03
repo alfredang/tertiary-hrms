@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye } from "lucide-react";
+import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye, ExternalLink } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
 import { useToast } from "@/hooks/use-toast";
 import type { LeaveStatus } from "@prisma/client";
@@ -738,13 +738,18 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       )}
                     </td>
                     <td className="px-2 sm:px-4 py-3 min-w-[200px]">
-                      <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <Link href={`/leave/${request.id}`}>
+                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800" title="View details">
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </Link>
                         {renderDocButton(request)}
                         {request.status === "PENDING"
                           ? renderAdminPendingActions(request.id)
                           : (request.status === "APPROVED" || request.status === "REJECTED")
                             ? renderAdminResetActions(request.id)
-                            : !request.documentUrl && <span className="text-sm text-gray-500">—</span>
+                            : null
                         }
                       </div>
                     </td>
@@ -841,11 +846,13 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-2">
+                        <Link href={`/leave/${request.id}`}>
+                          <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800" title="View details">
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </Link>
                         {renderDocButton(request)}
-                        {request.status === "PENDING"
-                          ? renderStaffActions(request.id)
-                          : !request.documentUrl && <span className="text-sm text-gray-500">—</span>
-                        }
+                        {request.status === "PENDING" && renderStaffActions(request.id)}
                       </div>
                     </td>
                   </tr>

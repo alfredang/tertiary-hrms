@@ -16,6 +16,32 @@ const leaveEditSchema = z.object({
   documentFileName: z.string().nullable().optional(),
 });
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const request = await prisma.leaveRequest.findUnique({
+    where: { id },
+    include: {
+      employee: { select: { id: true, name: true, employeeId: true, department: { select: { name: true } } } },
+      leaveType: { select: { name: true, code: true } },
+      approver: { select: { name: true } },
+    },
+  });
+
+  if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const isAdmin = ["ADMIN", "MANAGER", "HR"].includes(session.user.role);
+  const isOwner = request.employeeId === session.user.employeeId;
+  if (!isAdmin && !isOwner) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  return NextResponse.json(request);
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
