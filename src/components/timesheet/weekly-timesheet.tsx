@@ -214,7 +214,8 @@ export function WeeklyTimesheet() {
             </div>
           ) : (
             <div className="rounded-xl border border-gray-800 overflow-hidden">
-              <div className="grid grid-cols-[80px_1fr_160px_120px_160px] gap-3 bg-gray-900 border-b border-gray-800 px-4 py-2.5">
+              {/* Desktop header — hidden on mobile */}
+              <div className="hidden md:grid md:grid-cols-[80px_1fr_160px_120px_160px] gap-3 bg-gray-900 border-b border-gray-800 px-4 py-2.5">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Day</p>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Date</p>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Hours</p>
@@ -229,90 +230,116 @@ export function WeeklyTimesheet() {
                 const todayKey = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString().slice(0, 10);
                 const isToday = day.date === todayKey;
                 const statusBadge = day.status ? STATUS_BADGE[day.status] : null;
+                const accentColor = day.isPublicHoliday ? "text-amber-400" : "text-emerald-400";
 
                 return (
                   <div
                     key={day.date}
-                    className={`grid grid-cols-[80px_1fr_160px_120px_160px] items-center gap-3 px-4 py-3 border-b border-gray-800 last:border-0 transition-colors
+                    className={`border-b border-gray-800 last:border-0 transition-colors
                       ${day.isPublicHoliday ? "bg-amber-950/10" : "bg-emerald-950/10"}
                       ${isToday ? "border-l-2 border-l-primary" : ""}
                     `}
                   >
-                    {/* Day name */}
-                    <div>
-                      <span className={`text-sm font-semibold ${day.isPublicHoliday ? "text-amber-400" : "text-emerald-400"}`}>
-                        {day.dayName}
-                      </span>
-                      {isToday && (
-                        <span className="ml-1.5 text-[10px] bg-primary/20 text-primary rounded px-1 py-0.5">Today</span>
-                      )}
-                    </div>
-
-                    {/* Date + type badge */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm text-gray-300">{formatDateLabel(day.date)}</span>
-                      {day.isPublicHoliday && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border text-amber-400 bg-amber-950/30 border-amber-800/40 truncate max-w-[140px]">
-                          PH: {day.phName}
-                        </span>
-                      )}
-                      {!day.isPublicHoliday && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-950/30 border-emerald-800/40">
-                          Weekend
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Hours selector */}
-                    {day.isSubmittable && day.status !== "APPROVED" ? (
-                      <div className="flex gap-1.5">
-                        {HOUR_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setDraft((prev) => ({ ...prev, [day.date]: opt.value }))}
-                            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer
-                              ${hours === opt.value
-                                ? opt.value === 0 ? "bg-gray-700 text-gray-300" : "bg-emerald-600 text-white"
-                                : "bg-gray-900 border border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
-                              }
-                            `}
-                          >
-                            {opt.short}
-                          </button>
-                        ))}
+                    {/* Desktop row — hidden on mobile */}
+                    <div className="hidden md:grid md:grid-cols-[80px_1fr_160px_120px_160px] items-center gap-3 px-4 py-3">
+                      <div>
+                        <span className={`text-sm font-semibold ${accentColor}`}>{day.dayName}</span>
+                        {isToday && <span className="ml-1.5 text-[10px] bg-primary/20 text-primary rounded px-1 py-0.5">Today</span>}
                       </div>
-                    ) : (
-                      <span className={`text-sm font-semibold ${hours === 0 ? "text-gray-600" : "text-emerald-400"}`}>
-                        {hours === 0 ? "—" : `${hours}h`}
-                      </span>
-                    )}
-
-                    {/* Off In Lieu earned */}
-                    <div>
-                      {earned > 0 ? (
-                        <span className="text-xs font-semibold text-emerald-400">+{earned}d</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm text-gray-300">{formatDateLabel(day.date)}</span>
+                        {day.isPublicHoliday ? (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border text-amber-400 bg-amber-950/30 border-amber-800/40 truncate max-w-[140px]">PH: {day.phName}</span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-950/30 border-emerald-800/40">Weekend</span>
+                        )}
+                      </div>
+                      {day.isSubmittable && day.status !== "APPROVED" ? (
+                        <div className="flex gap-1.5">
+                          {HOUR_OPTIONS.map((opt) => (
+                            <button key={opt.value} type="button"
+                              onClick={() => setDraft((prev) => ({ ...prev, [day.date]: opt.value }))}
+                              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer
+                                ${hours === opt.value
+                                  ? opt.value === 0 ? "bg-gray-700 text-gray-300" : "bg-emerald-600 text-white"
+                                  : "bg-gray-900 border border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                                }`}
+                            >{opt.short}</button>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="text-xs text-gray-600">—</span>
+                        <span className={`text-sm font-semibold ${hours === 0 ? "text-gray-600" : "text-emerald-400"}`}>{hours === 0 ? "—" : `${hours}h`}</span>
                       )}
+                      <div>{earned > 0 ? <span className="text-xs font-semibold text-emerald-400">+{earned}d</span> : <span className="text-xs text-gray-600">—</span>}</div>
+                      <div>
+                        {statusBadge ? (
+                          <div>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadge.className}`}>{statusBadge.label}</span>
+                            {day.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{day.adminComment}</p>}
+                          </div>
+                        ) : day.isSubmittable ? (
+                          <span className="text-[10px] text-gray-600">Not submitted</span>
+                        ) : (
+                          <span className="text-[10px] text-gray-700">—</span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Status */}
-                    <div>
-                      {statusBadge ? (
-                        <div>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadge.className}`}>
-                            {statusBadge.label}
-                          </span>
-                          {day.adminComment && (
-                            <p className="text-[10px] text-gray-500 mt-0.5">{day.adminComment}</p>
+                    {/* Mobile card — hidden on desktop */}
+                    <div className="md:hidden px-4 py-3 space-y-2.5">
+                      {/* Row 1: Day + Date + badge */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-sm font-semibold ${accentColor}`}>{day.dayName}</span>
+                        {isToday && <span className="text-[10px] bg-primary/20 text-primary rounded px-1.5 py-0.5">Today</span>}
+                        <span className="text-sm text-gray-300">{formatDateLabel(day.date)}</span>
+                        {day.isPublicHoliday ? (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border text-amber-400 bg-amber-950/30 border-amber-800/40">PH: {day.phName}</span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-950/30 border-emerald-800/40">Weekend</span>
+                        )}
+                      </div>
+
+                      {/* Row 2: Hours selector */}
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wide w-10 shrink-0">Hours</span>
+                        {day.isSubmittable && day.status !== "APPROVED" ? (
+                          <div className="flex gap-1.5">
+                            {HOUR_OPTIONS.map((opt) => (
+                              <button key={opt.value} type="button"
+                                onClick={() => setDraft((prev) => ({ ...prev, [day.date]: opt.value }))}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer
+                                  ${hours === opt.value
+                                    ? opt.value === 0 ? "bg-gray-700 text-gray-300" : "bg-emerald-600 text-white"
+                                    : "bg-gray-900 border border-gray-700 text-gray-400"
+                                  }`}
+                              >{opt.short}</button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className={`text-sm font-semibold ${hours === 0 ? "text-gray-600" : "text-emerald-400"}`}>{hours === 0 ? "—" : `${hours}h`}</span>
+                        )}
+                      </div>
+
+                      {/* Row 3: Off In Lieu + Status */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500 uppercase tracking-wide">Off In Lieu</span>
+                          {earned > 0 ? <span className="text-xs font-semibold text-emerald-400">+{earned}d</span> : <span className="text-xs text-gray-600">—</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500 uppercase tracking-wide">Status</span>
+                          {statusBadge ? (
+                            <div>
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${statusBadge.className}`}>{statusBadge.label}</span>
+                              {day.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{day.adminComment}</p>}
+                            </div>
+                          ) : day.isSubmittable ? (
+                            <span className="text-[10px] text-gray-600">Not submitted</span>
+                          ) : (
+                            <span className="text-[10px] text-gray-700">—</span>
                           )}
                         </div>
-                      ) : day.isSubmittable ? (
-                        <span className="text-[10px] text-gray-600">Not submitted</span>
-                      ) : (
-                        <span className="text-[10px] text-gray-700">—</span>
-                      )}
+                      </div>
                     </div>
                   </div>
                 );
