@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Loader2 } from "lucide-react";
 
 export function AccountingClient() {
   const router = useRouter();
+  const pathname = usePathname();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
@@ -90,6 +91,10 @@ export function AccountingClient() {
           ` (${verifyNote})` +
           driveNote,
       );
+      // Clear any active search/status/date filters so the freshly-imported rows
+      // are always visible. router.refresh() alone keeps the old URL params, which
+      // can hide every new row behind a stale `?q=` search.
+      router.replace(pathname, { scroll: false });
       router.refresh();
     } catch (err: any) {
       setError(err.message ?? "Upload failed");
