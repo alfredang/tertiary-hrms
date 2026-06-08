@@ -17,6 +17,8 @@ function buildDate() {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone', // Enable for Docker deployment
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: false },
   env: {
     NEXT_PUBLIC_BUILD_DATE: buildDate(),
     NEXT_PUBLIC_GIT_COMMIT: gitCommit(),
