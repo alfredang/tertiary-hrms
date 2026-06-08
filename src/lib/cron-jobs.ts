@@ -36,4 +36,15 @@ export const BUILT_IN_CRON_JOBS: BuiltInCronJob[] = [
     path: "/api/cron/timesheet-reminder",
     status: "active",
   },
+  {
+    id: "deactivate-expired-interns",
+    name: "Deactivate Expired Interns",
+    description:
+      "Sets interns to INACTIVE once their employment end date has passed (they keep access through their final day). An inactive account is blocked from every login method. Only runs while the \"Auto-deactivate expired interns\" toggle above is enabled.",
+    schedule: "Daily at 00:30 SGT",
+    cron: "30 16 * * *",
+    method: "GET",
+    path: "/api/cron/deactivate-expired-interns",
+    status: "active",
+  },
 ];

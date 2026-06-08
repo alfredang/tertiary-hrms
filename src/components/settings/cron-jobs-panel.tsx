@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Copy, CheckCircle2, Mail } from "lucide-react";
+import { Clock, Play, Copy, CheckCircle2, Mail, UserX } from "lucide-react";
 
 interface CronJobView {
   id: string;
@@ -18,11 +18,49 @@ interface CronJobView {
   status: "active" | "planned";
 }
 
-export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
+export function CronJobsPanel({
+  jobs,
+  autoDeactivateInterns = false,
+}: {
+  jobs: CronJobView[];
+  autoDeactivateInterns?: boolean;
+}) {
   const { toast } = useToast();
   const [running, setRunning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [testingEmail, setTestingEmail] = useState(false);
+  const [autoDeactivate, setAutoDeactivate] = useState(autoDeactivateInterns);
+  const [savingToggle, setSavingToggle] = useState(false);
+
+  const toggleAutoDeactivate = async () => {
+    const next = !autoDeactivate;
+    setSavingToggle(true);
+    setAutoDeactivate(next); // optimistic
+    try {
+      const res = await fetch("/api/settings/auto-deactivate-interns", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
+      toast({
+        title: next ? "Auto-deactivation enabled" : "Auto-deactivation disabled",
+        description: next
+          ? "Interns are set to Inactive the day after their end date."
+          : "Interns will no longer be auto-deactivated.",
+      });
+    } catch (err) {
+      setAutoDeactivate(!next); // revert
+      toast({
+        title: "Could not update setting",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingToggle(false);
+    }
+  };
 
   const sendTestEmail = async () => {
     setTestingEmail(true);
@@ -93,6 +131,38 @@ export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="border border-gray-800 rounded-xl p-4 bg-gray-900/40 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gray-800 shrink-0">
+              <UserX className="h-4 w-4 text-gray-300" />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold">Auto-deactivate expired interns</h3>
+              <p className="text-sm text-gray-400 mt-1">
+                When on, the daily <span className="text-gray-300">Deactivate Expired Interns</span> job
+                sets interns to <span className="text-gray-300">Inactive</span> the day after their
+                employment end date, which also blocks them from logging in. When off, the job is skipped.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoDeactivate}
+            aria-label="Auto-deactivate expired interns"
+            onClick={toggleAutoDeactivate}
+            disabled={savingToggle}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+              autoDeactivate ? "bg-primary" : "bg-gray-700"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                autoDeactivate ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
         {jobs.map((j) => (
           <div
             key={j.id}

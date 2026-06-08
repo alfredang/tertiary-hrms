@@ -303,6 +303,7 @@ model CompanySettings {
   payslipRemarks    String?
   payslipTitle      String?
   payslipHeaderNote String?
+  autoDeactivateInterns Boolean @default(false)
 }
 
 model ApprovalToken {
