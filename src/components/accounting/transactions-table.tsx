@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Trash2, Send, CreditCard } from "lucide-react";
+import { Loader2, Trash2, Send, CreditCard, BadgeCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,7 +23,7 @@ type Row = {
 };
 
 const PAYMENT_TYPES = ["GIRO", "Bank Transfer", "PayNow", "CC", "Cash", "e-invoice"];
-const STATUSES = ["Pending", "Settled"];
+const STATUSES = ["Pending", "QB Created", "Settled"];
 const EXPENSE_CATEGORIES = [
   "Trainer Fee",
   "Allowance",
@@ -141,7 +141,7 @@ export function TransactionsTable({
       if (!res.ok) throw new Error(data.error ?? "Failed to create QB expense");
       setRows((prev) =>
         prev.map((r) =>
-          r.id === rowId ? { ...r, status: "Settled", qbExpenseNo: data.qbExpenseNo ?? "" } : r,
+          r.id === rowId ? { ...r, status: "QB Created", qbExpenseNo: data.qbExpenseNo ?? "" } : r,
         ),
       );
       return true;
@@ -337,6 +337,7 @@ export function TransactionsTable({
             <Col id="invoiceNo" widths={widths} defaultW={200} />
             {showReceiptNo && <Col id="receiptNo" widths={widths} defaultW={180} />}
             <Col id="status" widths={widths} defaultW={120} />
+            {showGenerateExpense && <col style={{ width: "140px" }} />}
             <Col id="remarks" widths={widths} defaultW={360} />
             <col style={{ width: "40px" }} />
           </colgroup>
@@ -391,6 +392,11 @@ export function TransactionsTable({
               <ResizableTh id="status" widths={widths} setWidth={setWidth} defaultW={120}>
                 Status
               </ResizableTh>
+              {showGenerateExpense && (
+                <th className="p-3 text-left font-medium whitespace-nowrap text-xs text-gray-400">
+                  QB Review
+                </th>
+              )}
               <ResizableTh id="remarks" widths={widths} setWidth={setWidth} defaultW={360}>
                 Remark
               </ResizableTh>
@@ -573,12 +579,43 @@ export function TransactionsTable({
                         }}
                         saving={isSaving("status")}
                         error={errorOf("status")}
-                        tone={r.status === "Settled" ? "green" : "orange"}
+                        tone={r.status === "Settled" ? "green" : r.status === "QB Created" ? "purple" : "orange"}
                       />
                     )}
                     {generateErrors[r.id] && <ErrText msg={generateErrors[r.id]!} />}
                     {receiveErrors[r.id] && <ErrText msg={receiveErrors[r.id]!} />}
                   </td>
+
+                  {/* QB Review action */}
+                  {showGenerateExpense && (
+                    <td className="p-2 align-middle">
+                      {r.status === "QB Created" && (
+                        <button
+                          type="button"
+                          disabled={isSaving("status")}
+                          onClick={() => {
+                            setField(r.id, "status", "Settled");
+                            commitField(r.id, "status", "Settled", { refresh: true });
+                          }}
+                          title="Confirm this expense has been reviewed and mark it as Settled"
+                          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border border-emerald-600/60 text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-500 disabled:opacity-50 transition-colors whitespace-nowrap"
+                        >
+                          {isSaving("status") ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                          )}
+                          Confirm Settlement
+                        </button>
+                      )}
+                      {r.status === "Settled" && (
+                        <span className="flex items-center gap-1 text-xs text-emerald-600">
+                          <BadgeCheck className="h-3.5 w-3.5" />
+                          Settled
+                        </span>
+                      )}
+                    </td>
+                  )}
 
                   {/* Remark */}
                   <td className="p-2 overflow-hidden">
@@ -688,13 +725,14 @@ function NumberCell({ value, onChange, onCommit, saving, error }: {
 
 function SelectCell({ value, options, onChange, saving, error, tone }: {
   value: string; options: string[]; onChange: (v: string) => void;
-  saving: boolean; error?: string; tone?: "sky" | "emerald" | "green" | "orange";
+  saving: boolean; error?: string; tone?: "sky" | "emerald" | "green" | "orange" | "purple";
 }) {
   const toneClass =
     tone === "sky" ? "bg-sky-900/40 text-sky-300 hover:bg-sky-900/60"
     : tone === "emerald" ? "bg-emerald-900/40 text-emerald-300 hover:bg-emerald-900/60"
     : tone === "green" ? "bg-green-900/40 text-green-300 hover:bg-green-900/60"
     : tone === "orange" ? "bg-orange-900/40 text-orange-300 hover:bg-orange-900/60"
+    : tone === "purple" ? "bg-purple-900/40 text-purple-300 hover:bg-purple-900/60"
     : "bg-gray-900 text-gray-200 hover:bg-gray-800";
   return (
     <div className="relative inline-flex items-center gap-1">

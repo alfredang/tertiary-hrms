@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
-const STATUS_OPTIONS = ["Pending", "Settled", "All"];
+const STATUS_OPTIONS = ["Pending", "QB Created", "Settled", "All"];
 
 export const EXPENSE_CATEGORY_OPTIONS = [
   "All",

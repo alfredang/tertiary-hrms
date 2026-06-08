@@ -97,8 +97,8 @@ export async function POST(req: NextRequest) {
     if (txn.direction !== "DEBIT") {
       return NextResponse.json({ error: "Only expense (DEBIT) records can be sent to QB" }, { status: 400 });
     }
-    if (txn.status === "Settled" && txn.qbExpenseId) {
-      return NextResponse.json({ error: "Already settled in QuickBooks", qbExpenseNo: txn.qbExpenseNo }, { status: 409 });
+    if ((txn.status === "Settled" || txn.status === "QB Created") && txn.qbExpenseId) {
+      return NextResponse.json({ error: "Already sent to QuickBooks", qbExpenseNo: txn.qbExpenseNo }, { status: 409 });
     }
 
     const creds = await getQBCreds();
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.bankTransaction.update({
       where: { id },
-      data: { status: "Settled", qbExpenseId, qbExpenseNo },
+      data: { status: "QB Created", qbExpenseId, qbExpenseNo },
     });
 
     return NextResponse.json({ ok: true, qbExpenseNo, qbExpenseId });
