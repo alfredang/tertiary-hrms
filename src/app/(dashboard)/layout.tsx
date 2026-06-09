@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/header";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { ViewModeProvider } from "@/components/layout/view-mode-context";
+import { ViewSwitchOverlay } from "@/components/layout/view-switch-overlay";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { getViewMode } from "@/lib/view-mode";
@@ -73,6 +74,9 @@ export default async function DashboardLayout({
 
         {/* Mobile bottom navigation */}
         <MobileBottomNav />
+
+        {/* Loading overlay over the content while switching role views */}
+        <ViewSwitchOverlay />
       </div>
     </ViewModeProvider>
   );

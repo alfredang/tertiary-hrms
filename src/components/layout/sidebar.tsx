@@ -87,6 +87,7 @@ const navigation: NavItem[] = [
   { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
   { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
   { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
+  { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
   {
     name: "Settings",
     href: "/settings",

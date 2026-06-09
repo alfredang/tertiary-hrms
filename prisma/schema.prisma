@@ -95,6 +95,8 @@ model Employee {
   driveFolderId    String?
   school           String?
   managerIds       String[]         @default([])
+  habitapInviteAt  DateTime?
+  habitapEventId   String?
   department       Department?      @relation(fields: [departmentId], references: [id])
   manager          Employee?        @relation("EmployeeToEmployee", fields: [managerId], references: [id])
   subordinates     Employee[]       @relation("EmployeeToEmployee")
@@ -104,10 +106,11 @@ model Employee {
   leaveBalances    LeaveBalance[]
   approvedLeaves   LeaveRequest[]   @relation("LeaveRequest_approverIdToEmployee")
   leaveRequests    LeaveRequest[]   @relation("LeaveRequest_employeeIdToEmployee")
+  otWorkLogs       OtWorkLog[]
   payslips         Payslip[]
   salaryInfo       SalaryInfo?
-  otWorkLogs       OtWorkLog[]
   timesheetEntries TimesheetEntry[]
+  accessRequests   AccessRequest[]
 }
 
 model ExpenseCategory {
@@ -132,8 +135,6 @@ model ExpenseClaim {
   expenseDate      DateTime
   receiptUrl       String?
   receiptFileName  String?
-  driveFileId      String?
-  driveWebViewLink String?
   status           ExpenseStatus   @default(PENDING)
   approverId       String?
   approvedAt       DateTime?
@@ -143,6 +144,8 @@ model ExpenseClaim {
   paymentReference String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+  driveFileId      String?
+  driveWebViewLink String?
   approver         Employee?       @relation("ExpenseClaim_approverIdToEmployee", fields: [approverId], references: [id])
   category         ExpenseCategory @relation(fields: [categoryId], references: [id])
   employee         Employee        @relation("ExpenseClaim_employeeIdToEmployee", fields: [employeeId], references: [id])
@@ -180,17 +183,17 @@ model LeaveRequest {
   approvedAt       DateTime?
   rejectedAt       DateTime?
   rejectionReason  String?
-  approvalComment  String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   documentFileName String?
   documentUrl      String?
-  driveFileId      String?
-  driveWebViewLink String?
   dayType          DayType     @default(FULL_DAY)
   halfDayPosition  String?
   deficitDays      Decimal     @default(0) @db.Decimal(5, 2)
   otDaysUsed       Decimal     @default(0) @db.Decimal(5, 2)
+  driveFileId      String?
+  driveWebViewLink String?
+  approvalComment  String?
   approver         Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
   employee         Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
   leaveType        LeaveType   @relation(fields: [leaveTypeId], references: [id])
@@ -202,13 +205,13 @@ model LeaveType {
   code              String         @unique
   description       String?
   defaultDays       Int
-  internDefaultDays Int            @default(0)
-  paidDays          Int            @default(0)
   carryOver         Boolean        @default(false)
   maxCarryOver      Int            @default(0)
   paid              Boolean        @default(true)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
+  internDefaultDays Int            @default(0)
+  paidDays          Int            @default(0)
   leaveBalances     LeaveBalance[]
   leaveRequests     LeaveRequest[]
 }
@@ -232,10 +235,10 @@ model Payslip {
   netSalary        Decimal       @db.Decimal(12, 2)
   status           PayslipStatus @default(DRAFT)
   pdfUrl           String?
-  driveFileId      String?
-  driveWebViewLink String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+  driveFileId      String?
+  driveWebViewLink String?
   employee         Employee      @relation(fields: [employeeId], references: [id])
 
   @@unique([employeeId, payPeriodStart, payPeriodEnd])
@@ -288,22 +291,22 @@ model VerificationToken {
 }
 
 model CompanySettings {
-  id                String   @id @default("company_settings")
-  name              String   @default("Company Name")
-  uen               String?
-  address           String?
-  phone             String?
-  email             String?
-  website           String?
-  logo              String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @default(now())
-  approvalEmails    String[] @default([])
-  shortName         String?
-  payslipRemarks    String?
-  payslipTitle      String?
-  payslipHeaderNote String?
-  autoDeactivateInterns Boolean @default(true)
+  id                    String   @id @default("company_settings")
+  name                  String   @default("Company Name")
+  uen                   String?
+  address               String?
+  phone                 String?
+  email                 String?
+  website               String?
+  logo                  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now())
+  approvalEmails        String[] @default([])
+  shortName             String?
+  payslipRemarks        String?
+  payslipHeaderNote     String?
+  payslipTitle          String?
+  autoDeactivateInterns Boolean  @default(true)
 }
 
 model ApprovalToken {
@@ -325,6 +328,38 @@ model CompanyCredential {
   keyValue  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model HabitapInviteLog {
+  id         String   @id @default(cuid())
+  employeeId String?
+  name       String
+  email      String
+  eventId    String?
+  fromDate   String
+  toDate     String
+  status     String // SENT | FAILED | SKIPPED
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+}
+
+model AccessRequest {
+  id           String    @id @default(cuid())
+  employeeId   String
+  fromDate     String? // requested window, ISO yyyy-MM-dd (optional)
+  toDate       String?
+  note         String?
+  status       String    @default("PENDING") // PENDING | FULFILLED | DECLINED
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([employeeId])
 }
 
 model OtpCode {
@@ -434,6 +469,37 @@ model BankTransaction {
   @@index([type])
 }
 
+model TimesheetEntry {
+  id                String   @id @default(cuid())
+  employeeId        String
+  date              DateTime @db.Date
+  hours             Decimal  @default(0) @db.Decimal(4, 1)
+  otCredited        Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  otAbsenceDeducted Decimal  @default(0) @db.Decimal(5, 2)
+  adminComment      String?
+  status            String   @default("PENDING")
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+model OtWorkLog {
+  id         String   @id @default(cuid())
+  employeeId String
+  date       DateTime @db.Date
+  type       String
+  note       String?
+  daysEarned Decimal  @default(1) @db.Decimal(5, 2)
+  recordedBy String?
+  createdAt  DateTime @default(now())
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
 enum EmployeeStatus {
   ACTIVE
   ON_LEAVE
@@ -504,35 +570,4 @@ enum Role {
   ADMIN
   INTERN
   ACCOUNTANT
-}
-
-model TimesheetEntry {
-  id                String   @id @default(cuid())
-  employeeId        String
-  date              DateTime @db.Date
-  hours             Decimal  @default(0) @db.Decimal(4, 1)
-  otCredited        Decimal  @default(0) @db.Decimal(5, 2)
-  otAbsenceDeducted Decimal  @default(0) @db.Decimal(5, 2)
-  status            String   @default("PENDING")
-  adminComment      String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, date])
-  @@index([employeeId])
-}
-
-model OtWorkLog {
-  id         String   @id @default(cuid())
-  employeeId String
-  date       DateTime @db.Date
-  type       String // "WEEKEND" | "PUBLIC_HOLIDAY" | "OTHER"
-  note       String?
-  daysEarned Decimal  @default(1) @db.Decimal(5, 2)
-  recordedBy String?
-  createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
 }
