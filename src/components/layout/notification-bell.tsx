@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, BellOff, Check, CheckCheck, Clock, CalendarCheck, CalendarX, Briefcase, Info } from "lucide-react";
+import { Bell, BellOff, Check, CheckCheck, Clock, CalendarCheck, CalendarX, Briefcase, Info, Building2 } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -14,7 +14,7 @@ interface Notification {
   createdAt: string;
 }
 
-const ADMIN_TYPES = new Set(["LEAVE_SUBMITTED", "OT_PENDING"]);
+const ADMIN_TYPES = new Set(["LEAVE_SUBMITTED", "OT_PENDING", "WOODS_SQUARE_REQUEST"]);
 const EMPLOYEE_TYPES = new Set(["LEAVE_APPROVED", "LEAVE_REJECTED", "OT_APPROVED", "OT_REJECTED", "INFO"]);
 
 const typeIcon: Record<string, React.ReactNode> = {
@@ -24,6 +24,7 @@ const typeIcon: Record<string, React.ReactNode> = {
   OT_APPROVED:     <Briefcase className="h-4 w-4 text-emerald-400" />,
   OT_REJECTED:     <Briefcase className="h-4 w-4 text-red-400" />,
   OT_PENDING:      <Briefcase className="h-4 w-4 text-amber-400" />,
+  WOODS_SQUARE_REQUEST: <Building2 className="h-4 w-4 text-purple-400" />,
 };
 
 function timeAgo(dateStr: string): string {
