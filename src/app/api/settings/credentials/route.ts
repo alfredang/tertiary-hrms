@@ -15,6 +15,8 @@ const ALLOWED_KEYS = [
   "GMAIL_CLIENT_SECRET",
   "GMAIL_REFRESH_TOKEN",
   "CLAUDE_API_KEY",
+  "HABITAP_USERNAME",
+  "HABITAP_PASSWORD",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
