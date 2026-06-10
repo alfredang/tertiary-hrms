@@ -1,7 +1,9 @@
 # Habitap PIN automation
 
 Automates the Habitap occupant portal to generate building-access credentials
-("PINs") for staff, triggered from the HRMS.
+("PINs") for staff, triggered from the HRMS. In the UI this feature is branded
+**Woods Square** (the building) — admin page `/woods-square`, plus a staff
+self-service request flow on the profile page.
 
 - **Portal:** https://wdsq-prod.myhabitap.com/offices/occupant/login
 - **Account:** Tertiary Infotech (building `WDSQ`). Stable URL IDs: condo `19`, tenant `327`.
@@ -43,25 +45,41 @@ Visitor** path also exists (`…/front-invitationInfos/schedule-import`).
 |---|---|
 | Login (`loginToHabitap`) | ✅ Verified against production |
 | Credential storage (`HABITAP_USERNAME`/`HABITAP_PASSWORD`) | ✅ In `CompanyCredential` via Settings → Credentials |
-| `Employee.habitapInviteAt` / `habitapEventId` columns | ✅ In schema (migration **not** run yet) |
+| `Employee.habitapInviteAt` / `habitapEventId` columns | ✅ In schema (this project uses `prisma db push`, not migration files) |
 | `src/lib/habitap.ts` — create event + add visitors + orchestrator | ✅ Implemented |
 | `POST /api/habitap/generate-pin` (admin-only, batch) | ✅ Implemented |
-| Date-picker string format | ⚠️ Needs one live test to confirm |
-| Employees-page "Generate Habitap PINs" button | ⛔ Not built yet |
+| Admin invite UI (`/woods-square`: Send / Requests / Log) | ✅ Built |
+| Staff request flow (request access + admin approve/decline) | ✅ Built |
+| Date-picker string format | ⚠️ Guarded (see below) — still needs one live run to lock the exact format |
+
+### Date-picker guard
+
+`createStaffInviteEvent` sets the window then calls `assertEventWindowAccepted`,
+which reads the pickers back and **throws** if any came back blank (the
+format-rejection failure mode) — so a wrong format fails loudly instead of saving
+an empty window. The thrown error echoes what we sent and what the picker kept, so
+the accepted format is visible from a single run. Covered by
+`src/lib/habitap.picker.test.ts` (Vitest + a fixture form, no portal/creds needed).
+
+The guard cannot prove the format is _right_ — only that a rejected one won't pass
+silently. One live invitee is still needed to confirm `"09 Jun 2026"` / `"8:00 AM"`
+is what the portal accepts (or to read the correct format off the error).
 
 ## Remaining work
 
 1. **Live-validate** the date/time picker format (`#from`/`#fromTime`/`#to`/`#toTime`)
-   with a single test invitee, then lock it into `createStaffInviteEvent`.
-2. Build the **admin button + date-window dialog** on the employees page.
-3. Run a migration for the two new columns when ready (`prisma db push` / migrate).
+   with a single test invitee. If it's wrong, the guard's error names the rejected
+   fields — switch `createStaffInviteEvent` to the format the picker kept.
+2. Optional: after save, read the window back off the event detail page for a full
+   end-to-end check (needs the detail-page DOM mapped first).
 
 ## Deployment note
 
-Server-side Playwright needs the Chromium binary (`npx playwright install chromium`).
-The production Docker image is heap-constrained and does not currently bundle a
-browser — installing Chromium + its OS deps in the image (and the extra memory a
-headless browser needs) is a prerequisite for running this in production.
+Server-side Playwright needs the Chromium binary. The production Docker image now
+bundles Chromium + its OS deps (`chore(deploy): bundle Chromium in Docker image for
+Playwright`), with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` pointing at it. The image
+is heap-constrained, so keep the headless browser's memory use in mind when running
+batches.
 
 ## Local exploration
 
