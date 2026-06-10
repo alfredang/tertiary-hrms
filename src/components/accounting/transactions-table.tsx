@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Trash2, Send, CreditCard, BadgeCheck } from "lucide-react";
+import { Loader2, Trash2, Send, CreditCard, BadgeCheck, ClipboardCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -84,6 +84,8 @@ export function TransactionsTable({
   const [bulkGenProgress, setBulkGenProgress] = useState({ done: 0, total: 0 });
   const [bulkReceiving, setBulkReceiving] = useState(false);
   const [bulkRecProgress, setBulkRecProgress] = useState({ done: 0, total: 0 });
+  const [bulkSettling, setBulkSettling] = useState(false);
+  const [bulkSettleProgress, setBulkSettleProgress] = useState({ done: 0, total: 0 });
 
   const showQbAction = showGenerateExpense || showReceivePayment;
   const storageKey = `acct-cols-v3-${direction}`;
@@ -178,6 +180,46 @@ export function TransactionsTable({
           ? `All ${total} failed — check the error messages on each row.`
           : `${succeeded} created, ${failed} failed — check the error messages on each row.`,
       variant: failed === total ? "destructive" : failed > 0 ? "default" : "default",
+    });
+  }
+
+  async function bulkManualSettle() {
+    if (selectedPending.length === 0) return;
+    const total = selectedPending.length;
+    const confirmed = confirm(
+      `Mark ${total} record${total === 1 ? "" : "s"} as manually settled?\n\nThis skips QuickBooks and sets the status directly to Settled.`
+    );
+    if (!confirmed) return;
+    setBulkSettling(true);
+    setBulkSettleProgress({ done: 0, total });
+    let succeeded = 0;
+    for (const id of selectedPending) {
+      try {
+        const res = await fetch(`/api/accounting/transactions/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ status: "Settled" }),
+        });
+        if (!res.ok) throw new Error("Failed");
+        setRows((prev) => prev.map((r) => r.id === id ? { ...r, status: "Settled" } : r));
+        succeeded++;
+      } catch {
+        // row stays Pending; no per-row error display needed for manual settle
+      }
+      setBulkSettleProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+    setSelectedIds(new Set());
+    setBulkSettling(false);
+    setBulkSettleProgress({ done: 0, total: 0 });
+    const failed = total - succeeded;
+    toast({
+      title: failed === total ? "Update Failed" : succeeded === total ? "Manually Settled" : "Manually Settled (with errors)",
+      description: failed === 0
+        ? `${succeeded} record${succeeded === 1 ? "" : "s"} marked as manually settled.`
+        : succeeded === 0
+          ? `All ${total} failed to update — please try again.`
+          : `${succeeded} settled, ${failed} failed — please retry the remaining records.`,
+      variant: failed === total ? "destructive" : "default",
     });
   }
 
@@ -303,7 +345,7 @@ export function TransactionsTable({
           {(showGenerateExpense && (selectedPending.length > 0 || bulkGenerating)) && (
             <button
               onClick={bulkGenerate}
-              disabled={bulkGenerating}
+              disabled={bulkGenerating || bulkSettling}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 text-white transition-colors"
             >
               <Loader2 className={`h-3.5 w-3.5 ${bulkGenerating ? "animate-spin" : "hidden"}`} />
@@ -311,6 +353,19 @@ export function TransactionsTable({
               {bulkGenerating
                 ? `Creating ${Math.min(bulkGenProgress.done + 1, bulkGenProgress.total)} of ${bulkGenProgress.total}…`
                 : `Generate QB Expense${selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}`}
+            </button>
+          )}
+          {(showGenerateExpense && (selectedPending.length > 0 || bulkSettling)) && (
+            <button
+              onClick={bulkManualSettle}
+              disabled={bulkSettling || bulkGenerating}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-600 hover:border-gray-400 hover:bg-gray-800 disabled:opacity-60 text-gray-300 hover:text-white transition-colors"
+            >
+              <Loader2 className={`h-3.5 w-3.5 ${bulkSettling ? "animate-spin" : "hidden"}`} />
+              {!bulkSettling && <ClipboardCheck className="h-3.5 w-3.5" />}
+              {bulkSettling
+                ? `Settling ${Math.min(bulkSettleProgress.done + 1, bulkSettleProgress.total)} of ${bulkSettleProgress.total}…`
+                : `Mark Manually Settled${selectedPending.length > 1 ? ` (${selectedPending.length})` : ""}`}
             </button>
           )}
           {(showReceivePayment && (selectedPending.length > 0 || bulkReceiving)) && (
