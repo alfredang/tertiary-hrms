@@ -144,7 +144,7 @@ export async function sendLeaveApprovalEmail(args: {
     START_DATE: args.startDate,
     END_DATE: args.endDate,
     DAYS: String(args.days),
-    REASON: args.reason || "—",
+    REASON: args.reason || "-",
     ACCEPT_URL: acceptUrl,
     DECLINE_URL: declineUrl,
     ACTION_BUTTONS: "{ACTION_BUTTONS}", // keep placeholder so HTML conversion injects the buttons

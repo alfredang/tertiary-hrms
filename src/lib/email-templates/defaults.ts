@@ -3,7 +3,7 @@
 // overrides. If a row is missing (or empty), we fall back to the defaults below.
 //
 // Variable syntax is `{VARIABLE_NAME}`. The renderer in `render.ts` does a
-// plain string replace — no escaping. Available variables are documented per
+// plain string replace - no escaping. Available variables are documented per
 // template so the Settings UI can surface them to the user.
 
 export type TemplateKey =
@@ -57,7 +57,7 @@ Warm regards,
 
   LEAVE_REQUEST: {
     key: "LEAVE_REQUEST",
-    label: "Leave Request — Approver",
+    label: "Leave Request - Approver",
     description: "Sent to the approver when a staff member submits a leave request. Contains Accept / Decline buttons.",
     variables: [
       { name: "EMPLOYEE_NAME", description: "Name of the requesting employee" },
@@ -68,10 +68,10 @@ Warm regards,
       { name: "REASON", description: "Reason given by the employee" },
       { name: "ACCEPT_URL", description: "Approve link (single-use)" },
       { name: "DECLINE_URL", description: "Reject link (single-use)" },
-      { name: "ACTION_BUTTONS", description: "Placeholder — replaced with styled Accept/Decline buttons in the HTML email" },
+      { name: "ACTION_BUTTONS", description: "Placeholder - replaced with styled Accept/Decline buttons in the HTML email" },
       ...COMMON_VARS,
     ],
-    defaultSubject: "Leave request from {EMPLOYEE_NAME} — {START_DATE}",
+    defaultSubject: "Leave request from {EMPLOYEE_NAME} - {START_DATE}",
     defaultBody: `Hi,
 
 {EMPLOYEE_NAME} has submitted a leave request:
@@ -86,12 +86,12 @@ Please review and respond:
 
 Or open the HR Portal: {SITE_URL}
 
-— {COMPANY_NAME}`,
+- {COMPANY_NAME}`,
   },
 
   LEAVE_APPROVED: {
     key: "LEAVE_APPROVED",
-    label: "Leave Approved — Requester",
+    label: "Leave Approved - Requester",
     description: "Sent to the staff member after the approver clicks Accept.",
     variables: [
       { name: "EMPLOYEE_NAME", description: "Requesting employee" },
@@ -109,12 +109,12 @@ Your {LEAVE_TYPE} from {START_DATE} to {END_DATE} ({DAYS} day(s)) has been appro
 
 Enjoy your time off.
 
-— {COMPANY_NAME}`,
+- {COMPANY_NAME}`,
   },
 
   LEAVE_REJECTED: {
     key: "LEAVE_REJECTED",
-    label: "Leave Rejected — Requester",
+    label: "Leave Rejected - Requester",
     description: "Sent to the staff member after the approver clicks Decline.",
     variables: [
       { name: "EMPLOYEE_NAME", description: "Requesting employee" },
@@ -131,12 +131,12 @@ Your {LEAVE_TYPE} request from {START_DATE} to {END_DATE} was not approved by {A
 
 Please contact your manager if you have questions.
 
-— {COMPANY_NAME}`,
+- {COMPANY_NAME}`,
   },
 
   EXPENSE_REQUEST: {
     key: "EXPENSE_REQUEST",
-    label: "Expense Claim — Approver",
+    label: "Expense Claim - Approver",
     description: "Sent to the approver when a staff member submits an expense claim. Contains Accept / Decline buttons.",
     variables: [
       { name: "EMPLOYEE_NAME", description: "Requesting employee" },
@@ -146,7 +146,7 @@ Please contact your manager if you have questions.
       { name: "DESCRIPTION", description: "Description / notes" },
       { name: "ACCEPT_URL", description: "Approve link (single-use)" },
       { name: "DECLINE_URL", description: "Reject link (single-use)" },
-      { name: "ACTION_BUTTONS", description: "Placeholder — replaced with styled Accept/Decline buttons" },
+      { name: "ACTION_BUTTONS", description: "Placeholder - replaced with styled Accept/Decline buttons" },
       ...COMMON_VARS,
     ],
     defaultSubject: "Expense claim from {EMPLOYEE_NAME}",
@@ -165,12 +165,12 @@ Please review and respond:
 
 Or open the HR Portal: {SITE_URL}
 
-— {COMPANY_NAME}`,
+- {COMPANY_NAME}`,
   },
 
   EXPENSE_APPROVED: {
     key: "EXPENSE_APPROVED",
-    label: "Expense Approved — Requester",
+    label: "Expense Approved - Requester",
     description: "Sent to the staff member after the approver clicks Accept.",
     variables: [
       { name: "EMPLOYEE_NAME", description: "Requesting employee" },
@@ -184,12 +184,12 @@ Or open the HR Portal: {SITE_URL}
 
 Your {CATEGORY} expense claim for {AMOUNT} has been approved by {APPROVER_NAME}. Finance will process the payout shortly.
 
-— {COMPANY_NAME}`,
+- {COMPANY_NAME}`,
   },
 
   EXPENSE_REJECTED: {
     key: "EXPENSE_REJECTED",
-    label: "Expense Rejected — Requester",
+    label: "Expense Rejected - Requester",
     description: "Sent to the staff member after the approver clicks Decline.",
     variables: [
       { name: "EMPLOYEE_NAME", description: "Requesting employee" },
@@ -205,7 +205,7 @@ Your {CATEGORY} expense claim for {AMOUNT} was not approved by {APPROVER_NAME}.
 
 Please contact your manager if you have questions.
 
-— {COMPANY_NAME}`,
+- {COMPANY_NAME}`,
   },
 
   PASSWORD_RESET: {
@@ -228,7 +228,7 @@ Click the link below to set a new one. The link expires in {EXPIRY_MINUTES} minu
 
 If you didn't request this, you can safely ignore this email.
 
-— {COMPANY_NAME}`,
+- {COMPANY_NAME}`,
   },
 };
 

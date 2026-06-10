@@ -63,6 +63,13 @@ async function getGmailClient() {
   return { client: cachedClient, senderEmail: GMAIL_EMAIL_USER };
 }
 
+// RFC 2047-encode a header value so non-ASCII characters survive transit.
+// Nodemailer handles this automatically; the manual Gmail raw-message path needs it.
+function encodeHeader(value: string): string {
+  if (!/[^\x00-\x7F]/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value, "utf-8").toString("base64")}?=`;
+}
+
 // ── Public sendEmail ─────────────────────────────────────────────────────────
 
 export async function sendEmail({
@@ -122,7 +129,7 @@ export async function sendEmail({
       `From: ${companyName} <${senderEmail}>`,
       `To: ${to}`,
       ...(ccList.length ? [`Cc: ${ccList.join(", ")}`] : []),
-      `Subject: ${subject}`,
+      `Subject: ${encodeHeader(subject)}`,
       "MIME-Version: 1.0",
       "Content-Type: text/html; charset=utf-8",
       "",
@@ -134,7 +141,7 @@ export async function sendEmail({
       `From: ${companyName} <${senderEmail}>`,
       `To: ${to}`,
       ...(ccList.length ? [`Cc: ${ccList.join(", ")}`] : []),
-      `Subject: ${subject}`,
+      `Subject: ${encodeHeader(subject)}`,
       "MIME-Version: 1.0",
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       "",
