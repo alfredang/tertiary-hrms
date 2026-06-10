@@ -101,45 +101,33 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Mirror the receipt to the employee's Expense Claims Drive folder
+    // Respond immediately — Drive mirror and approval email run in the background
+    const claimId = expenseClaim.id;
+
     if (receiptUrl) {
-      try {
-        const driveResult = await mirrorReceiptToDrive({
-          employeeId,
-          receiptUrl,
-          receiptFileName,
-          expenseId: expenseClaim.id,
-          expenseDate,
-        });
-        if (driveResult) {
-          await prisma.expenseClaim.update({
-            where: { id: expenseClaim.id },
-            data: {
-              driveFileId: driveResult.id,
-              driveWebViewLink: driveResult.webViewLink ?? undefined,
-            },
-          });
-        }
-      } catch (err) {
-        console.error(`Drive mirror failed for expense ${expenseClaim.id}:`, err);
-      }
+      mirrorReceiptToDrive({ employeeId, receiptUrl, receiptFileName, expenseId: claimId, expenseDate })
+        .then(async (driveResult) => {
+          if (driveResult) {
+            await prisma.expenseClaim.update({
+              where: { id: claimId },
+              data: { driveFileId: driveResult.id, driveWebViewLink: driveResult.webViewLink ?? undefined },
+            });
+          }
+        })
+        .catch((err) => console.error(`Drive mirror failed for expense ${claimId}:`, err));
     }
 
-    try {
-      await sendExpenseApprovalEmail({
-        expenseClaimId: expenseClaim.id,
-        employeeId: expenseClaim.employeeId,
-        employeeName: expenseClaim.employee.name,
-        category: expenseClaim.category.name,
-        amount: Number(expenseClaim.amount).toFixed(2),
-        expenseDate: expenseClaim.expenseDate.toISOString().slice(0, 10),
-        description: expenseClaim.description,
-        receiptUrl: expenseClaim.receiptUrl ?? receiptUrl ?? null,
-        receiptFileName: expenseClaim.receiptFileName ?? receiptFileName ?? null,
-      });
-    } catch (err) {
-      console.error(`Failed to send expense approval email for ${expenseClaim.id}:`, err);
-    }
+    sendExpenseApprovalEmail({
+      expenseClaimId: claimId,
+      employeeId: expenseClaim.employeeId,
+      employeeName: expenseClaim.employee.name,
+      category: expenseClaim.category.name,
+      amount: Number(expenseClaim.amount).toFixed(2),
+      expenseDate: expenseClaim.expenseDate.toISOString().slice(0, 10),
+      description: expenseClaim.description,
+      receiptUrl: expenseClaim.receiptUrl ?? receiptUrl ?? null,
+      receiptFileName: expenseClaim.receiptFileName ?? receiptFileName ?? null,
+    }).catch((err) => console.error(`Failed to send expense approval email for ${claimId}:`, err));
 
     return NextResponse.json(expenseClaim, { status: 201 });
   } catch (error) {

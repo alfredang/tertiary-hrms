@@ -167,16 +167,12 @@ export async function POST(req: NextRequest) {
       return employee;
     });
 
-    // Provision Drive folder + subfolders + permissions (best-effort)
-    try {
-      await provisionEmployeeFolder({
-        employeeId: result.id,
-        name: personalInfo.fullName,
-        email: personalInfo.email,
-      });
-    } catch (err) {
-      console.error(`Drive provisioning failed for employee ${result.id}:`, err);
-    }
+    // Respond immediately — Drive folder provisioning runs in the background
+    provisionEmployeeFolder({
+      employeeId: result.id,
+      name: personalInfo.fullName,
+      email: personalInfo.email,
+    }).catch((err) => console.error(`Drive provisioning failed for employee ${result.id}:`, err));
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

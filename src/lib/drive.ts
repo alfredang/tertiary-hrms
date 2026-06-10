@@ -172,9 +172,7 @@ export async function provisionEmployeeFolder(args: {
   const drive = await getDriveClient();
   const folderId = await findOrCreateFolder(drive, args.name.trim(), EMPLOYEES_PARENT_FOLDER_ID);
 
-  for (const sub of EMPLOYEE_SUBFOLDERS) {
-    await findOrCreateFolder(drive, sub, folderId);
-  }
+  await Promise.all(EMPLOYEE_SUBFOLDERS.map((sub) => findOrCreateFolder(drive, sub, folderId)));
 
   await prisma.employee.update({
     where: { id: args.employeeId },
@@ -186,19 +184,18 @@ export async function provisionEmployeeFolder(args: {
   if (args.email) targets.add(args.email.toLowerCase());
   for (const a of EMPLOYEE_FOLDER_ADMIN_EMAILS) targets.add(a.toLowerCase());
 
-  for (const email of Array.from(targets)) {
-    if (!email || existing.has(email)) continue;
-    try {
-      await drive.permissions.create({
-        fileId: folderId,
-        requestBody: { type: "user", role: "writer", emailAddress: email },
-        sendNotificationEmail: false,
-        supportsAllDrives: true,
-      });
-    } catch (err) {
-      console.error(`Failed to grant ${email} on ${args.name} folder:`, err);
-    }
-  }
+  await Promise.all(
+    Array.from(targets)
+      .filter((email) => email && !existing.has(email))
+      .map((email) =>
+        drive.permissions.create({
+          fileId: folderId,
+          requestBody: { type: "user", role: "writer", emailAddress: email },
+          sendNotificationEmail: false,
+          supportsAllDrives: true,
+        }).catch((err) => console.error(`Failed to grant ${email} on ${args.name} folder:`, err))
+      )
+  );
 
   return { folderId, webViewLink: buildFolderWebUrl(folderId) };
 }

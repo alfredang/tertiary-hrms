@@ -154,9 +154,7 @@ export async function sendLeaveApprovalEmail(args: {
   const html = textToHtml(body, actionButtons);
   const attachment = await attachmentFromLocalUrl(args.documentUrl, args.documentFileName);
   const attachments = attachment ? [attachment] : undefined;
-  for (const recipient of to) {
-    await sendEmail({ to: recipient, subject, html, cc, attachments });
-  }
+  await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc, attachments })));
 }
 
 export async function sendExpenseApprovalEmail(args: {
@@ -191,9 +189,7 @@ export async function sendExpenseApprovalEmail(args: {
   const html = textToHtml(body, actionButtons);
   const attachment = await attachmentFromLocalUrl(args.receiptUrl, args.receiptFileName);
   const attachments = attachment ? [attachment] : undefined;
-  for (const recipient of to) {
-    await sendEmail({ to: recipient, subject, html, cc, attachments });
-  }
+  await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc, attachments })));
 }
 
 export async function sendDecisionEmailToStaff(args: {
