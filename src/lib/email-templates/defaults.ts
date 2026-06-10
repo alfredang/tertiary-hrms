@@ -149,7 +149,7 @@ Please contact your manager if you have questions.
       { name: "ACTION_BUTTONS", description: "Placeholder — replaced with styled Accept/Decline buttons" },
       ...COMMON_VARS,
     ],
-    defaultSubject: "Expense claim from {EMPLOYEE_NAME} — {AMOUNT}",
+    defaultSubject: "Expense claim from {EMPLOYEE_NAME}",
     defaultBody: `Hi,
 
 {EMPLOYEE_NAME} has submitted an expense claim:
