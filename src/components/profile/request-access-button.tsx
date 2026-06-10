@@ -4,10 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X, Send, Loader2, Clock } from "lucide-react";
+import { X, Send, Loader2, Clock, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DATE_PRESETS,
+  FROM_TIME,
+  MAX_WINDOW_DAYS,
+  TO_TIME,
+  presetRange,
+  windowDaysInclusive,
+} from "@/lib/woods-square";
 
 export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
   const router = useRouter();
@@ -18,6 +26,15 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const todayIso = format(new Date(), "yyyy-MM-dd");
+
+  const applyPreset = (fromOffset: number, toOffset: number) => {
+    const { from, to } = presetRange(fromOffset, toOffset);
+    setFromDate(from);
+    setToDate(to);
+  };
+
+  const windowDays = windowDaysInclusive(fromDate, toDate);
+  const overWindow = windowDays > MAX_WINDOW_DAYS;
 
   if (hasPending) {
     return (
@@ -31,6 +48,14 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
   async function submit() {
     if (fromDate && toDate && toDate < fromDate) {
       toast({ title: "End date must be on or after the start date", variant: "destructive" });
+      return;
+    }
+    if (overWindow) {
+      toast({
+        title: "Window too long",
+        description: `Woods Square allows up to ${MAX_WINDOW_DAYS} days.`,
+        variant: "destructive",
+      });
       return;
     }
     setSubmitting(true);
@@ -89,8 +114,23 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
           </p>
 
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Access dates (optional)</label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <CalendarRange className="h-3.5 w-3.5" />
+                Access window (optional)
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {DATE_PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => applyPreset(p.from, p.to)}
+                    className="text-xs text-gray-300 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 rounded-full px-2.5 py-1 transition-colors"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
               <DateRangePicker
                 from={fromDate}
                 to={toDate}
@@ -100,6 +140,17 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
                 }}
                 min={todayIso}
               />
+              {windowDays > 0 ? (
+                <p className={`text-xs ${overWindow ? "text-red-400" : "text-gray-500"}`}>
+                  {overWindow
+                    ? `${windowDays}-day window exceeds the ${MAX_WINDOW_DAYS}-day limit — shorten it.`
+                    : `${windowDays}-day window · each day ${FROM_TIME}–${TO_TIME}.`}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Each day runs {FROM_TIME}–{TO_TIME}. Up to a {MAX_WINDOW_DAYS}-day window.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs text-gray-400 mb-1">Note (optional)</label>
@@ -120,7 +171,7 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
                 Cancel
               </Button>
             </DialogPrimitive.Close>
-            <Button onClick={submit} disabled={submitting}>
+            <Button onClick={submit} disabled={submitting || overWindow}>
               {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {submitting ? "Sending…" : "Send request"}
             </Button>
