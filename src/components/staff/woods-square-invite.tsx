@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { format, addDays, parseISO, differenceInCalendarDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   Loader2,
   Search,
@@ -23,6 +23,14 @@ import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { InviteStatusPill } from "@/components/staff/invite-status-pill";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DATE_PRESETS,
+  FROM_TIME,
+  MAX_WINDOW_DAYS,
+  TO_TIME,
+  presetRange,
+  windowDaysInclusive,
+} from "@/lib/woods-square";
 
 export interface InviteStaff {
   id: string;
@@ -104,10 +112,6 @@ function RoleBadges({ roles }: { roles?: string[] }) {
   );
 }
 
-// "Staff Invite" events run 8:00 AM–11:00 PM, matching the existing Woods Square convention.
-const FROM_TIME = "8:00 AM";
-const TO_TIME = "11:00 PM";
-
 /** Staff without a usable email can't receive a building-access invite. */
 function hasUsableEmail(email: string): boolean {
   return !!email && !email.includes(".noemail@");
@@ -140,13 +144,6 @@ function avatarColor(seed: string): string {
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
-
-const DATE_PRESETS = [
-  { label: "Today", from: 0, to: 0 },
-  { label: "3 days", from: 0, to: 2 },
-  { label: "5 days", from: 0, to: 4 },
-  { label: "1 week", from: 0, to: 6 },
-];
 
 export function WoodsSquareInvite({ staff }: Props) {
   const { toast } = useToast();
@@ -271,14 +268,13 @@ export function WoodsSquareInvite({ staff }: Props) {
     });
 
   const applyPreset = (fromOffset: number, toOffset: number) => {
-    const base = new Date();
-    setStartDate(format(addDays(base, fromOffset), "yyyy-MM-dd"));
-    setEndDate(format(addDays(base, toOffset), "yyyy-MM-dd"));
+    const { from, to } = presetRange(fromOffset, toOffset);
+    setStartDate(from);
+    setEndDate(to);
   };
 
-  const windowDays =
-    startDate && endDate ? differenceInCalendarDays(parseISO(endDate), parseISO(startDate)) + 1 : 0;
-  const overWindow = windowDays > 7;
+  const windowDays = windowDaysInclusive(startDate, endDate);
+  const overWindow = windowDays > MAX_WINDOW_DAYS;
   const canSend = selected.length > 0 && !!startDate && !!endDate && !overWindow;
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
@@ -287,8 +283,8 @@ export function WoodsSquareInvite({ staff }: Props) {
   // Pending requests that already have a valid (≤7-day) window — eligible for bulk approve.
   const datedPending = pendingRequests.filter((r) => {
     if (!r.fromDate || !r.toDate) return false;
-    const days = differenceInCalendarDays(parseISO(r.toDate), parseISO(r.fromDate)) + 1;
-    return days >= 1 && days <= 7;
+    const days = windowDaysInclusive(r.fromDate, r.toDate);
+    return days >= 1 && days <= MAX_WINDOW_DAYS;
   });
 
   const sentLogCount = logs.filter((l) => l.status === "SENT").length;
@@ -399,12 +395,12 @@ export function WoodsSquareInvite({ staff }: Props) {
       prepareRequest(r);
       return;
     }
-    const days = differenceInCalendarDays(parseISO(r.toDate), parseISO(r.fromDate)) + 1;
-    if (days < 1 || days > 7) {
+    const days = windowDaysInclusive(r.fromDate, r.toDate);
+    if (days < 1 || days > MAX_WINDOW_DAYS) {
       prepareRequest(r);
       toast({
         title: "Review the dates",
-        description: "This request's window is outside the 7-day limit — adjust and send.",
+        description: `This request's window is outside the ${MAX_WINDOW_DAYS}-day limit — adjust and send.`,
         variant: "destructive",
       });
       return;
@@ -804,12 +800,12 @@ export function WoodsSquareInvite({ staff }: Props) {
               {windowDays > 0 ? (
                 <p className={`text-xs ${overWindow ? "text-red-400" : "text-gray-500"}`}>
                   {overWindow
-                    ? `${windowDays}-day window exceeds the 7-day limit — shorten it.`
+                    ? `${windowDays}-day window exceeds the ${MAX_WINDOW_DAYS}-day limit — shorten it.`
                     : `${windowDays}-day window · each day ${FROM_TIME}–${TO_TIME}.`}
                 </p>
               ) : (
                 <p className="text-xs text-gray-500">
-                  Each day runs {FROM_TIME}–{TO_TIME}. Up to a 7-day window.
+                  Each day runs {FROM_TIME}–{TO_TIME}. Up to a {MAX_WINDOW_DAYS}-day window.
                 </p>
               )}
             </div>

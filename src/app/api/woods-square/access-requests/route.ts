@@ -1,10 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { format, parse, parseISO } from "date-fns";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { getViewMode } from "@/lib/view-mode";
+import { MAX_WINDOW_DAYS, windowDaysInclusive } from "@/lib/woods-square";
+
+// Dates are optional; an empty string from the form means "not set".
+const optionalIsoDate = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format.").optional(),
+);
+
+// Validate server-side — the optional window and 7-day cap were UI-only before.
+const accessRequestSchema = z
+  .object({
+    fromDate: optionalIsoDate,
+    toDate: optionalIsoDate,
+    note: z.preprocess(
+      (v) => (typeof v === "string" && v.trim() !== "" ? v.trim() : undefined),
+      z.string().max(300).optional(),
+    ),
+  })
+  .superRefine((b, ctx) => {
+    if (!!b.fromDate !== !!b.toDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide both dates or neither.",
+        path: ["toDate"],
+      });
+      return;
+    }
+    if (b.fromDate && b.toDate) {
+      const days = windowDaysInclusive(b.fromDate, b.toDate);
+      if (days < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "End date must be on or after the start date.",
+          path: ["toDate"],
+        });
+      } else if (days > MAX_WINDOW_DAYS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Woods Square allows up to ${MAX_WINDOW_DAYS} days.`,
+          path: ["toDate"],
+        });
+      }
+    }
+  });
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +84,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = (await req.json().catch(() => ({}))) as {
-    fromDate?: string;
-    toDate?: string;
-    note?: string;
-  };
+  const parsed = accessRequestSchema.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request." },
+      { status: 400 },
+    );
+  }
+  const body = parsed.data;
 
   const existing = await prisma.accessRequest.findFirst({
     where: { employeeId: user.employee.id, status: "PENDING" },
@@ -83,9 +131,9 @@ export async function POST(req: NextRequest) {
   const request = await prisma.accessRequest.create({
     data: {
       employeeId: user.employee.id,
-      fromDate: body.fromDate?.trim() || null,
-      toDate: body.toDate?.trim() || null,
-      note: body.note?.trim() || null,
+      fromDate: body.fromDate ?? null,
+      toDate: body.toDate ?? null,
+      note: body.note ?? null,
     },
   });
 

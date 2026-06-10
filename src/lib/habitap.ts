@@ -170,6 +170,32 @@ async function setPickerValue(page: Page, selector: string, value: string): Prom
 }
 
 /**
+ * Reads the event-window pickers back and throws if any was rejected (left blank) —
+ * the format-mismatch failure mode. The error echoes both what we sent and what the
+ * picker kept, so the accepted format can be locked in. Exported so it can be tested
+ * against a fixture page without driving the live portal.
+ */
+export async function assertEventWindowAccepted(page: Page, win: EventWindow): Promise<void> {
+  const picker = (await page.evaluate(
+    (selectors) =>
+      Object.fromEntries(
+        selectors.map((s) => [s, document.querySelector<HTMLInputElement>(s)?.value ?? ""]),
+      ),
+    ["#from", "#fromTime", "#to", "#toTime"],
+  )) as Record<string, string>;
+  const rejected = Object.entries(picker)
+    .filter(([, v]) => !v.trim())
+    .map(([s]) => s);
+  if (rejected.length) {
+    throw new Error(
+      `Habitap rejected the event window — pickers left blank: ${rejected.join(", ")}. ` +
+        `Sent from="${win.fromDate}" / "${win.fromTime}", to="${win.toDate}" / "${win.toTime}"; ` +
+        `kept ${JSON.stringify(picker)}. The picker likely expects a different date/time format.`,
+    );
+  }
+}
+
+/**
  * Creates one "Staff Invite" event and returns its event id.
  * The add form loads in a modal (#modal-event-add) via the "Add New Event" link.
  */
@@ -190,6 +216,13 @@ export async function createStaffInviteEvent(page: Page, win: EventWindow): Prom
   await setPickerValue(page, "#fromTime", win.fromTime);
   await setPickerValue(page, "#to", win.toDate);
   await setPickerValue(page, "#toTime", win.toTime);
+
+  // The pickers run their own validation/formatting on blur, so confirm they kept
+  // the window before we save — otherwise a bad date/time format would silently
+  // create an event with no window.
+  await page.waitForTimeout(300);
+  await assertEventWindowAccepted(page, win);
+
   if (win.message) await page.locator("#message").fill(win.message);
 
   await page.locator("#pts_event_submit_btn").click({ timeout: 15_000 });
@@ -277,6 +310,25 @@ export interface GenerateResult {
   failed: { invitee: StaffInvitee; error: string }[];
 }
 
+/** Adds visitors one at a time, collecting precise per-person Sent/Failed results. */
+async function addVisitorsOneByOne(
+  page: Page,
+  eventId: string,
+  staff: StaffInvitee[],
+): Promise<{ invited: StaffInvitee[]; failed: GenerateResult["failed"] }> {
+  const invited: StaffInvitee[] = [];
+  const failed: GenerateResult["failed"] = [];
+  for (const invitee of staff) {
+    try {
+      await addVisitorToEvent(page, eventId, invitee);
+      invited.push(invitee);
+    } catch (err) {
+      failed.push({ invitee, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return { invited, failed };
+}
+
 /**
  * End-to-end: log in, create one "Staff Invite" event, add every staff member as
  * a visitor, and send their invites. Caller owns the staff list and date window.
@@ -292,29 +344,24 @@ export async function generateStaffInvites(
     await loginToHabitap(page, creds);
     const eventId = await createStaffInviteEvent(page, win);
 
-    // Large batch → one CSV upload (fast, no per-visitor timeout). We can't get
-    // per-person results from the bulk import, so treat it as all-or-nothing.
+    // Large batch → one CSV upload (fast, no per-visitor timeout). The bulk import
+    // gives no per-person results, so on success we count the whole batch as sent.
+    // If it throws, it failed before any invite went out (the post-submit waits are
+    // swallowed, so a throw means upload/submit never completed) — fall back to the
+    // one-by-one path to salvage the people who succeed and pinpoint who actually
+    // fails, instead of marking the entire batch failed.
     if (staff.length >= BULK_IMPORT_MIN) {
       try {
         await addVisitorsViaImport(page, eventId, staff);
         return { eventId, invited: staff, failed: [] };
-      } catch (err) {
-        const error = err instanceof Error ? err.message : String(err);
-        return { eventId, invited: [], failed: staff.map((invitee) => ({ invitee, error })) };
+      } catch {
+        const { invited, failed } = await addVisitorsOneByOne(page, eventId, staff);
+        return { eventId, invited, failed };
       }
     }
 
     // Small batch → add one-by-one for precise per-person Sent/Failed results.
-    const invited: StaffInvitee[] = [];
-    const failed: GenerateResult["failed"] = [];
-    for (const invitee of staff) {
-      try {
-        await addVisitorToEvent(page, eventId, invitee);
-        invited.push(invitee);
-      } catch (err) {
-        failed.push({ invitee, error: err instanceof Error ? err.message : String(err) });
-      }
-    }
+    const { invited, failed } = await addVisitorsOneByOne(page, eventId, staff);
     return { eventId, invited, failed };
   } finally {
     await browser.close();
