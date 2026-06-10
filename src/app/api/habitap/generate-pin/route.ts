@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parse, parseISO } from "date-fns";
+import { differenceInCalendarDays, isValid, parse, parseISO } from "date-fns";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -7,18 +8,22 @@ import { hasAdminAccess } from "@/lib/utils";
 import {
   generateStaffInvites,
   getHabitapCredentials,
-  type EventWindow,
   type StaffInvitee,
 } from "@/lib/habitap";
+import { withLock } from "@/lib/process-lock";
+import { HABITAP_DATE_FMT, MAX_WINDOW_DAYS } from "@/lib/woods-square";
 
 // Playwright needs the Node runtime and time to drive a real browser.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-// Single-flight guard: only one browser-driven send runs at a time per server
-// instance, so two clicks can't spin up two Chromium processes and spike memory.
-let sendInFlight = false;
+// Single-flight guard, backed by a DB lock so it holds across server instances —
+// two clicks (even on different instances) can't spin up two Chromium processes
+// and spike memory or create duplicate events. TTL sits just past maxDuration so a
+// crashed send's lock auto-frees shortly after the request would have been killed.
+const SEND_LOCK_KEY = "woods-square-send";
+const SEND_LOCK_TTL_MS = 360_000;
 
 async function requireAdmin() {
   if (isDevAuthSkipped()) return true;
@@ -27,21 +32,61 @@ async function requireAdmin() {
   return hasAdminAccess(session.user.role);
 }
 
-interface Body {
+// Validate the request server-side — the 7-day cap and date format were previously
+// only enforced in the UI, so a crafted POST could slip an invalid window through.
+const eventWindowSchema = z
+  .object({
+    eventName: z.string().max(40).optional(),
+    venueValue: z.string().optional(),
+    fromDate: z.string(),
+    fromTime: z.string().min(1),
+    toDate: z.string(),
+    toTime: z.string().min(1),
+    message: z.string().max(500).optional(),
+  })
+  .superRefine((w, ctx) => {
+    const from = parse(w.fromDate, HABITAP_DATE_FMT, new Date());
+    const to = parse(w.toDate, HABITAP_DATE_FMT, new Date());
+    if (!isValid(from) || !isValid(to)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Dates must look like "09 Jun 2026".' });
+      return;
+    }
+    const days = differenceInCalendarDays(to, from) + 1;
+    if (days < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "End date must be on or after the start date.",
+      });
+    } else if (days > MAX_WINDOW_DAYS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Window must be ${MAX_WINDOW_DAYS} days or fewer.`,
+      });
+    }
+  });
+
+const generatePinSchema = z.object({
   /** Specific employee ids to invite. Omit to invite all ACTIVE staff with an email. */
-  staffIds?: string[];
+  staffIds: z.array(z.string()).optional(),
   /** Event date/time window — required unless dryRun. */
-  window?: EventWindow;
+  window: eventWindowSchema.optional(),
   /** When true, resolve the staff list and echo it back without touching Habitap. */
-  dryRun?: boolean;
-}
+  dryRun: z.boolean().optional(),
+});
 
 export async function POST(req: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as Body;
+  const parsed = generatePinSchema.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request." },
+      { status: 400 },
+    );
+  }
+  const body = parsed.data;
 
   // Resolve the staff batch.
   const employees = await prisma.employee.findMany({
@@ -86,7 +131,7 @@ export async function POST(req: NextRequest) {
   // Dedup: skip staff only when the requested window is ALREADY FULLY COVERED by an
   // existing invite (containment) — so re-sending the same/subset window is blocked,
   // but extending it (e.g. 1 Jul → 1–3 Jul) is allowed through.
-  const DATE_FMT = "dd MMM yyyy";
+  const DATE_FMT = HABITAP_DATE_FMT;
   const reqFrom = parse(win.fromDate, DATE_FMT, new Date());
   const reqTo = parse(win.toDate, DATE_FMT, new Date());
   const priorSent = await prisma.habitapInviteLog.findMany({
@@ -143,22 +188,22 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  if (sendInFlight) {
+  let send;
+  try {
+    send = await withLock(SEND_LOCK_KEY, SEND_LOCK_TTL_MS, () =>
+      generateStaffInvites(creds, toInvite, win),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Woods Square automation failed: ${message}` }, { status: 502 });
+  }
+  if (!send.ran) {
     return NextResponse.json(
       { error: "A Woods Square send is already running. Please wait a moment and try again." },
       { status: 409 },
     );
   }
-  sendInFlight = true;
-  let result;
-  try {
-    result = await generateStaffInvites(creds, toInvite, win);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: `Woods Square automation failed: ${message}` }, { status: 502 });
-  } finally {
-    sendInFlight = false;
-  }
+  const result = send.result;
 
   // Stamp invited employees (match back by email).
   const invitedAt = new Date();

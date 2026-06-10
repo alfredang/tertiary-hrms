@@ -330,6 +330,18 @@ model CompanyCredential {
   updatedAt DateTime @updatedAt
 }
 
+/// Cross-instance mutex. A holder claims `key` until `expiresAt`; a stale lock
+/// (past its TTL, e.g. the holder crashed) is reclaimable. Used to serialize the
+/// browser-driven Woods Square send across server instances.
+model ProcessLock {
+  key        String   @id
+  holder     String
+  acquiredAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+}
+
 model HabitapInviteLog {
   id         String   @id @default(cuid())
   employeeId String?
