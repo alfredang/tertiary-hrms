@@ -81,7 +81,9 @@ export function TransactionsTable({
   const [receiveErrors, setReceiveErrors] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkGenProgress, setBulkGenProgress] = useState({ done: 0, total: 0 });
   const [bulkReceiving, setBulkReceiving] = useState(false);
+  const [bulkRecProgress, setBulkRecProgress] = useState({ done: 0, total: 0 });
 
   const showQbAction = showGenerateExpense || showReceivePayment;
   const storageKey = `acct-cols-v3-${direction}`;
@@ -155,21 +157,27 @@ export function TransactionsTable({
 
   async function bulkGenerate() {
     if (selectedPending.length === 0) return;
+    const total = selectedPending.length;
     setBulkGenerating(true);
+    setBulkGenProgress({ done: 0, total });
     let succeeded = 0;
     for (const id of selectedPending) {
       const ok = await generateOneExpense(id);
       if (ok) succeeded++;
+      setBulkGenProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setSelectedIds(new Set());
     setBulkGenerating(false);
-    const failed = selectedPending.length - succeeded;
+    setBulkGenProgress({ done: 0, total: 0 });
+    const failed = total - succeeded;
     toast({
-      title: succeeded > 0 ? "QB Expenses Generated" : "Generation Failed",
+      title: failed === total ? "Generation Failed" : succeeded === total ? "QB Expenses Created" : "QB Expenses Created (with errors)",
       description: failed === 0
-        ? `${succeeded} expense${succeeded === 1 ? "" : "s"} successfully sent to QuickBooks.`
-        : `${succeeded} succeeded, ${failed} failed — check the error messages on each row.`,
-      variant: failed === selectedPending.length ? "destructive" : "default",
+        ? `${succeeded} expense${succeeded === 1 ? "" : "s"} successfully created in QuickBooks. Awaiting confirmation.`
+        : succeeded === 0
+          ? `All ${total} failed — check the error messages on each row.`
+          : `${succeeded} created, ${failed} failed — check the error messages on each row.`,
+      variant: failed === total ? "destructive" : failed > 0 ? "default" : "default",
     });
   }
 
@@ -200,21 +208,27 @@ export function TransactionsTable({
 
   async function bulkReceivePayments() {
     if (selectedPending.length === 0) return;
+    const total = selectedPending.length;
     setBulkReceiving(true);
+    setBulkRecProgress({ done: 0, total });
     let succeeded = 0;
     for (const id of selectedPending) {
       const ok = await receiveOnePayment(id);
       if (ok) succeeded++;
+      setBulkRecProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setSelectedIds(new Set());
     setBulkReceiving(false);
-    const failed = selectedPending.length - succeeded;
+    setBulkRecProgress({ done: 0, total: 0 });
+    const failed = total - succeeded;
     toast({
-      title: succeeded > 0 ? "Payments Received" : "Processing Failed",
+      title: failed === total ? "Processing Failed" : succeeded === total ? "Payments Received" : "Payments Received (with errors)",
       description: failed === 0
         ? `${succeeded} payment${succeeded === 1 ? "" : "s"} successfully received in QuickBooks.`
-        : `${succeeded} succeeded, ${failed} failed — check the error messages on each row.`,
-      variant: failed === selectedPending.length ? "destructive" : "default",
+        : succeeded === 0
+          ? `All ${total} failed — check the error messages on each row.`
+          : `${succeeded} received, ${failed} failed — check the error messages on each row.`,
+      variant: failed === total ? "destructive" : "default",
     });
   }
 
@@ -286,32 +300,30 @@ export function TransactionsTable({
           <p className="text-xs text-gray-400">
             {rows.length} record{rows.length === 1 ? "" : "s"}
           </p>
-          {showGenerateExpense && selectedPending.length > 0 && (
+          {(showGenerateExpense && (selectedPending.length > 0 || bulkGenerating)) && (
             <button
               onClick={bulkGenerate}
               disabled={bulkGenerating}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 text-white transition-colors"
             >
-              {bulkGenerating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              Generate QB Expense{selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}
+              <Loader2 className={`h-3.5 w-3.5 ${bulkGenerating ? "animate-spin" : "hidden"}`} />
+              {!bulkGenerating && <Send className="h-3.5 w-3.5" />}
+              {bulkGenerating
+                ? `Creating ${Math.min(bulkGenProgress.done + 1, bulkGenProgress.total)} of ${bulkGenProgress.total}…`
+                : `Generate QB Expense${selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}`}
             </button>
           )}
-          {showReceivePayment && selectedPending.length > 0 && (
+          {(showReceivePayment && (selectedPending.length > 0 || bulkReceiving)) && (
             <button
               onClick={bulkReceivePayments}
               disabled={bulkReceiving}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-60 text-white transition-colors"
             >
-              {bulkReceiving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <CreditCard className="h-3.5 w-3.5" />
-              )}
-              Receive Payment{selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}
+              <Loader2 className={`h-3.5 w-3.5 ${bulkReceiving ? "animate-spin" : "hidden"}`} />
+              {!bulkReceiving && <CreditCard className="h-3.5 w-3.5" />}
+              {bulkReceiving
+                ? `Processing ${Math.min(bulkRecProgress.done + 1, bulkRecProgress.total)} of ${bulkRecProgress.total}…`
+                : `Receive Payment${selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}`}
             </button>
           )}
         </div>
