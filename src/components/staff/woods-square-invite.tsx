@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { InviteStatusPill } from "@/components/staff/invite-status-pill";
 import { useToast } from "@/hooks/use-toast";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   DATE_PRESETS,
   FROM_TIME,
@@ -164,6 +165,10 @@ export function WoodsSquareInvite({ staff }: Props) {
   const todayIso = format(new Date(), "yyyy-MM-dd");
 
   const [requests, setRequests] = useState<AccessRequest[]>([]);
+  // Confirm + in-flight state for the destructive Decline action so a single
+  // misclick can't reject a request, and the popup shows progress / errors.
+  const [declineConfirm, setDeclineConfirm] = useState<string | null>(null);
+  const [declining, setDeclining] = useState(false);
 
   const loadLogs = useCallback(async () => {
     try {
@@ -201,15 +206,32 @@ export function WoodsSquareInvite({ staff }: Props) {
   };
 
   const declineRequest = async (id: string) => {
+    setDeclining(true);
     try {
-      await fetch(`/api/woods-square/access-requests/${id}`, {
+      const res = await fetch(`/api/woods-square/access-requests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "DECLINED" }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({
+          title: "Couldn’t decline request",
+          description: data.error,
+          variant: "destructive",
+        });
+        return; // leave the popup open so the admin can retry or cancel
+      }
       loadRequests();
-    } catch {
-      /* ignore */
+      setDeclineConfirm(null);
+    } catch (err) {
+      toast({
+        title: "Couldn’t decline request",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setDeclining(false);
     }
   };
 
@@ -279,6 +301,9 @@ export function WoodsSquareInvite({ staff }: Props) {
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
   const resolvedRequests = requests.filter((r) => r.status !== "PENDING");
+  const requestToDecline = declineConfirm
+    ? requests.find((r) => r.id === declineConfirm) ?? null
+    : null;
 
   // Pending requests that already have a valid (≤7-day) window — eligible for bulk approve.
   const datedPending = pendingRequests.filter((r) => {
@@ -505,10 +530,20 @@ export function WoodsSquareInvite({ staff }: Props) {
                   <p className="text-xs text-gray-500 truncate">{reqSummary(r)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button size="sm" onClick={() => approveRequest(r)}>
+                  <Button
+                    size="sm"
+                    variant="success"
+                    disabled={submitting}
+                    onClick={() => approveRequest(r)}
+                  >
                     Create invite
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => declineRequest(r.id)}>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={submitting}
+                    onClick={() => setDeclineConfirm(r.id)}
+                  >
                     Decline
                   </Button>
                 </div>
@@ -1009,6 +1044,49 @@ export function WoodsSquareInvite({ staff }: Props) {
           ))}
       </Card>
       )}
+
+      <DialogPrimitive.Root
+        open={declineConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open && !declining) setDeclineConfirm(null);
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-xl border border-gray-800 bg-gray-950 p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+            <DialogPrimitive.Title className="flex items-center gap-2 text-base font-semibold">
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              Decline access request
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="mt-2 text-sm text-gray-400">
+              Decline{" "}
+              <span className="font-medium text-gray-200">
+                {requestToDecline?.employee.name ?? "this staff member"}
+              </span>
+              ’s request? They’ll be notified and can request access again.
+            </DialogPrimitive.Description>
+            {requestToDecline ? (
+              <p className="mt-2 text-xs text-gray-500">{reqSummary(requestToDecline)}</p>
+            ) : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={submitting || declining}
+                onClick={() => setDeclineConfirm(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={submitting || declining}
+                onClick={() => declineConfirm && declineRequest(declineConfirm)}
+              >
+                {declining ? "Declining…" : "Decline"}
+              </Button>
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </div>
   );
 }
