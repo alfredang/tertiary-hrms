@@ -142,6 +142,11 @@ async function main() {
     update: {},
     create: { id: randomUUID(), name: "Software & Subscriptions", code: "SW", description: "Software licenses and subscriptions" },
   });
+  await prisma.expenseCategory.upsert({
+    where: { code: "REF" },
+    update: {},
+    create: { id: randomUUID(), name: "Refreshments", code: "REF", description: "Refreshments and beverages for meetings or events" },
+  });
   console.log("Created expense categories");
 
   // Create Admin User
