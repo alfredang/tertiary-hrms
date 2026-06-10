@@ -64,13 +64,15 @@ function findAccount(accounts: any[], keywords: string[]): any | null {
   return null;
 }
 
-function buildDocNumber(dateStr: string, seq: number): string {
+function buildDocNumber(dateStr: string, txId: string): string {
   const d = new Date(dateStr);
   const yy = String(d.getUTCFullYear()).slice(2);
   const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(d.getUTCDate()).padStart(2, "0");
-  const base = `TX${yy}${mm}${dd}`;
-  return seq > 1 ? `${base}-${seq}` : base;
+  // Suffix from the record's own unique DB ID — no two records ever share a
+  // DocNumber regardless of date, timing, or prior resets.
+  const suffix = txId.slice(-5).toUpperCase();
+  return `TX${yy}${mm}${dd}-${suffix}`;
 }
 
 async function authorize(): Promise<boolean> {
@@ -145,11 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     const dateStr = txn.paymentDate.toISOString().slice(0, 10);
-    const prefix = `TX${dateStr.slice(2, 4)}${dateStr.slice(5, 7)}${dateStr.slice(8, 10)}`;
-    const sameDay = await prisma.bankTransaction.count({
-      where: { qbExpenseNo: { startsWith: prefix } },
-    });
-    const docNumber = buildDocNumber(dateStr, sameDay + 1);
+    const docNumber = buildDocNumber(dateStr, txn.id);
 
     const qbPaymentMethod = findPaymentMethod(paymentMethods, txn.paymentType);
 
@@ -182,7 +180,8 @@ export async function POST(req: NextRequest) {
       const qbData = await qbCreate(base, token, "purchase", purchaseBody);
       qbExpenseId = String(qbData?.Purchase?.Id ?? qbData?.Id ?? "");
     } catch (createErr: any) {
-      // QB rejects duplicate DocNumbers — look up the existing expense and reuse it
+      // DocNumbers are now unique per HRMS record, so a QB duplicate means this
+      // exact expense was partially created before — look it up and reuse the ID.
       if (/duplicate/i.test(createErr.message)) {
         const searchRes = await qbQuery(
           base,
@@ -193,8 +192,7 @@ export async function POST(req: NextRequest) {
         if (existing) {
           qbExpenseId = String(existing.Id);
         } else {
-          // Try with sequence suffix in case of a prior partial attempt
-          throw new Error(`QB duplicate DocNumber but could not locate existing expense: ${createErr.message}`);
+          throw new Error(`QB rejected duplicate DocNumber but no matching expense found: ${createErr.message}`);
         }
       } else {
         throw createErr;
