@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.tertiaryinfotech.hrportal"
+    namespace = "com.tertiaryinfotech.hrms"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.tertiaryinfotech.hrportal"
+        applicationId "com.tertiaryinfotech.hrms"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 11

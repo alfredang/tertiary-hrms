@@ -4,7 +4,7 @@ import { config as dotenvConfig } from "dotenv";
 dotenvConfig({ path: ".env.local" });
 
 const config: CapacitorConfig = {
-  appId: "com.tertiaryinfotech.hrportal",
+  appId: "com.tertiaryinfotech.hrms",
   appName: "Tertiary HRMS",
   webDir: "out",
   server: {

@@ -1,4 +1,4 @@
-package com.tertiaryinfotech.hrportal;
+package com.tertiaryinfotech.hrms;
 
 import com.getcapacitor.BridgeActivity;
 

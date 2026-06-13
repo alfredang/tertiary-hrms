@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 export type ViewMode = "admin" | "staff" | "accountant" | "intern";
 const VALID: ViewMode[] = ["admin", "staff", "accountant", "intern"];
@@ -19,18 +20,23 @@ export function ViewModeProvider({
   initial: ViewMode;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   const [viewMode, setViewState] = useState<ViewMode>(
     VALID.includes(initial) ? initial : "admin",
   );
 
-  // Synchronous React state update + cookie persistence. No navigation, no
-  // server round-trip — the sidebar (and any other consumer) re-renders
-  // immediately. The cookie is updated so the next SSR paint reflects the
-  // chosen view too.
-  const setViewMode = useCallback((v: ViewMode) => {
-    setViewState(v);
-    document.cookie = `viewAs=${v};path=/;max-age=${60 * 60 * 24 * 365}`;
-  }, []);
+  // Flip the sidebar/header instantly from context, persist the cookie, and
+  // navigate to /dashboard so the user lands on a page accessible to every
+  // role instead of staying on an admin-only page (e.g. /accounting).
+  const setViewMode = useCallback(
+    (v: ViewMode) => {
+      setViewState(v);
+      document.cookie = `viewAs=${v};path=/;max-age=${60 * 60 * 24 * 365}`;
+      startTransition(() => router.push("/dashboard"));
+    },
+    [router],
+  );
 
   return (
     <ViewModeContext.Provider value={{ viewMode, setViewMode }}>
