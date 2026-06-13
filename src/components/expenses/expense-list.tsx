@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, Calendar, Check, X, Pencil, RotateCcw, ChevronUp, ChevronDown, Eye } from "lucide-react";
+import { Search, Calendar, Check, X, Pencil, RotateCcw, ChevronUp, ChevronDown, Eye, CheckCircle2 } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
 import { useToast } from "@/hooks/use-toast";
 import type { ExpenseStatus, ExpenseCategory } from "@prisma/client";
@@ -44,11 +44,11 @@ interface ExpenseListProps {
 }
 
 const statusColors: Record<string, string> = {
+  PAID: "bg-blue-100 text-blue-800 border-blue-200",
   PENDING: "bg-amber-100 text-amber-800 border-amber-200",
   APPROVED: "bg-green-100 text-green-800 border-green-200",
   REJECTED: "bg-red-100 text-red-800 border-red-200",
   CANCELLED: "bg-gray-100 text-gray-800 border-gray-200",
-  PAID: "bg-purple-100 text-purple-800 border-purple-200",
 };
 
 const categoryIcons: Record<string, string> = {
@@ -71,6 +71,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  const [acknowledgeConfirm, setAcknowledgeConfirm] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
@@ -258,6 +259,21 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
     }
   };
 
+  const handleAcknowledge = async (id: string) => {
+    setIsLoading(id);
+    try {
+      const res = await fetch(`/api/expenses/${id}/acknowledge`, { method: "POST" });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      toast({ title: "Payment confirmed", description: "Your expense claim is now fully settled." });
+      setAcknowledgeConfirm(null);
+      router.refresh();
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   // Admin reset button for APPROVED/REJECTED rows (render function — avoids unmount/remount)
   const renderAdminResetActions = (id: string) => (
     <div>
@@ -395,6 +411,42 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
         </Button>
       )}
     </div>
+  );
+
+  // Staff "Payment Received" button for APPROVED rows
+  const renderAcknowledgeAction = (id: string) => (
+    acknowledgeConfirm === id ? (
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-green-400">Confirm payment received?</span>
+        <Button
+          size="sm"
+          onClick={() => handleAcknowledge(id)}
+          disabled={isLoading === id}
+          className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-white"
+        >
+          {isLoading === id ? "Confirming..." : "Yes, Received"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setAcknowledgeConfirm(null)}
+          disabled={isLoading === id}
+          className="h-7 px-3 text-xs border-gray-700 hover:bg-gray-800"
+        >
+          No
+        </Button>
+      </div>
+    ) : (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setAcknowledgeConfirm(id)}
+        className="h-7 px-2.5 text-xs border-green-800/50 text-green-400 hover:bg-green-950/30 hover:text-green-300"
+      >
+        <CheckCircle2 className="h-3 w-3 mr-1" />
+        Payment Received
+      </Button>
+    )
   );
 
   const renderSortTh = (label: string, key: ExpenseSortKey, textRight = false) => {
@@ -672,6 +724,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                   </div>
                 </div>
                 {claim.status === "PENDING" && renderStaffActions(claim.id)}
+                {claim.status === "APPROVED" && renderAcknowledgeAction(claim.id)}
               </div>
             ))}
             {sortedClaims.length === 0 && (
@@ -715,10 +768,12 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-2 flex-wrap">
                         {renderReceiptButton(claim)}
                         {claim.status === "PENDING"
                           ? renderStaffActions(claim.id)
+                          : claim.status === "APPROVED"
+                          ? renderAcknowledgeAction(claim.id)
                           : !claim.receiptUrl && <span className="text-sm text-gray-500">—</span>
                         }
                       </div>

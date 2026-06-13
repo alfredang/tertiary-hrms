@@ -1,64 +1,55 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
-const VALID_ROLES = ["ADMIN", "HR", "MANAGER", "STAFF", "INTERN", "ACCOUNTANT"] as const;
+// Middleware only checks for the *presence* of a session cookie, not its
+// validity. Validating the JWT in middleware required a second NextAuth
+// instance whose derived encryption key drifted from the main one's after
+// session refreshes — causing valid sessions to look invalid here and
+// bouncing users to /login mid-action. Real auth + role checks happen in
+// the layout and pages, which use the full NextAuth config from auth.ts.
 
-export async function middleware(req: NextRequest) {
-  // Development mode: Skip authentication checks if SKIP_AUTH is enabled
-  if (isDevAuthSkipped()) {
-    return NextResponse.next();
+const SESSION_COOKIE_NAMES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+];
+
+function hasSessionCookie(req: NextRequest): boolean {
+  for (const name of SESSION_COOKIE_NAMES) {
+    if (req.cookies.get(name)) return true;
   }
+  return false;
+}
 
-  // Determine if secure cookies are used based on AUTH_URL protocol.
-  // NextAuth sets __Secure- prefixed cookies when AUTH_URL is https://,
-  // but getToken() defaults to looking for unprefixed cookies — causing a
-  // mismatch behind reverse proxies like Coolify/Traefik.
-  const secureCookie =
-    process.env.AUTH_URL?.startsWith("https://") ??
-    process.env.NEXTAUTH_URL?.startsWith("https://") ??
-    false;
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET, secureCookie });
-  const isLoggedIn = !!token;
+export function middleware(req: NextRequest) {
+  if (isDevAuthSkipped()) return NextResponse.next();
+
   const { pathname } = req.nextUrl;
 
-  // Validate role from token against known enum values
-  const tokenRole = typeof token?.role === "string" && (VALID_ROLES as readonly string[]).includes(token.role)
-    ? token.role
-    : null;
-
-  // Public routes
-  const publicRoutes = ["/login", "/register", "/api/auth", "/api/uploadthing", "/api/public", "/api/webhooks", "/privacy-policy", "/myinfo", "/api/myinfo/auth", "/api/myinfo/callback"];
+  const publicRoutes = [
+    "/login",
+    "/register",
+    "/api/auth",
+    "/api/cron",
+    "/api/uploadthing",
+    "/api/public",
+    "/api/webhooks",
+    "/privacy-policy",
+    "/myinfo",
+    "/api/myinfo/auth",
+    "/api/myinfo/callback",
+  ];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
-  // Redirect to login if not authenticated and trying to access protected route
+  const isLoggedIn = hasSessionCookie(req);
+
   if (!isLoggedIn && !isPublicRoute) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
-  // Redirect users without employee records to pending-setup page
-  if (
-    isLoggedIn &&
-    (token as Record<string, unknown>)?.needsSetup === true &&
-    !pathname.startsWith("/pending-setup") &&
-    !pathname.startsWith("/api/auth") &&
-    !pathname.startsWith("/login")
-  ) {
-    return NextResponse.redirect(new URL("/pending-setup", req.nextUrl));
-  }
-
-  // Redirect to dashboard if authenticated and trying to access auth pages
   if (isLoggedIn && (pathname === "/login" || pathname === "/register" || pathname === "/")) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
-  }
-
-  // HR management routes (admin, HR, manager only)
-  const hrManagementRoutes = ["/employees", "/payroll/generate", "/settings"];
-  const isHRRoute = hrManagementRoutes.some((route) => pathname.startsWith(route));
-  const hrAllowedRoles = ["ADMIN", "HR", "MANAGER"];
-
-  if (isHRRoute && (!tokenRole || !hrAllowedRoles.includes(tokenRole))) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 

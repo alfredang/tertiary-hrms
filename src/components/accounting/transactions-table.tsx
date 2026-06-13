@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Trash2, Send } from "lucide-react";
+import { Loader2, Trash2, Send, CreditCard, BadgeCheck, ClipboardCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 type Row = {
   id: string;
@@ -22,7 +23,7 @@ type Row = {
 };
 
 const PAYMENT_TYPES = ["GIRO", "Bank Transfer", "PayNow", "CC", "Cash", "e-invoice"];
-const STATUSES = ["Pending", "Settled"];
+const STATUSES = ["Pending", "QB Created", "Settled"];
 const EXPENSE_CATEGORIES = [
   "Trainer Fee",
   "Allowance",
@@ -51,6 +52,7 @@ export function TransactionsTable({
   showCategory = false,
   showReceiptNo = false,
   showGenerateExpense = false,
+  showReceivePayment = false,
   paymentRefLabel = "Bank Ref",
   invoiceNoLabel = "Invoice No",
   direction = "DEBIT",
@@ -62,20 +64,30 @@ export function TransactionsTable({
   showCategory?: boolean;
   showReceiptNo?: boolean;
   showGenerateExpense?: boolean;
+  showReceivePayment?: boolean;
   paymentRefLabel?: string;
   invoiceNoLabel?: string;
   direction?: "DEBIT" | "CREDIT";
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [savingKeys, setSavingKeys] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [generateErrors, setGenerateErrors] = useState<Record<string, string>>({});
+  const [receivingIds, setReceivingIds] = useState<Set<string>>(new Set());
+  const [receiveErrors, setReceiveErrors] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkGenProgress, setBulkGenProgress] = useState({ done: 0, total: 0 });
+  const [bulkReceiving, setBulkReceiving] = useState(false);
+  const [bulkRecProgress, setBulkRecProgress] = useState({ done: 0, total: 0 });
+  const [bulkSettling, setBulkSettling] = useState(false);
+  const [bulkSettleProgress, setBulkSettleProgress] = useState({ done: 0, total: 0 });
 
+  const showQbAction = showGenerateExpense || showReceivePayment;
   const storageKey = `acct-cols-v3-${direction}`;
   const [widths, setWidths] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -133,7 +145,7 @@ export function TransactionsTable({
       if (!res.ok) throw new Error(data.error ?? "Failed to create QB expense");
       setRows((prev) =>
         prev.map((r) =>
-          r.id === rowId ? { ...r, status: "Settled", qbExpenseNo: data.qbExpenseNo ?? "" } : r,
+          r.id === rowId ? { ...r, status: "QB Created", qbExpenseNo: data.qbExpenseNo ?? "" } : r,
         ),
       );
       return true;
@@ -147,12 +159,119 @@ export function TransactionsTable({
 
   async function bulkGenerate() {
     if (selectedPending.length === 0) return;
+    const total = selectedPending.length;
     setBulkGenerating(true);
+    setBulkGenProgress({ done: 0, total });
+    let succeeded = 0;
     for (const id of selectedPending) {
-      await generateOneExpense(id);
+      const ok = await generateOneExpense(id);
+      if (ok) succeeded++;
+      setBulkGenProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setSelectedIds(new Set());
     setBulkGenerating(false);
+    setBulkGenProgress({ done: 0, total: 0 });
+    const failed = total - succeeded;
+    toast({
+      title: failed === total ? "Generation Failed" : succeeded === total ? "QB Expenses Created" : "QB Expenses Created (with errors)",
+      description: failed === 0
+        ? `${succeeded} expense${succeeded === 1 ? "" : "s"} successfully created in QuickBooks. Awaiting confirmation.`
+        : succeeded === 0
+          ? `All ${total} failed — check the error messages on each row.`
+          : `${succeeded} created, ${failed} failed — check the error messages on each row.`,
+      variant: failed === total ? "destructive" : failed > 0 ? "default" : "default",
+    });
+  }
+
+  async function bulkManualSettle() {
+    if (selectedPending.length === 0) return;
+    const total = selectedPending.length;
+    const confirmed = confirm(
+      `Mark ${total} record${total === 1 ? "" : "s"} as manually settled?\n\nThis skips QuickBooks and sets the status directly to Settled.`
+    );
+    if (!confirmed) return;
+    setBulkSettling(true);
+    setBulkSettleProgress({ done: 0, total });
+    let succeeded = 0;
+    for (const id of selectedPending) {
+      try {
+        const res = await fetch(`/api/accounting/transactions/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ status: "Settled" }),
+        });
+        if (!res.ok) throw new Error("Failed");
+        setRows((prev) => prev.map((r) => r.id === id ? { ...r, status: "Settled" } : r));
+        succeeded++;
+      } catch {
+        // row stays Pending; no per-row error display needed for manual settle
+      }
+      setBulkSettleProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+    setSelectedIds(new Set());
+    setBulkSettling(false);
+    setBulkSettleProgress({ done: 0, total: 0 });
+    const failed = total - succeeded;
+    toast({
+      title: failed === total ? "Update Failed" : succeeded === total ? "Manually Settled" : "Manually Settled (with errors)",
+      description: failed === 0
+        ? `${succeeded} record${succeeded === 1 ? "" : "s"} marked as manually settled.`
+        : succeeded === 0
+          ? `All ${total} failed to update — please try again.`
+          : `${succeeded} settled, ${failed} failed — please retry the remaining records.`,
+      variant: failed === total ? "destructive" : "default",
+    });
+  }
+
+  async function receiveOnePayment(rowId: string): Promise<boolean> {
+    setReceivingIds((s) => new Set(s).add(rowId));
+    setReceiveErrors((e) => { const { [rowId]: _, ...rest } = e; return rest; });
+    try {
+      const res = await fetch("/api/accounting/transactions/receive-payment", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: rowId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to receive payment in QB");
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === rowId ? { ...r, status: "Settled", qbExpenseNo: data.qbPaymentNo ?? "" } : r,
+        ),
+      );
+      return true;
+    } catch (err: any) {
+      setReceiveErrors((e) => ({ ...e, [rowId]: err.message ?? "QB error" }));
+      return false;
+    } finally {
+      setReceivingIds((s) => { const next = new Set(s); next.delete(rowId); return next; });
+    }
+  }
+
+  async function bulkReceivePayments() {
+    if (selectedPending.length === 0) return;
+    const total = selectedPending.length;
+    setBulkReceiving(true);
+    setBulkRecProgress({ done: 0, total });
+    let succeeded = 0;
+    for (const id of selectedPending) {
+      const ok = await receiveOnePayment(id);
+      if (ok) succeeded++;
+      setBulkRecProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+    setSelectedIds(new Set());
+    setBulkReceiving(false);
+    setBulkRecProgress({ done: 0, total: 0 });
+    const failed = total - succeeded;
+    toast({
+      title: failed === total ? "Processing Failed" : succeeded === total ? "Payments Received" : "Payments Received (with errors)",
+      description: failed === 0
+        ? `${succeeded} payment${succeeded === 1 ? "" : "s"} successfully received in QuickBooks.`
+        : succeeded === 0
+          ? `All ${total} failed — check the error messages on each row.`
+          : `${succeeded} received, ${failed} failed — check the error messages on each row.`,
+      variant: failed === total ? "destructive" : "default",
+    });
   }
 
   async function deleteRow(rowId: string) {
@@ -223,18 +342,43 @@ export function TransactionsTable({
           <p className="text-xs text-gray-400">
             {rows.length} record{rows.length === 1 ? "" : "s"}
           </p>
-          {showGenerateExpense && selectedPending.length > 0 && (
+          {(showGenerateExpense && (selectedPending.length > 0 || bulkGenerating)) && (
             <button
               onClick={bulkGenerate}
-              disabled={bulkGenerating}
+              disabled={bulkGenerating || bulkSettling}
               className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 text-white transition-colors"
             >
-              {bulkGenerating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              Generate QB Expense{selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}
+              <Loader2 className={`h-3.5 w-3.5 ${bulkGenerating ? "animate-spin" : "hidden"}`} />
+              {!bulkGenerating && <Send className="h-3.5 w-3.5" />}
+              {bulkGenerating
+                ? `Creating ${Math.min(bulkGenProgress.done + 1, bulkGenProgress.total)} of ${bulkGenProgress.total}…`
+                : `Generate QB Expense${selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}`}
+            </button>
+          )}
+          {(showGenerateExpense && (selectedPending.length > 0 || bulkSettling)) && (
+            <button
+              onClick={bulkManualSettle}
+              disabled={bulkSettling || bulkGenerating}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-600 hover:border-gray-400 hover:bg-gray-800 disabled:opacity-60 text-gray-300 hover:text-white transition-colors"
+            >
+              <Loader2 className={`h-3.5 w-3.5 ${bulkSettling ? "animate-spin" : "hidden"}`} />
+              {!bulkSettling && <ClipboardCheck className="h-3.5 w-3.5" />}
+              {bulkSettling
+                ? `Settling ${Math.min(bulkSettleProgress.done + 1, bulkSettleProgress.total)} of ${bulkSettleProgress.total}…`
+                : `Mark Manually Settled${selectedPending.length > 1 ? ` (${selectedPending.length})` : ""}`}
+            </button>
+          )}
+          {(showReceivePayment && (selectedPending.length > 0 || bulkReceiving)) && (
+            <button
+              onClick={bulkReceivePayments}
+              disabled={bulkReceiving}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-60 text-white transition-colors"
+            >
+              <Loader2 className={`h-3.5 w-3.5 ${bulkReceiving ? "animate-spin" : "hidden"}`} />
+              {!bulkReceiving && <CreditCard className="h-3.5 w-3.5" />}
+              {bulkReceiving
+                ? `Processing ${Math.min(bulkRecProgress.done + 1, bulkRecProgress.total)} of ${bulkRecProgress.total}…`
+                : `Receive Payment${selectedPending.length > 1 ? `s (${selectedPending.length})` : ""}`}
             </button>
           )}
         </div>
@@ -249,25 +393,25 @@ export function TransactionsTable({
           style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}
         >
           <colgroup>
-            {showGenerateExpense && <col style={{ width: "40px" }} />}
+            {showQbAction && <col style={{ width: "40px" }} />}
             <Col id="title" widths={widths} defaultW={360} />
             <Col id="paymentDate" widths={widths} defaultW={150} />
             <Col id="amount" widths={widths} defaultW={110} />
             {showGst && <Col id="gstIncluded" widths={widths} defaultW={80} />}
             <Col id="paymentType" widths={widths} defaultW={140} />
             {showCategory && <Col id="type" widths={widths} defaultW={150} />}
-            {showGenerateExpense && <Col id="qbExpenseNo" widths={widths} defaultW={120} />}
             <Col id="paymentRef" widths={widths} defaultW={160} />
             <Col id="invoiceNo" widths={widths} defaultW={200} />
             {showReceiptNo && <Col id="receiptNo" widths={widths} defaultW={180} />}
             <Col id="status" widths={widths} defaultW={120} />
+            {showGenerateExpense && <col style={{ width: "140px" }} />}
             <Col id="remarks" widths={widths} defaultW={360} />
             <col style={{ width: "40px" }} />
           </colgroup>
 
           <thead className="bg-gray-900 text-gray-400">
             <tr>
-              {showGenerateExpense && (
+              {showQbAction && (
                 <th className="p-3">
                   <input
                     type="checkbox"
@@ -301,11 +445,6 @@ export function TransactionsTable({
                   Category
                 </ResizableTh>
               )}
-              {showGenerateExpense && (
-                <ResizableTh id="qbExpenseNo" widths={widths} setWidth={setWidth} defaultW={120}>
-                  Bill No
-                </ResizableTh>
-              )}
               <ResizableTh id="paymentRef" widths={widths} setWidth={setWidth} defaultW={160}>
                 {paymentRefLabel}
               </ResizableTh>
@@ -320,6 +459,11 @@ export function TransactionsTable({
               <ResizableTh id="status" widths={widths} setWidth={setWidth} defaultW={120}>
                 Status
               </ResizableTh>
+              {showGenerateExpense && (
+                <th className="p-3 text-left font-medium whitespace-nowrap text-xs text-gray-400">
+                  QB Review
+                </th>
+              )}
               <ResizableTh id="remarks" widths={widths} setWidth={setWidth} defaultW={360}>
                 Remark
               </ResizableTh>
@@ -333,6 +477,7 @@ export function TransactionsTable({
               const errorOf = (f: string) => errors[`${r.id}:${f}`];
               const isPending = r.status === "Pending" && !r.qbExpenseNo;
               const isGenerating = generatingIds.has(r.id);
+              const isReceiving = receivingIds.has(r.id);
 
               return (
                 <tr
@@ -343,7 +488,7 @@ export function TransactionsTable({
                   }
                 >
                   {/* Checkbox */}
-                  {showGenerateExpense && (
+                  {showQbAction && (
                     <td className="p-3 text-center align-middle">
                       {isPending ? (
                         <input
@@ -445,21 +590,6 @@ export function TransactionsTable({
                     </td>
                   )}
 
-                  {/* Bill No — QB expense number, read-only */}
-                  {showGenerateExpense && (
-                    <td className="p-2 align-middle">
-                      {isGenerating ? (
-                        <span className="flex items-center gap-1 text-xs text-gray-400">
-                          <Loader2 className="h-3 w-3 animate-spin" /> Sending…
-                        </span>
-                      ) : r.qbExpenseNo ? (
-                        <span className="text-green-400 text-xs font-mono">{r.qbExpenseNo}</span>
-                      ) : (
-                        <span className="text-gray-600 text-xs">—</span>
-                      )}
-                      {generateErrors[r.id] && <ErrText msg={generateErrors[r.id]!} />}
-                    </td>
-                  )}
 
                   {/* Bank Ref */}
                   <td className="p-2 font-mono overflow-hidden">
@@ -501,18 +631,58 @@ export function TransactionsTable({
 
                   {/* Status */}
                   <td className="p-2">
-                    <SelectCell
-                      value={r.status}
-                      options={STATUSES}
-                      onChange={(v) => {
-                        setField(r.id, "status", v);
-                        commitField(r.id, "status", v, { refresh: true });
-                      }}
-                      saving={isSaving("status")}
-                      error={errorOf("status")}
-                      tone={r.status === "Settled" ? "green" : "orange"}
-                    />
+                    {(isGenerating || isReceiving) ? (
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {isReceiving ? "Processing…" : "Sending…"}
+                      </span>
+                    ) : (
+                      <SelectCell
+                        value={r.status}
+                        options={STATUSES}
+                        onChange={(v) => {
+                          setField(r.id, "status", v);
+                          commitField(r.id, "status", v, { refresh: true });
+                        }}
+                        saving={isSaving("status")}
+                        error={errorOf("status")}
+                        tone={r.status === "Settled" ? "green" : r.status === "QB Created" ? "purple" : "orange"}
+                      />
+                    )}
+                    {generateErrors[r.id] && <ErrText msg={generateErrors[r.id]!} />}
+                    {receiveErrors[r.id] && <ErrText msg={receiveErrors[r.id]!} />}
                   </td>
+
+                  {/* QB Review action */}
+                  {showGenerateExpense && (
+                    <td className="p-2 align-middle">
+                      {r.status === "QB Created" && (
+                        <button
+                          type="button"
+                          disabled={isSaving("status")}
+                          onClick={() => {
+                            setField(r.id, "status", "Settled");
+                            commitField(r.id, "status", "Settled", { refresh: true });
+                          }}
+                          title="Confirm this expense has been reviewed and mark it as Settled"
+                          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border border-emerald-600/60 text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-500 disabled:opacity-50 transition-colors whitespace-nowrap"
+                        >
+                          {isSaving("status") ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <BadgeCheck className="h-3.5 w-3.5" />
+                          )}
+                          Confirm Settlement
+                        </button>
+                      )}
+                      {r.status === "Settled" && (
+                        <span className="flex items-center gap-1 text-xs text-emerald-600">
+                          <BadgeCheck className="h-3.5 w-3.5" />
+                          Settled
+                        </span>
+                      )}
+                    </td>
+                  )}
 
                   {/* Remark */}
                   <td className="p-2 overflow-hidden">
@@ -622,13 +792,14 @@ function NumberCell({ value, onChange, onCommit, saving, error }: {
 
 function SelectCell({ value, options, onChange, saving, error, tone }: {
   value: string; options: string[]; onChange: (v: string) => void;
-  saving: boolean; error?: string; tone?: "sky" | "emerald" | "green" | "orange";
+  saving: boolean; error?: string; tone?: "sky" | "emerald" | "green" | "orange" | "purple";
 }) {
   const toneClass =
     tone === "sky" ? "bg-sky-900/40 text-sky-300 hover:bg-sky-900/60"
     : tone === "emerald" ? "bg-emerald-900/40 text-emerald-300 hover:bg-emerald-900/60"
     : tone === "green" ? "bg-green-900/40 text-green-300 hover:bg-green-900/60"
     : tone === "orange" ? "bg-orange-900/40 text-orange-300 hover:bg-orange-900/60"
+    : tone === "purple" ? "bg-purple-900/40 text-purple-300 hover:bg-purple-900/60"
     : "bg-gray-900 text-gray-200 hover:bg-gray-800";
   return (
     <div className="relative inline-flex items-center gap-1">

@@ -75,14 +75,14 @@ export function OtBreakdownDialog({ otStats, employeeId }: Props) {
       >
         <div className={`h-2 w-2 rounded-full ${otStats.remaining < 0 ? "bg-red-400" : "bg-emerald-400"}`} />
         <h3 className={`text-sm font-semibold ${otStats.remaining < 0 ? "text-red-400" : "text-emerald-400"}`}>
-          Accumulated OT Leave Balance
+          Off In Lieu Balance
         </h3>
         <span className="text-xs text-gray-500">Earned from weekend / public holiday work</span>
         <Info className="h-3 w-3 text-gray-600 group-hover:text-gray-400 transition-colors" />
         <span className="text-xs text-gray-600 group-hover:text-gray-500 transition-colors">Click for breakdown</span>
         {otStats.remaining < 0 && (
           <span className="ml-auto text-xs text-red-300 bg-red-950/40 border border-red-800/50 rounded px-2 py-0.5">
-            {Math.abs(otStats.remaining)} day(s) deficit — offset by future OT work
+            {Math.abs(otStats.remaining)} day(s) deficit — offset by future Off In Lieu work
           </span>
         )}
       </button>
@@ -95,7 +95,7 @@ export function OtBreakdownDialog({ otStats, employeeId }: Props) {
             <div className="flex items-center justify-between mb-4">
               <DialogPrimitive.Title className="text-base font-semibold text-white flex items-center gap-2">
                 <Briefcase className="h-4 w-4 text-emerald-400" />
-                OT Leave Breakdown
+                Off In Lieu Breakdown
                 <span className="text-xs font-normal text-gray-400">({new Date().getFullYear()})</span>
               </DialogPrimitive.Title>
               <DialogPrimitive.Close className="text-gray-400 hover:text-white transition-colors rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-600">
@@ -130,9 +130,9 @@ export function OtBreakdownDialog({ otStats, employeeId }: Props) {
             ) : logs.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-10 text-gray-600">
                 <Calendar className="h-8 w-8 opacity-30" />
-                <p className="text-sm">No OT work records found</p>
+                <p className="text-sm">No Off In Lieu records found</p>
                 <p className="text-xs text-center text-gray-700 max-w-xs">
-                  OT days are recorded by your admin when you work on weekends or public holidays.
+                  Off In Lieu days are credited when admin approves your weekend or public holiday work submissions.
                 </p>
               </div>
             ) : (
@@ -166,7 +166,7 @@ export function OtBreakdownDialog({ otStats, employeeId }: Props) {
 
             {otStats.remaining < 0 && (
               <div className="mt-3 bg-red-950/20 border border-red-800/40 rounded-lg p-2.5 text-xs text-red-300">
-                You have a deficit of {Math.abs(otStats.remaining)} day(s). Work on weekends or public holidays to earn OT days and reduce this.
+                You have a deficit of {Math.abs(otStats.remaining)} day(s). Work on weekends or public holidays and get admin approval to earn Off In Lieu days and reduce this.
               </div>
             )}
           </DialogPrimitive.Content>

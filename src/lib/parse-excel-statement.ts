@@ -16,14 +16,10 @@ export interface ParsedTransaction {
 }
 
 function extractInvoiceNo(desc: string): string {
-  // Common invoice patterns: TC26-0501-000951, INV-19604, Invoice TC25-1028-08, PF-100041159
+  // Only TC-format invoice numbers: TC26-0501-000951, TC26-0516-073426
   const patterns = [
     /\b(TC\d{2}-\d{3,4}-[A-Z0-9]+)\b/i,
-    /\b(INV-\d{3,8})\b/i,
-    /\b(PF-\d{4,10})\b/i,
-    /\b(FTB-\d{4}-\d{3,6})\b/i,
-    /Invoice\s+([A-Z0-9-]{5,30})/i,
-    /Inv\s+([A-Z0-9-]{5,30})/i,
+    /Invoice\s+(TC\d{2}-\d{3,4}-[A-Z0-9]+)/i,
   ];
   for (const re of patterns) {
     const m = desc.match(re);
@@ -74,7 +70,7 @@ export function detectPaymentType(descParts: string[], rawDescription: string): 
   // inside a description trigger this.
   if (/\bCASH\b|CASH DISBURSEMENT|CASH WITHDRAWAL/.test(marker)) return "Cash";
   if (/INVOICE PAYMENT|FAST PAYMENT INVOICE/i.test(marker)) return "Bank Transfer";
-  if (/INVOICE|INV-|\bTC\d{2}-|\bPF-\d|\bFTB-\d/i.test(rawDescription)) return "e-invoice";
+  if (/\bTC\d{2}-/i.test(rawDescription)) return "e-invoice";
   return "Bank Transfer";
 }
 
@@ -90,14 +86,13 @@ export function detectPaymentType(descParts: string[], rawDescription: string): 
 export function splitNameAndRef(label: string): { name: string; ref: string } {
   const trimmed = label.trim();
 
-  // Don't try to split when the tail contains an invoice-like pattern
-  // (TC26-0501-000951, INV-19604, PF-100041159, FTB-2605-001321) — those should
-  // be routed to invoiceNo by extractInvoiceNo(), not chopped in half here.
-  const invoicePattern = /\b(TC\d{2}-\d{3,4}-[A-Z0-9]+|INV-\d{3,8}|PF-\d{4,10}|FTB-\d{4}-\d{3,6})\b/i;
+  // Don't try to split when the tail contains a TC invoice number or other structured ref
+  // (TC26-0501-000951, PF-100041159, FTB-2605-001321) to avoid chopping the name.
+  const invoicePattern = /\b(TC\d{2}-\d{3,4}-[A-Z0-9]+|PF-\d{4,10}|FTB-\d{4}-\d{3,6})\b/i;
   if (invoicePattern.test(trimmed)) {
-    // Strip the invoice ref off the name if it sits at the tail.
+    // Strip a TC invoice ref off the name if it sits at the tail.
     const m = trimmed.match(
-      /^(.*?)\s*[–\-—\/]\s*(TC\d{2}-\d{3,4}-[A-Z0-9]+|INV-\d{3,8}|PF-\d{4,10}|FTB-\d{4}-\d{3,6})\s*$/i,
+      /^(.*?)\s*[–\-—\/]\s*(TC\d{2}-\d{3,4}-[A-Z0-9]+)\s*$/i,
     );
     if (m && m[1].trim()) return { name: m[1].trim(), ref: "" };
     return { name: trimmed, ref: "" };

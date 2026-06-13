@@ -51,11 +51,14 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const name = file.name.toLowerCase();
 
-  // Archive uploaded statement locally and to Google Drive (non-blocking — failures don't abort the parse).
+  // Archive locally (non-blocking).
   await archiveStatement(buffer, file.name);
-  uploadFileToDrive(buffer, file.name).catch((err) =>
-    console.error("Google Drive upload failed (non-fatal):", err),
-  );
+
+  // Upload to Google Drive — run in parallel with parse, capture result for response.
+  const driveUploadPromise = uploadFileToDrive(buffer, file.name).catch((err: any) => {
+    console.error("Google Drive upload failed:", err);
+    return { error: err?.message ?? String(err) };
+  });
   // XLSX magic: ZIP "PK\x03\x04". Old .xls (CFB/OLE2) magic: D0 CF 11 E0 A1 B1 1A E1.
   const isXlsxMagic =
     buffer.length >= 4 &&
@@ -82,12 +85,17 @@ export async function POST(req: NextRequest) {
       }
       const credits = rows.filter((t) => t.direction === "CREDIT").length;
       const debits = rows.length - credits;
+      const driveResult = await driveUploadPromise;
+      const driveWarning = "error" in driveResult ? driveResult.error : undefined;
       return NextResponse.json({
         transactions: rows,
         count: rows.length,
         credits,
         debits,
         engine: "xls-rules",
+        driveFileId: "fileId" in driveResult ? driveResult.fileId : undefined,
+        driveWebViewLink: "webViewLink" in driveResult ? driveResult.webViewLink : undefined,
+        driveWarning,
       });
     }
     return NextResponse.json(

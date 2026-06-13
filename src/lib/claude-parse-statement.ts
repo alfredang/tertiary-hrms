@@ -60,12 +60,12 @@ const TxnSchema = z.object({
   paymentRef: z
     .string()
     .describe(
-      "Bank's internal reference code for this transaction (e.g. 'EBGPP60505392144', 'MCT2026050100038833081', '20260504DBSSSGSGBRT6240060'). Empty string if none visible.",
+      "Bank's internal reference code for this transaction (e.g. 'EBGPP60505392144', 'MCT2026050100038833081', '20260504DBSSSGSGBRT6240060', 'FTB-2605-001321'). FTB-XXXX codes are bank references — always put them here, never in invoiceNo. Empty string if none visible.",
     ),
   invoiceNo: z
     .string()
     .describe(
-      "Invoice number if the row references one (e.g. 'TC26-0501-000951', 'INV-19604', 'PF-100041159', 'FTB-2605-001321'). Empty string if none.",
+      "Invoice number if the row references one. ONLY accept TC-format numbers (e.g. 'TC26-0501-000951', 'TC26-0516-073426'). PF-, INV-, FTB- are NOT invoice numbers — leave invoiceNo empty for those. Empty string if none.",
     ),
   remarks: z.string().describe("Source reference, e.g. statement filename + transaction ref"),
 });
@@ -119,7 +119,7 @@ export async function parseStatementWithClaude(opts: {
     "- Common DEBIT cues: 'OUTWARD PAYNOW', 'PAYNOW TRANSFER', 'GIRO PAYMENT', 'FAST PAYMENT', 'INTERBANK GIRO', 'CHEQUE', 'BAT', 'Business Advance Card'.",
     "",
     "## TITLE",
-    "- For CREDITS: use the payer/customer/company name (e.g. 'SkillsFuture Singapore Agency', 'Nutan Kumari Mishra', 'Acme Pte Ltd'). If invoice ref exists, append it: 'Acme Pte Ltd – INV-19604'.",
+    "- For CREDITS: use the payer/customer/company name only (e.g. 'SkillsFuture Singapore Agency', 'Nutan Kumari Mishra', 'Acme Pte Ltd'). Do NOT append invoice or reference numbers to the title.",
     "- For DEBITS: use the payee/vendor name plus brief purpose (e.g. 'Peter Goh – Sharept Apr', 'Google Workspace – May').",
     "- NEVER use the transaction type marker ('Inward PayNow', 'FAST PAYMENT', 'INTERBANK GIRO', 'GIRO PAYMENT') alone as the title.",
     "- Max 120 chars.",
@@ -151,12 +151,12 @@ export async function parseStatementWithClaude(opts: {
     "- 'PayNow' – marker contains PAYNOW (Inward PayNow, PayNow-Others Incoming, OUTWARD PAYNOW, PAYNOW TRANSFER, etc.).",
     "- 'GIRO' – marker contains GIRO (INTERBANK GIRO, IBG GIRO, GIRO PAYROLL, GIRO PAYMENT, GIRO COLLECTION).",
     "- 'CC' – BAT / Business Advance Card / Visa / Mastercard / Stripe / Hitpay anywhere in the description.",
-    "- 'e-invoice' – references an invoice number (TC..-, INV-, PF-, FTB-) and none of the above fit.",
+    "- 'e-invoice' – references a TC-format invoice number (TC..-) and none of the above fit. PF-, INV-, FTB- do NOT trigger e-invoice.",
     "- 'Bank Transfer' – default for FAST PAYMENT / FAST INWARD / INWARD TT / REMITTANCE / OUTWARD TT and any marker not matching the others.",
     "",
     "## REFERENCES",
-    "- 'paymentRef' – bank internal ref code if visible (e.g. 'EBGPP60505392144', 'MCT2026050100038833081'). Empty string if none.",
-    "- 'invoiceNo' – invoice number referenced in the row (TC26-0501-000951, INV-19604, PF-100041159, FTB-2605-001321). Empty string if none.",
+    "- 'paymentRef' – bank internal ref code if visible (e.g. 'EBGPP60505392144', 'MCT2026050100038833081', 'FTB-2605-001321'). FTB-XXXX are bank references — always goes here. Empty string if none.",
+    "- 'invoiceNo' – TC-format invoice number only (e.g. TC26-0501-000951). PF-, INV-, FTB- are NOT invoice numbers — leave empty for those. Empty string if none.",
     "- 'remarks' – include the source filename plus any other useful reference info.",
     "",
     "## GST (Singapore)",
@@ -347,12 +347,12 @@ export async function enrichTransactionsWithAgent(
     "  - PayNow if descParts[0] contains PAYNOW.",
     "  - GIRO if descParts[0] contains GIRO (INTERBANK GIRO, IBG GIRO, GIRO PAYROLL, GIRO PAYMENT, GIRO COLLECTION).",
     "  - CC if BAT / Business Advance Card / Visa / Mastercard / Stripe / Hitpay anywhere in the row.",
-    "  - e-invoice if an invoice ref (TC..-, INV-, PF-, FTB-) appears and none of the above fit.",
+    "  - e-invoice if a TC-format invoice ref (TC..-) appears and none of the above fit. PF-, INV-, FTB- do NOT trigger e-invoice.",
     "  - else Bank Transfer (default for FAST PAYMENT / INWARD TT / REMITTANCE / etc.).",
     "",
     "REFS:",
-    "  - paymentRef: bank ref code (long alphanumeric ≥14 chars). Empty string if none.",
-    "  - invoiceNo: invoice number if visible. Empty string if none.",
+    "  - paymentRef: bank ref code (long alphanumeric ≥14 chars). FTB-XXXX codes go HERE, never in invoiceNo. Empty string if none.",
+    "  - invoiceNo: ONLY TC-format numbers (e.g. TC26-0501-000951). FTB-, PF-, INV-, and words like PAYMENT are NOT invoice numbers — leave empty for those. Empty string if none.",
   ].join("\n");
 
   const userPrompt = [

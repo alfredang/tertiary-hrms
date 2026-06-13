@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Play, Copy, CheckCircle2 } from "lucide-react";
+import { Clock, Play, Copy, CheckCircle2, Mail, UserX } from "lucide-react";
 
 interface CronJobView {
   id: string;
@@ -18,23 +18,83 @@ interface CronJobView {
   status: "active" | "planned";
 }
 
-export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
+export function CronJobsPanel({
+  jobs,
+  autoDeactivateInterns = false,
+}: {
+  jobs: CronJobView[];
+  autoDeactivateInterns?: boolean;
+}) {
   const { toast } = useToast();
   const [running, setRunning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [autoDeactivate, setAutoDeactivate] = useState(autoDeactivateInterns);
+  const [savingToggle, setSavingToggle] = useState(false);
+
+  const toggleAutoDeactivate = async () => {
+    const next = !autoDeactivate;
+    setSavingToggle(true);
+    setAutoDeactivate(next); // optimistic
+    try {
+      const res = await fetch("/api/settings/auto-deactivate-interns", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
+      toast({
+        title: next ? "Auto-deactivation enabled" : "Auto-deactivation disabled",
+        description: next
+          ? "Interns are set to Inactive the day after their end date."
+          : "Interns will no longer be auto-deactivated.",
+      });
+    } catch (err) {
+      setAutoDeactivate(!next); // revert
+      toast({
+        title: "Could not update setting",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingToggle(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    setTestingEmail(true);
+    try {
+      const res = await fetch("/api/admin/test-email", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
+      toast({ title: "Test email sent", description: `Delivered to ${body.sentTo}` });
+    } catch (err) {
+      toast({
+        title: "Email failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
 
   const runNow = async (job: CronJobView) => {
     setRunning(job.id);
     try {
-      const res = await fetch(job.path, { method: job.method });
+      const res = await fetch("/api/cron/run-now", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: job.path, method: job.method }),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
-      toast({
-        title: `${job.name} triggered`,
-        description: body && typeof body === "object"
-          ? `${Object.entries(body).slice(0, 4).map(([k, v]) => `${k}: ${v}`).join(", ")}`
-          : "Job started.",
-      });
+      const entries = body && typeof body === "object" ? Object.entries(body) : [];
+      const details = entries.length > 0
+        ? entries.slice(0, 6).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join("  |  ")
+        : "Job completed (no response body).";
+      toast({ title: `${job.name} triggered`, description: details });
     } catch (err) {
       toast({
         title: "Run failed",
@@ -59,12 +119,50 @@ export function CronJobsPanel({ jobs }: { jobs: CronJobView[] }) {
           <Clock className="h-5 w-5 text-primary" />
           <CardTitle className="text-white">Cron Jobs</CardTitle>
         </div>
-        <p className="text-sm text-gray-400 mt-1">
-          Scheduled tasks triggered by an external scheduler (Coolify cron, GitHub Action). The app itself
-          does not run a timer — point your scheduler at the URLs below on the listed cadence.
-        </p>
+        <div className="flex items-center justify-between gap-3 mt-2 flex-wrap">
+          <p className="text-sm text-gray-400">
+            Scheduled tasks triggered by an external scheduler (Coolify cron, GitHub Action). The app itself
+            does not run a timer — point your scheduler at the URLs below on the listed cadence.
+          </p>
+          <Button variant="outline" size="sm" onClick={sendTestEmail} disabled={testingEmail} className="shrink-0">
+            <Mail className="h-3.5 w-3.5 mr-1.5" />
+            {testingEmail ? "Sending..." : "Send Test Email"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="border border-gray-800 rounded-xl p-4 bg-gray-900/40 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gray-800 shrink-0">
+              <UserX className="h-4 w-4 text-gray-300" />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold">Auto-deactivate expired interns</h3>
+              <p className="text-sm text-gray-400 mt-1">
+                When on, the daily <span className="text-gray-300">Deactivate Expired Interns</span> job
+                sets interns to <span className="text-gray-300">Inactive</span> the day after their
+                employment end date, which also blocks them from logging in. When off, the job is skipped.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoDeactivate}
+            aria-label="Auto-deactivate expired interns"
+            onClick={toggleAutoDeactivate}
+            disabled={savingToggle}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+              autoDeactivate ? "bg-primary" : "bg-gray-700"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                autoDeactivate ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
         {jobs.map((j) => (
           <div
             key={j.id}

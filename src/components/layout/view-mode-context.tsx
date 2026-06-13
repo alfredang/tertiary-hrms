@@ -9,6 +9,8 @@ const VALID: ViewMode[] = ["admin", "staff", "accountant", "intern"];
 interface Ctx {
   viewMode: ViewMode;
   setViewMode: (v: ViewMode) => void;
+  /** True while server components re-render for the newly selected view. */
+  isSwitching: boolean;
 }
 
 const ViewModeContext = createContext<Ctx | null>(null);
@@ -21,7 +23,7 @@ export function ViewModeProvider({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [isSwitching, startTransition] = useTransition();
   const [viewMode, setViewState] = useState<ViewMode>(
     VALID.includes(initial) ? initial : "admin",
   );
@@ -39,7 +41,7 @@ export function ViewModeProvider({
   );
 
   return (
-    <ViewModeContext.Provider value={{ viewMode, setViewMode }}>
+    <ViewModeContext.Provider value={{ viewMode, setViewMode, isSwitching }}>
       {children}
     </ViewModeContext.Provider>
   );

@@ -55,6 +55,7 @@ export function DocumentPreviewModal({
           {/* Body */}
           <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[200px]">
             {isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={url}
                 alt={fileName}

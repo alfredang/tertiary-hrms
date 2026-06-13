@@ -6,7 +6,7 @@ import { TransactionsTable } from "@/components/accounting/transactions-table";
 import { AccountingClient } from "@/components/accounting/accounting-client";
 import {
   ExpenseFilters,
-  INCOME_CATEGORY_OPTIONS,
+  INCOME_PAYMENT_TYPE_OPTIONS,
 } from "@/components/accounting/expense-filters";
 import { Pagination } from "@/components/accounting/pagination";
 
@@ -14,10 +14,21 @@ const PAGE_SIZE = 200;
 
 export const dynamic = "force-dynamic";
 
+const TC_RE = /TC[A-Z]?\d{2}[-\s]?[\w]{4}[-\s]?[\w]{2,6}/i;
+
+function extractTcFromTitle(title: string): string | null {
+  const m = title?.match(TC_RE);
+  if (!m) return null;
+  let s = m[0].replace(/\s/g, "-").toUpperCase();
+  s = s.replace(/^TC([A-Z])(\d{2}-)/, "TC$2");
+  if (!s.includes("-")) s = s.replace(/^TC(\d{2})(\w{4})(\w+)/, "TC$1-$2-$3");
+  return s;
+}
+
 export default async function IncomeTrackingPage({
   searchParams,
 }: {
-  searchParams?: { status?: string; category?: string; from?: string; to?: string; page?: string };
+  searchParams?: { status?: string; category?: string; from?: string; to?: string; page?: string; q?: string };
 }) {
   const session = await auth();
 
@@ -46,10 +57,21 @@ export default async function IncomeTrackingPage({
   const categoryFilter = searchParams?.category ?? "All";
   const fromFilter = searchParams?.from ?? "";
   const toFilter = searchParams?.to ?? "";
+  const qFilter = (searchParams?.q ?? "").trim();
 
   const where: any = { direction: "CREDIT" };
   if (statusFilter !== "All") where.status = statusFilter;
-  if (categoryFilter !== "All") where.type = categoryFilter;
+  if (categoryFilter !== "All") where.paymentType = categoryFilter;
+  if (qFilter) {
+    where.OR = [
+      { title: { contains: qFilter, mode: "insensitive" } },
+      { rawDescription: { contains: qFilter, mode: "insensitive" } },
+      { paymentRef: { contains: qFilter, mode: "insensitive" } },
+      { invoiceNo: { contains: qFilter, mode: "insensitive" } },
+      { receiptNo: { contains: qFilter, mode: "insensitive" } },
+      { remarks: { contains: qFilter, mode: "insensitive" } },
+    ];
+  }
   if (fromFilter || toFilter) {
     where.paymentDate = {};
     if (fromFilter) where.paymentDate.gte = new Date(fromFilter);
@@ -72,6 +94,22 @@ export default async function IncomeTrackingPage({
     take: PAGE_SIZE,
   });
 
+  // Auto-backfill invoiceNo from title for rows that have a TC number but no invoiceNo saved
+  const backfillMap = new Map<string, string>();
+  for (const t of transactions) {
+    if (!t.invoiceNo) {
+      const tc = extractTcFromTitle(t.title);
+      if (tc) backfillMap.set(t.id, tc);
+    }
+  }
+  if (backfillMap.size > 0) {
+    await Promise.all(
+      Array.from(backfillMap.entries()).map(([id, invoiceNo]) =>
+        prisma.bankTransaction.update({ where: { id }, data: { invoiceNo } }),
+      ),
+    );
+  }
+
   const rows = transactions.map((t) => ({
     id: t.id,
     paymentDate: t.paymentDate.toISOString().slice(0, 10),
@@ -80,7 +118,7 @@ export default async function IncomeTrackingPage({
     type: t.type,
     paymentType: t.paymentType,
     paymentRef: t.paymentRef ?? "",
-    invoiceNo: t.invoiceNo ?? "",
+    invoiceNo: backfillMap.get(t.id) ?? t.invoiceNo ?? "",
     receiptNo: t.receiptNo ?? "",
     qbExpenseNo: t.qbExpenseNo ?? "",
     status: t.status,
@@ -102,13 +140,16 @@ export default async function IncomeTrackingPage({
         category={categoryFilter}
         from={fromFilter}
         to={toFilter}
-        categoryOptions={INCOME_CATEGORY_OPTIONS}
+        q={qFilter}
+        categoryOptions={INCOME_PAYMENT_TYPE_OPTIONS}
+        categoryLabel="Payment Type"
       />
       <TransactionsTable
         rows={rows}
         titleLabel="Customer Name"
         showGst={false}
         showReceiptNo
+        showReceivePayment
         direction="CREDIT"
         emptyText="No income matches the current filters."
       />

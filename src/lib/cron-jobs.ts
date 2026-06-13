@@ -25,4 +25,26 @@ export const BUILT_IN_CRON_JOBS: BuiltInCronJob[] = [
     path: "/api/cron/payroll",
     status: "active",
   },
+  {
+    id: "timesheet-reminder",
+    name: "Timesheet Reminder",
+    description:
+      "Sends a 5:30 PM reminder on weekends and public holidays to employees who haven't submitted their hours yet. Only non-official workdays require timesheet submission. Off In Lieu days are credited after admin approval.",
+    schedule: "Daily at 17:30 SGT",
+    cron: "30 9 * * *",
+    method: "GET",
+    path: "/api/cron/timesheet-reminder",
+    status: "active",
+  },
+  {
+    id: "deactivate-expired-interns",
+    name: "Deactivate Expired Interns",
+    description:
+      "Sets interns to INACTIVE once their employment end date has passed (they keep access through their final day). An inactive account is blocked from every login method. Only runs while the \"Auto-deactivate expired interns\" toggle above is enabled.",
+    schedule: "Daily at 00:30 SGT",
+    cron: "30 16 * * *",
+    method: "GET",
+    path: "/api/cron/deactivate-expired-interns",
+    status: "active",
+  },
 ];

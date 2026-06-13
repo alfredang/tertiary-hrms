@@ -75,12 +75,12 @@ async function getStaffStats(employeeId: string) {
   const alPending = alBalance ? Number(alBalance.pending) : 0;
   const leaveBalance = alEntitlement + alCarriedOver - alUsed - alPending;
 
+  // MC is not prorated — employees receive their full entitlement, not monthly accrual
   const mcAllocation = mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0);
-  const mcEntitlement = prorateLeave(mcAllocation, employee?.startDate ?? undefined, alMonthlyRate);
   const mcCarriedOver = mcBalance ? Number(mcBalance.carriedOver) : 0;
   const mcUsed = mcBalance ? Number(mcBalance.used) : 0;
   const mcPending = mcBalance ? Number(mcBalance.pending) : 0;
-  const mcBalanceVal = mcEntitlement + mcCarriedOver - mcUsed - mcPending;
+  const mcBalanceVal = mcAllocation + mcCarriedOver - mcUsed - mcPending;
   const expenseClaimAmount = expenseClaims.reduce((sum, c) => sum + Number(c.amount), 0);
 
   const otEarned = otBalance ? Number(otBalance.earned) : 0;

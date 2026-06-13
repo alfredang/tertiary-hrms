@@ -11,9 +11,6 @@ import { isDevAuthSkipped } from "@/lib/dev-auth";
 export const dynamic = "force-dynamic";
 
 async function getMcLeaveType() {
-  // Look up by code first ("MC" is the canonical code); fall back to common
-  // alternate codes / names so a freshly seeded DB without an MC row doesn't
-  // crash the page.
   const row =
     (await prisma.leaveType.findUnique({ where: { code: "MC" } })) ??
     (await prisma.leaveType.findFirst({
@@ -100,7 +97,12 @@ export default async function MedicalLeavePage() {
 
   const mcType = await getMcLeaveType();
   const isIntern = employmentType === "INTERN";
-  const isPaid = !isIntern;
+  // paidDays: 0 = fully paid; N > 0 = only N days are paid, rest are unpaid
+  const rawPaidDays = mcType?.paidDays ?? 0;
+  const totalDays = mcType?.defaultDays ?? 14;
+  const paidMcDays = isIntern ? 0 : (rawPaidDays > 0 ? rawPaidDays : totalDays);
+  const unpaidMcDays = isIntern ? totalDays : totalDays - paidMcDays;
+  const isPartiallyPaid = !isIntern && unpaidMcDays > 0;
 
   const [balance, requests] = await Promise.all([
     mcType && currentEmployeeId
@@ -123,8 +125,10 @@ export default async function MedicalLeavePage() {
             {viewAs === "admin"
               ? "Manage all employee medical leave requests"
               : isIntern
-                ? "Unpaid medical leave — up to 7 days per year"
-                : "Paid medical leave — 14 days per year (Singapore Employment Act)"}
+                ? `Unpaid medical leave — up to ${totalDays} days per year`
+                : isPartiallyPaid
+                  ? `Medical leave — ${totalDays} days/year (${paidMcDays} paid + ${unpaidMcDays} unpaid)`
+                  : `Paid medical leave — ${totalDays} days per year`}
           </p>
         </div>
         {viewAs !== "admin" && (
@@ -137,21 +141,28 @@ export default async function MedicalLeavePage() {
         )}
       </div>
 
-      {/* Paid / Unpaid status pill */}
+      {/* Paid / Unpaid status pills */}
       {viewAs !== "admin" && (
-        <div className="inline-flex items-center gap-2">
-          <span
-            className={
-              isPaid
-                ? "text-xs px-2.5 py-1 rounded-full bg-green-950/50 border border-green-800 text-green-300"
-                : "text-xs px-2.5 py-1 rounded-full bg-amber-950/50 border border-amber-800 text-amber-300"
-            }
-          >
-            {isPaid ? "Paid Leave" : "Unpaid Leave"}
-          </span>
-          {isIntern && (
-            <span className="text-xs text-gray-500">
-              Interns do not accrue paid medical leave.
+        <div className="inline-flex items-center gap-2 flex-wrap">
+          {isIntern ? (
+            <>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/50 border border-amber-800 text-amber-300">
+                Unpaid Leave
+              </span>
+              <span className="text-xs text-gray-500">Interns do not accrue paid medical leave.</span>
+            </>
+          ) : isPartiallyPaid ? (
+            <>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-green-950/50 border border-green-800 text-green-300">
+                {paidMcDays} days Paid
+              </span>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/50 border border-amber-800 text-amber-300">
+                {unpaidMcDays} days Unpaid
+              </span>
+            </>
+          ) : (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-green-950/50 border border-green-800 text-green-300">
+              Paid Leave
             </span>
           )}
         </div>
@@ -160,21 +171,15 @@ export default async function MedicalLeavePage() {
       {/* Balance Summary - staff view only */}
       {viewAs !== "admin" && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <BalanceCard
-            label="Yearly Entitlement"
-            value={balance.entitlement}
-            color="text-blue-400"
-          />
-          <BalanceCard
-            label="MC Taken"
-            value={balance.used}
-            color="text-amber-400"
-          />
-          <BalanceCard
-            label="Pending"
-            value={balance.pending}
-            color="text-purple-400"
-          />
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+            <p className="text-xs sm:text-sm text-gray-400 mb-1">Yearly Entitlement</p>
+            <p className="text-2xl sm:text-3xl font-bold text-blue-400">{balance.entitlement}</p>
+            {isPartiallyPaid && (
+              <p className="text-xs text-gray-600 mt-1">{paidMcDays} paid · {unpaidMcDays} unpaid</p>
+            )}
+          </div>
+          <BalanceCard label="MC Taken" value={balance.used} color="text-amber-400" />
+          <BalanceCard label="Pending" value={balance.pending} color="text-purple-400" />
           <BalanceCard
             label="Remaining"
             value={balance.remaining}

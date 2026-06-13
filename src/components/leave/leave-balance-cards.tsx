@@ -3,7 +3,6 @@
 import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, Info } from "lucide-react";
-import { computeYearlyEntitlement } from "@/lib/utils";
 
 interface LeaveBalance {
   proRated: number;
@@ -27,7 +26,12 @@ interface MonthRow {
   isFuture: boolean;
 }
 
-function buildClean(
+/**
+ * Builds the monthly accrual breakdown table.
+ * Uses ceil(monthsElapsed * yearly / 12) at each period boundary so the
+ * running total matches the prorateLeave() result exactly.
+ */
+function buildBreakdown(
   annualEntitlement: number,
   startDateStr: string | null,
   customLeaveRate?: number | null,
@@ -38,32 +42,22 @@ function buildClean(
 
   const startDate = startDateStr ? new Date(startDateStr) : null;
   const startedThisYear = startDate && startDate.getFullYear() === currentYear;
-
-  // Short-contract mode: admin explicitly set leave < 6 days (contract < 6 months)
   const isShortContract = customLeaveRate != null && customLeaveRate < 6;
-
-  // Fixed yearly entitlement for current year based on seniority at Jan 1
-  const yearlyEntitlement = startDate
-    ? computeYearlyEntitlement(startDate, currentYear)
-    : annualEntitlement;
+  const yearly = isShortContract && customLeaveRate != null ? customLeaveRate : annualEntitlement;
 
   const rows: MonthRow[] = [];
-  let cumulative = 0;
 
-  // Build period boundaries: rolling months from start (if started this year) or Jan–Dec
+  // Build rolling monthly periods from join date (or Jan 1 if existing employee)
   const periods: Array<{ start: Date; end: Date }> = [];
-
   const contractEnd = contractEndDateStr ? new Date(contractEndDateStr) : null;
 
   if (startedThisYear && startDate) {
-    // Show exactly the number of periods matching the contract length (capped at 12)
     const maxPeriods = customLeaveRate != null && customLeaveRate < 12 ? customLeaveRate : 12;
     let s = new Date(startDate);
     for (let i = 0; i < maxPeriods; i++) {
       const e = new Date(s);
       e.setMonth(e.getMonth() + 1);
       e.setDate(e.getDate() - 1);
-      // Trim the last period's end to the actual contract end date
       const periodEnd = contractEnd && e > contractEnd ? contractEnd : e;
       periods.push({ start: new Date(s), end: periodEnd });
       s = new Date(s);
@@ -75,38 +69,47 @@ function buildClean(
     }
   }
 
-  for (const { start, end } of periods) {
+  for (let i = 0; i < periods.length; i++) {
+    const { start, end } = periods[i];
     const isFuture = start > now;
     const isPartial = !isFuture && end > now;
 
     let accrued = 0;
-    if (!isFuture) {
-      let perMonth = 0;
-      if (isShortContract && customLeaveRate != null) {
-        // Short contract: 1 day/month up to the admin-set total cap
-        if (Math.round(cumulative) < customLeaveRate) {
-          perMonth = 1;
-        }
-      } else {
-        // Long contract, FT, or no rate set: accrue from month 1, no waiting period
-        perMonth = yearlyEntitlement / 12;
-      }
+    let cumulative = 0;
 
-      if (isPartial) {
-        const daysInPeriod = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-        const daysElapsed = Math.round((now.getTime() - start.getTime()) / 86400000) + 1;
-        accrued = perMonth * Math.min(daysElapsed / daysInPeriod, 1);
+    if (!isFuture) {
+      const prevCum = Math.min(Math.ceil((i * yearly) / 12), yearly);
+
+      if (isShortContract) {
+        // Short contract: 1 day/month up to the cap
+        const thisCum = Math.min(i + 1, yearly);
+        accrued = thisCum - prevCum;
+        cumulative = thisCum;
+      } else if (isPartial) {
+        // Current (partial) month: compute fractional months elapsed within period
+        const daysInPeriod = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+        const daysElapsed = Math.min(
+          Math.round((now.getTime() - start.getTime()) / 86400000) + 1,
+          daysInPeriod,
+        );
+        const fraction = daysElapsed / daysInPeriod;
+        const totalMonths = i + fraction;
+        const thisCum = Math.min(Math.ceil((totalMonths * yearly) / 12), yearly);
+        accrued = thisCum - prevCum;
+        cumulative = thisCum;
       } else {
-        accrued = perMonth;
+        // Full completed month
+        const thisCum = Math.min(Math.ceil(((i + 1) * yearly) / 12), yearly);
+        accrued = thisCum - prevCum;
+        cumulative = thisCum;
       }
-      cumulative += accrued;
     }
 
     const displayEnd = isPartial ? now : end;
     rows.push({
       periodLabel: formatPeriod(start, displayEnd),
-      daysAccrued: Math.round(accrued * 100) / 100,
-      cumulative: Math.round(cumulative * 100) / 100,
+      daysAccrued: accrued,
+      cumulative,
       isFuture,
     });
   }
@@ -122,21 +125,15 @@ function formatPeriod(start: Date, end: Date): string {
 export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEndDate, monthlyLeaveRate }: Props) {
   const [open, setOpen] = useState(false);
 
-  const rows = buildClean(leaveBalance.allocation, employeeStartDate, monthlyLeaveRate, employeeEndDate);
+  // Yearly entitlement — always use DB balance value (set by admin via Leave Policy settings).
+  // monthlyLeaveRate is used only for proration capping, not for the displayed entitlement.
+  const yearlyEntitlement = leaveBalance.allocation;
+
+  const rows = buildBreakdown(yearlyEntitlement, employeeStartDate, monthlyLeaveRate, employeeEndDate);
   const remaining = leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken;
 
   const isShortContract = monthlyLeaveRate != null && monthlyLeaveRate < 6;
 
-  // For contract employees (monthlyLeaveRate < 12), total entitlement = their rate
-  // For FT/senior (rate = 12 or null), use seniority-based entitlement
-  const yearlyEntitlement =
-    monthlyLeaveRate != null && monthlyLeaveRate < 12
-      ? monthlyLeaveRate
-      : employeeStartDate
-      ? computeYearlyEntitlement(new Date(employeeStartDate))
-      : leaveBalance.allocation;
-
-  // Distinguish advance AL (within entitlement, amber) from true deficit (beyond entitlement, red)
   const advanceAl = remaining < 0 && leaveBalance.taken <= yearlyEntitlement + leaveBalance.carriedOver;
   const trueDeficit = remaining < 0 && leaveBalance.taken > yearlyEntitlement + leaveBalance.carriedOver;
   const remainingColor = remaining < 0
@@ -185,7 +182,6 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-lg max-h-[85vh] overflow-y-auto bg-gray-950 border border-gray-800 rounded-xl p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <DialogPrimitive.Title className="text-base font-semibold text-white flex items-center gap-2">
                 Annual Leave Accrual Breakdown
@@ -225,21 +221,18 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
                   </thead>
                   <tbody className="divide-y divide-gray-800">
                     {rows.map((row, i) => (
-                      <tr
-                        key={i}
-                        className={row.isFuture ? "text-gray-600" : "text-gray-200"}
-                      >
+                      <tr key={i} className={row.isFuture ? "text-gray-600" : "text-gray-200"}>
                         <td className="px-3 py-2">
                           {row.periodLabel}
                           {row.isFuture && <span className="ml-1 text-gray-700">(upcoming)</span>}
                         </td>
                         <td className="px-3 py-2 text-right font-mono">
-                          {row.isFuture ? "—" : `+${row.daysAccrued.toFixed(2)}`}
+                          {row.isFuture ? "—" : `+${row.daysAccrued}`}
                         </td>
                         <td className="px-3 py-2 text-right font-mono">
                           {row.isFuture ? "—" : (
-                            <span className={Math.abs(row.cumulative - leaveBalance.proRated) < 0.01 ? "text-cyan-400 font-semibold" : ""}>
-                              {row.cumulative.toFixed(2)}
+                            <span className={row.cumulative === leaveBalance.proRated ? "text-cyan-400 font-semibold" : ""}>
+                              {row.cumulative}
                             </span>
                           )}
                         </td>
@@ -252,7 +245,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               <p className="text-xs text-gray-600">
                 {isShortContract
                   ? `Short contract: ${yearlyEntitlement} day${yearlyEntitlement !== 1 ? "s" : ""} total, accruing at 1 day/month.`
-                  : `Rate: 1 day/month, accumulates from your first month of service.`}
+                  : `Accrues as ceil(${yearlyEntitlement} days ÷ 12 × months worked). Rate: ${yearlyEntitlement} days/year.`}
               </p>
               {advanceAl && (
                 <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-300">

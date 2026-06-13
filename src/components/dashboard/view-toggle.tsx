@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,19 +24,15 @@ interface ViewToggleProps {
 }
 
 export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
-  const router = useRouter();
   const { viewMode: currentView, setViewMode } = useViewMode();
   const assignedLower = userRoles.map((r) => r.toLowerCase());
   const ROLES = ALL_ROLES.filter((r) => assignedLower.includes(r.value));
 
+  // setViewMode flips the sidebar/header instantly and refreshes server
+  // components (the main-content overlay shows the loading state).
   const handleSelect = (view: ViewMode) => {
-    // Synchronous: sidebar / header re-render immediately from context.
+    if (view === currentView) return;
     setViewMode(view);
-    // Refresh server components in the background so role-dependent server
-    // data (e.g. Header's "View As" badge sourced from cookies) stays in
-    // sync. This does NOT block the UI — the context update already flipped
-    // the sidebar.
-    router.refresh();
   };
 
   if (ROLES.length === 0) return null;

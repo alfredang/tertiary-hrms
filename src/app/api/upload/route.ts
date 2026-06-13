@@ -94,9 +94,11 @@ export async function POST(req: NextRequest) {
       fileName: file.name,
     });
   } catch (error) {
-    console.error("Error uploading file:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    const uploadsDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+    console.error("[upload] Error:", msg, "| uploadsDir:", uploadsDir, "| cwd:", process.cwd());
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: `Upload failed: ${msg}` },
       { status: 500 }
     );
   }

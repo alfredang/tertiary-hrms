@@ -6,7 +6,41 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Lock } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
+
+function PasswordInput({
+  id,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-gray-900 border-gray-700 text-white pr-10"
+        placeholder={placeholder}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+        tabIndex={-1}
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
 
 export function PasswordChangeCard() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -80,12 +114,10 @@ export function PasswordChangeCard() {
           <Label htmlFor="currentPassword" className="text-gray-300">
             Current Password
           </Label>
-          <Input
+          <PasswordInput
             id="currentPassword"
-            type="password"
             value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className="bg-gray-900 border-gray-700 text-white"
+            onChange={setCurrentPassword}
             placeholder="Enter current password"
           />
         </div>
@@ -94,12 +126,10 @@ export function PasswordChangeCard() {
           <Label htmlFor="newPassword" className="text-gray-300">
             New Password
           </Label>
-          <Input
+          <PasswordInput
             id="newPassword"
-            type="password"
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="bg-gray-900 border-gray-700 text-white"
+            onChange={setNewPassword}
             placeholder="Enter new password (min 6 characters)"
           />
         </div>
@@ -108,12 +138,10 @@ export function PasswordChangeCard() {
           <Label htmlFor="confirmPassword" className="text-gray-300">
             Confirm New Password
           </Label>
-          <Input
+          <PasswordInput
             id="confirmPassword"
-            type="password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="bg-gray-900 border-gray-700 text-white"
+            onChange={setConfirmPassword}
             placeholder="Confirm new password"
           />
         </div>

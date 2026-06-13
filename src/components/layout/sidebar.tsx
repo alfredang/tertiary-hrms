@@ -32,6 +32,7 @@ import {
   Stethoscope,
   ClipboardList,
   FolderOpen,
+  FileSliders,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -52,7 +53,7 @@ type NavItem = {
 
 const navigation: NavItem[] = [
   { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
-  { name: "My Profile", href: "/profile",     icon: User },
+  { name: "My Profile", href: "/profile",     icon: User, noAccountant: true as const },
   { name: "Employees",       adminName: "Staff Management",   href: "/employees", icon: Users,      adminOnly:     true as const },
   {
     name: "Leave",
@@ -85,6 +86,8 @@ const navigation: NavItem[] = [
   },
   { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
   { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
+  { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
+  { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
   {
     name: "Settings",
     href: "/settings",
@@ -102,6 +105,7 @@ const navigation: NavItem[] = [
           href: `/settings/email-templates/${k.toLowerCase().replace(/_/g, "-")}`,
         })),
       },
+      { name: "Leave Policy", href: "/settings/leave-policy", icon: FileSliders },
       { name: "Webhooks", href: "/settings/webhooks", icon: Webhook },
       { name: "Payslip Template", href: "/settings/payslip-template", icon: DollarSign },
       { name: "Cron Jobs", href: "/settings/cron-jobs", icon: Clock },

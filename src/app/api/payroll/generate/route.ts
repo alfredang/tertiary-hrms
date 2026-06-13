@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { calculatePayroll, prorateMonthlySalary } from "@/lib/cpf-calculator";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { uploadPayslipToDrive } from "@/lib/payslip-drive";
+import { emailPayslipToEmployee } from "@/lib/payslip-email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -147,6 +148,12 @@ export async function POST(req: NextRequest) {
           await uploadPayslipToDrive(created.id);
         } catch (err) {
           console.error(`Drive upload failed for payslip ${created.id}:`, err);
+        }
+
+        try {
+          await emailPayslipToEmployee(created.id);
+        } catch (err) {
+          console.error(`Payslip email failed for ${created.id}:`, err);
         }
 
         results.created++;

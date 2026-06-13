@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import type { Role } from "@prisma/client";
-import { randomUUID } from "crypto";
+import { authConfig } from "./auth.config";
 
 const ROLE_PRIORITY: Role[] = ["ADMIN", "HR", "MANAGER", "ACCOUNTANT", "STAFF", "INTERN"];
 
@@ -46,12 +46,7 @@ declare module "next-auth" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 }, // 30 days
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
+  ...authConfig,
   providers: [
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [
@@ -114,6 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.otp) return null;
 
         const normalizedEmail = (credentials.email as string).toLowerCase().trim();
+        const submittedOtp = (credentials.otp as string).trim();
 
         const otpRecord = await prisma.otpCode.findFirst({
           where: {
@@ -124,8 +120,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           orderBy: { createdAt: "desc" },
         });
 
-        if (!otpRecord) return null;
-        if (otpRecord.code !== credentials.otp) return null;
+        if (!otpRecord) {
+          // Check if there's an expired/used record to give a better hint
+          const anyRecord = await prisma.otpCode.findFirst({
+            where: { email: normalizedEmail },
+            orderBy: { createdAt: "desc" },
+          });
+          console.warn(`[auth/otp] No valid OTP for ${normalizedEmail}. Last record: used=${anyRecord?.used}, expired=${anyRecord ? anyRecord.expiresAt < new Date() : "none"}`);
+          return null;
+        }
+
+        if (otpRecord.code !== submittedOtp) {
+          console.warn(`[auth/otp] Wrong OTP for ${normalizedEmail}. Expected length: ${otpRecord.code.length}, got length: ${submittedOtp.length}`);
+          return null;
+        }
 
         // Mark OTP as used
         await prisma.otpCode.update({
@@ -138,8 +146,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           include: { employee: true },
         });
 
-        if (!user) return null;
-        if (user.employee?.status === "INACTIVE") return null;
+        if (!user) {
+          console.warn(`[auth/otp] OTP valid but user not found for ${normalizedEmail}`);
+          return null;
+        }
+        if (user.employee?.status === "INACTIVE") {
+          console.warn(`[auth/otp] OTP valid but employee INACTIVE for ${normalizedEmail}`);
+          return null;
+        }
 
         const roles = user.roles.length > 0 ? user.roles : ["STAFF" as Role];
         return {
@@ -167,7 +181,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!existingUser) {
             const newUser = await prisma.user.create({
               data: {
-                id: randomUUID(),
+                id: crypto.randomUUID(),
                 email: user.email,
                 password: "",
                 roles: ["STAFF"],
@@ -194,26 +208,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         if (user.id) token.sub = user.id;
         (token as any).role = user.role;
         (token as any).roles = user.roles;
         (token as any).employeeId = user.employeeId;
         (token as any).needsSetup = !user.employeeId;
+        return token;
       }
 
-      if (token.email && !user) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email },
-          include: { employee: true },
-        });
-        if (dbUser) {
-          const roles = dbUser.roles.length > 0 ? dbUser.roles : ["STAFF" as Role];
-          (token as any).role = getPrimaryRole(roles);
-          (token as any).roles = roles;
-          (token as any).employeeId = dbUser.employee?.id;
-          (token as any).needsSetup = !dbUser.employee?.id;
+      // Only re-fetch from DB on explicit update (e.g., role change) or if
+      // the token is missing role data. Querying every request races with
+      // RSC navigation and can throw, which would clear the session cookie.
+      const needsRefresh = trigger === "update" || !(token as any).role;
+      if (needsRefresh && token.email) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email },
+            include: { employee: true },
+          });
+          if (dbUser) {
+            const roles = dbUser.roles.length > 0 ? dbUser.roles : ["STAFF" as Role];
+            (token as any).role = getPrimaryRole(roles);
+            (token as any).roles = roles;
+            (token as any).employeeId = dbUser.employee?.id;
+            (token as any).needsSetup = !dbUser.employee?.id;
+          }
+        } catch (err) {
+          console.error("[auth] jwt DB lookup failed, keeping existing token:", err);
         }
       }
 

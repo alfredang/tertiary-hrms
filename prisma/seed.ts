@@ -50,8 +50,8 @@ async function main() {
   console.log("Creating leave types...");
   const annualLeave = await prisma.leaveType.upsert({
     where: { code: "AL" },
-    update: {},
-    create: { id: randomUUID(), name: "Annual Leave", code: "AL", defaultDays: 12, description: "Paid annual leave" },
+    update: { defaultDays: 7, internDefaultDays: 3, carryOver: true, maxCarryOver: 4 },
+    create: { id: randomUUID(), name: "Annual Leave", code: "AL", defaultDays: 7, internDefaultDays: 3, carryOver: true, maxCarryOver: 4, description: "Paid annual leave" },
   });
   const sickLeave = await prisma.leaveType.upsert({
     where: { code: "SL" },
@@ -60,8 +60,8 @@ async function main() {
   });
   const medicalLeave = await prisma.leaveType.upsert({
     where: { code: "MC" },
-    update: { defaultDays: 14 },
-    create: { id: randomUUID(), name: "Medical Leave", code: "MC", defaultDays: 14, description: "Medical leave", carryOver: false },
+    update: { defaultDays: 14, paidDays: 7 },
+    create: { id: randomUUID(), name: "Medical Leave", code: "MC", defaultDays: 14, paidDays: 7, description: "Medical leave", carryOver: false },
   });
   const compassionateLeave = await prisma.leaveType.upsert({
     where: { code: "CL" },
@@ -117,17 +117,17 @@ async function main() {
 
   // Create Expense Categories
   console.log("Creating expense categories...");
-  const clientEntertainment = await prisma.expenseCategory.upsert({
+  await prisma.expenseCategory.upsert({
     where: { code: "CE" },
     update: {},
     create: { id: randomUUID(), name: "Client Entertainment", code: "CE", description: "Client meals and entertainment" },
   });
-  const travel = await prisma.expenseCategory.upsert({
+  await prisma.expenseCategory.upsert({
     where: { code: "TRV" },
     update: {},
     create: { id: randomUUID(), name: "Travel", code: "TRV", description: "Business travel expenses" },
   });
-  const officeSupplies = await prisma.expenseCategory.upsert({
+  await prisma.expenseCategory.upsert({
     where: { code: "OS" },
     update: {},
     create: { id: randomUUID(), name: "Office Supplies", code: "OS", description: "Office supplies and equipment" },
@@ -142,11 +142,16 @@ async function main() {
     update: {},
     create: { id: randomUUID(), name: "Software & Subscriptions", code: "SW", description: "Software licenses and subscriptions" },
   });
+  await prisma.expenseCategory.upsert({
+    where: { code: "REF" },
+    update: {},
+    create: { id: randomUUID(), name: "Refreshments", code: "REF", description: "Refreshments and beverages for meetings or events" },
+  });
   console.log("Created expense categories");
 
   // Create Admin User
   console.log("Creating admin user...");
-  const seedPassword = process.env.SEED_PASSWORD || "123456";
+  const seedPassword = process.env.SEED_PASSWORD || "Password123";
   const hashedPassword = await bcrypt.hash(seedPassword, 12);
 
   const adminUser = await prisma.user.upsert({
@@ -299,8 +304,6 @@ async function main() {
     { email: "lisa.park@tertiaryinfotech.com", name: "PARK LISA", employeeId: "EMP006", position: "Financial Analyst", dept: finDept, salary: 6500, allowances: 250 },
   ];
 
-  const createdEmployees: any[] = [];
-
   for (const emp of sampleEmployees) {
     const user = await prisma.user.upsert({
       where: { email: emp.email },
@@ -334,7 +337,6 @@ async function main() {
         managerId: adminEmployee.id,
       },
     });
-    createdEmployees.push(employee);
 
     await prisma.salaryInfo.upsert({
       where: { employeeId: employee.id },
@@ -373,150 +375,6 @@ async function main() {
     }
     console.log(`Created employee: ${emp.name}`);
   }
-
-  // Clean up existing sample data to prevent duplicates on re-seed
-  console.log("Cleaning up existing sample data...");
-  await prisma.calendarEvent.deleteMany({});
-  await prisma.payslip.deleteMany({});
-  await prisma.expenseClaim.deleteMany({});
-  await prisma.leaveRequest.deleteMany({});
-
-  // Create sample leave requests
-  console.log("Creating sample leave requests...");
-  const jamesEmployee = createdEmployees.find((e) => e.employeeId === "EMP005")!;
-  const sarahEmployee = createdEmployees.find((e) => e.employeeId === "EMP002")!;
-  const michaelEmployee = createdEmployees.find((e) => e.employeeId === "EMP003")!;
-
-  await prisma.leaveRequest.create({
-    data: {
-      id: randomUUID(),
-      employeeId: jamesEmployee.id,
-      leaveTypeId: annualLeave.id,
-      startDate: new Date("2025-01-20"),
-      endDate: new Date("2025-01-24"),
-      days: 5,
-      reason: "Family vacation",
-      status: "APPROVED",
-      approverId: adminEmployee.id,
-      approvedAt: new Date("2025-01-15"),
-    },
-  });
-
-  await prisma.leaveRequest.create({
-    data: {
-      id: randomUUID(),
-      employeeId: sarahEmployee.id,
-      leaveTypeId: sickLeave.id,
-      startDate: new Date("2025-01-27"),
-      endDate: new Date("2025-01-28"),
-      days: 2,
-      reason: "Medical appointment",
-      status: "PENDING",
-    },
-  });
-
-  // Create sample expense claims
-  console.log("Creating sample expense claims...");
-  await prisma.expenseClaim.create({
-    data: {
-      id: randomUUID(),
-      employeeId: michaelEmployee.id,
-      categoryId: clientEntertainment.id,
-      description: "Client Dinner - TechCorp",
-      amount: 285.50,
-      expenseDate: new Date("2025-01-15"),
-      status: "PENDING",
-    },
-  });
-
-  await prisma.expenseClaim.create({
-    data: {
-      id: randomUUID(),
-      employeeId: sarahEmployee.id,
-      categoryId: travel.id,
-      description: "Conference Travel - SF",
-      amount: 1250,
-      expenseDate: new Date("2025-01-10"),
-      status: "APPROVED",
-      approverId: adminEmployee.id,
-      approvedAt: new Date("2025-01-12"),
-    },
-  });
-
-  await prisma.expenseClaim.create({
-    data: {
-      id: randomUUID(),
-      employeeId: jamesEmployee.id,
-      categoryId: officeSupplies.id,
-      description: "Office Supplies",
-      amount: 87.25,
-      expenseDate: new Date("2025-01-18"),
-      status: "PAID",
-      approverId: adminEmployee.id,
-      approvedAt: new Date("2025-01-19"),
-      paidAt: new Date("2025-01-20"),
-    },
-  });
-
-  // Create sample payslips
-  console.log("Creating sample payslips...");
-  const payPeriodStart = new Date("2025-01-01");
-  const payPeriodEnd = new Date("2025-01-31");
-
-  for (const employee of createdEmployees) {
-    const salaryInfo = await prisma.salaryInfo.findUnique({
-      where: { employeeId: employee.id },
-    });
-
-    if (salaryInfo) {
-      const basicSalary = Number(salaryInfo.basicSalary);
-      const allowances = Number(salaryInfo.allowances);
-      const grossSalary = basicSalary + allowances;
-      const cpfEmployee = Math.round(grossSalary * 0.20);
-      const cpfEmployer = Math.round(grossSalary * 0.17);
-      const incomeTax = Math.round(grossSalary * 0.15);
-      const totalDeductions = cpfEmployee + incomeTax;
-      const netSalary = grossSalary - totalDeductions;
-
-      await prisma.payslip.upsert({
-        where: {
-          employeeId_payPeriodStart_payPeriodEnd: {
-            employeeId: employee.id,
-            payPeriodStart,
-            payPeriodEnd,
-          },
-        },
-        update: {},
-        create: {
-          id: randomUUID(),
-          employeeId: employee.id,
-          payPeriodStart,
-          payPeriodEnd,
-          paymentDate: new Date("2025-01-31"),
-          basicSalary,
-          allowances,
-          grossSalary,
-          cpfEmployee,
-          cpfEmployer,
-          incomeTax,
-          totalDeductions,
-          netSalary,
-          status: "PAID",
-        },
-      });
-    }
-  }
-
-  // Create calendar events
-  console.log("Creating calendar events...");
-  await prisma.calendarEvent.createMany({
-    data: [
-      { id: randomUUID(), title: "Chinese New Year", startDate: new Date("2025-01-29"), endDate: new Date("2025-01-30"), allDay: true, type: "HOLIDAY", color: "#ef4444" },
-      { id: randomUUID(), title: "Team Meeting", startDate: new Date("2025-02-03T10:00:00"), endDate: new Date("2025-02-03T11:00:00"), allDay: false, type: "MEETING", color: "#3b82f6" },
-      { id: randomUUID(), title: "New Employee Orientation", startDate: new Date("2025-02-10T09:00:00"), endDate: new Date("2025-02-10T17:00:00"), allDay: false, type: "TRAINING", color: "#a855f7" },
-      { id: randomUUID(), title: "Company Town Hall", startDate: new Date("2025-02-14T14:00:00"), endDate: new Date("2025-02-14T16:00:00"), allDay: false, type: "COMPANY_EVENT", color: "#22c55e" },
-    ],
-  });
 
   console.log("Database seeded successfully!");
 }

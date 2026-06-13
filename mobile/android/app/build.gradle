@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.tertiaryinfotech.hrms"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -18,10 +24,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('release-key.jks')
-            storePassword 'android'
-            keyAlias 'android'
-            keyPassword 'android'
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
         }
     }
     buildTypes {

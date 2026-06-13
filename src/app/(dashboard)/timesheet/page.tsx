@@ -22,7 +22,7 @@ export default async function TimesheetPage() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Weekly Timesheet</h1>
         <p className="text-sm sm:text-base text-gray-400 mt-1">
-          Log your daily working hours. Hours on weekends and public holidays earn OT leave.
+          If you work on a weekend or public holiday, log your hours here. Off In Lieu days are credited after admin approval.
         </p>
       </div>
       <WeeklyTimesheet />

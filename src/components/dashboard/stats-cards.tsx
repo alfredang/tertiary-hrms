@@ -59,7 +59,7 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
     );
     if (staffStats.otStats) {
       cards.push({
-        title: "OT Leave",
+        title: "Off In Lieu",
         value: String(staffStats.otStats.remaining),
         icon: Briefcase,
         iconBg: staffStats.otStats.remaining < 0 ? "bg-red-100" : "bg-emerald-100",
