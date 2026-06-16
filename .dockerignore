@@ -51,7 +51,3 @@ prisma/migrations
 
 # Claude
 .claude
-
-# Mobile native projects (Capacitor) — not needed in web Docker image
-mobile
-fastlane

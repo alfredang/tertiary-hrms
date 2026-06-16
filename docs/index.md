@@ -19,7 +19,7 @@ A comprehensive, AI-powered Human Resource Management System built for Tertiary 
 
 ## Welcome to HR Portal
 
-HR Portal is a modern, cross-platform HR management system designed to streamline human resource operations. Built with Next.js and Capacitor, it provides an intuitive interface for managing employees, tracking leave, processing payroll, and handling expense claims - accessible on any device.
+HR Portal is a modern HR management system designed to streamline human resource operations. Built with Next.js, it provides an intuitive interface for managing employees, tracking leave, processing payroll, and handling expense claims - accessible on any device.
 
 ### Key Features
 

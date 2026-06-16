@@ -56,18 +56,8 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
   };
 
   const handleSignOut = async () => {
-    // Clear Google Auth plugin session (shows account picker on next sign-in)
-    try {
-      const { Capacitor } = await import("@capacitor/core");
-      if (Capacitor.isNativePlatform()) {
-        const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
-        await GoogleAuth.signOut();
-      }
-    } catch {
-      // Not on native or plugin not available — ignore
-    }
     // POST to signout endpoint directly with redirect: "manual" to avoid
-    // NextAuth redirecting to AUTH_URL (localhost), which opens external browser
+    // NextAuth redirecting to AUTH_URL (localhost)
     try {
       const csrfRes = await fetch("/api/auth/csrf");
       const { csrfToken } = await csrfRes.json();

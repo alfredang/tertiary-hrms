@@ -6,7 +6,7 @@ import { encode } from "next-auth/jwt";
 
 /**
  * Mobile Google Sign-In endpoint.
- * Receives a Google ID token from the native Capacitor Google Auth plugin,
+ * Receives a Google ID token from the separate native iOS/Android app,
  * verifies it with Google, and creates a NextAuth-compatible session.
  */
 export async function POST(req: Request) {

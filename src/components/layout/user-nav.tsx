@@ -48,16 +48,6 @@ export function UserNav({ fallbackName, fallbackEmail, avatarUrl, gender }: User
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuItem
             onClick={async () => {
-              // Clear Google Auth plugin session (shows account picker on next sign-in)
-              try {
-                const { Capacitor } = await import("@capacitor/core");
-                if (Capacitor.isNativePlatform()) {
-                  const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
-                  await GoogleAuth.signOut();
-                }
-              } catch {
-                // Not on native or plugin not available — ignore
-              }
               try {
                 const csrfRes = await fetch("/api/auth/csrf");
                 const { csrfToken } = await csrfRes.json();

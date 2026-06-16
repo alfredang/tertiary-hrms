@@ -4,7 +4,6 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/toaster";
 import { ServiceWorkerRegister } from "@/components/sw-register";
-import { CapacitorInit } from "@/components/capacitor-init";
 import { getCompanyBranding } from "@/lib/company-settings";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -55,7 +54,6 @@ export default function RootLayout({
           {children}
           <Toaster />
           <ServiceWorkerRegister />
-          <CapacitorInit />
         </Providers>
       </body>
     </html>

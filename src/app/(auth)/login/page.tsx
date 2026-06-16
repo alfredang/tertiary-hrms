@@ -196,31 +196,10 @@ function LoginForm() {
   const handleGoogleSignIn = async () => {
     setError("");
     setIsGoogleLoading(true);
-    let platform = "unknown";
     try {
-      const { Capacitor } = await import("@capacitor/core");
-      platform = Capacitor.isNativePlatform() ? "native" : "web";
-
-      if (platform === "native") {
-        const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
-        try { await GoogleAuth.initialize(); } catch (e) {
-          throw new Error("init failed: " + (e instanceof Error ? e.message : JSON.stringify(e)));
-        }
-        try { await GoogleAuth.signOut(); } catch { /* no previous session */ }
-        const result = await GoogleAuth.signIn();
-        if (!result.authentication?.idToken) throw new Error("No idToken");
-        const res = await fetch("/api/auth/google-mobile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken: result.authentication.idToken }),
-        });
-        if (!res.ok) { const d = await res.json(); throw new Error(d.error || res.status); }
-        window.location.href = "/dashboard";
-      } else {
-        await signIn("google", { callbackUrl: "/dashboard" });
-      }
+      await signIn("google", { callbackUrl: "/dashboard" });
     } catch (err) {
-      setError(`[${platform}] ${err instanceof Error ? err.message : JSON.stringify(err)}`);
+      setError(err instanceof Error ? err.message : "Google sign-in failed. Please try again.");
       setIsGoogleLoading(false);
     }
   };
