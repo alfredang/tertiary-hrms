@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { format, parseISO } from "date-fns";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import {
   Loader2,
   Search,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Users,
   Send,
@@ -16,12 +18,17 @@ import {
   XCircle,
   X,
   Inbox,
+  RefreshCw,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { InviteStatusPill } from "@/components/staff/invite-status-pill";
+import { type ManageStaff } from "@/components/staff/woods-square-manage-list";
+import { WoodsSquareSettings } from "@/components/staff/woods-square-settings";
+import type { ScheduleConfig } from "@/lib/woods-square-schedule";
+import { WoodsSquareOverview } from "@/components/staff/woods-square-overview";
 import { useToast } from "@/hooks/use-toast";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
@@ -42,6 +49,12 @@ export interface InviteStaff {
 
 interface Props {
   staff: InviteStaff[];
+  /** All employees + current on-list flag — drives the Settings (Manage list) tab. */
+  manageStaff?: ManageStaff[];
+  /** Current scheduler config — drives the Settings scheduler card. */
+  scheduleConfig?: ScheduleConfig;
+  /** Which tab to open on first load — lets a notification deep-link to "requests". */
+  initialTab?: "send" | "requests" | "log" | "overview" | "manage";
 }
 
 type RunResult = {
@@ -57,6 +70,7 @@ type LogRow = {
   id: string;
   name: string;
   email: string;
+  employeeId: string | null;
   eventId: string | null;
   fromDate: string;
   toDate: string;
@@ -76,6 +90,20 @@ type AccessRequest = {
   resolvedAt: string | null;
   employee: { id: string; name: string; email: string; roles: string[] };
 };
+
+/**
+ * When the request came in (date + time), with an escalating colour as it ages so
+ * stale ones stand out. Tooltip shows the relative age.
+ */
+function requestedHint(createdAt: string): { text: string; title: string; cls: string } {
+  const d = parseISO(createdAt);
+  const days = differenceInCalendarDays(new Date(), d);
+  const text = `Requested on ${format(d, "d MMM, h:mm a")}`;
+  const title = days <= 0 ? "Requested today" : `Requested ${days} day${days === 1 ? "" : "s"} ago`;
+  if (days >= 5) return { text, title, cls: "bg-red-500/15 text-red-300" };
+  if (days >= 2) return { text, title, cls: "bg-amber-500/15 text-amber-300" };
+  return { text, title, cls: "bg-gray-700/40 text-gray-300" };
+}
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
@@ -146,7 +174,20 @@ function avatarColor(seed: string): string {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
-export function WoodsSquareInvite({ staff }: Props) {
+const DEFAULT_SCHEDULE: ScheduleConfig = {
+  enabled: false,
+  testMode: true,
+  testRecipientIds: [],
+  testFireAt: null,
+  lastFiredAt: null,
+};
+
+export function WoodsSquareInvite({
+  staff,
+  manageStaff = [],
+  scheduleConfig = DEFAULT_SCHEDULE,
+  initialTab = "send",
+}: Props) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -154,11 +195,15 @@ export function WoodsSquareInvite({ staff }: Props) {
   const [endDate, setEndDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
+  // During an "Invite All" bulk send: which window we're on, out of how many.
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
   const [result, setResult] = useState<RunResult | null>(null);
   const [logs, setLogs] = useState<LogRow[]>([]);
-  const [tab, setTab] = useState<"send" | "requests" | "log">("send");
+  const [tab, setTab] = useState<"send" | "requests" | "log" | "overview" | "manage">(initialTab);
+  const [reqRefreshing, setReqRefreshing] = useState(false);
   const [logsOpen, setLogsOpen] = useState(true);
   const [logFilter, setLogFilter] = useState<"ALL" | "SENT" | "FAILED" | "SKIPPED">("ALL");
+  const [logPage, setLogPage] = useState(0); // 0-indexed; page 0 = latest (logs are newest-first)
   const [showAllSelected, setShowAllSelected] = useState(false);
   const [requestsHistoryOpen, setRequestsHistoryOpen] = useState(false);
   const [conn, setConn] = useState<{ status: "idle" | "testing" | "ok" | "fail" }>({ status: "idle" });
@@ -169,6 +214,10 @@ export function WoodsSquareInvite({ staff }: Props) {
   // misclick can't reject a request, and the popup shows progress / errors.
   const [declineConfirm, setDeclineConfirm] = useState<string | null>(null);
   const [declining, setDeclining] = useState(false);
+  // Confirm before the bulk send, which fires real Habitap invites/emails to everyone.
+  const [confirmInviteAll, setConfirmInviteAll] = useState(false);
+  // Confirm before inviting a single ready request — it emails a real PIN, can't be undone.
+  const [inviteConfirm, setInviteConfirm] = useState<AccessRequest | null>(null);
 
   const loadLogs = useCallback(async () => {
     try {
@@ -196,6 +245,35 @@ export function WoodsSquareInvite({ staff }: Props) {
     loadLogs();
     loadRequests();
   }, [loadLogs, loadRequests]);
+
+  // Keep the queue current without a full reload: pull fresh requests/logs whenever the
+  // admin returns to this window/tab (e.g. after clicking a "new request" notification
+  // elsewhere, or switching back from another app).
+  useEffect(() => {
+    const refresh = () => {
+      loadRequests();
+      loadLogs();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [loadRequests, loadLogs]);
+
+  // Manual refresh for the Requests tab (mirrors the Activity Log's Refresh).
+  const refreshRequests = async () => {
+    setReqRefreshing(true);
+    try {
+      await loadRequests();
+    } finally {
+      setReqRefreshing(false);
+    }
+  };
 
   const prepareRequest = (r: AccessRequest) => {
     setSelectedIds(new Set([r.employee.id]));
@@ -299,8 +377,12 @@ export function WoodsSquareInvite({ staff }: Props) {
   const overWindow = windowDays > MAX_WINDOW_DAYS;
   const canSend = selected.length > 0 && !!startDate && !!endDate && !overWindow;
 
-  const pendingRequests = requests.filter((r) => r.status === "PENDING");
-  const resolvedRequests = requests.filter((r) => r.status !== "PENDING");
+  // A dated PENDING request whose end date has passed is treated as expired: it drops
+  // out of the actionable queue and shows under "Past requests" labelled Expired.
+  const isExpiredReq = (r: AccessRequest) =>
+    r.status === "PENDING" && !!r.toDate && r.toDate < todayIso;
+  const pendingRequests = requests.filter((r) => r.status === "PENDING" && !isExpiredReq(r));
+  const resolvedRequests = requests.filter((r) => r.status !== "PENDING" || isExpiredReq(r));
   const requestToDecline = declineConfirm
     ? requests.find((r) => r.id === declineConfirm) ?? null
     : null;
@@ -311,23 +393,75 @@ export function WoodsSquareInvite({ staff }: Props) {
     const days = windowDaysInclusive(r.fromDate, r.toDate);
     return days >= 1 && days <= MAX_WINDOW_DAYS;
   });
+  // Distinct windows = number of Habitap events the bulk send will create.
+  const inviteAllEvents = new Set(datedPending.map((r) => `${r.fromDate}|${r.toDate}`)).size;
 
   const sentLogCount = logs.filter((l) => l.status === "SENT").length;
   const failedLogCount = logs.filter((l) => l.status === "FAILED").length;
   const skippedLogCount = logs.filter((l) => l.status === "SKIPPED").length;
   const filteredLogs = logFilter === "ALL" ? logs : logs.filter((l) => l.status === logFilter);
+  // Paginate the log 20-per-page; page 0 is the latest since logs are newest-first.
+  const LOG_PAGE_SIZE = 20;
+  const logPageCount = Math.max(1, Math.ceil(filteredLogs.length / LOG_PAGE_SIZE));
+  const currentLogPage = Math.min(logPage, logPageCount - 1); // clamp if data/filter shrank
+  const pagedLogs = filteredLogs.slice(
+    currentLogPage * LOG_PAGE_SIZE,
+    currentLogPage * LOG_PAGE_SIZE + LOG_PAGE_SIZE,
+  );
 
-  // Core send — used by the Send panel and by approving a request directly.
-  // fromIso/toIso are yyyy-MM-dd.
-  async function runSend(staffIds: string[], fromIso: string, toIso: string) {
+  // Builds the result-toast for a send (single or combined bulk total).
+  function sendSummary(
+    invited: number,
+    skipped: number,
+    failed: number,
+    skippedNames: string[],
+  ): { title: string; description?: string; variant?: "destructive" } {
+    const nameList =
+      skippedNames.slice(0, 4).join(", ") +
+      (skippedNames.length > 4 ? ` +${skippedNames.length - 4} more` : "");
+    let title: string;
+    const descParts: string[] = [];
+    if (invited > 0) {
+      title = `${invited} invite${invited === 1 ? "" : "s"} sent`;
+      if (skipped) descParts.push(`Already had access: ${nameList}`);
+      if (failed) descParts.push(`${failed} failed`);
+    } else if (failed > 0) {
+      title = "Couldn’t send invites";
+      descParts.push(`${failed} failed${skipped ? ` · already invited: ${nameList}` : ""}`);
+    } else {
+      title = "No new invites needed";
+      descParts.push(`Already invited for these dates: ${nameList}`);
+    }
+    return {
+      title,
+      description: descParts.join(" · ") || undefined,
+      variant: invited === 0 && failed > 0 ? "destructive" : undefined,
+    };
+  }
+
+  // Core send — used by the Send panel, single approve, and (silently) by Invite All.
+  // fromIso/toIso are yyyy-MM-dd. Returns the API result, or null on error.
+  // For bulk sends, groupIndex/groupTotal make the progress bar span the whole run
+  // (no per-window reset) and `silent` defers the toast/result to the caller.
+  async function runSend(
+    staffIds: string[],
+    fromIso: string,
+    toIso: string,
+    opts: { silent?: boolean; groupIndex?: number; groupTotal?: number } = {},
+  ): Promise<RunResult | null> {
+    const { silent = false, groupIndex = 0, groupTotal = 1 } = opts;
     setSubmitting(true);
-    setResult(null);
-    setProgress(4);
+    if (!silent) setResult(null);
+    // This group's slice of the overall 0–100 bar.
+    const base = (groupIndex / groupTotal) * 100;
+    const span = 100 / groupTotal;
+    setProgress(Math.max(4, base + 1));
     // No server-side progress events, so estimate: ~12s overhead + ~3s per staff.
     const estMs = 12000 + staffIds.length * 3000;
     const startedAt = Date.now();
     const tick = setInterval(() => {
-      setProgress(Math.min(93, ((Date.now() - startedAt) / estMs) * 100));
+      const frac = Math.min(0.93, (Date.now() - startedAt) / estMs);
+      setProgress(base + span * frac);
     }, 250);
     try {
       const res = await fetch("/api/habitap/generate-pin", {
@@ -345,51 +479,36 @@ export function WoodsSquareInvite({ staff }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Failed to send invites", description: data.error, variant: "destructive" });
-        return;
+        if (!silent)
+          toast({ title: "Failed to send invites", description: data.error, variant: "destructive" });
+        return null;
       }
-      setResult(data as RunResult);
-      const invited = data.invitedCount ?? 0;
-      const skipped = data.skippedCount ?? 0;
-      const failed = data.failedCount ?? 0;
-      const skippedNames: string[] = (data.skipped ?? []).map((s: { name: string }) => s.name);
-      const nameList =
-        skippedNames.slice(0, 4).join(", ") +
-        (skippedNames.length > 4 ? ` +${skippedNames.length - 4} more` : "");
-
-      let title: string;
-      const descParts: string[] = [];
-      if (invited > 0) {
-        title = `${invited} invite${invited === 1 ? "" : "s"} sent`;
-        if (skipped) descParts.push(`Already had access: ${nameList}`);
-        if (failed) descParts.push(`${failed} failed`);
-      } else if (failed > 0) {
-        title = "Couldn’t send invites";
-        descParts.push(`${failed} failed${skipped ? ` · already invited: ${nameList}` : ""}`);
-      } else {
-        title = "No new invites needed";
-        descParts.push(`Already invited for these dates: ${nameList}`);
+      if (!silent) {
+        setResult(data as RunResult);
+        const skippedNames: string[] = (data.skipped ?? []).map((s: { name: string }) => s.name);
+        toast(sendSummary(data.invitedCount ?? 0, data.skippedCount ?? 0, data.failedCount ?? 0, skippedNames));
+        setSelectedIds(new Set());
+        loadLogs();
+        loadRequests();
       }
-
-      toast({
-        title,
-        description: descParts.join(" · ") || undefined,
-        variant: invited === 0 && failed > 0 ? "destructive" : undefined,
-      });
-      setSelectedIds(new Set());
-      loadLogs();
-      loadRequests();
+      return data as RunResult;
     } catch (err) {
-      toast({
-        title: "Request error",
-        description: err instanceof Error ? err.message : String(err),
-        variant: "destructive",
-      });
+      if (!silent)
+        toast({
+          title: "Request error",
+          description: err instanceof Error ? err.message : String(err),
+          variant: "destructive",
+        });
+      return null;
     } finally {
       clearInterval(tick);
-      setProgress(100);
-      setSubmitting(false);
-      setTimeout(() => setProgress(0), 700);
+      if (silent) {
+        setProgress(base + span); // mark this window complete; caller finishes up
+      } else {
+        setProgress(100);
+        setSubmitting(false);
+        setTimeout(() => setProgress(0), 700);
+      }
     }
   }
 
@@ -413,11 +532,16 @@ export function WoodsSquareInvite({ staff }: Props) {
     await runSend(selected.map((s) => s.id), startDate, endDate);
   }
 
-  // "Create invite" on a request: if it already has valid dates, send straight away;
-  // otherwise pre-fill the Send panel so the admin can choose the dates.
+  // "Invite" on a request: if it already has a valid window, ask to confirm (the send
+  // emails a real PIN and can't be undone); otherwise pre-fill the Send panel so the
+  // admin can choose/fix the dates first.
   async function approveRequest(r: AccessRequest) {
     if (!r.fromDate || !r.toDate) {
       prepareRequest(r);
+      toast({
+        title: "Pick an access window",
+        description: "This request didn’t specify dates — choose them below, then send.",
+      });
       return;
     }
     const days = windowDaysInclusive(r.fromDate, r.toDate);
@@ -430,7 +554,14 @@ export function WoodsSquareInvite({ staff }: Props) {
       });
       return;
     }
-    // Reflect it in the Send panel, then send immediately.
+    // Ready to send — confirm first (matches Decline and Invite All).
+    setInviteConfirm(r);
+  }
+
+  // Confirmed single invite: reflect it in the Send panel, then send.
+  async function sendApprovedRequest(r: AccessRequest) {
+    if (!r.fromDate || !r.toDate) return;
+    setInviteConfirm(null);
     setSelectedIds(new Set([r.employee.id]));
     setStartDate(r.fromDate);
     setEndDate(r.toDate);
@@ -449,10 +580,47 @@ export function WoodsSquareInvite({ staff }: Props) {
       g.ids.push(r.employee.id);
       groups.set(key, g);
     }
+    const groupList = Array.from(groups.values());
     setTab("send");
-    for (const g of Array.from(groups.values())) {
-      await runSend(g.ids, g.from, g.to);
+    setConfirmInviteAll(false);
+    setSubmitting(true);
+    setResult(null);
+
+    // Run each window silently, accumulating one combined result + a single summary toast.
+    const agg: RunResult = { eventId: null, invitedCount: 0, failedCount: 0, skippedCount: 0, skipped: [], failed: [] };
+    for (let i = 0; i < groupList.length; i++) {
+      const g = groupList[i];
+      setBulkProgress({ current: i + 1, total: groupList.length });
+      const data = await runSend(g.ids, g.from, g.to, {
+        silent: true,
+        groupIndex: i,
+        groupTotal: groupList.length,
+      });
+      if (data) {
+        agg.invitedCount += data.invitedCount ?? 0;
+        agg.failedCount += data.failedCount ?? 0;
+        agg.skippedCount = (agg.skippedCount ?? 0) + (data.skippedCount ?? 0);
+        agg.skipped = (agg.skipped ?? []).concat(data.skipped ?? []);
+        agg.failed = agg.failed.concat(data.failed ?? []);
+      }
     }
+
+    setResult(agg);
+    toast(
+      sendSummary(
+        agg.invitedCount,
+        agg.skippedCount ?? 0,
+        agg.failedCount,
+        (agg.skipped ?? []).map((s) => s.name),
+      ),
+    );
+    setBulkProgress(null);
+    setProgress(100);
+    setSubmitting(false);
+    setTimeout(() => setProgress(0), 700);
+    setSelectedIds(new Set());
+    loadLogs();
+    loadRequests();
   }
 
   return (
@@ -461,9 +629,11 @@ export function WoodsSquareInvite({ staff }: Props) {
       <div className="flex gap-1 border-b border-gray-800">
         {(
           [
-            ["send", "Send invites", 0],
+            ["send", "Send Invites", 0],
             ["requests", "Requests", pendingRequests.length],
             ["log", "Activity Log", 0],
+            ["overview", "Overview", 0],
+            ["manage", "Settings", 0],
           ] as const
         ).map(([id, label, badge]) => (
           <button
@@ -495,25 +665,37 @@ export function WoodsSquareInvite({ staff }: Props) {
               {pendingRequests.length} pending
             </span>
           )}
-          {datedPending.length > 0 && (
-            <Button
-              size="sm"
-              onClick={approveAll}
-              disabled={submitting}
-              className="ml-auto"
-              title="Send invites for all pending requests that already have dates"
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={refreshRequests}
+              disabled={reqRefreshing}
+              title="Check for new requests"
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-60"
             >
-              <Send className="h-3.5 w-3.5 mr-1.5" />
-              Create all ({datedPending.length})
-            </Button>
-          )}
+              <RefreshCw className={`h-3.5 w-3.5 ${reqRefreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+            {datedPending.length > 0 && (
+              <Button
+                size="sm"
+                onClick={() => setConfirmInviteAll(true)}
+                disabled={submitting}
+                title="Send invites for all pending requests that already have dates"
+              >
+                <Send className="h-3.5 w-3.5 mr-1.5" />
+                Invite All ({datedPending.length})
+              </Button>
+            )}
+          </div>
         </div>
 
         {pendingRequests.length === 0 ? (
           <p className="text-sm text-gray-500 py-6 text-center">No pending requests.</p>
         ) : (
           <div className="divide-y divide-gray-900">
-            {pendingRequests.map((r) => (
+            {pendingRequests.map((r) => {
+              const req = requestedHint(r.createdAt);
+              return (
               <div key={r.id} className="flex items-center gap-3 px-4 py-3">
                 <div
                   className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${avatarColor(
@@ -526,6 +708,12 @@ export function WoodsSquareInvite({ staff }: Props) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium text-white truncate">{r.employee.name}</p>
                     <RoleBadges roles={r.employee.roles} />
+                    <span
+                      title={req.title}
+                      className={`text-[11px] rounded-full px-2 py-0.5 font-medium ${req.cls}`}
+                    >
+                      {req.text}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500 truncate">{reqSummary(r)}</p>
                 </div>
@@ -536,7 +724,7 @@ export function WoodsSquareInvite({ staff }: Props) {
                     disabled={submitting}
                     onClick={() => approveRequest(r)}
                   >
-                    Create invite
+                    Invite
                   </Button>
                   <Button
                     size="sm"
@@ -548,7 +736,8 @@ export function WoodsSquareInvite({ staff }: Props) {
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -583,12 +772,14 @@ export function WoodsSquareInvite({ staff }: Props) {
                     </div>
                     <span
                       className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${
-                        r.status === "FULFILLED"
-                          ? "bg-emerald-500/15 text-emerald-400"
-                          : "bg-red-500/15 text-red-400"
+                        isExpiredReq(r)
+                          ? "bg-gray-500/15 text-gray-400"
+                          : r.status === "FULFILLED"
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-red-500/15 text-red-400"
                       }`}
                     >
-                      {r.status === "FULFILLED" ? "Fulfilled" : "Declined"}
+                      {isExpiredReq(r) ? "Expired" : r.status === "FULFILLED" ? "Fulfilled" : "Declined"}
                     </span>
                   </div>
                 ))}
@@ -632,6 +823,21 @@ export function WoodsSquareInvite({ staff }: Props) {
             </div>
           </div>
 
+          {/* Keyboard hint — selecting staff works mouse-free; spell out the keys. */}
+          {eligible.length > 0 && (
+            <div className="flex items-center justify-end gap-1.5 px-4 py-1.5 border-b border-gray-800 text-[11px] text-gray-500">
+              <kbd className="rounded border border-gray-700 bg-gray-900 px-1 py-px font-sans text-[10px] text-gray-400">
+                Tab
+              </kbd>
+              <span>to move</span>
+              <span className="text-gray-700">·</span>
+              <kbd className="rounded border border-gray-700 bg-gray-900 px-1 py-px font-sans text-[10px] text-gray-400">
+                Space
+              </kbd>
+              <span>to select</span>
+            </div>
+          )}
+
           <div className="max-h-[26rem] overflow-y-auto">
             {filtered.map((s) => {
               const usable = hasUsableEmail(s.email);
@@ -639,8 +845,21 @@ export function WoodsSquareInvite({ staff }: Props) {
               return (
                 <div
                   key={s.id}
+                  // Keyboard-operable checkbox row: focusable when selectable, toggled
+                  // with Space/Enter, and announced to screen readers via role/aria-checked.
+                  role="checkbox"
+                  aria-checked={usable ? isSelected : undefined}
+                  aria-disabled={!usable}
+                  aria-label={usable ? s.name : `${s.name} — no email on file, can't be invited`}
+                  tabIndex={usable ? 0 : -1}
                   onClick={() => usable && toggle(s.id)}
-                  className={`group flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 last:border-0 transition-colors ${
+                  onKeyDown={(e) => {
+                    if (usable && (e.key === " " || e.key === "Enter")) {
+                      e.preventDefault();
+                      toggle(s.id);
+                    }
+                  }}
+                  className={`group flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 transition-colors last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400 ${
                     !usable
                       ? ""
                       : isSelected
@@ -654,6 +873,7 @@ export function WoodsSquareInvite({ staff }: Props) {
                     disabled={!usable}
                     readOnly
                     tabIndex={-1}
+                    aria-hidden="true"
                     className={`pointer-events-none accent-indigo-500 ${!usable ? "opacity-40" : ""}`}
                   />
                   <div
@@ -696,7 +916,7 @@ export function WoodsSquareInvite({ staff }: Props) {
         <Card className="bg-gray-950 border-gray-800 overflow-hidden lg:sticky lg:top-6">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-800">
             <Send className="h-4 w-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-white">Send invites</h2>
+            <h2 className="text-sm font-semibold text-white">Send Invites</h2>
             <button
               onClick={testConnection}
               disabled={conn.status === "testing"}
@@ -866,7 +1086,9 @@ export function WoodsSquareInvite({ staff }: Props) {
                     />
                   </div>
                   <p className="text-center text-xs text-gray-500">
-                    Logging in to Woods Square and sending — this can take a moment.
+                    {bulkProgress
+                      ? `Sending window ${bulkProgress.current} of ${bulkProgress.total} — this can take a moment.`
+                      : "Logging in to Woods Square and sending — this can take a moment."}
                   </p>
                 </div>
               )}
@@ -953,7 +1175,7 @@ export function WoodsSquareInvite({ staff }: Props) {
             <ChevronDown
               className={`h-4 w-4 text-gray-400 transition-transform ${logsOpen ? "" : "-rotate-90"}`}
             />
-            Invite log
+            Invite Log
             <span className="text-xs font-normal text-gray-500">({logs.length})</span>
           </button>
           {logsOpen && (
@@ -985,7 +1207,10 @@ export function WoodsSquareInvite({ staff }: Props) {
                 ).map(([key, label, count]) => (
                   <button
                     key={key}
-                    onClick={() => setLogFilter(key)}
+                    onClick={() => {
+                      setLogFilter(key);
+                      setLogPage(0);
+                    }}
                     className={`text-xs rounded-full px-2.5 py-1 transition-colors ${
                       logFilter === key
                         ? "bg-indigo-500/20 text-indigo-300"
@@ -1014,13 +1239,22 @@ export function WoodsSquareInvite({ staff }: Props) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-900">
-                      {filteredLogs.map((l) => (
+                      {pagedLogs.map((l) => (
                         <tr key={l.id} className="hover:bg-gray-900/40 transition-colors">
                           <td className="px-4 py-2 text-gray-400 whitespace-nowrap">
                             {format(new Date(l.createdAt), "dd MMM yyyy, h:mm a")}
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap">
-                            <p className="text-white">{l.name}</p>
+                            {l.employeeId ? (
+                              <Link
+                                href={`/woods-square/${l.employeeId}`}
+                                className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
+                              >
+                                {l.name}
+                              </Link>
+                            ) : (
+                              <p className="text-white">{l.name}</p>
+                            )}
                             <p className="text-xs text-gray-500">{l.email}</p>
                             {l.roles && l.roles.length > 0 && (
                               <div className="flex gap-1 mt-0.5">
@@ -1040,9 +1274,51 @@ export function WoodsSquareInvite({ staff }: Props) {
                   </table>
                 </div>
               )}
+              {filteredLogs.length > 0 && (
+                <div className="flex items-center justify-between gap-3 border-t border-gray-800 px-4 py-2.5">
+                  <span className="text-xs text-gray-500 tabular-nums">
+                    {currentLogPage * LOG_PAGE_SIZE + 1}–
+                    {currentLogPage * LOG_PAGE_SIZE + pagedLogs.length}{" "}
+                    <span className="text-gray-600">of</span> {filteredLogs.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setLogPage((p) => Math.max(0, p - 1))}
+                      disabled={currentLogPage === 0}
+                      className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900/60 px-2 py-1 text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-900/60 disabled:hover:text-gray-300"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                      Previous
+                    </button>
+                    <span className="px-1.5 text-xs text-gray-500 tabular-nums">
+                      Page <span className="font-medium text-gray-300">{currentLogPage + 1}</span> of{" "}
+                      {logPageCount}
+                    </span>
+                    <button
+                      onClick={() => setLogPage((p) => Math.min(logPageCount - 1, p + 1))}
+                      disabled={currentLogPage >= logPageCount - 1}
+                      className="inline-flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900/60 px-2 py-1 text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-900/60 disabled:hover:text-gray-300"
+                    >
+                      Next
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {logs.length >= 100 && (
+                <p className="border-t border-gray-800 px-4 py-2.5 text-center text-xs text-gray-500">
+                  Showing the latest 100 invites — older entries aren&rsquo;t listed.
+                </p>
+              )}
             </div>
           ))}
       </Card>
+      )}
+
+      {tab === "overview" && <WoodsSquareOverview staff={staff} logs={logs} />}
+
+      {tab === "manage" && (
+        <WoodsSquareSettings manageStaff={manageStaff} scheduleConfig={scheduleConfig} />
       )}
 
       <DialogPrimitive.Root
@@ -1082,6 +1358,131 @@ export function WoodsSquareInvite({ staff }: Props) {
                 onClick={() => declineConfirm && declineRequest(declineConfirm)}
               >
                 {declining ? "Declining…" : "Decline"}
+              </Button>
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
+      {/* Confirm single invite — fires a real Habitap invite/PIN email to one person. */}
+      <DialogPrimitive.Root
+        open={inviteConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open && !submitting) setInviteConfirm(null);
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-xl border border-gray-800 bg-gray-950 p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+            <DialogPrimitive.Title className="flex items-center gap-2 text-base font-semibold">
+              <Send className="h-4 w-4 text-indigo-400" />
+              Send building-access invite
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="mt-2 text-sm text-gray-400">
+              Invite{" "}
+              <span className="font-medium text-gray-200">
+                {inviteConfirm?.employee.name ?? "this staff member"}
+              </span>
+              ? They&rsquo;ll be emailed their entry PIN for the dates below. This can&rsquo;t be
+              undone.
+            </DialogPrimitive.Description>
+            {inviteConfirm ? (
+              <p className="mt-2 text-xs text-gray-500">{reqSummary(inviteConfirm)}</p>
+            ) : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" disabled={submitting} onClick={() => setInviteConfirm(null)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={submitting}
+                onClick={() => inviteConfirm && sendApprovedRequest(inviteConfirm)}
+              >
+                {submitting ? "Sending…" : "Send invite"}
+              </Button>
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
+      {/* Confirm bulk send — fires real Habitap invites/emails to everyone at once. */}
+      <DialogPrimitive.Root
+        open={confirmInviteAll}
+        onOpenChange={(open) => {
+          if (!open && !submitting) setConfirmInviteAll(false);
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 text-white shadow-2xl shadow-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 pt-5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/30">
+                <Send className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogPrimitive.Title className="text-base font-semibold leading-tight">
+                  Invite all pending requests
+                </DialogPrimitive.Title>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  {datedPending.length} request{datedPending.length === 1 ? "" : "s"} ·{" "}
+                  {inviteAllEvents} event{inviteAllEvents === 1 ? "" : "s"}
+                </p>
+              </div>
+            </div>
+
+            {/* Recipients */}
+            <div className="px-5 pt-4">
+              <p className="mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                Recipients
+              </p>
+              <div className="max-h-60 divide-y divide-gray-800/70 overflow-y-auto rounded-xl border border-gray-800 bg-gray-900/40">
+                {datedPending.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-gray-900/70"
+                    title={r.note ? `“${r.note}”` : undefined}
+                  >
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarColor(
+                        r.employee.name,
+                      )}`}
+                    >
+                      {initials(r.employee.name)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-white">{r.employee.name}</p>
+                      {r.note ? (
+                        <p className="truncate text-xs text-gray-500">“{r.note}”</p>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-gray-400">
+                      {format(parseISO(r.fromDate as string), "d MMM")} –{" "}
+                      {format(parseISO(r.toDate as string), "d MMM yyyy")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="mx-5 mt-4 flex items-start gap-2 rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+              <DialogPrimitive.Description className="text-xs text-amber-200/90">
+                Each person receives their entry PIN by email. This can&rsquo;t be undone.
+              </DialogPrimitive.Description>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-5 flex justify-end gap-2 border-t border-gray-800 bg-gray-950/60 px-5 py-4">
+              <Button
+                variant="outline"
+                disabled={submitting}
+                onClick={() => setConfirmInviteAll(false)}
+              >
+                Cancel
+              </Button>
+              <Button disabled={submitting} onClick={() => approveAll()}>
+                {submitting ? "Sending…" : `Invite all (${datedPending.length})`}
               </Button>
             </div>
           </DialogPrimitive.Content>
