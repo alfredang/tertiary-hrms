@@ -30,17 +30,20 @@ export interface ScheduledRunResult {
 }
 
 /**
- * The monthly run: send the UPCOMING month's invites, split into ≤7-day windows.
- * Production targets the whole roster; test targets one recipient. Identical logic
- * either way — and the send-core's dedup makes re-runs idempotent (no duplicate PINs).
+ * The monthly run: send the UPCOMING month's invites, split into ≤7-day windows. Each
+ * window goes through the shared gap-aware send, so a person is sent only the days within
+ * that window they don't already have (no prior coverage → the whole window; fully covered
+ * → nothing). Production targets the whole roster; test targets `testRecipientIds`. Same
+ * path as the manual admin send, so behaviour is identical everywhere.
  */
 export async function runScheduledSend(opts: {
   mode: "test" | "production";
   testRecipientIds?: string[] | null;
 }): Promise<ScheduledRunResult> {
   // Lazy-load the send-core here so its node-only deps stay out of the timer bundle.
-  const { runWoodsSquareSend } = await import("@/lib/woods-square-send");
+  const { runWoodsSquareSendGapAware } = await import("@/lib/woods-square-send");
   const { year, monthIndex } = upcomingMonthOf(sgtToday());
+  const month = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
   const windows = monthWindows(year, monthIndex);
 
   let staffIds: string[];
@@ -53,30 +56,25 @@ export async function runScheduledSend(opts: {
     });
     staffIds = roster.map((e) => e.id);
   }
+  if (staffIds.length === 0) {
+    return { mode: opts.mode, month, recipients: 0, windows: [] };
+  }
 
   const results: { window: string; outcome: SendOutcome }[] = [];
   for (const w of windows) {
-    const outcome: SendOutcome =
-      staffIds.length === 0
-        ? { ok: false, status: 400, error: "No recipient configured." }
-        : await runWoodsSquareSend({
-            staffIds,
-            window: {
-              fromDate: isoToHabitap(w.from),
-              fromTime: FROM_TIME,
-              toDate: isoToHabitap(w.to),
-              toTime: TO_TIME,
-            },
-          });
+    const outcome = await runWoodsSquareSendGapAware({
+      staffIds,
+      window: {
+        fromDate: isoToHabitap(w.from),
+        fromTime: FROM_TIME,
+        toDate: isoToHabitap(w.to),
+        toTime: TO_TIME,
+      },
+    });
     results.push({ window: `${w.from} – ${w.to}`, outcome });
   }
 
-  return {
-    mode: opts.mode,
-    month: `${year}-${String(monthIndex + 1).padStart(2, "0")}`,
-    recipients: staffIds.length,
-    windows: results,
-  };
+  return { mode: opts.mode, month, recipients: staffIds.length, windows: results };
 }
 
 /**
