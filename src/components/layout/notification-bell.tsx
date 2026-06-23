@@ -15,7 +15,15 @@ interface Notification {
 }
 
 const ADMIN_TYPES = new Set(["LEAVE_SUBMITTED", "OT_PENDING", "WOODS_SQUARE_REQUEST"]);
-const EMPLOYEE_TYPES = new Set(["LEAVE_APPROVED", "LEAVE_REJECTED", "OT_APPROVED", "OT_REJECTED", "INFO"]);
+const EMPLOYEE_TYPES = new Set([
+  "LEAVE_APPROVED",
+  "LEAVE_REJECTED",
+  "OT_APPROVED",
+  "OT_REJECTED",
+  "WOODS_SQUARE_APPROVED",
+  "WOODS_SQUARE_DECLINED",
+  "INFO",
+]);
 
 const typeIcon: Record<string, React.ReactNode> = {
   LEAVE_APPROVED:  <CalendarCheck className="h-4 w-4 text-green-400" />,
@@ -25,6 +33,8 @@ const typeIcon: Record<string, React.ReactNode> = {
   OT_REJECTED:     <Briefcase className="h-4 w-4 text-red-400" />,
   OT_PENDING:      <Briefcase className="h-4 w-4 text-amber-400" />,
   WOODS_SQUARE_REQUEST: <Building2 className="h-4 w-4 text-purple-400" />,
+  WOODS_SQUARE_APPROVED: <Building2 className="h-4 w-4 text-emerald-400" />,
+  WOODS_SQUARE_DECLINED: <Building2 className="h-4 w-4 text-red-400" />,
 };
 
 function timeAgo(dateStr: string): string {
