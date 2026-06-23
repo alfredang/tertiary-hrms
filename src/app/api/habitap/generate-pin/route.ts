@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { HABITAP_DATE_FMT, MAX_WINDOW_DAYS } from "@/lib/woods-square";
-import { resolveInvitees, runWoodsSquareSend } from "@/lib/woods-square-send";
+import { resolveInvitees, runWoodsSquareSendGapAware } from "@/lib/woods-square-send";
 
 // Playwright needs the Node runtime and time to drive a real browser.
 export const runtime = "nodejs";
@@ -115,8 +115,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing event window (dates/times)." }, { status: 400 });
   }
 
-  // Hand off to the shared send-core (same path the scheduler uses).
-  const outcome = await runWoodsSquareSend({
+  // Hand off to the shared gap-aware send (same path the scheduler uses): each person
+  // gets only the missing sub-windows of the requested range, never an overlapping PIN.
+  const outcome = await runWoodsSquareSendGapAware({
     staffIds: body.staffIds,
     window: body.window,
     resend: body.resend,

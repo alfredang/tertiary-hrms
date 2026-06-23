@@ -2,13 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   DATE_PRESETS,
   MAX_WINDOW_DAYS,
+  coveringRange,
+  gapWindows,
   isLastMondayOfMonth,
   lastMondayOfMonth,
+  mergeDateRanges,
+  missingWindows,
   monthWindows,
   presetRange,
   upcomingMonthOf,
   windowDaysInclusive,
 } from "@/lib/woods-square";
+
+const d = (iso: string) => new Date(`${iso}T00:00:00`);
 
 // Guards the date-window rules that the staff modal, admin card, and (now) the
 // server-side validation all rely on. If an edit ever breaks the 7-day cap or the
@@ -124,5 +130,146 @@ describe("upcomingMonthOf", () => {
 
   it("rolls over December → January of the next year", () => {
     expect(upcomingMonthOf(new Date(2026, 11, 15))).toEqual({ year: 2027, monthIndex: 0 });
+  });
+});
+
+// ── Union-coverage dedup (scheduler idempotency) ─────────────────────────────
+
+describe("mergeDateRanges", () => {
+  it("merges consecutive days with no gap (01–03 + 04–10 ⇒ 01–10)", () => {
+    const merged = mergeDateRanges([
+      { from: d("2026-07-01"), to: d("2026-07-03") },
+      { from: d("2026-07-04"), to: d("2026-07-10") },
+    ]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toEqual({ from: d("2026-07-01"), to: d("2026-07-10") });
+  });
+
+  it("keeps ranges with a real gap separate (01–03 + 05–07, missing the 4th)", () => {
+    const merged = mergeDateRanges([
+      { from: d("2026-07-05"), to: d("2026-07-07") },
+      { from: d("2026-07-01"), to: d("2026-07-03") },
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0].from).toEqual(d("2026-07-01")); // sorted ascending
+  });
+
+  it("merges overlapping ranges", () => {
+    const merged = mergeDateRanges([
+      { from: d("2026-07-01"), to: d("2026-07-08") },
+      { from: d("2026-07-05"), to: d("2026-07-12") },
+    ]);
+    expect(merged).toEqual([{ from: d("2026-07-01"), to: d("2026-07-12") }]);
+  });
+});
+
+describe("coveringRange", () => {
+  // The whole point: a month split across several invites with ANY boundaries still
+  // counts as covered, so the scheduler won't re-send a set someone already has.
+  it("treats July split into its 5 canonical windows as fully covering each window", () => {
+    const july = monthWindows(2026, 6).map((w) => ({ from: d(w.from), to: d(w.to) }));
+    for (const w of monthWindows(2026, 6)) {
+      expect(coveringRange(july, d(w.from), d(w.to))).not.toBeNull();
+    }
+  });
+
+  it("covers a canonical window even when existing invites use different boundaries", () => {
+    // Person holds 28 Jun–04 Jul and 05 Jul–11 Jul; the canonical 01–07 Jul window is
+    // fully inside their union despite never matching a single invite.
+    const existing = [
+      { from: d("2026-06-28"), to: d("2026-07-04") },
+      { from: d("2026-07-05"), to: d("2026-07-11") },
+    ];
+    expect(coveringRange(existing, d("2026-07-01"), d("2026-07-07"))).not.toBeNull();
+  });
+
+  it("returns null when a gap leaves a day of the window uncovered", () => {
+    const existing = [
+      { from: d("2026-07-01"), to: d("2026-07-03") },
+      { from: d("2026-07-05"), to: d("2026-07-10") }, // 4th missing
+    ];
+    expect(coveringRange(existing, d("2026-07-01"), d("2026-07-07"))).toBeNull();
+  });
+
+  it("returns null when the person has no prior invites", () => {
+    expect(coveringRange([], d("2026-07-01"), d("2026-07-07"))).toBeNull();
+  });
+});
+
+describe("missingWindows", () => {
+  it("with no prior coverage, matches the full-month split", () => {
+    expect(missingWindows(2026, 7, [])).toEqual(monthWindows(2026, 7)); // August
+  });
+
+  it("the headline case: holding Aug 3–7 yields 1–2 + 8–14/15–21/22–28/29–31", () => {
+    const windows = missingWindows(2026, 7, [{ from: d("2026-08-03"), to: d("2026-08-07") }]);
+    expect(windows).toEqual([
+      { from: "2026-08-01", to: "2026-08-02" },
+      { from: "2026-08-08", to: "2026-08-14" },
+      { from: "2026-08-15", to: "2026-08-21" },
+      { from: "2026-08-22", to: "2026-08-28" },
+      { from: "2026-08-29", to: "2026-08-31" },
+    ]);
+  });
+
+  it("returns nothing when the whole month is already covered (split across invites)", () => {
+    const covered = [
+      { from: d("2026-08-01"), to: d("2026-08-10") },
+      { from: d("2026-08-11"), to: d("2026-08-31") },
+    ];
+    expect(missingWindows(2026, 7, covered)).toEqual([]);
+  });
+
+  it("fills a single missing day with a one-day window", () => {
+    // Has all of August except the 10th.
+    const covered = [
+      { from: d("2026-08-01"), to: d("2026-08-09") },
+      { from: d("2026-08-11"), to: d("2026-08-31") },
+    ];
+    expect(missingWindows(2026, 7, covered)).toEqual([{ from: "2026-08-10", to: "2026-08-10" }]);
+  });
+
+  it("splits a gap longer than 7 days into ≤7-day chunks from the gap start", () => {
+    // Missing 9–31 (has 1–8): chunks start at the gap, not the canonical grid.
+    const windows = missingWindows(2026, 7, [{ from: d("2026-08-01"), to: d("2026-08-08") }]);
+    expect(windows).toEqual([
+      { from: "2026-08-09", to: "2026-08-15" },
+      { from: "2026-08-16", to: "2026-08-22" },
+      { from: "2026-08-23", to: "2026-08-29" },
+      { from: "2026-08-30", to: "2026-08-31" },
+    ]);
+  });
+});
+
+describe("gapWindows (arbitrary range — manual/bulk sends)", () => {
+  it("trims a manual window to only the missing days within it", () => {
+    // Admin picks Aug 1–7 for someone who already has Aug 3–7 → only 1–2 is sent.
+    expect(gapWindows("2026-08-01", "2026-08-07", [{ from: d("2026-08-03"), to: d("2026-08-07") }])).toEqual([
+      { from: "2026-08-01", to: "2026-08-02" },
+    ]);
+  });
+
+  it("returns multiple sub-windows when a covered span sits inside the requested window", () => {
+    // Requested 1–7, already has 3–4 → two gaps: 1–2 and 5–7.
+    expect(gapWindows("2026-08-01", "2026-08-07", [{ from: d("2026-08-03"), to: d("2026-08-04") }])).toEqual([
+      { from: "2026-08-01", to: "2026-08-02" },
+      { from: "2026-08-05", to: "2026-08-07" },
+    ]);
+  });
+
+  it("returns the whole window when nothing is covered", () => {
+    expect(gapWindows("2026-08-01", "2026-08-07", [])).toEqual([{ from: "2026-08-01", to: "2026-08-07" }]);
+  });
+
+  it("returns [] when the window is fully covered", () => {
+    expect(gapWindows("2026-08-01", "2026-08-07", [{ from: d("2026-07-30"), to: d("2026-08-10") }])).toEqual([]);
+  });
+
+  it("spans a month boundary correctly", () => {
+    // 28 Jul–3 Aug, already has 30 Jul–1 Aug → gaps 28–29 Jul and 2–3 Aug.
+    expect(gapWindows("2026-07-28", "2026-08-03", [{ from: d("2026-07-30"), to: d("2026-08-01") }])).toEqual([
+      { from: "2026-07-28", to: "2026-07-29" },
+      { from: "2026-08-02", to: "2026-08-03" },
+    ]);
   });
 });

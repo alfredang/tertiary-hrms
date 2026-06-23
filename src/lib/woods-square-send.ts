@@ -1,11 +1,11 @@
-import { parse, parseISO } from "date-fns";
+import { format, parse, parseISO } from "date-fns";
 import { prisma } from "@/lib/prisma";
 // Types only — the runtime Playwright/Habitap module is imported lazily inside the send
 // (below) so it never gets pulled into the instrumentation/timer bundle (Playwright can't
 // be webpacked there). It's loaded on demand, only when a send actually runs.
 import type { EventWindow, StaffInvitee } from "@/lib/habitap";
 import { withLock } from "@/lib/process-lock";
-import { HABITAP_DATE_FMT } from "@/lib/woods-square";
+import { HABITAP_DATE_FMT, coveringRange, gapWindows } from "@/lib/woods-square";
 
 /**
  * Shared Woods Square send-core — the single path that both the manual admin send
@@ -19,7 +19,7 @@ import { HABITAP_DATE_FMT } from "@/lib/woods-square";
 // route maxDuration (the cron route allows 600s) so a long-but-healthy send can never
 // have its lock auto-expire mid-run and let a second trigger launch a concurrent
 // Chromium / duplicate event. A crashed holder's lock still auto-frees once TTL passes.
-const SEND_LOCK_KEY = "woods-square-send";
+export const SEND_LOCK_KEY = "woods-square-send";
 const SEND_LOCK_TTL_MS = 660_000; // 11 min — safely above the 600s (10 min) cron maxDuration
 
 // People who've left can never be invited (critical for the unattended scheduler).
@@ -93,8 +93,11 @@ export async function runWoodsSquareSend(opts: {
     };
   }
 
-  // Dedup: skip staff only when the requested window is ALREADY FULLY COVERED by an
-  // existing invite (containment). A resend deliberately re-issues a covered window.
+  // Dedup: skip staff only when the requested window is ALREADY FULLY COVERED by their
+  // existing invites — judged by the UNION of all their prior SENT windows, not a single
+  // row. So a month split across several invites (any date boundaries) still counts as
+  // covered and won't be re-sent; the scheduler stays idempotent. A resend deliberately
+  // re-issues a covered window, so it skips this entirely.
   const DATE_FMT = HABITAP_DATE_FMT;
   const conflictByEmail = new Map<string, { from: string; to: string }>();
   if (!resend) {
@@ -104,15 +107,20 @@ export async function runWoodsSquareSend(opts: {
       where: { status: "SENT", email: { in: invitees.map((i) => i.email) } },
       select: { email: true, fromDate: true, toDate: true },
     });
+    // Group each person's prior windows, then test whether their union covers the request.
+    const rangesByEmail = new Map<string, { from: Date; to: Date }[]>();
     for (const p of priorSent) {
       const key = p.email.toLowerCase();
-      if (conflictByEmail.has(key)) continue;
-      const existFrom = parse(p.fromDate, DATE_FMT, new Date());
-      const existTo = parse(p.toDate, DATE_FMT, new Date());
-      if (existFrom <= reqFrom && existTo >= reqTo) {
-        conflictByEmail.set(key, { from: p.fromDate, to: p.toDate });
-      }
+      const list = rangesByEmail.get(key) ?? [];
+      list.push({ from: parse(p.fromDate, DATE_FMT, new Date()), to: parse(p.toDate, DATE_FMT, new Date()) });
+      rangesByEmail.set(key, list);
     }
+    rangesByEmail.forEach((ranges, key) => {
+      const cover = coveringRange(ranges, reqFrom, reqTo);
+      if (cover) {
+        conflictByEmail.set(key, { from: format(cover.from, DATE_FMT), to: format(cover.to, DATE_FMT) });
+      }
+    });
   }
   const toInvite = invitees.filter((i) => !conflictByEmail.has(i.email.toLowerCase()));
   const skippedInvitees = invitees.filter((i) => conflictByEmail.has(i.email.toLowerCase()));
@@ -263,4 +271,131 @@ export async function runWoodsSquareSend(opts: {
     skipped,
     failed: result.failed,
   };
+}
+
+const isoToHabitap = (iso: string) => format(parseISO(iso), HABITAP_DATE_FMT);
+
+/**
+ * Gap-aware send — the entry point ALL triggers use (manual admin send, single/bulk
+ * request approval, test, and the monthly scheduler). For each invitee it sends only the
+ * ≤7-day sub-windows of the requested window they don't already have (people fully covered
+ * are skipped, partially-covered get just their missing days — no overlapping PINs). People
+ * who share an identical missing sub-window are batched into one Habitap event, so a window
+ * everyone needs stays a single send. Each sub-window runs through the proven
+ * `runWoodsSquareSend` core (which keeps its own union-dedup as an idempotency safety net).
+ *
+ * `resend` bypasses all of this and re-issues the exact window, as before.
+ */
+export async function runWoodsSquareSendGapAware(opts: {
+  staffIds: string[];
+  window: EventWindow;
+  resend?: boolean;
+}): Promise<SendOutcome> {
+  if (opts.resend) return runWoodsSquareSend(opts);
+
+  const invitees = await resolveInvitees(opts.staffIds);
+  if (invitees.length === 0) {
+    return { ok: false, status: 400, error: "No matching staff on the Woods Square invite roster." };
+  }
+
+  const reqFromIso = format(parse(opts.window.fromDate, HABITAP_DATE_FMT, new Date()), "yyyy-MM-dd");
+  const reqToIso = format(parse(opts.window.toDate, HABITAP_DATE_FMT, new Date()), "yyyy-MM-dd");
+
+  // Each person's prior SENT coverage, keyed by the delivery email the send will use.
+  const priorSent = await prisma.habitapInviteLog.findMany({
+    where: { status: "SENT", email: { in: invitees.map((i) => i.email) } },
+    select: { email: true, fromDate: true, toDate: true },
+  });
+  const coverageByEmail = new Map<string, { from: Date; to: Date }[]>();
+  for (const p of priorSent) {
+    const key = p.email.toLowerCase();
+    const list = coverageByEmail.get(key) ?? [];
+    list.push({
+      from: parse(p.fromDate, HABITAP_DATE_FMT, new Date()),
+      to: parse(p.toDate, HABITAP_DATE_FMT, new Date()),
+    });
+    coverageByEmail.set(key, list);
+  }
+
+  // Per person → missing sub-windows within the requested range; group people who need the
+  // SAME sub-window so each distinct window is one Habitap event, not one per person.
+  const byWindow = new Map<string, { fromIso: string; toIso: string; ids: string[] }>();
+  const fullyCovered: Invitee[] = [];
+  for (const inv of invitees) {
+    const gaps = gapWindows(reqFromIso, reqToIso, coverageByEmail.get(inv.email.toLowerCase()) ?? []);
+    if (gaps.length === 0) {
+      fullyCovered.push(inv);
+      continue;
+    }
+    for (const g of gaps) {
+      const key = `${g.from}|${g.to}`;
+      const grp = byWindow.get(key) ?? { fromIso: g.from, toIso: g.to, ids: [] };
+      grp.ids.push(inv.id);
+      byWindow.set(key, grp);
+    }
+  }
+
+  // Fully-covered people show up as "skipped" (already have these dates), mirroring the
+  // core's own skip shape so the UI/toast read identically.
+  const skippedCovered = fullyCovered.map((i) => ({
+    name: i.name,
+    email: i.email,
+    existingFrom: opts.window.fromDate,
+    existingTo: opts.window.toDate,
+  }));
+
+  // Nobody has a gap → nothing to send (everyone already covered for this window).
+  if (byWindow.size === 0) {
+    return {
+      ok: true,
+      eventId: null,
+      invitedCount: 0,
+      failedCount: 0,
+      skippedCount: skippedCovered.length,
+      skipped: skippedCovered,
+      failed: [],
+    };
+  }
+
+  // Send each distinct sub-window through the core, earliest first, and aggregate.
+  const groups = Array.from(byWindow.values()).sort((a, b) => a.fromIso.localeCompare(b.fromIso));
+  const agg: SendResult = {
+    eventId: null,
+    invitedCount: 0,
+    failedCount: 0,
+    skippedCount: skippedCovered.length,
+    skipped: [...skippedCovered],
+    failed: [],
+  };
+  let anyOk = false;
+  let lastError: { status: number; error: string } | null = null;
+  for (const g of groups) {
+    const outcome = await runWoodsSquareSend({
+      staffIds: g.ids,
+      window: { ...opts.window, fromDate: isoToHabitap(g.fromIso), toDate: isoToHabitap(g.toIso) },
+    });
+    if (outcome.ok) {
+      anyOk = true;
+      agg.eventId = agg.eventId ?? outcome.eventId;
+      agg.invitedCount += outcome.invitedCount;
+      agg.failedCount += outcome.failedCount;
+      agg.skippedCount += outcome.skippedCount;
+      agg.skipped.push(...outcome.skipped);
+      agg.failed.push(...outcome.failed);
+    } else {
+      // A whole sub-window failed (e.g. automation error — the core already logged FAILED
+      // rows). Surface its people as failures so the result reflects them.
+      lastError = { status: outcome.status, error: outcome.error };
+      const byId = new Map(invitees.map((i) => [i.id, i]));
+      for (const id of g.ids) {
+        const inv = byId.get(id);
+        if (inv) agg.failed.push({ invitee: { name: inv.name, email: inv.email }, error: outcome.error });
+      }
+      agg.failedCount += g.ids.length;
+    }
+  }
+
+  // Every sub-window hard-failed and nobody was invited → surface the error like the core.
+  if (!anyOk && lastError) return { ok: false, ...lastError };
+  return { ok: true, ...agg };
 }
