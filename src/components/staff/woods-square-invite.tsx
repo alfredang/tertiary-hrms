@@ -141,6 +141,34 @@ function RoleBadges({ roles }: { roles?: string[] }) {
   );
 }
 
+/**
+ * Live "is a send running" chip. Amber + pulsing dot while a Woods Square send is in
+ * flight (this tab, another admin, or the scheduler); a quiet idle dot otherwise.
+ */
+function SendStatusPill({ running }: { running: boolean }) {
+  return (
+    <span
+      title={
+        running
+          ? "A Woods Square send is currently running — new sends are paused until it finishes."
+          : "No send is running — you can send invites."
+      }
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+        running
+          ? "bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30"
+          : "bg-gray-800 text-gray-400 ring-1 ring-gray-700"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          running ? "bg-amber-400 animate-pulse" : "bg-gray-500"
+        }`}
+      />
+      {running ? "Send in progress" : "Idle"}
+    </span>
+  );
+}
+
 /** Staff without a usable email can't receive a building-access invite. */
 function hasUsableEmail(email: string): boolean {
   return !!email && !email.includes(".noemail@");
@@ -207,6 +235,9 @@ export function WoodsSquareInvite({
   const [showAllSelected, setShowAllSelected] = useState(false);
   const [requestsHistoryOpen, setRequestsHistoryOpen] = useState(false);
   const [conn, setConn] = useState<{ status: "idle" | "testing" | "ok" | "fail" }>({ status: "idle" });
+  // Is a Woods Square send in flight RIGHT NOW (this tab, another admin, or the cron)?
+  // Polled from the shared lock so we can warn/disable before a click hits the 409.
+  const [sendRunning, setSendRunning] = useState(false);
   const todayIso = format(new Date(), "yyyy-MM-dd");
 
   const [requests, setRequests] = useState<AccessRequest[]>([]);
@@ -241,10 +272,35 @@ export function WoodsSquareInvite({
     }
   }, []);
 
+  // Fail-open: any error (network/auth) → treat as idle, so a flaky poll can never
+  // leave the Send / Invite All buttons wedged. The server lock is the real guard.
+  const loadSendStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/woods-square/send-status");
+      if (!res.ok) {
+        setSendRunning(false);
+        return;
+      }
+      const data = await res.json();
+      setSendRunning(Boolean(data.running));
+    } catch {
+      setSendRunning(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadLogs();
     loadRequests();
-  }, [loadLogs, loadRequests]);
+    loadSendStatus();
+  }, [loadLogs, loadRequests, loadSendStatus]);
+
+  // Poll the send lock so the "in progress" indicator reflects sends started elsewhere
+  // (another admin, another tab, or the unattended scheduler). 4s is responsive without
+  // being chatty; the interval is cleared on unmount.
+  useEffect(() => {
+    const id = setInterval(loadSendStatus, 4000);
+    return () => clearInterval(id);
+  }, [loadSendStatus]);
 
   // Keep the queue current without a full reload: pull fresh requests/logs whenever the
   // admin returns to this window/tab (e.g. after clicking a "new request" notification
@@ -253,6 +309,7 @@ export function WoodsSquareInvite({
     const refresh = () => {
       loadRequests();
       loadLogs();
+      loadSendStatus();
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
@@ -263,7 +320,7 @@ export function WoodsSquareInvite({
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [loadRequests, loadLogs]);
+  }, [loadRequests, loadLogs, loadSendStatus]);
 
   // Manual refresh for the Requests tab (mirrors the Activity Log's Refresh).
   const refreshRequests = async () => {
@@ -376,6 +433,9 @@ export function WoodsSquareInvite({
   const windowDays = windowDaysInclusive(startDate, endDate);
   const overWindow = windowDays > MAX_WINDOW_DAYS;
   const canSend = selected.length > 0 && !!startDate && !!endDate && !overWindow;
+  // Busy = our own send in flight OR a send running elsewhere (other tab/admin/cron).
+  // Gates every send trigger so a click can't race into the 409 "already running".
+  const busy = submitting || sendRunning;
 
   // A dated PENDING request whose end date has passed is treated as expired: it drops
   // out of the actionable queue and shows under "Past requests" labelled Expired.
@@ -508,6 +568,7 @@ export function WoodsSquareInvite({
         setProgress(100);
         setSubmitting(false);
         setTimeout(() => setProgress(0), 700);
+        loadSendStatus(); // lock just released — refresh the indicator promptly
       }
     }
   }
@@ -621,6 +682,7 @@ export function WoodsSquareInvite({
     setSelectedIds(new Set());
     loadLogs();
     loadRequests();
+    loadSendStatus(); // lock just released — refresh the indicator promptly
   }
 
   return (
@@ -666,6 +728,7 @@ export function WoodsSquareInvite({
             </span>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <SendStatusPill running={sendRunning} />
             <button
               onClick={refreshRequests}
               disabled={reqRefreshing}
@@ -679,8 +742,12 @@ export function WoodsSquareInvite({
               <Button
                 size="sm"
                 onClick={() => setConfirmInviteAll(true)}
-                disabled={submitting}
-                title="Send invites for all pending requests that already have dates"
+                disabled={busy}
+                title={
+                  sendRunning
+                    ? "A send is already running — wait for it to finish"
+                    : "Send invites for all pending requests that already have dates"
+                }
               >
                 <Send className="h-3.5 w-3.5 mr-1.5" />
                 Invite All ({datedPending.length})
@@ -721,7 +788,7 @@ export function WoodsSquareInvite({
                   <Button
                     size="sm"
                     variant="success"
-                    disabled={submitting}
+                    disabled={busy}
                     onClick={() => approveRequest(r)}
                   >
                     Invite
@@ -917,10 +984,13 @@ export function WoodsSquareInvite({
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-800">
             <Send className="h-4 w-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-white">Send Invites</h2>
+            <span className="ml-auto">
+              <SendStatusPill running={sendRunning} />
+            </span>
             <button
               onClick={testConnection}
               disabled={conn.status === "testing"}
-              className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-60"
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-60"
             >
               {conn.status === "testing" ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1067,15 +1137,17 @@ export function WoodsSquareInvite({
 
             {/* Send */}
             <div className="space-y-1.5">
-              <Button onClick={handleGenerate} disabled={submitting || !canSend} className="w-full">
-                {submitting ? (
+              <Button onClick={handleGenerate} disabled={busy || !canSend} className="w-full">
+                {busy ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4 mr-2" />
                 )}
                 {submitting
                   ? "Sending invites…"
-                  : `Send ${selected.length || ""} invite${selected.length === 1 ? "" : "s"}`.trim()}
+                  : sendRunning
+                    ? "Another send is running…"
+                    : `Send ${selected.length || ""} invite${selected.length === 1 ? "" : "s"}`.trim()}
               </Button>
               {submitting && (
                 <div className="space-y-1 pt-0.5">
@@ -1092,7 +1164,13 @@ export function WoodsSquareInvite({
                   </p>
                 </div>
               )}
-              {!submitting && !canSend && (
+              {sendRunning && !submitting && (
+                <p className="flex items-center justify-center gap-1.5 text-center text-xs text-amber-300/90">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  A send is already running — this will unlock when it finishes.
+                </p>
+              )}
+              {!busy && !canSend && (
                 <p className="text-xs text-center text-gray-500">
                   {selected.length === 0
                     ? "Select at least one staff member"
@@ -1394,10 +1472,10 @@ export function WoodsSquareInvite({
                 Cancel
               </Button>
               <Button
-                disabled={submitting}
+                disabled={busy}
                 onClick={() => inviteConfirm && sendApprovedRequest(inviteConfirm)}
               >
-                {submitting ? "Sending…" : "Send invite"}
+                {submitting ? "Sending…" : sendRunning ? "Send running…" : "Send invite"}
               </Button>
             </div>
           </DialogPrimitive.Content>
@@ -1481,8 +1559,8 @@ export function WoodsSquareInvite({
               >
                 Cancel
               </Button>
-              <Button disabled={submitting} onClick={() => approveAll()}>
-                {submitting ? "Sending…" : `Invite all (${datedPending.length})`}
+              <Button disabled={busy} onClick={() => approveAll()}>
+                {submitting ? "Sending…" : sendRunning ? "Send running…" : `Invite all (${datedPending.length})`}
               </Button>
             </div>
           </DialogPrimitive.Content>

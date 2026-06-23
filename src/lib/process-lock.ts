@@ -32,6 +32,27 @@ export async function acquireLock(key: string, ttlMs: number): Promise<string | 
   return rows.length > 0 ? holder : null;
 }
 
+/**
+ * Read whether `key` is currently held by a LIVE holder (one whose TTL hasn't lapsed).
+ * Read-only — never mutates the lock. A crashed holder past its TTL reads as not-running,
+ * matching what the next `acquireLock` would see. Returns `{ running: false }` on any DB
+ * error so callers (e.g. a UI status poll) fail open rather than wedge.
+ */
+export async function getLockStatus(
+  key: string,
+): Promise<{ running: boolean; since: Date | null }> {
+  try {
+    const now = new Date();
+    const row = await prisma.processLock.findFirst({
+      where: { key, expiresAt: { gt: now } },
+      select: { acquiredAt: true },
+    });
+    return row ? { running: true, since: row.acquiredAt } : { running: false, since: null };
+  } catch {
+    return { running: false, since: null };
+  }
+}
+
 /** Release `key`, but only if we still hold it (guards against reclaiming a lock
  *  another instance took over after our TTL lapsed). Best-effort: never throws, so
  *  a transient DB error during cleanup can't mask a completed send — a lock left
