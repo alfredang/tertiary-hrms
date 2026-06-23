@@ -336,25 +336,28 @@ export async function runWoodsSquareSendGapAware(opts: {
   }
 
   // Fully-covered people show up as "skipped" (already have these dates), mirroring the
-  // core's own skip shape so the UI/toast read identically.
+  // core's own skip shape so the UI/toast read identically — and get a SKIPPED log row so
+  // the activity log keeps a trail of blocked sends (the core would log these, but the gap
+  // path handles fully-covered people before reaching it).
   const skippedCovered = fullyCovered.map((i) => ({
     name: i.name,
     email: i.email,
     existingFrom: opts.window.fromDate,
     existingTo: opts.window.toDate,
   }));
-
-  // Nobody has a gap → nothing to send (everyone already covered for this window).
-  if (byWindow.size === 0) {
-    return {
-      ok: true,
-      eventId: null,
-      invitedCount: 0,
-      failedCount: 0,
-      skippedCount: skippedCovered.length,
-      skipped: skippedCovered,
-      failed: [],
-    };
+  if (fullyCovered.length > 0) {
+    await prisma.habitapInviteLog.createMany({
+      data: fullyCovered.map((i) => ({
+        employeeId: i.id,
+        name: i.name,
+        email: i.email,
+        eventId: null,
+        fromDate: opts.window.fromDate,
+        toDate: opts.window.toDate,
+        status: "SKIPPED",
+        error: `Already covered for ${opts.window.fromDate} – ${opts.window.toDate}`,
+      })),
+    });
   }
 
   // Send each distinct sub-window through the core, earliest first, and aggregate.
@@ -369,6 +372,7 @@ export async function runWoodsSquareSendGapAware(opts: {
   };
   let anyOk = false;
   let lastError: { status: number; error: string } | null = null;
+  const failedIds = new Set<string>();
   for (const g of groups) {
     const outcome = await runWoodsSquareSend({
       staffIds: g.ids,
@@ -384,10 +388,12 @@ export async function runWoodsSquareSendGapAware(opts: {
       agg.failed.push(...outcome.failed);
     } else {
       // A whole sub-window failed (e.g. automation error — the core already logged FAILED
-      // rows). Surface its people as failures so the result reflects them.
+      // rows). Surface its people as failures, and remember them so a request is NEVER
+      // marked fulfilled below while its PIN didn't actually send.
       lastError = { status: outcome.status, error: outcome.error };
       const byId = new Map(invitees.map((i) => [i.id, i]));
       for (const id of g.ids) {
+        failedIds.add(id);
         const inv = byId.get(id);
         if (inv) agg.failed.push({ invitee: { name: inv.name, email: inv.email }, error: outcome.error });
       }
@@ -395,6 +401,49 @@ export async function runWoodsSquareSendGapAware(opts: {
     }
   }
 
+  // Resolve PENDING access requests now fully covered by the REQUESTED window. Gap-splitting
+  // means no single sub-window may contain the request, so the core's per-window fulfilment
+  // can miss it — do it here at the original-window level. Only for people genuinely covered:
+  // those already fully covered, plus those whose every missing sub-window sent OK. Anyone
+  // with a failed sub-window is excluded, so a request can't read "Fulfilled" without a PIN.
+  const coveredIds = Array.from(
+    new Set([...fullyCovered.map((i) => i.id), ...groups.flatMap((g) => g.ids)]),
+  ).filter((id) => !failedIds.has(id));
+  if (coveredIds.length > 0) {
+    const reqFromDate = parseISO(reqFromIso);
+    const reqToDate = parseISO(reqToIso);
+    const pending = await prisma.accessRequest.findMany({
+      where: { status: "PENDING", employeeId: { in: coveredIds } },
+      select: { id: true, fromDate: true, toDate: true },
+    });
+    const fulfillIds = pending
+      .filter(
+        (r) =>
+          !r.fromDate ||
+          !r.toDate ||
+          (reqFromDate <= parseISO(r.fromDate) && reqToDate >= parseISO(r.toDate)),
+      )
+      .map((r) => r.id);
+    if (fulfillIds.length > 0) {
+      await prisma.accessRequest.updateMany({
+        where: { id: { in: fulfillIds }, status: "PENDING" },
+        data: { status: "FULFILLED", resolvedAt: new Date() },
+      });
+    }
+  }
+
+  // Nobody had a gap → nothing was sent (everyone already covered for this window).
+  if (groups.length === 0) {
+    return {
+      ok: true,
+      eventId: null,
+      invitedCount: 0,
+      failedCount: 0,
+      skippedCount: skippedCovered.length,
+      skipped: skippedCovered,
+      failed: [],
+    };
+  }
   // Every sub-window hard-failed and nobody was invited → surface the error like the core.
   if (!anyOk && lastError) return { ok: false, ...lastError };
   return { ok: true, ...agg };
