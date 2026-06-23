@@ -196,49 +196,101 @@ export async function assertEventWindowAccepted(page: Page, win: EventWindow): P
 }
 
 /**
- * Creates one "Staff Invite" event and returns its event id.
- * The add form loads in a modal (#modal-event-add) via the "Add New Event" link.
+ * Finds the id of an event whose list row shows BOTH the given from and to dates.
+ * The list shows each event as "<name> <fromDate>, <fromTime> <toDate>, <toTime> …",
+ * so matching on the unique date window pinpoints the exact event regardless of list
+ * order. Returns the first match, or null.
+ */
+async function findEventIdByWindow(page: Page, fromDate: string, toDate: string): Promise<string | null> {
+  const ids = await page.locator('a[href*="/front-eventInfos/"][href$="/detail"]').evaluateAll(
+    (els, dates) =>
+      els
+        .map((e) => {
+          const id = (e.getAttribute("href") || "").match(/front-eventInfos\/(\d+)\/detail/)?.[1];
+          const row =
+            (e.closest("tr,li,div") as HTMLElement | null)?.textContent?.replace(/\s+/g, " ") ?? "";
+          return id && row.includes(dates.from) && row.includes(dates.to) ? id : null;
+        })
+        .filter((x): x is string => Boolean(x)),
+    { from: fromDate, to: toDate },
+  );
+  return ids[0] ?? null;
+}
+
+/**
+ * Returns the id of the "Staff Invite" event for this exact date window, creating it if
+ * it doesn't exist yet. The add form loads in a modal via the "Add New Event" link.
+ *
+ * The event is located by its OWN date window (each weekly window is unique) rather than
+ * by "newest row" — the old positional read returned a STALE id whenever a save lagged or
+ * failed, attaching visitors to the WRONG event (this is what collapsed 5 weekly windows
+ * onto 2 events, and left an orphan 0/0 event when detection flaked after a real save).
+ * Matching by window also lets us REUSE an existing same-window event instead of creating
+ * duplicates, and recover an orphan from an interrupted run. If the event still can't be
+ * found after creating + retrying, we throw — so a genuine failure is reported, never
+ * silently mis-attached.
  */
 export async function createStaffInviteEvent(page: Page, win: EventWindow): Promise<string> {
   const eventName = (win.eventName ?? "Staff Invite").slice(0, 18);
   const venueValue = win.venueValue ?? HABITAP_VENUES["#07-85, Tower 1"];
 
-  await page.goto(`${tenantBase}/front-eventInfos`, { waitUntil: "networkidle", timeout: 60_000 });
-  await page.locator('a:has-text("Add New Event")').first().click({ timeout: 15_000 });
-  await page.locator("#name").waitFor({ state: "visible", timeout: 15_000 });
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await page.goto(`${tenantBase}/front-eventInfos`, { waitUntil: "networkidle", timeout: 60_000 });
 
-  await page.locator("#name").fill(eventName);
-  // Host / Contact come pre-filled and fixed — re-assert in case they are blank.
-  await page.locator("#hostName").fill(HABITAP_HOST.name);
-  await page.locator("#hostMobileNumber").fill(HABITAP_HOST.mobile);
-  await page.locator("#condoUnitId").selectOption(venueValue);
-  await setPickerValue(page, "#from", win.fromDate);
-  await setPickerValue(page, "#fromTime", win.fromTime);
-  await setPickerValue(page, "#to", win.toDate);
-  await setPickerValue(page, "#toTime", win.toTime);
+      // Reuse an existing event for this exact window (avoids duplicates; recovers an
+      // orphan event a prior interrupted run created without adding visitors).
+      const existing = await findEventIdByWindow(page, win.fromDate, win.toDate);
+      if (existing) return existing;
 
-  // The pickers run their own validation/formatting on blur, so confirm they kept
-  // the window before we save — otherwise a bad date/time format would silently
-  // create an event with no window.
-  await page.waitForTimeout(300);
-  await assertEventWindowAccepted(page, win);
+      await page.locator('a:has-text("Add New Event")').first().click({ timeout: 15_000 });
+      await page.locator("#name").waitFor({ state: "visible", timeout: 15_000 });
 
-  if (win.message) await page.locator("#message").fill(win.message);
+      await page.locator("#name").fill(eventName);
+      // Host / Contact come pre-filled and fixed — re-assert in case they are blank.
+      await page.locator("#hostName").fill(HABITAP_HOST.name);
+      await page.locator("#hostMobileNumber").fill(HABITAP_HOST.mobile);
+      await page.locator("#condoUnitId").selectOption(venueValue);
+      await setPickerValue(page, "#from", win.fromDate);
+      await setPickerValue(page, "#fromTime", win.fromTime);
+      await setPickerValue(page, "#to", win.toDate);
+      await setPickerValue(page, "#toTime", win.toTime);
 
-  await page.locator("#pts_event_submit_btn").click({ timeout: 15_000 });
-  // After save the modal closes and the list refreshes; wait for it to settle.
-  await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => {});
-  await page.waitForTimeout(1_500);
+      // The pickers run their own validation/formatting on blur, so confirm they kept
+      // the window before we save — otherwise a bad date/time format would silently
+      // create an event with no window.
+      await page.waitForTimeout(300);
+      await assertEventWindowAccepted(page, win);
 
-  // The newest event is the first row — read its View link to get the event id.
-  const href = await page
-    .locator('a[href*="/front-eventInfos/"][href$="/detail"]')
-    .first()
-    .getAttribute("href")
-    .catch(() => null);
-  const id = href?.match(/front-eventInfos\/(\d+)\/detail/)?.[1];
-  if (!id) throw new Error("Could not determine the new Habitap event id after saving.");
-  return id;
+      if (win.message) await page.locator("#message").fill(win.message);
+
+      await page.locator("#pts_event_submit_btn").click({ timeout: 15_000 });
+      // After save the modal closes and the list refreshes; wait for it to settle.
+      await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => {});
+
+      // Poll the refreshed list for the event carrying THIS window's dates. The save +
+      // list refresh can lag, so re-load and re-check a few times before giving up.
+      for (let i = 0; i < 10; i++) {
+        await page.waitForTimeout(1_000);
+        await page
+          .goto(`${tenantBase}/front-eventInfos`, { waitUntil: "networkidle", timeout: 60_000 })
+          .catch(() => {});
+        const id = await findEventIdByWindow(page, win.fromDate, win.toDate);
+        if (id) return id;
+      }
+      throw new Error(
+        `Habitap event for ${win.fromDate} – ${win.toDate} not found after saving ` +
+          `(create may have failed).`,
+      );
+    } catch (err) {
+      lastErr = err;
+      await page.waitForTimeout(1_500);
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error(`Failed to create the Habitap event for ${win.fromDate} – ${win.toDate}.`);
 }
 
 /**
@@ -302,6 +354,22 @@ export async function addVisitorsViaImport(
   await page.locator('input[type=submit][value="Import"]').click({ timeout: 15_000 });
   await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => {});
   await page.waitForTimeout(2_000);
+
+  // Confirm the import actually took, rather than assuming success — a silent portal-side
+  // failure would otherwise be reported as "everyone sent" with no PIN delivered. Reload
+  // the event and check the invitees now appear in its visitor list; if NONE do, throw so
+  // the caller falls back to the one-by-one path (which yields precise per-person results).
+  await page
+    .goto(`${tenantBase}/front-eventInfos/${eventId}/detail`, { waitUntil: "networkidle", timeout: 60_000 })
+    .catch(() => {});
+  await page.waitForTimeout(1_000);
+  const pageText = ((await page.locator("body").textContent().catch(() => "")) ?? "").toLowerCase();
+  const confirmed = invitees.filter((i) => pageText.includes(i.email.toLowerCase())).length;
+  if (confirmed === 0) {
+    throw new Error(
+      `Visitor import could not be confirmed: none of the ${invitees.length} invitees appear on the event after upload.`,
+    );
+  }
 }
 
 export interface GenerateResult {
@@ -344,12 +412,11 @@ export async function generateStaffInvites(
     await loginToHabitap(page, creds);
     const eventId = await createStaffInviteEvent(page, win);
 
-    // Large batch → one CSV upload (fast, no per-visitor timeout). The bulk import
-    // gives no per-person results, so on success we count the whole batch as sent.
-    // If it throws, it failed before any invite went out (the post-submit waits are
-    // swallowed, so a throw means upload/submit never completed) — fall back to the
-    // one-by-one path to salvage the people who succeed and pinpoint who actually
-    // fails, instead of marking the entire batch failed.
+    // Large batch → one CSV upload (fast, no per-visitor timeout). The import now
+    // verifies the visitors actually landed before reporting success; if it can't
+    // confirm them (or errors), it throws and we fall back to the one-by-one path,
+    // which salvages whoever succeeds and pinpoints who actually fails — instead of
+    // blanket-marking everyone "sent" when nothing went out.
     if (staff.length >= BULK_IMPORT_MIN) {
       try {
         await addVisitorsViaImport(page, eventId, staff);

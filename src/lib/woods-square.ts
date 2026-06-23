@@ -13,8 +13,11 @@ export const TO_TIME = "11:00 PM";
 /** Habitap's date-picker string format, e.g. "09 Jun 2026". */
 export const HABITAP_DATE_FMT = "dd MMM yyyy";
 
-/** A Woods Square access window may span at most this many calendar days. */
+/** A Woods Square access window may span at most this many calendar days (one week). */
 export const MAX_WINDOW_DAYS = 7;
+
+/** A staff member may have at most this many outstanding (PENDING) access requests at once. */
+export const MAX_PENDING_REQUESTS = 5;
 
 /** Quick-pick windows for the date range (day offsets from today). */
 export const DATE_PRESETS: { label: string; from: number; to: number }[] = [
@@ -38,4 +41,46 @@ export function windowDaysInclusive(fromIso: string, toIso: string): number {
   if (!fromIso || !toIso) return 0;
   const days = differenceInCalendarDays(parseISO(toIso), parseISO(fromIso)) + 1;
   return Number.isFinite(days) ? days : 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Monthly auto-invite scheduler helpers (pure — no DB, no side effects).      */
+/* The scheduler fires on the LAST MONDAY of each month and sends the UPCOMING  */
+/* month's invites, split into ≤7-day windows.                                  */
+/* -------------------------------------------------------------------------- */
+
+/** The last Monday of the given month (monthIndex 0–11), at local midnight. */
+export function lastMondayOfMonth(year: number, monthIndex: number): Date {
+  const lastDay = new Date(year, monthIndex + 1, 0); // day 0 of next month = last day of this one
+  const backToMonday = (lastDay.getDay() - 1 + 7) % 7; // getDay: 0=Sun..6=Sat
+  return new Date(year, monthIndex + 1, 0 - backToMonday);
+}
+
+/** True if `date` falls on the last Monday of its own month. */
+export function isLastMondayOfMonth(date: Date): boolean {
+  if (date.getDay() !== 1) return false; // not a Monday
+  const lm = lastMondayOfMonth(date.getFullYear(), date.getMonth());
+  return date.getDate() === lm.getDate();
+}
+
+/**
+ * Split a month (monthIndex 0–11) into consecutive ≤7-day windows that cover every
+ * day, the last window clamped to the month end (e.g. Jul → 1–7, 8–14, 15–21, 22–28,
+ * 29–31). Returns ISO yyyy-MM-dd { from, to } pairs.
+ */
+export function monthWindows(year: number, monthIndex: number): { from: string; to: string }[] {
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const iso = (day: number) => `${year}-${pad(monthIndex + 1)}-${pad(day)}`;
+  const windows: { from: string; to: string }[] = [];
+  for (let start = 1; start <= lastDay; start += 7) {
+    windows.push({ from: iso(start), to: iso(Math.min(start + 6, lastDay)) });
+  }
+  return windows;
+}
+
+/** The {year, monthIndex} of the month after the given date — i.e. the "upcoming" month. */
+export function upcomingMonthOf(date: Date): { year: number; monthIndex: number } {
+  const d = new Date(date.getFullYear(), date.getMonth() + 1, 1); // 1st of next month (handles Dec→Jan)
+  return { year: d.getFullYear(), monthIndex: d.getMonth() };
 }

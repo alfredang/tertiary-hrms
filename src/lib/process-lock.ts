@@ -1,5 +1,8 @@
-import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+
+// Use the global Web Crypto (Node 18+ and every runtime) instead of importing the Node
+// "crypto" builtin — so this module bundles cleanly wherever it's pulled in.
+const randomUUID = () => globalThis.crypto.randomUUID();
 
 /**
  * Cross-instance mutex backed by the `ProcessLock` table.

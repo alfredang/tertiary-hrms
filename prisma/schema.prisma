@@ -97,6 +97,8 @@ model Employee {
   managerIds       String[]         @default([])
   habitapInviteAt  DateTime?
   habitapEventId   String?
+  woodsSquareInvite Boolean         @default(false)
+  woodsSquareEmail  String?
   department       Department?      @relation(fields: [departmentId], references: [id])
   manager          Employee?        @relation("EmployeeToEmployee", fields: [managerId], references: [id])
   subordinates     Employee[]       @relation("EmployeeToEmployee")

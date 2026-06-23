@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { hasAdminAccess } from "@/lib/utils";
+import { getCurrentUser, isAdminUser } from "@/lib/woods-square-auth";
 
 export const dynamic = "force-dynamic";
-
-async function getCurrentUser() {
-  const email = isDevAuthSkipped() ? "admin@tertiaryinfotech.com" : (await auth())?.user?.email;
-  if (!email) return null;
-  return prisma.user.findUnique({ where: { email }, include: { employee: true } });
-}
 
 // Admin declines a pending request → notifies the requester.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
-  const isAdmin = isDevAuthSkipped() || (user?.roles ?? []).some((r) => hasAdminAccess(r));
-  if (!user || !isAdmin) {
+  if (!user || !isAdminUser(user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -46,8 +37,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       userId: existing.employee.userId,
       title: "Woods Square Access Declined",
       message: "Your building-access request was declined. Contact an admin for details.",
-      type: "INFO",
-      link: "/profile",
+      type: "WOODS_SQUARE_DECLINED",
+      link: "/woods-square-access",
     },
   });
 

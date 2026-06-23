@@ -4,21 +4,23 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X, Send, Loader2, Clock, CalendarRange } from "lucide-react";
+import { X, Send, Loader2, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { useToast } from "@/hooks/use-toast";
 import {
   DATE_PRESETS,
   FROM_TIME,
+  MAX_PENDING_REQUESTS,
   MAX_WINDOW_DAYS,
   TO_TIME,
   presetRange,
   windowDaysInclusive,
 } from "@/lib/woods-square";
 
-export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
+export function RequestAccessButton({ pendingCount = 0 }: { pendingCount?: number }) {
   const router = useRouter();
+  const atLimit = pendingCount >= MAX_PENDING_REQUESTS;
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [fromDate, setFromDate] = useState("");
@@ -35,15 +37,6 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
 
   const windowDays = windowDaysInclusive(fromDate, toDate);
   const overWindow = windowDays > MAX_WINDOW_DAYS;
-
-  if (hasPending) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-amber-300 bg-amber-950/30 border border-amber-900/40 rounded-full px-3 py-1.5">
-        <Clock className="h-3.5 w-3.5" />
-        Request pending
-      </span>
-    );
-  }
 
   async function submit() {
     if (fromDate && toDate && toDate < fromDate) {
@@ -89,12 +82,24 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-      <DialogPrimitive.Trigger asChild>
-        <Button size="sm" variant="outline">
-          <Send className="h-3.5 w-3.5 mr-1.5" />
-          Request access
-        </Button>
-      </DialogPrimitive.Trigger>
+      <div className="flex flex-col items-end gap-1">
+        <DialogPrimitive.Trigger asChild>
+          <Button
+            size="sm"
+            disabled={atLimit}
+            title={atLimit ? `You already have ${MAX_PENDING_REQUESTS} pending requests` : undefined}
+            className="bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            <Send className="h-3.5 w-3.5 mr-1.5" />
+            Request access
+          </Button>
+        </DialogPrimitive.Trigger>
+        {atLimit && (
+          <span className="text-[11px] text-amber-400/90">
+            Max {MAX_PENDING_REQUESTS} pending requests reached
+          </span>
+        )}
+      </div>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-md bg-gray-950 border border-gray-800 rounded-xl p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
@@ -108,10 +113,19 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
             </DialogPrimitive.Close>
           </div>
 
-          <p className="text-sm text-gray-400 mb-4">
+          <p className="text-sm text-gray-400 mb-3">
             Ask an admin to send you a building-access invite. Dates and a note are optional — leave
             them blank and the admin will decide.
           </p>
+
+          <div className="flex items-start gap-2 rounded-lg border border-violet-900/40 bg-violet-950/20 px-3 py-2 mb-4">
+            <CalendarRange className="h-3.5 w-3.5 text-violet-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-gray-300">
+              Each access window can be up to{" "}
+              <span className="font-medium text-white">1 week ({MAX_WINDOW_DAYS} days)</span> — for a
+              longer stay, send another request.
+            </p>
+          </div>
 
           <div className="space-y-3">
             <div className="space-y-2">
@@ -140,15 +154,11 @@ export function RequestAccessButton({ hasPending }: { hasPending: boolean }) {
                 }}
                 min={todayIso}
               />
-              {windowDays > 0 ? (
+              {windowDays > 0 && (
                 <p className={`text-xs ${overWindow ? "text-red-400" : "text-gray-500"}`}>
                   {overWindow
                     ? `${windowDays}-day window exceeds the ${MAX_WINDOW_DAYS}-day limit — shorten it.`
                     : `${windowDays}-day window · each day ${FROM_TIME}–${TO_TIME}.`}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-500">
-                  Each day runs {FROM_TIME}–{TO_TIME}. Up to a {MAX_WINDOW_DAYS}-day window.
                 </p>
               )}
             </div>

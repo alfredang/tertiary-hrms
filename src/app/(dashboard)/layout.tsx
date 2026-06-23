@@ -59,17 +59,17 @@ export default async function DashboardLayout({
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="transition-[padding] duration-200 lg:pl-[var(--sidebar-w,18rem)]">
+        {/* Main content — flex column so the footer sticks to the bottom on short pages */}
+        <div className="flex min-h-screen flex-col transition-[padding] duration-200 lg:pl-[var(--sidebar-w,18rem)]">
           <Header isAdmin={isAdmin} fallbackName={userName} fallbackEmail={userEmail} avatarUrl={userAvatarUrl} gender={userGender} currentView={currentView} companyShortName={companyShortName} companyLogo={companyLogo} />
           <PullToRefresh>
             <main className="py-6 px-4 pb-20 sm:px-6 lg:px-8 lg:pb-6">
               {children}
             </main>
-            <footer className="px-4 sm:px-6 lg:px-8 pb-24 lg:pb-6 pt-2 text-center text-xs text-gray-500">
-              Powered by <span className="text-gray-400">{companyFullName}</span>
-            </footer>
           </PullToRefresh>
+          <footer className="mt-auto px-4 sm:px-6 lg:px-8 pb-24 lg:pb-6 pt-2 text-center text-xs text-gray-500">
+            Powered by <span className="text-gray-400">{companyFullName}</span>
+          </footer>
         </div>
 
         {/* Mobile bottom navigation */}

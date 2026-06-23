@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { format, parse, parseISO } from "date-fns";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { getViewMode } from "@/lib/view-mode";
-import { MAX_WINDOW_DAYS, windowDaysInclusive } from "@/lib/woods-square";
+import { getCurrentUser, isAdminUser } from "@/lib/woods-square-auth";
+import { MAX_PENDING_REQUESTS, MAX_WINDOW_DAYS, windowDaysInclusive } from "@/lib/woods-square";
 
 // Dates are optional; an empty string from the form means "not set".
 const optionalIsoDate = z.preprocess(
@@ -34,6 +33,19 @@ const accessRequestSchema = z
       return;
     }
     if (b.fromDate && b.toDate) {
+      // Reject windows that start in the past (yyyy-MM-dd strings sort chronologically).
+      // Pin "today" to Singapore time so the check matches the SGT-based date pickers
+      // and card date math — not the server's UTC clock.
+      const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore" }).format(
+        new Date(),
+      );
+      if (b.fromDate < todayIso) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Start date can’t be in the past.",
+          path: ["fromDate"],
+        });
+      }
       const days = windowDaysInclusive(b.fromDate, b.toDate);
       if (days < 1) {
         ctx.addIssue({
@@ -52,13 +64,6 @@ const accessRequestSchema = z
   });
 
 export const dynamic = "force-dynamic";
-
-/** Resolve the signed-in user (with their employee + role). */
-async function getCurrentUser() {
-  const email = isDevAuthSkipped() ? "admin@tertiaryinfotech.com" : (await auth())?.user?.email;
-  if (!email) return null;
-  return prisma.user.findUnique({ where: { email }, include: { employee: true } });
-}
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return "";
@@ -84,6 +89,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Only people on the Woods Square invite roster can be sent a pass, so block requests
+  // from anyone off-roster up front — otherwise their request could never be fulfilled
+  // and would sit PENDING forever, cluttering the admin queue.
+  if (!user.employee.woodsSquareInvite) {
+    return NextResponse.json(
+      { error: "You're not set up for Woods Square building access. Please contact an admin." },
+      { status: 403 },
+    );
+  }
+
   const parsed = accessRequestSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json(
@@ -93,11 +108,24 @@ export async function POST(req: NextRequest) {
   }
   const body = parsed.data;
 
-  const existing = await prisma.accessRequest.findFirst({
-    where: { employeeId: user.employee.id, status: "PENDING" },
+  // Multiple pending requests are allowed, but capped so the admin queue doesn't
+  // get flooded by one person. Past-dated PENDING requests are treated as expired and
+  // don't count — otherwise stale ones would permanently block someone from requesting.
+  const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore" }).format(new Date());
+  const pendingCount = await prisma.accessRequest.count({
+    where: {
+      employeeId: user.employee.id,
+      status: "PENDING",
+      OR: [{ toDate: null }, { toDate: { gte: todayIso } }],
+    },
   });
-  if (existing) {
-    return NextResponse.json({ error: "You already have a pending request." }, { status: 409 });
+  if (pendingCount >= MAX_PENDING_REQUESTS) {
+    return NextResponse.json(
+      {
+        error: `You can have at most ${MAX_PENDING_REQUESTS} pending requests at a time. Wait for some to be reviewed or cancel one.`,
+      },
+      { status: 409 },
+    );
   }
 
   // If specific dates are given, block requests already fully covered by an existing pass.
@@ -154,7 +182,7 @@ export async function POST(req: NextRequest) {
         title: "Woods Square Access request",
         message: `${user.employee!.name} requested building access${windowText}.`,
         type: "WOODS_SQUARE_REQUEST",
-        link: "/woods-square",
+        link: "/woods-square?tab=requests",
       })),
     });
   }
@@ -165,8 +193,7 @@ export async function POST(req: NextRequest) {
 // Admin lists pending requests for the Woods Square page.
 export async function GET() {
   const user = await getCurrentUser();
-  const isAdmin = isDevAuthSkipped() || (user?.roles ?? []).some((r) => hasAdminAccess(r));
-  if (!user || !isAdmin) {
+  if (!user || !isAdminUser(user)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
