@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, isAdminUser } from "@/lib/woods-square-auth";
-import { getScheduleConfig } from "@/lib/woods-square-schedule";
-import { runScheduledSend } from "@/lib/woods-square-scheduler";
+import { getScheduleConfig, saveScheduleConfig } from "@/lib/woods-square-schedule";
+import { runHadFailure, runScheduledSend } from "@/lib/woods-square-scheduler";
 
 // Drives a real browser (one session per 7-day window), so needs the Node runtime + headroom.
 export const runtime = "nodejs";
@@ -36,6 +36,17 @@ export async function POST() {
       mode: config.testMode ? "test" : "production",
       testRecipientIds: config.testRecipientIds,
     });
+    // A successful manual run counts as the month's real send — stamp the same watermark the
+    // timer path stamps, so the "last send" status and the missed-send nudge stay truthful
+    // (run-now bypasses the timer's runAndFinalize that normally records this).
+    if (!runHadFailure(result)) {
+      const stamp = new Date().toISOString();
+      await saveScheduleConfig(
+        config.testMode
+          ? { lastTestFiredAt: stamp }
+          : { lastProdFiredAt: stamp, failureNotifiedAt: null },
+      );
+    }
     return NextResponse.json({ ok: true, result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
