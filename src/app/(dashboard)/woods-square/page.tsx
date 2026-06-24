@@ -62,8 +62,10 @@ export default async function WoodsSquarePage({
 
   const scheduleConfig = await getScheduleConfig();
 
-  // Notifications deep-link here with ?tab=requests so admins land on the queue.
-  const initialTab = searchParams.tab === "requests" ? "requests" : "send";
+  // Notifications deep-link here with ?tab=… so admins land on the right tab: a new
+  // request → the queue (requests); a failed auto-invite → Settings (manage).
+  const initialTab =
+    searchParams.tab === "requests" || searchParams.tab === "manage" ? searchParams.tab : "send";
 
   return (
     <div className="space-y-6">

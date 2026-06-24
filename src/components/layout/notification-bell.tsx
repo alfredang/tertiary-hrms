@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, BellOff, Check, CheckCheck, Clock, CalendarCheck, CalendarX, Briefcase, Info, Building2 } from "lucide-react";
+import { Bell, BellOff, Check, CheckCheck, Clock, CalendarCheck, CalendarX, Briefcase, Info, Building2, AlertTriangle } from "lucide-react";
 
 interface Notification {
   id: string;
@@ -14,7 +14,7 @@ interface Notification {
   createdAt: string;
 }
 
-const ADMIN_TYPES = new Set(["LEAVE_SUBMITTED", "OT_PENDING", "WOODS_SQUARE_REQUEST"]);
+const ADMIN_TYPES = new Set(["LEAVE_SUBMITTED", "OT_PENDING", "WOODS_SQUARE_REQUEST", "WOODS_SQUARE_SEND_FAILED"]);
 const EMPLOYEE_TYPES = new Set([
   "LEAVE_APPROVED",
   "LEAVE_REJECTED",
@@ -35,6 +35,7 @@ const typeIcon: Record<string, React.ReactNode> = {
   WOODS_SQUARE_REQUEST: <Building2 className="h-4 w-4 text-purple-400" />,
   WOODS_SQUARE_APPROVED: <Building2 className="h-4 w-4 text-emerald-400" />,
   WOODS_SQUARE_DECLINED: <Building2 className="h-4 w-4 text-red-400" />,
+  WOODS_SQUARE_SEND_FAILED: <AlertTriangle className="h-4 w-4 text-red-400" />,
 };
 
 function timeAgo(dateStr: string): string {
