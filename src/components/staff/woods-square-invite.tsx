@@ -65,6 +65,8 @@ type RunResult = {
   skippedCount?: number;
   skipped?: { name: string; email: string; existingFrom?: string; existingTo?: string }[];
   failed: { invitee: { name: string; email: string }; error: string }[];
+  /** On-roster staff skipped because they have no usable delivery email. */
+  noEmail?: { name: string }[];
 };
 
 type LogRow = {
@@ -480,27 +482,37 @@ export function WoodsSquareInvite({
     skipped: number,
     failed: number,
     skippedNames: string[],
+    noEmailCount = 0,
   ): { title: string; description?: string; variant?: "destructive" } {
     const nameList =
       skippedNames.slice(0, 4).join(", ") +
       (skippedNames.length > 4 ? ` +${skippedNames.length - 4} more` : "");
+    const noEmailNote = noEmailCount ? `${noEmailCount} skipped — no email on file` : "";
     let title: string;
     const descParts: string[] = [];
     if (invited > 0) {
       title = `${invited} invite${invited === 1 ? "" : "s"} sent`;
       if (skipped) descParts.push(`Already had access: ${nameList}`);
       if (failed) descParts.push(`${failed} failed`);
+      if (noEmailNote) descParts.push(noEmailNote);
     } else if (failed > 0) {
       title = "Couldn’t send invites";
       descParts.push(`${failed} failed${skipped ? ` · already invited: ${nameList}` : ""}`);
-    } else {
+      if (noEmailNote) descParts.push(noEmailNote);
+    } else if (skipped > 0) {
       title = "No new invites needed";
       descParts.push(`Already invited for these dates: ${nameList}`);
+      if (noEmailNote) descParts.push(noEmailNote);
+    } else if (noEmailCount > 0) {
+      title = "Nothing sent — no email on file";
+      descParts.push("Add a delivery email to invite them.");
+    } else {
+      title = "No new invites needed";
     }
     return {
       title,
       description: descParts.join(" · ") || undefined,
-      variant: invited === 0 && failed > 0 ? "destructive" : undefined,
+      variant: invited === 0 && (failed > 0 || noEmailCount > 0) ? "destructive" : undefined,
     };
   }
 
@@ -551,7 +563,15 @@ export function WoodsSquareInvite({
       if (!silent) {
         setResult(data as RunResult);
         const skippedNames: string[] = (data.skipped ?? []).map((s: { name: string }) => s.name);
-        toast(sendSummary(data.invitedCount ?? 0, data.skippedCount ?? 0, data.failedCount ?? 0, skippedNames));
+        toast(
+          sendSummary(
+            data.invitedCount ?? 0,
+            data.skippedCount ?? 0,
+            data.failedCount ?? 0,
+            skippedNames,
+            (data.noEmail ?? []).length,
+          ),
+        );
         setSelectedIds(new Set());
         loadLogs();
         loadRequests();
@@ -668,6 +688,7 @@ export function WoodsSquareInvite({
         agg.skippedCount = (agg.skippedCount ?? 0) + (data.skippedCount ?? 0);
         agg.skipped = (agg.skipped ?? []).concat(data.skipped ?? []);
         agg.failed = agg.failed.concat(data.failed ?? []);
+        agg.noEmail = (agg.noEmail ?? []).concat(data.noEmail ?? []);
       }
     }
 
@@ -678,6 +699,8 @@ export function WoodsSquareInvite({
         agg.skippedCount ?? 0,
         agg.failedCount,
         (agg.skipped ?? []).map((s) => s.name),
+        // Dedupe — the same no-email person can appear across multiple request-window groups.
+        new Set((agg.noEmail ?? []).map((n) => n.name)).size,
       ),
     );
     setBulkProgress(null);

@@ -32,9 +32,18 @@ export type Invitee = StaffInvitee & { id: string };
  * not left, and with a usable delivery address (the per-person override if set,
  * otherwise the account email).
  */
-export async function resolveInvitees(staffIds: string[]): Promise<Invitee[]> {
+/**
+ * Resolve invitees AND surface the on-roster, still-employed people we had to drop because
+ * they have no usable delivery email — so "Invite All" can report "N skipped: no email" instead
+ * of silently leaving them out. `invitees` is identical to what {@link resolveInvitees} returns
+ * (off-roster / left staff are out of scope and are NOT counted as no-email skips).
+ */
+export async function resolveInviteesDetailed(staffIds: string[]): Promise<{
+  invitees: Invitee[];
+  noEmail: { id: string; name: string }[];
+}> {
   const employees = await prisma.employee.findMany({
-    where: { email: { not: "" }, id: { in: staffIds } },
+    where: { id: { in: staffIds } },
     select: {
       id: true,
       name: true,
@@ -45,11 +54,25 @@ export async function resolveInvitees(staffIds: string[]): Promise<Invitee[]> {
     },
     orderBy: { name: "asc" },
   });
-  return employees
-    .filter((e) => e.woodsSquareInvite)
-    .filter((e) => !LEFT_STATUSES.includes(e.status))
-    .map((e) => ({ id: e.id, name: e.name, email: e.woodsSquareEmail || e.email }))
-    .filter((i) => i.email && !i.email.includes(".noemail@"));
+  const invitees: Invitee[] = [];
+  const noEmail: { id: string; name: string }[] = [];
+  for (const e of employees) {
+    if (!e.woodsSquareInvite || LEFT_STATUSES.includes(e.status)) continue;
+    const email = e.woodsSquareEmail || e.email;
+    // Mirror the original filter exactly: a usable invite needs a real account email AND a
+    // delivery address that isn't the ".noemail@" placeholder.
+    if (e.email && email && !email.includes(".noemail@")) {
+      invitees.push({ id: e.id, name: e.name, email });
+    } else {
+      noEmail.push({ id: e.id, name: e.name });
+    }
+  }
+  return { invitees, noEmail };
+}
+
+/** Just the invitees — back-compat for callers that don't need the no-email breakdown. */
+export async function resolveInvitees(staffIds: string[]): Promise<Invitee[]> {
+  return (await resolveInviteesDetailed(staffIds)).invitees;
 }
 
 export interface SendResult {
@@ -59,6 +82,9 @@ export interface SendResult {
   skippedCount: number;
   skipped: { name: string; email: string; existingFrom: string; existingTo: string }[];
   failed: { invitee: { name: string; email: string }; error: string }[];
+  /** On-roster, still-employed staff skipped because they have no usable delivery email.
+   *  Surfaced so the admin "Invite All" toast can report them instead of silently dropping them. */
+  noEmail?: { name: string }[];
 }
 
 export type SendOutcome = ({ ok: true } & SendResult) | { ok: false; status: number; error: string };
@@ -362,10 +388,18 @@ export async function runWoodsSquareSendGapAware(opts: {
 }): Promise<SendOutcome> {
   if (opts.resend) return runWoodsSquareSend(opts);
 
-  const invitees = await resolveInvitees(opts.staffIds);
+  const { invitees, noEmail } = await resolveInviteesDetailed(opts.staffIds);
   if (invitees.length === 0) {
-    return { ok: false, status: 400, error: "No matching staff on the Woods Square invite roster." };
+    return {
+      ok: false,
+      status: 400,
+      error:
+        noEmail.length > 0
+          ? `No invites sent — ${noEmail.length} selected ${noEmail.length === 1 ? "person has" : "people have"} no email on file. Add a delivery email first.`
+          : "No matching staff on the Woods Square invite roster.",
+    };
   }
+  const noEmailNames = noEmail.map((p) => ({ name: p.name }));
 
   const reqFromIso = format(parse(opts.window.fromDate, HABITAP_DATE_FMT, new Date()), "yyyy-MM-dd");
   const reqToIso = format(parse(opts.window.toDate, HABITAP_DATE_FMT, new Date()), "yyyy-MM-dd");
@@ -438,6 +472,7 @@ export async function runWoodsSquareSendGapAware(opts: {
     skippedCount: skippedCovered.length,
     skipped: [...skippedCovered],
     failed: [],
+    noEmail: noEmailNames,
   };
   let anyOk = false;
   let lastError: { status: number; error: string } | null = null;
@@ -511,6 +546,7 @@ export async function runWoodsSquareSendGapAware(opts: {
       skippedCount: skippedCovered.length,
       skipped: skippedCovered,
       failed: [],
+      noEmail: noEmailNames,
     };
   }
   // Every sub-window hard-failed and nobody was invited → surface the error like the core.
