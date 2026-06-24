@@ -11,7 +11,10 @@ import { resolveInvitees, runWoodsSquareSendGapAware } from "@/lib/woods-square-
 // Playwright needs the Node runtime and time to drive a real browser.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+// 600s — matches the cron/run-now routes and sits UNDER the 660s send-lock TTL, so a big
+// "Invite All" with fragmented coverage finishes and releases the lock cleanly instead of
+// being killed at 300s mid-send (which wedged the lock ~11 min, blocking all sends). (#6)
+export const maxDuration = 600;
 
 async function requireAdmin() {
   if (isDevAuthSkipped()) return true;

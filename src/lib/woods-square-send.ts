@@ -64,6 +64,25 @@ export interface SendResult {
 export type SendOutcome = ({ ok: true } & SendResult) | { ok: false; status: number; error: string };
 
 /**
+ * Run a CRITICAL DB write with a few quick retries. Used for the invite-log write that
+ * records a PIN as SENT: that row is the dedup record, so losing it to a momentary DB hiccup
+ * (after Habitap already emailed the PIN) would let a later run re-send a duplicate PIN.
+ * Retrying closes most of that gap. Throws the last error only if every attempt fails. (#5)
+ */
+async function persistWithRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts) await new Promise((resolve) => setTimeout(resolve, 200 * i));
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Resolve → dedup → (locked) drive Habitap → stamp/log/notify/fulfill, for one window.
  * Caller supplies an explicit, already-validated id list + window. Returns a result or
  * a structured error (the HTTP routes map `status` straight onto the response).
@@ -184,82 +203,132 @@ export async function runWoodsSquareSend(opts: {
   }
   const result = send.result;
 
-  // Stamp invited employees (match back by the address we sent to).
   const invitedAt = new Date();
   const byEmail = new Map(toInvite.map((i) => [i.email, i.id]));
-  await Promise.all(
-    result.invited.map((i) => {
-      const id = byEmail.get(i.email);
-      if (!id) return Promise.resolve();
-      return prisma.employee.update({
-        where: { id },
-        data: { habitapInviteAt: invitedAt, habitapEventId: result.eventId },
-      });
+
+  // Record the outcome FIRST, with retries — the SENT rows are the dedup record, so they must
+  // land before anything else: a momentary DB hiccup after Habitap emailed the PINs would
+  // otherwise leave no SENT row and let a later run re-send a duplicate PIN. (#5)
+  await persistWithRetry(() =>
+    prisma.habitapInviteLog.createMany({
+      data: [
+        ...result.invited.map((i) => ({
+          employeeId: byEmail.get(i.email) ?? null,
+          name: i.name,
+          email: i.email,
+          eventId: result.eventId,
+          fromDate: win.fromDate,
+          toDate: win.toDate,
+          status: "SENT",
+        })),
+        ...result.failed.map((f) => ({
+          employeeId: byEmail.get(f.invitee.email) ?? null,
+          name: f.invitee.name,
+          email: f.invitee.email,
+          eventId: result.eventId,
+          fromDate: win.fromDate,
+          toDate: win.toDate,
+          status: "FAILED",
+          error: f.error,
+        })),
+      ],
     }),
   );
 
-  // Write a log row per invitee (sent + failed).
-  await prisma.habitapInviteLog.createMany({
-    data: [
-      ...result.invited.map((i) => ({
-        employeeId: byEmail.get(i.email) ?? null,
-        name: i.name,
-        email: i.email,
-        eventId: result.eventId,
-        fromDate: win.fromDate,
-        toDate: win.toDate,
-        status: "SENT",
-      })),
-      ...result.failed.map((f) => ({
-        employeeId: byEmail.get(f.invitee.email) ?? null,
-        name: f.invitee.name,
-        email: f.invitee.email,
-        eventId: result.eventId,
-        fromDate: win.fromDate,
-        toDate: win.toDate,
-        status: "FAILED",
-        error: f.error,
-      })),
-    ],
-  });
-
-  // Notify every invited staff member (check email for PIN), and close requests this
-  // send actually satisfies.
+  // Non-dedup-critical tail (employee stamp, notification, request fulfilment). The PINs are
+  // out and the SENT log is written, so a failure here must NOT fail the whole send (which
+  // would surface an error and tempt a re-send of an already-delivered PIN). Best-effort. (#5)
   const invitedIds = result.invited
     .map((i) => byEmail.get(i.email))
     .filter((id): id is string => Boolean(id));
-  if (invitedIds.length > 0) {
+  try {
+    // Stamp invited employees (match back by the address we sent to).
+    await Promise.all(
+      result.invited.map((i) => {
+        const id = byEmail.get(i.email);
+        if (!id) return Promise.resolve();
+        return prisma.employee.update({
+          where: { id },
+          data: { habitapInviteAt: invitedAt, habitapEventId: result.eventId },
+        });
+      }),
+    );
+
+    if (invitedIds.length > 0) {
     const emps = await prisma.employee.findMany({
       where: { id: { in: invitedIds } },
       select: { userId: true },
     });
-    await prisma.notification.createMany({
-      data: emps.map((e) => ({
-        userId: e.userId,
-        title: "Woods Square Access Approved",
-        message: `Your building access for ${win.fromDate} – ${win.toDate} was approved — check your email for the PIN.`,
+    // Notify each invited person — but COALESCE (#8): a run sends several back-to-back
+    // sub-windows, and the monthly run sends ~5 weekly windows; skip anyone who already got
+    // an unread "approved" ping in the last 15 min so they get ~one notification per run, not
+    // one per window. The message is window-agnostic since a run can cover several windows.
+    const userIds = emps.map((e) => e.userId);
+    const recentPing = await prisma.notification.findMany({
+      where: {
+        userId: { in: userIds },
         type: "WOODS_SQUARE_APPROVED",
-        link: "/woods-square-access",
-      })),
+        read: false,
+        createdAt: { gte: new Date(invitedAt.getTime() - 15 * 60_000) },
+      },
+      select: { userId: true },
     });
-    const pendingReqs = await prisma.accessRequest.findMany({
-      where: { status: "PENDING", employeeId: { in: invitedIds } },
-      select: { id: true, fromDate: true, toDate: true },
-    });
-    const sentFrom = parse(win.fromDate, DATE_FMT, new Date());
-    const sentTo = parse(win.toDate, DATE_FMT, new Date());
-    const coveredIds = pendingReqs
-      .filter((r) => {
-        if (!r.fromDate || !r.toDate) return true;
-        return sentFrom <= parseISO(r.fromDate) && sentTo >= parseISO(r.toDate);
-      })
-      .map((r) => r.id);
-    if (coveredIds.length > 0) {
-      await prisma.accessRequest.updateMany({
-        where: { id: { in: coveredIds }, status: "PENDING" },
-        data: { status: "FULFILLED", resolvedAt: invitedAt },
+    const alreadyPinged = new Set(recentPing.map((n) => n.userId));
+    const toNotify = userIds.filter((uid) => !alreadyPinged.has(uid));
+    if (toNotify.length > 0) {
+      await prisma.notification.createMany({
+        data: toNotify.map((userId) => ({
+          userId,
+          title: "Woods Square Access Approved",
+          message: "Your Woods Square building access has been sent — check your email for your PIN(s).",
+          type: "WOODS_SQUARE_APPROVED",
+          link: "/woods-square-access",
+        })),
       });
     }
+    // Fulfil PENDING requests now covered by the UNION of this person's SENT windows — not
+    // just the single window we sent this run. A request that spans a weekly-window boundary
+    // (e.g. Aug 5–9, covered by the 1–7 and 8–14 monthly sends) is contained by no single
+    // send window, so the old per-window check left it PENDING forever; the union clears it
+    // once the last covering window lands. A request whose covering window FAILED has no SENT
+    // row, so the union won't cover it and it correctly stays PENDING.
+    const pendingReqs = await prisma.accessRequest.findMany({
+      where: { status: "PENDING", employeeId: { in: invitedIds } },
+      select: { id: true, employeeId: true, fromDate: true, toDate: true },
+    });
+    if (pendingReqs.length > 0) {
+      const sentRows = await prisma.habitapInviteLog.findMany({
+        where: { status: "SENT", employeeId: { in: invitedIds } },
+        select: { employeeId: true, fromDate: true, toDate: true },
+      });
+      const coverageByEmp = new Map<string, { from: Date; to: Date }[]>();
+      for (const s of sentRows) {
+        if (!s.employeeId) continue;
+        const list = coverageByEmp.get(s.employeeId) ?? [];
+        list.push({
+          from: parse(s.fromDate, DATE_FMT, new Date()),
+          to: parse(s.toDate, DATE_FMT, new Date()),
+        });
+        coverageByEmp.set(s.employeeId, list);
+      }
+      const coveredIds = pendingReqs
+        .filter((r) => {
+          if (!r.fromDate || !r.toDate) return true; // open-ended request → any send fulfils it
+          if (!r.employeeId) return false;
+          const ranges = coverageByEmp.get(r.employeeId) ?? [];
+          return coveringRange(ranges, parseISO(r.fromDate), parseISO(r.toDate)) !== null;
+        })
+        .map((r) => r.id);
+      if (coveredIds.length > 0) {
+        await prisma.accessRequest.updateMany({
+          where: { id: { in: coveredIds }, status: "PENDING" },
+          data: { status: "FULFILLED", resolvedAt: invitedAt },
+        });
+      }
+    }
+    }
+  } catch (err) {
+    console.error("[woods-square-send] post-send bookkeeping failed (PINs sent + logged):", err);
   }
 
   return {

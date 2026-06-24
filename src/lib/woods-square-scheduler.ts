@@ -97,8 +97,21 @@ function sgtDayKey(iso: string): string {
  */
 export function runHadFailure(result: ScheduledRunResult): boolean {
   return result.windows.some(
-    (w) => !w.outcome.ok || (w.outcome.ok && w.outcome.failedCount > 0),
+    (w) =>
+      // A 409 means another send held the single-flight lock (a concurrent manual send, or
+      // another app instance) — that's contention, not a failure, so don't treat it as one.
+      (!w.outcome.ok && w.outcome.status !== 409) || (w.outcome.ok && w.outcome.failedCount > 0),
   );
+}
+
+/**
+ * A run is "contended" when a window couldn't run because another send held the lock (409).
+ * Nothing went wrong and nothing was sent — so we neither alert admins nor mark the month
+ * done; the next tick simply retries once the lock frees. Guards against a second app
+ * instance (or an overlapping manual send) firing a spurious "auto-invite failed" alert. (#7)
+ */
+function runWasContended(result: ScheduledRunResult): boolean {
+  return result.windows.some((w) => !w.outcome.ok && w.outcome.status === 409);
 }
 
 /** One-line, admin-readable summary of what went wrong in a scheduled run. */
@@ -175,7 +188,14 @@ async function runAndFinalize(
 
   if (runHadFailure(result)) {
     await notifyOncePerDay(summarizeFailure(result));
-    return { fired: true, detail: result }; // lastFiredAt NOT set → retry later
+    return { fired: true, detail: result }; // watermark NOT set → retry later
+  }
+
+  if (runWasContended(result)) {
+    // Collided with another in-flight send (concurrent manual send, or another instance).
+    // Not a failure and nothing was sent — don't stamp or alert; the next tick retries once
+    // the lock frees, and the other holder will stamp success when it finishes. (#7)
+    return { fired: true, detail: { contended: true, ...result } };
   }
 
   // Clean success — stamp THIS mode's watermark (so a test never marks production done, and
@@ -225,15 +245,20 @@ export async function maybeRunSchedule(): Promise<{ fired: boolean; detail: unkn
     return runAndFinalize(config, { mode: "test", testRecipientIds: config.testRecipientIds }, todayKey);
   }
 
-  // ── Production: last Monday, at/after 12:00 SGT, once per day (retried on failure) ──
-  if (!isLastMondayOfMonth(today)) return { fired: false, detail: "not the last Monday" };
+  // ── Production: last Monday at/after noon SGT, with catch-up through month-end ──
+  // `lastProdFiredAt` is only stamped on a PRODUCTION SUCCESS, so this means "already sent
+  // this month" — once it succeeds it won't run again this month (and a same-day test never
+  // blocks it, since that stamps a different watermark).
+  const todayMonthKey = todayKey.slice(0, 7);
+  const prodMonthKey = config.lastProdFiredAt ? sgtDayKey(config.lastProdFiredAt).slice(0, 7) : null;
+  if (prodMonthKey === todayMonthKey) return { fired: false, detail: "already sent this month" };
+  // Fire on the last Monday, OR on any later day of the same month as a CATCH-UP if the send
+  // hasn't succeeded yet — so a full-day outage on the last Monday doesn't cost the month. (#9)
+  const isLastMon = isLastMondayOfMonth(today);
+  const isCatchUp = isAfterLastMondayOfMonth(today);
+  if (!isLastMon && !isCatchUp) return { fired: false, detail: "before this month's send window" };
   const sgtHour = new Date(now + 8 * 60 * 60 * 1000).getUTCHours();
-  if (sgtHour < 12) return { fired: false, detail: "before noon SGT" };
-  // `lastProdFiredAt` is only stamped on a PRODUCTION SUCCESS, so neither a same-day test nor
-  // a failed run earlier today blocks a retry — only a real production success does.
-  if (config.lastProdFiredAt && sgtDayKey(config.lastProdFiredAt) === todayKey) {
-    return { fired: false, detail: "already ran today" };
-  }
+  if (isLastMon && sgtHour < 12) return { fired: false, detail: "before noon SGT" };
   if (withinBackoff) return { fired: false, detail: "waiting before retry" };
   return runAndFinalize(config, { mode: "production" }, todayKey);
 }
@@ -293,11 +318,13 @@ export async function maybeWarnMissedSend(): Promise<{ warned: boolean; detail: 
  * fires on its own with no external cron. Safe to call repeatedly (starts once); skips
  * overlapping ticks; long sends are still single-flighted by the send-core's lock.
  */
-let timerStarted = false;
+// Started-flag lives on globalThis so a dev HMR rebuild (which re-evaluates this module)
+// can't stack a second setInterval; in production it starts exactly once. (#7)
+const timerGlobal = globalThis as unknown as { __wsTimerStarted?: boolean };
 let tickRunning = false;
 export function startScheduleTimer(): void {
-  if (timerStarted) return;
-  timerStarted = true;
+  if (timerGlobal.__wsTimerStarted) return;
+  timerGlobal.__wsTimerStarted = true;
   const tick = async () => {
     if (tickRunning) return;
     tickRunning = true;
