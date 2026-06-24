@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { lastMondayOfMonth, monthWindows, upcomingMonthOf } from "@/lib/woods-square";
+import { WoodsSquareHealthBanner } from "@/components/staff/woods-square-health-banner";
 import { WoodsSquareManageList, Toggle, type ManageStaff } from "@/components/staff/woods-square-manage-list";
 import type { ScheduleConfig } from "@/lib/woods-square-schedule";
 
@@ -287,6 +288,14 @@ export function WoodsSquareSettings({
           <h2 className="text-sm font-semibold text-white">Automatic monthly invites</h2>
         </div>
         <div className="p-4 space-y-4">
+          {/* Health banner — reflects the LIVE toggle state here in Settings (the same banner
+              also shows on the Send-Invites landing tab, from the saved config). */}
+          <WoodsSquareHealthBanner
+            enabled={enabled}
+            testMode={testMode}
+            lastProdFiredAt={scheduleConfig.lastProdFiredAt}
+          />
+
           {/* Master switch */}
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">

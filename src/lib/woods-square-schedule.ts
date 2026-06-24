@@ -19,8 +19,24 @@ export interface ScheduleConfig {
   testRecipientIds: string[];
   /** ISO datetime — the test run fires once the current time passes this. */
   testFireAt: string | null;
-  /** ISO datetime of the last successful fire — guards against re-firing the same run. */
-  lastFiredAt: string | null;
+  /** ISO datetime of the last SUCCESSFUL PRODUCTION run (the last-Monday monthly send).
+   *  Stamped only when a run completes with no failures; guards the once-per-day fire so a
+   *  failed run isn't treated as done and gets retried. Kept SEPARATE from the test
+   *  watermark so a same-day test can't make production think it already ran. */
+  lastProdFiredAt: string | null;
+  /** ISO datetime of the last SUCCESSFUL TEST run — guards "test already fired". Separate
+   *  from the production watermark for the same reason (the two cadences are independent). */
+  lastTestFiredAt: string | null;
+  /** ISO datetime of the last ATTEMPT (success or failure). Throttles retries after a
+   *  failure so a transient Habitap outage is retried without hammering it every minute. */
+  lastAttemptAt: string | null;
+  /** ISO datetime admins were last notified of a failed run — so the alert fires at most
+   *  once per day, not on every retry. Cleared on the next successful run. */
+  failureNotifiedAt: string | null;
+  /** SGT month key ("yyyy-MM") admins were last nudged that the month's real send never
+   *  happened (scheduler enabled but stuck in test mode, or the run was missed). Throttles
+   *  that nudge to once per month so it isn't repeated every tick. */
+  missedNotifiedMonth: string | null;
 }
 
 const KEY = "WOODS_SQUARE_SCHEDULE";
@@ -30,7 +46,11 @@ const DEFAULT: ScheduleConfig = {
   testMode: true,
   testRecipientIds: [],
   testFireAt: null,
-  lastFiredAt: null,
+  lastProdFiredAt: null,
+  lastTestFiredAt: null,
+  lastAttemptAt: null,
+  failureNotifiedAt: null,
+  missedNotifiedMonth: null,
 };
 
 export async function getScheduleConfig(): Promise<ScheduleConfig> {
@@ -38,9 +58,15 @@ export async function getScheduleConfig(): Promise<ScheduleConfig> {
   if (!row) return { ...DEFAULT };
   try {
     // Back-compat: an older saved blob stored a single `testRecipientId`; fold it into
-    // the new `testRecipientIds` array so existing configs keep working.
-    const parsed = JSON.parse(row.keyValue) as Partial<ScheduleConfig> & { testRecipientId?: string | null };
-    const { testRecipientId, ...rest } = parsed;
+    // the new `testRecipientIds` array so existing configs keep working. Likewise an older
+    // blob had one shared `lastFiredAt` — we can't know whether it was a test or production
+    // fire, so drop it (worst case the next run re-fires, which dedup makes harmless) and
+    // let the new split watermarks start clean.
+    const parsed = JSON.parse(row.keyValue) as Partial<ScheduleConfig> & {
+      testRecipientId?: string | null;
+      lastFiredAt?: string | null;
+    };
+    const { testRecipientId, lastFiredAt: _legacyLastFiredAt, ...rest } = parsed;
     const testRecipientIds = rest.testRecipientIds ?? (testRecipientId ? [testRecipientId] : []);
     return { ...DEFAULT, ...rest, testRecipientIds };
   } catch {

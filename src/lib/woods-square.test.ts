@@ -4,11 +4,13 @@ import {
   MAX_WINDOW_DAYS,
   coveringRange,
   gapWindows,
+  isAfterLastMondayOfMonth,
   isLastMondayOfMonth,
   lastMondayOfMonth,
   mergeDateRanges,
   missingWindows,
   monthWindows,
+  partitionByEmailPresence,
   presetRange,
   upcomingMonthOf,
   windowDaysInclusive,
@@ -98,6 +100,15 @@ describe("isLastMondayOfMonth", () => {
     expect(isLastMondayOfMonth(new Date(2026, 6, 27))).toBe(true); // last Monday
     expect(isLastMondayOfMonth(new Date(2026, 6, 20))).toBe(false); // a Monday, but not the last
     expect(isLastMondayOfMonth(new Date(2026, 6, 26))).toBe(false); // a Sunday
+  });
+});
+
+describe("isAfterLastMondayOfMonth", () => {
+  it("is false on or before the last Monday, true after it", () => {
+    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 20))).toBe(false); // before (last Mon = 27)
+    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 27))).toBe(false); // the last Monday itself
+    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 28))).toBe(true); // the day after
+    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 31))).toBe(true); // month-end
   });
 });
 
@@ -238,6 +249,41 @@ describe("missingWindows", () => {
       { from: "2026-08-23", to: "2026-08-29" },
       { from: "2026-08-30", to: "2026-08-31" },
     ]);
+  });
+});
+
+// ── Habitap bulk-import confirmation (the #4 fix: partial import ≠ full success) ──
+
+describe("partitionByEmailPresence", () => {
+  const people = [
+    { id: "1", name: "Ann", email: "ann@x.com" },
+    { id: "2", name: "Bob", email: "BOB@x.com" },
+    { id: "3", name: "Cal", email: "cal@x.com" },
+  ];
+
+  it("the headline case: 2 of 3 land → the dropped one is reported missing", () => {
+    // Visitor list shows ann + bob; cal was silently dropped by the import.
+    const { present, missing } = partitionByEmailPresence(people, "Visitors: ann@x.com, bob@x.com");
+    expect(present.map((p) => p.id)).toEqual(["1", "2"]);
+    expect(missing.map((p) => p.id)).toEqual(["3"]);
+  });
+
+  it("matches case-insensitively on the email", () => {
+    // Bob's stored email is upper-case but the page renders it lower-case — still confirmed.
+    const { present } = partitionByEmailPresence(people, "bob@x.com");
+    expect(present.map((p) => p.id)).toContain("2");
+  });
+
+  it("all present when every email appears", () => {
+    const { present, missing } = partitionByEmailPresence(people, "ann@x.com bob@x.com cal@x.com");
+    expect(present).toHaveLength(3);
+    expect(missing).toHaveLength(0);
+  });
+
+  it("all missing when the visitor list is empty (favours re-sending over silent drop)", () => {
+    const { present, missing } = partitionByEmailPresence(people, "");
+    expect(present).toHaveLength(0);
+    expect(missing).toHaveLength(3);
   });
 });
 

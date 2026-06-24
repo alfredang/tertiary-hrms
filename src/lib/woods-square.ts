@@ -64,6 +64,16 @@ export function isLastMondayOfMonth(date: Date): boolean {
 }
 
 /**
+ * True once `date` is strictly PAST the last Monday of its month — i.e. the monthly send
+ * window (and its all-day retries) has fully elapsed. Used by the "missed send" nudge so it
+ * only flags a month as missed the day AFTER, never racing the run on the day itself.
+ */
+export function isAfterLastMondayOfMonth(date: Date): boolean {
+  const lm = lastMondayOfMonth(date.getFullYear(), date.getMonth());
+  return date.getDate() > lm.getDate();
+}
+
+/**
  * Split a month (monthIndex 0–11) into consecutive ≤7-day windows that cover every
  * day, the last window clamped to the month end (e.g. Jul → 1–7, 8–14, 15–21, 22–28,
  * 29–31). Returns ISO yyyy-MM-dd { from, to } pairs.
@@ -178,4 +188,30 @@ export function missingWindows(
   const pad = (n: number) => String(n).padStart(2, "0");
   const mm = pad(monthIndex + 1);
   return gapWindows(`${year}-${mm}-01`, `${year}-${mm}-${pad(lastDay)}`, covered);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Habitap bulk-import confirmation helper (pure — no DB, no Playwright).       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Split invitees into those whose email appears in `visitorListText` (confirmed to have
+ * landed on the Habitap event after a CSV import) and those that don't (need a one-by-one
+ * retry). Case-insensitive substring match — the same signal the portal's visitor list
+ * gives us. Pure + exported so the partial-import handling can be unit-tested without
+ * driving the live portal. Favours delivery: anyone we can't confirm is treated as MISSING
+ * and re-sent, since a re-sent invite is at worst a duplicate email whereas a silently
+ * dropped person can't get into the building at all.
+ */
+export function partitionByEmailPresence<T extends { email: string }>(
+  invitees: T[],
+  visitorListText: string,
+): { present: T[]; missing: T[] } {
+  const text = visitorListText.toLowerCase();
+  const present: T[] = [];
+  const missing: T[] = [];
+  for (const i of invitees) {
+    (i.email && text.includes(i.email.toLowerCase()) ? present : missing).push(i);
+  }
+  return { present, missing };
 }

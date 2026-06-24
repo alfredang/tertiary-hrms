@@ -27,6 +27,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { InviteStatusPill } from "@/components/staff/invite-status-pill";
 import { type ManageStaff } from "@/components/staff/woods-square-manage-list";
 import { WoodsSquareSettings } from "@/components/staff/woods-square-settings";
+import { WoodsSquareHealthBanner } from "@/components/staff/woods-square-health-banner";
 import type { ScheduleConfig } from "@/lib/woods-square-schedule";
 import { WoodsSquareOverview } from "@/components/staff/woods-square-overview";
 import { useToast } from "@/hooks/use-toast";
@@ -207,7 +208,11 @@ const DEFAULT_SCHEDULE: ScheduleConfig = {
   testMode: true,
   testRecipientIds: [],
   testFireAt: null,
-  lastFiredAt: null,
+  lastProdFiredAt: null,
+  lastTestFiredAt: null,
+  lastAttemptAt: null,
+  failureNotifiedAt: null,
+  missedNotifiedMonth: null,
 };
 
 export function WoodsSquareInvite({
@@ -858,7 +863,15 @@ export function WoodsSquareInvite({
       )}
 
       {tab === "send" && (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="space-y-6">
+        {/* Scheduler health — so an admin landing here sees at a glance whether the
+            automatic monthly send is actually running (off / test-mode / stale). */}
+        <WoodsSquareHealthBanner
+          enabled={scheduleConfig.enabled}
+          testMode={scheduleConfig.testMode}
+          lastProdFiredAt={scheduleConfig.lastProdFiredAt}
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Staff picker */}
         <Card className="lg:col-span-2 bg-gray-950 border-gray-800 overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-800">
@@ -1240,6 +1253,7 @@ export function WoodsSquareInvite({
             )}
           </div>
         </Card>
+        </div>
       </div>
       )}
 

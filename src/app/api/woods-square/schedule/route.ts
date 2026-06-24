@@ -5,7 +5,8 @@ import { getScheduleConfig, saveScheduleConfig } from "@/lib/woods-square-schedu
 
 export const dynamic = "force-dynamic";
 
-// Admin-editable fields only — `lastFiredAt` is internal (set by the cron), never via the API.
+// Admin-editable fields only — the watermarks (lastProdFiredAt / lastTestFiredAt /
+// lastAttemptAt / failureNotifiedAt) are internal (set by the scheduler), never via the API.
 const scheduleSchema = z.object({
   enabled: z.boolean().optional(),
   testMode: z.boolean().optional(),

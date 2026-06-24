@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { maybeRunSchedule } from "@/lib/woods-square-scheduler";
+import { maybeRunSchedule, maybeWarnMissedSend } from "@/lib/woods-square-scheduler";
 
 // Drives a real browser, so needs the Node runtime + a generous duration.
 export const runtime = "nodejs";
@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await maybeRunSchedule();
-    return NextResponse.json({ ok: true, ...result });
+    // Backstop nudge for the "enabled but never actually sends" case (test mode left on /
+    // missed run), so external-cron-only setups get it too — not just the in-app timer.
+    const missed = await maybeWarnMissedSend();
+    return NextResponse.json({ ok: true, ...result, missed });
   } catch (err) {
     // A failed scheduled run (DB hiccup, Habitap automation throw, etc.) returns a clean
     // error here instead of an unhandled rejection / messy 500.

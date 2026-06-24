@@ -15,6 +15,7 @@
  */
 import { chromium, type Browser, type Page } from "playwright";
 import { prisma } from "@/lib/prisma";
+import { partitionByEmailPresence } from "@/lib/woods-square";
 
 export const HABITAP = {
   baseUrl: "https://wdsq-prod.myhabitap.com",
@@ -332,12 +333,19 @@ function buildVisitorCsv(invitees: StaffInvitee[]): string {
  * Adds all visitors at once via the portal's "Import Visitor" CSV upload.
  * Event detail → "Import Visitor" modal → upload #uploadfile (.csv) → click "Import".
  * The portal processes the list and sends every invite in one go.
+ *
+ * Returns a PER-INVITEE partition: `present` are the ones confirmed to have landed on the
+ * event afterwards, `missing` are the ones we couldn't confirm. The caller re-sends only the
+ * `missing` set one-by-one, so a partial import (e.g. 8 of 10 land) no longer marks the
+ * dropped 2 as "sent" — they're recovered or precisely reported as failed. Throws only if the
+ * upload itself can't be driven (modal/button/file input missing), which the caller treats as
+ * a total failure and falls back to one-by-one for everyone.
  */
 export async function addVisitorsViaImport(
   page: Page,
   eventId: string,
   invitees: StaffInvitee[],
-): Promise<void> {
+): Promise<{ present: StaffInvitee[]; missing: StaffInvitee[] }> {
   await page.goto(`${tenantBase}/front-eventInfos/${eventId}/detail`, {
     waitUntil: "networkidle",
     timeout: 60_000,
@@ -355,21 +363,16 @@ export async function addVisitorsViaImport(
   await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => {});
   await page.waitForTimeout(2_000);
 
-  // Confirm the import actually took, rather than assuming success — a silent portal-side
-  // failure would otherwise be reported as "everyone sent" with no PIN delivered. Reload
-  // the event and check the invitees now appear in its visitor list; if NONE do, throw so
-  // the caller falls back to the one-by-one path (which yields precise per-person results).
+  // Confirm PER PERSON which invitees actually landed, rather than assuming success — a silent
+  // portal-side failure would otherwise be reported as "everyone sent" with no PIN delivered.
+  // Reload the event and read its visitor list; whoever doesn't appear is returned as `missing`
+  // for the caller to retry one-by-one.
   await page
     .goto(`${tenantBase}/front-eventInfos/${eventId}/detail`, { waitUntil: "networkidle", timeout: 60_000 })
     .catch(() => {});
   await page.waitForTimeout(1_000);
-  const pageText = ((await page.locator("body").textContent().catch(() => "")) ?? "").toLowerCase();
-  const confirmed = invitees.filter((i) => pageText.includes(i.email.toLowerCase())).length;
-  if (confirmed === 0) {
-    throw new Error(
-      `Visitor import could not be confirmed: none of the ${invitees.length} invitees appear on the event after upload.`,
-    );
-  }
+  const pageText = (await page.locator("body").textContent().catch(() => "")) ?? "";
+  return partitionByEmailPresence(invitees, pageText);
 }
 
 export interface GenerateResult {
@@ -412,15 +415,25 @@ export async function generateStaffInvites(
     await loginToHabitap(page, creds);
     const eventId = await createStaffInviteEvent(page, win);
 
-    // Large batch → one CSV upload (fast, no per-visitor timeout). The import now
-    // verifies the visitors actually landed before reporting success; if it can't
-    // confirm them (or errors), it throws and we fall back to the one-by-one path,
-    // which salvages whoever succeeds and pinpoints who actually fails — instead of
-    // blanket-marking everyone "sent" when nothing went out.
+    // Large batch → one CSV upload (fast, no per-visitor timeout). The import confirms
+    // PER PERSON who actually landed; anyone it can't confirm is retried one-by-one so a
+    // partial import never blanket-marks dropped people "sent". If the upload itself can't
+    // be driven (it throws), fall back to one-by-one for the whole batch.
     if (staff.length >= BULK_IMPORT_MIN) {
       try {
-        await addVisitorsViaImport(page, eventId, staff);
-        return { eventId, invited: staff, failed: [] };
+        const { present, missing } = await addVisitorsViaImport(page, eventId, staff);
+        // Everyone confirmed → fast path, nothing to retry.
+        if (missing.length === 0) return { eventId, invited: present, failed: [] };
+        // Nothing landed → redo the whole batch one-by-one (no duplicates: none were added).
+        if (present.length === 0) {
+          const { invited, failed } = await addVisitorsOneByOne(page, eventId, staff);
+          return { eventId, invited, failed };
+        }
+        // Partial import → keep the confirmed ones, retry ONLY the missing ones one-by-one,
+        // and merge. A genuinely-dropped person is recovered (or precisely marked failed);
+        // a confirmation false-negative is at worst a duplicate invite, never a lockout.
+        const retry = await addVisitorsOneByOne(page, eventId, missing);
+        return { eventId, invited: [...present, ...retry.invited], failed: retry.failed };
       } catch {
         const { invited, failed } = await addVisitorsOneByOne(page, eventId, staff);
         return { eventId, invited, failed };
