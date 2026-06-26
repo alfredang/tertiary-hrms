@@ -144,11 +144,6 @@ export function WoodsSquareOverview({
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          {!isCurrentMonth && (
-            <button onClick={() => setOffset(0)} className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
-              Today
-            </button>
-          )}
         </div>
       </div>
 
