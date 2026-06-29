@@ -40,7 +40,7 @@ export function WoodsSquareHealthBanner({
         ? {
             tone: "warn",
             title: "Active — but nothing sent yet",
-            body: "Automatic invites are on, but no real monthly send has gone out yet. It fires on the next last-Monday run, or use “Run now” in Settings.",
+            body: "Automatic invites are on, but no real monthly send has gone out yet. It fires on the next monthly run (the 15th), or use “Run now” in Settings.",
           }
         : daysSinceReal !== null && daysSinceReal > 40
           ? {

@@ -4,8 +4,8 @@ import {
   FROM_TIME,
   HABITAP_DATE_FMT,
   TO_TIME,
-  isAfterLastMondayOfMonth,
-  isLastMondayOfMonth,
+  isAfterScheduledSendDay,
+  isScheduledSendDay,
   monthWindows,
   upcomingMonthOf,
 } from "@/lib/woods-square";
@@ -80,8 +80,9 @@ export async function runScheduledSend(opts: {
 
 /** How long to wait before re-attempting a FAILED scheduled run, so a transient Habitap
  *  outage is retried without hammering the portal every minute. Retries are naturally
- *  bounded: production only re-attempts while it's still the last Monday (until midnight
- *  SGT); a test re-attempts until it finally succeeds or the admin turns it off. */
+ *  bounded: production only re-attempts while it's still the send day or a later catch-up
+ *  day of the same month; a test re-attempts until it finally succeeds or the admin turns
+ *  it off. */
 const RETRY_BACKOFF_MS = 30 * 60_000; // 30 min
 
 /** SGT calendar-day key (yyyy-MM-dd) for an ISO instant — matches the once-per-day guards. */
@@ -212,9 +213,9 @@ async function runAndFinalize(
 /**
  * The self-guarding decision shared by the HTTP cron and the built-in timer: reads the
  * config and decides whether to fire now. Test mode fires once `testFireAt` passes;
- * production fires on the last Monday at/after noon SGT, once per day. A FAILED run is not
+ * production fires on the 15th at/after noon SGT, once per day. A FAILED run is not
  * marked done — it's retried after {@link RETRY_BACKOFF_MS} (and admins are alerted), so a
- * transient outage on the last Monday doesn't silently cost staff a whole month's access.
+ * transient outage on the send day doesn't silently cost staff a whole month's access.
  * Returns what it did (or why it skipped).
  */
 export async function maybeRunSchedule(): Promise<{ fired: boolean; detail: unknown }> {
@@ -245,20 +246,20 @@ export async function maybeRunSchedule(): Promise<{ fired: boolean; detail: unkn
     return runAndFinalize(config, { mode: "test", testRecipientIds: config.testRecipientIds }, todayKey);
   }
 
-  // ── Production: last Monday at/after noon SGT, with catch-up through month-end ──
+  // ── Production: the 15th at/after noon SGT, with catch-up through month-end ──
   // `lastProdFiredAt` is only stamped on a PRODUCTION SUCCESS, so this means "already sent
   // this month" — once it succeeds it won't run again this month (and a same-day test never
   // blocks it, since that stamps a different watermark).
   const todayMonthKey = todayKey.slice(0, 7);
   const prodMonthKey = config.lastProdFiredAt ? sgtDayKey(config.lastProdFiredAt).slice(0, 7) : null;
   if (prodMonthKey === todayMonthKey) return { fired: false, detail: "already sent this month" };
-  // Fire on the last Monday, OR on any later day of the same month as a CATCH-UP if the send
-  // hasn't succeeded yet — so a full-day outage on the last Monday doesn't cost the month. (#9)
-  const isLastMon = isLastMondayOfMonth(today);
-  const isCatchUp = isAfterLastMondayOfMonth(today);
-  if (!isLastMon && !isCatchUp) return { fired: false, detail: "before this month's send window" };
+  // Fire on the send day (the 15th), OR on any later day of the same month as a CATCH-UP if
+  // the send hasn't succeeded yet — so a full-day outage on the 15th doesn't cost the month. (#9)
+  const isSendDay = isScheduledSendDay(today);
+  const isCatchUp = isAfterScheduledSendDay(today);
+  if (!isSendDay && !isCatchUp) return { fired: false, detail: "before this month's send window" };
   const sgtHour = new Date(now + 8 * 60 * 60 * 1000).getUTCHours();
-  if (isLastMon && sgtHour < 12) return { fired: false, detail: "before noon SGT" };
+  if (isSendDay && sgtHour < 12) return { fired: false, detail: "before noon SGT" };
   if (withinBackoff) return { fired: false, detail: "waiting before retry" };
   return runAndFinalize(config, { mode: "production" }, todayKey);
 }
@@ -286,12 +287,12 @@ async function notifyMissedSend(testMode: boolean): Promise<void> {
 
 /**
  * Backstop for the silent "it's set up but never actually sends" case (gap #3): the scheduler
- * is ENABLED, the month's send window (last Monday) has passed, yet no real production send
+ * is ENABLED, the month's send window (the 15th) has passed, yet no real production send
  * happened this month — because Test mode was left on, or the run was missed. Nudges admins
  * ONCE per month so it surfaces instead of staff silently going without PINs. A deliberately
  * DISABLED scheduler isn't a fault here — the always-visible Settings banner covers that — so
  * this only fires when someone turned automation on and it quietly isn't doing its job.
- * Runs the day AFTER the last Monday onward, so it never races/duplicates the run (or its
+ * Runs the day AFTER the 15th onward, so it never races/duplicates the run (or its
  * gap-#1 failure alert) on the day itself.
  */
 export async function maybeWarnMissedSend(): Promise<{ warned: boolean; detail: unknown }> {
@@ -299,7 +300,7 @@ export async function maybeWarnMissedSend(): Promise<{ warned: boolean; detail: 
   if (!config.enabled) return { warned: false, detail: "scheduler disabled" };
 
   const today = sgtToday();
-  if (!isAfterLastMondayOfMonth(today)) return { warned: false, detail: "send window not passed yet" };
+  if (!isAfterScheduledSendDay(today)) return { warned: false, detail: "send window not passed yet" };
 
   const todayMonthKey = today.toISOString().slice(0, 7);
   const prodMonthKey = config.lastProdFiredAt ? sgtDayKey(config.lastProdFiredAt).slice(0, 7) : null;

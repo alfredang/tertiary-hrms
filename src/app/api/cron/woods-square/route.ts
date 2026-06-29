@@ -11,7 +11,7 @@ export const maxDuration = 600;
  * timer (see instrumentation.ts → startScheduleTimer), so this endpoint is optional —
  * it's here for an external scheduler or manual trigger. Both share the same self-guard
  * (`maybeRunSchedule`): test mode fires once `testFireAt` passes; production fires on the
- * last Monday at/after noon SGT, once per day.
+ * 15th at/after noon SGT, once per day.
  *
  * Optional Coolify schedule (header: Authorization: Bearer <CRON_SECRET>): e.g. "*\/10 * * * *".
  */

@@ -45,32 +45,30 @@ export function windowDaysInclusive(fromIso: string, toIso: string): number {
 
 /* -------------------------------------------------------------------------- */
 /* Monthly auto-invite scheduler helpers (pure — no DB, no side effects).      */
-/* The scheduler fires on the LAST MONDAY of each month and sends the UPCOMING  */
+/* The scheduler fires on the 15th of each month and sends the UPCOMING         */
 /* month's invites, split into ≤7-day windows.                                  */
 /* -------------------------------------------------------------------------- */
 
-/** The last Monday of the given month (monthIndex 0–11), at local midnight. */
-export function lastMondayOfMonth(year: number, monthIndex: number): Date {
-  const lastDay = new Date(year, monthIndex + 1, 0); // day 0 of next month = last day of this one
-  const backToMonday = (lastDay.getDay() - 1 + 7) % 7; // getDay: 0=Sun..6=Sat
-  return new Date(year, monthIndex + 1, 0 - backToMonday);
+/** The fixed calendar day each month the auto-invite fires (at 12:00 PM SGT). */
+export const SEND_DAY_OF_MONTH = 15;
+
+/** The configured monthly send day of the given month (monthIndex 0–11), at local midnight. */
+export function scheduledSendDate(year: number, monthIndex: number): Date {
+  return new Date(year, monthIndex, SEND_DAY_OF_MONTH);
 }
 
-/** True if `date` falls on the last Monday of its own month. */
-export function isLastMondayOfMonth(date: Date): boolean {
-  if (date.getDay() !== 1) return false; // not a Monday
-  const lm = lastMondayOfMonth(date.getFullYear(), date.getMonth());
-  return date.getDate() === lm.getDate();
+/** True if `date` falls on the configured monthly send day. */
+export function isScheduledSendDay(date: Date): boolean {
+  return date.getDate() === SEND_DAY_OF_MONTH;
 }
 
 /**
- * True once `date` is strictly PAST the last Monday of its month — i.e. the monthly send
- * window (and its all-day retries) has fully elapsed. Used by the "missed send" nudge so it
- * only flags a month as missed the day AFTER, never racing the run on the day itself.
+ * True once `date` is strictly PAST the configured send day of its month — i.e. the monthly
+ * send window (and its all-day retries) has fully elapsed. Used by the "missed send" nudge so
+ * it only flags a month as missed the day AFTER, never racing the run on the day itself.
  */
-export function isAfterLastMondayOfMonth(date: Date): boolean {
-  const lm = lastMondayOfMonth(date.getFullYear(), date.getMonth());
-  return date.getDate() > lm.getDate();
+export function isAfterScheduledSendDay(date: Date): boolean {
+  return date.getDate() > SEND_DAY_OF_MONTH;
 }
 
 /**
