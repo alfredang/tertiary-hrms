@@ -4,9 +4,9 @@ import {
   MAX_WINDOW_DAYS,
   coveringRange,
   gapWindows,
-  isAfterLastMondayOfMonth,
-  isLastMondayOfMonth,
-  lastMondayOfMonth,
+  isAfterScheduledSendDay,
+  isScheduledSendDay,
+  scheduledSendDate,
   mergeDateRanges,
   missingWindows,
   monthWindows,
@@ -70,45 +70,43 @@ describe("presetRange", () => {
 
 // ── Monthly scheduler helpers ────────────────────────────────────────────────
 
-describe("lastMondayOfMonth", () => {
-  it("finds the last Monday of July 2026 (27 Jul)", () => {
-    const lm = lastMondayOfMonth(2026, 6); // monthIndex 6 = July
-    expect(lm.getMonth()).toBe(6);
-    expect(lm.getDate()).toBe(27);
-    expect(lm.getDay()).toBe(1); // Monday
+describe("scheduledSendDate", () => {
+  it("is the 15th of July 2026", () => {
+    const sd = scheduledSendDate(2026, 6); // monthIndex 6 = July
+    expect(sd.getMonth()).toBe(6);
+    expect(sd.getDate()).toBe(15);
   });
 
-  it("finds the last Monday of February 2026 (23 Feb)", () => {
-    const lm = lastMondayOfMonth(2026, 1);
-    expect(lm.getDate()).toBe(23);
-    expect(lm.getDay()).toBe(1);
+  it("rolls a monthIndex past December into the next year", () => {
+    const sd = scheduledSendDate(2026, 12); // Jan 2027
+    expect(sd.getFullYear()).toBe(2027);
+    expect(sd.getMonth()).toBe(0);
+    expect(sd.getDate()).toBe(15);
   });
 
-  it("always lands on a Monday within the last 7 days of the month", () => {
+  it("always lands on the 15th of the requested month", () => {
     for (let m = 0; m < 12; m++) {
-      const lm = lastMondayOfMonth(2026, m);
-      const lastDay = new Date(2026, m + 1, 0).getDate();
-      expect(lm.getDay()).toBe(1);
-      expect(lm.getMonth()).toBe(m);
-      expect(lm.getDate()).toBeGreaterThan(lastDay - 7);
+      const sd = scheduledSendDate(2026, m);
+      expect(sd.getMonth()).toBe(m);
+      expect(sd.getDate()).toBe(15);
     }
   });
 });
 
-describe("isLastMondayOfMonth", () => {
-  it("is true only for the actual last Monday", () => {
-    expect(isLastMondayOfMonth(new Date(2026, 6, 27))).toBe(true); // last Monday
-    expect(isLastMondayOfMonth(new Date(2026, 6, 20))).toBe(false); // a Monday, but not the last
-    expect(isLastMondayOfMonth(new Date(2026, 6, 26))).toBe(false); // a Sunday
+describe("isScheduledSendDay", () => {
+  it("is true only on the 15th", () => {
+    expect(isScheduledSendDay(new Date(2026, 6, 15))).toBe(true); // the send day
+    expect(isScheduledSendDay(new Date(2026, 6, 14))).toBe(false); // the day before
+    expect(isScheduledSendDay(new Date(2026, 6, 16))).toBe(false); // the day after
   });
 });
 
-describe("isAfterLastMondayOfMonth", () => {
-  it("is false on or before the last Monday, true after it", () => {
-    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 20))).toBe(false); // before (last Mon = 27)
-    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 27))).toBe(false); // the last Monday itself
-    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 28))).toBe(true); // the day after
-    expect(isAfterLastMondayOfMonth(new Date(2026, 6, 31))).toBe(true); // month-end
+describe("isAfterScheduledSendDay", () => {
+  it("is false on or before the 15th, true after it", () => {
+    expect(isAfterScheduledSendDay(new Date(2026, 6, 14))).toBe(false); // before
+    expect(isAfterScheduledSendDay(new Date(2026, 6, 15))).toBe(false); // the send day itself
+    expect(isAfterScheduledSendDay(new Date(2026, 6, 16))).toBe(true); // the day after
+    expect(isAfterScheduledSendDay(new Date(2026, 6, 31))).toBe(true); // month-end
   });
 });
 

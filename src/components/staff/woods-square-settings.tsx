@@ -7,18 +7,18 @@ import { CalendarClock, Plug, CheckCircle2, XCircle, Loader2, Play } from "lucid
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { lastMondayOfMonth, monthWindows, upcomingMonthOf } from "@/lib/woods-square";
+import { scheduledSendDate, monthWindows, upcomingMonthOf } from "@/lib/woods-square";
 import { WoodsSquareHealthBanner } from "@/components/staff/woods-square-health-banner";
 import { WoodsSquareManageList, Toggle, type ManageStaff } from "@/components/staff/woods-square-manage-list";
 import type { ScheduleConfig } from "@/lib/woods-square-schedule";
 
-/** Next "last Monday of the month" from now, for the production next-run display. */
+/** Next monthly send date (the 15th) from now, for the production next-run display. */
 function nextRunDate(now: Date): Date {
-  const thisMonth = lastMondayOfMonth(now.getFullYear(), now.getMonth());
+  const thisMonth = scheduledSendDate(now.getFullYear(), now.getMonth());
   // The send fires at noon, not midnight — anchor the comparison there so the display
-  // still shows today (not next month) during the morning of the last Monday itself.
+  // still shows today (not next month) during the morning of the send day itself.
   thisMonth.setHours(12, 0, 0, 0);
-  return thisMonth >= now ? thisMonth : lastMondayOfMonth(now.getFullYear(), now.getMonth() + 1);
+  return thisMonth >= now ? thisMonth : scheduledSendDate(now.getFullYear(), now.getMonth() + 1);
 }
 
 /** ISO instant → value for a <input type="datetime-local"> (local wall-clock). */
@@ -304,7 +304,7 @@ export function WoodsSquareSettings({
             <div className="min-w-0">
               <p className="text-sm font-medium text-white">Enable automatic invites</p>
               <p className="mt-0.5 text-xs text-gray-500">
-                On the last Monday of each month at 12:00 PM, send next month&rsquo;s building-access
+                On the 15th of each month at 12:00 PM, send next month&rsquo;s building-access
                 invites — split into 7-day windows.
               </p>
             </div>

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
  * CompanyCredential key/value table (so no schema change is needed) and read/written
  * through this typed wrapper.
  *
- * Production: on the last Monday of each month at noon, the cron sends the UPCOMING
+ * Production: on the 15th of each month at noon, the cron sends the UPCOMING
  * month's invites (split into ≤7-day windows) to the whole roster. Test mode runs the
  * EXACT same upcoming-month logic, but only to `testRecipientId`, fired once `testFireAt`
  * passes — so it mirrors the live run end-to-end without touching everyone.
@@ -19,7 +19,7 @@ export interface ScheduleConfig {
   testRecipientIds: string[];
   /** ISO datetime — the test run fires once the current time passes this. */
   testFireAt: string | null;
-  /** ISO datetime of the last SUCCESSFUL PRODUCTION run (the last-Monday monthly send).
+  /** ISO datetime of the last SUCCESSFUL PRODUCTION run (the 15th-of-month monthly send).
    *  Stamped only when a run completes with no failures; guards the once-per-day fire so a
    *  failed run isn't treated as done and gets retried. Kept SEPARATE from the test
    *  watermark so a same-day test can't make production think it already ran. */
