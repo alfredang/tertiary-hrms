@@ -15,6 +15,9 @@ import type { ScheduleConfig } from "@/lib/woods-square-schedule";
 /** Next "last Monday of the month" from now, for the production next-run display. */
 function nextRunDate(now: Date): Date {
   const thisMonth = lastMondayOfMonth(now.getFullYear(), now.getMonth());
+  // The send fires at noon, not midnight — anchor the comparison there so the display
+  // still shows today (not next month) during the morning of the last Monday itself.
+  thisMonth.setHours(12, 0, 0, 0);
   return thisMonth >= now ? thisMonth : lastMondayOfMonth(now.getFullYear(), now.getMonth() + 1);
 }
 
