@@ -1,3 +1,0 @@
-app_identifier("com.tertiaryinfotech.hrms")
-apple_id(ENV["APPLE_ID"] || "angchewhoe@gmail.com")
-team_id(ENV["APPLE_TEAM_ID"] || "GU9WTSTX9M")

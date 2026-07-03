@@ -1,5 +1,8 @@
-import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+
+// Use the global Web Crypto (Node 18+ and every runtime) instead of importing the Node
+// "crypto" builtin — so this module bundles cleanly wherever it's pulled in.
+const randomUUID = () => globalThis.crypto.randomUUID();
 
 /**
  * Cross-instance mutex backed by the `ProcessLock` table.
@@ -27,6 +30,27 @@ export async function acquireLock(key: string, ttlMs: number): Promise<string | 
     RETURNING "holder"
   `;
   return rows.length > 0 ? holder : null;
+}
+
+/**
+ * Read whether `key` is currently held by a LIVE holder (one whose TTL hasn't lapsed).
+ * Read-only — never mutates the lock. A crashed holder past its TTL reads as not-running,
+ * matching what the next `acquireLock` would see. Returns `{ running: false }` on any DB
+ * error so callers (e.g. a UI status poll) fail open rather than wedge.
+ */
+export async function getLockStatus(
+  key: string,
+): Promise<{ running: boolean; since: Date | null }> {
+  try {
+    const now = new Date();
+    const row = await prisma.processLock.findFirst({
+      where: { key, expiresAt: { gt: now } },
+      select: { acquiredAt: true },
+    });
+    return row ? { running: true, since: row.acquiredAt } : { running: false, since: null };
+  } catch {
+    return { running: false, since: null };
+  }
 }
 
 /** Release `key`, but only if we still hold it (guards against reclaiming a lock

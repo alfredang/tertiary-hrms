@@ -5,11 +5,10 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![Prisma](https://img.shields.io/badge/Prisma-6.2-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
-[![Capacitor](https://img.shields.io/badge/Capacitor-8.0-119EFF?style=flat-square&logo=capacitorjs)](https://capacitorjs.com/)
 [![Coolify](https://img.shields.io/badge/Coolify-Self--Hosted-purple?style=flat-square)](https://coolify.io/)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
 
-A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. Cross-platform (Web, iOS, Android) with role-based access control, employee management, leave tracking with monthly accrual proration, payroll processing with Singapore CPF calculations, expense claims, Google OAuth, and an intelligent AI chatbot assistant.
+A comprehensive, AI-powered Human Resource Management System built for **Tertiary Infotech Academy Pte Ltd**. A Next.js web application with role-based access control, employee management, leave tracking with monthly accrual proration, payroll processing with Singapore CPF calculations, expense claims, Google OAuth, and an intelligent AI chatbot assistant.
 
 <p align="center">
   <a href="https://hrms.tertiaryinfo.tech"><strong>Live Demo</strong></a> ·
@@ -33,16 +32,14 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
 │  └───────────────────────────────────────────────┘  │
 └─────────────────────┬───────────────────────────────┘
                       │
-        ┌─────────────┼─────────────┐
-        │             │             │
-   ┌────┴────┐  ┌─────┴────┐  ┌────┴────┐
-   │   Web   │  │   iOS    │  │ Android │
-   │ Browser │  │ WebView  │  │ WebView │
-   │  (PWA)  │  │(Capacitor│  │(Capacitor│
-   └─────────┘  └──────────┘  └─────────┘
+                 ┌────┴────┐
+                 │   Web   │
+                 │ Browser │
+                 │  (PWA)  │
+                 └─────────┘
 ```
 
-The native apps load the deployed URL inside a WebView via Capacitor, sharing a **single codebase** across all platforms.
+A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ---
 
@@ -81,7 +78,6 @@ Recent additions (May 2026):
 ### Authentication & Authorization
 - **Credentials login** (email/password) with bcrypt password hashing
 - **Google OAuth** social login via NextAuth v5 (Auth.js)
-- **Native mobile Google Sign-In** via Capacitor plugin — verifies Google ID token server-side, creates NextAuth-compatible JWT session
 - Role-based access control: **Admin**, **HR**, **Manager**, **Staff**
 - Admin/Staff **view toggle** — admins can switch between management and personal views
 - JWT-based sessions with automatic role and employee data refresh
@@ -184,15 +180,11 @@ Recent additions (May 2026):
 ### Privacy Policy
 - Publicly accessible at `/privacy-policy` (no authentication required)
 - Covers data collection, usage, third-party sharing, retention, and account deletion
-- Compliant with Google Play Store and Apple App Store requirements
 - Linked from login page footer
 
-### Cross-Platform Mobile
+### Progressive Web App
 - **PWA** — installable from browser on any device
-- **iOS** — native shell via Capacitor with status bar integration
-- **Android** — native shell via Capacitor with status bar integration and Google Auth plugin
-- **Native Google Sign-In** — Capacitor Google Auth plugin for seamless mobile authentication
-- Mobile hamburger menu + bottom tab navigation
+- Responsive layout with mobile hamburger menu + bottom tab navigation
 - Safe area support for notched devices
 
 ---
@@ -220,7 +212,6 @@ Recent additions (May 2026):
 | **AI/LLM** | AI SDK (Gemini, OpenAI, Anthropic) |
 | **CPF Calculator** | decimal.js for precise Singapore CPF calculations |
 | **Excel Parsing** | exceljs for payroll upload |
-| **Mobile** | Capacitor 8 (iOS + Android) |
 | **PDF** | jsPDF + jspdf-autotable |
 | **Testing** | Vitest + Playwright |
 | **Deployment** | Coolify (self-hosted) |
@@ -359,46 +350,6 @@ npx dotenv-cli -e .env.local -- npx tsx scripts/setup-test-salary.ts
 
 ---
 
-## Mobile Development
-
-The native apps use Capacitor to wrap the web app in a native shell. The Android build includes the Google Auth plugin for native sign-in.
-
-### iOS
-
-```bash
-npm run cap:sync        # Sync web assets to native
-npm run cap:open:ios    # Open Xcode project
-```
-
-Build and run from Xcode on a simulator or device.
-
-### Android
-
-```bash
-npm run cap:sync          # Sync web assets to native
-npm run cap:open:android  # Open Android Studio project
-```
-
-Build and run from Android Studio on an emulator or device.
-
-### Google Auth Plugin (Native Mobile)
-
-The Capacitor Google Auth plugin (`@codetrix-studio/capacitor-google-auth`) is configured in `capacitor.config.ts`. The config loads `.env.local` via dotenv at sync time. Requires:
-- `GOOGLE_CLIENT_ID` env var (web client ID — used as `serverClientId`)
-- `GOOGLE_ANDROID_CLIENT_ID` env var (Android client ID)
-- Android: SHA-1 fingerprint registered in Google Cloud Console
-- iOS: Bundle ID registered in Google Cloud Console
-
-### Development Workflow
-
-1. Make web changes with `npm run dev` — test in browser
-2. Run `npm run cap:sync` to sync to native platforms
-3. Build and test in Xcode / Android Studio
-
-> **Note:** The native apps load the configured server URL by default. For local development, update `server.url` in `capacitor.config.ts` to your local IP.
-
----
-
 ## Project Structure
 
 ```
@@ -436,7 +387,7 @@ tertiary-hrms/
 │   │   │   ├── settings/          # System settings (admin only)
 │   │   │   └── pending-setup/     # OAuth user pending setup page
 │   │   └── api/                   # API routes
-│   │       ├── auth/              # NextAuth endpoints + mobile Google Sign-In
+│   │       ├── auth/              # NextAuth endpoints
 │   │       ├── employees/         # Employee CRUD
 │   │       ├── leave/             # Leave request + approval
 │   │       ├── expenses/          # Expense claim + approval
@@ -465,18 +416,10 @@ tertiary-hrms/
 │   │   ├── company-settings.ts    # Helper to load CompanySettings branding
 │   │   └── validations/           # Zod schemas
 │   └── middleware.ts              # Auth guard + needsSetup redirect
-├── mobile/                        # Everything mobile-related (Capacitor)
-│   ├── ios/                       # Capacitor iOS project (Xcode workspace)
-│   ├── android/                   # Capacitor Android project (Gradle)
-│   ├── resources/                 # Splash + icon source images
-│   ├── screenshots/               # App Store / Play Store listing screenshots
-│   └── scripts/                   # Screenshot capture + splash generation
-├── fastlane/                      # iOS Fastlane lanes (TestFlight)
-├── public/
-│   ├── manifest.json              # PWA manifest
-│   ├── sw.js                      # Service worker
-│   └── icons/                     # App icons
-└── capacitor.config.ts            # Capacitor config (points to mobile/ios + mobile/android)
+└── public/
+    ├── manifest.json              # PWA manifest
+    ├── sw.js                      # Service worker
+    └── icons/                     # App icons
 ```
 
 ---
@@ -495,9 +438,6 @@ tertiary-hrms/
 | `TEST_ENV=production npx playwright test` | Run e2e tests against production |
 | `npm run db:push` | Push Prisma schema to database |
 | `npm run db:seed` | Seed database with sample data |
-| `npm run cap:sync` | Sync web to native platforms |
-| `npm run cap:open:ios` | Open Xcode project |
-| `npm run cap:open:android` | Open Android Studio project |
 
 ---
 
@@ -506,18 +446,6 @@ tertiary-hrms/
 ### Web (Coolify — Self-Hosted)
 
 Deployed on Coolify with Traefik reverse proxy at [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech). Auto-deploys on `git push` to `main`. Database is PostgreSQL on Coolify.
-
-### iOS (App Store)
-
-1. Open in Xcode: `npm run cap:open:ios`
-2. Set signing team and bundle ID
-3. Archive and submit to App Store Connect
-
-### Android (Play Store)
-
-1. Open in Android Studio: `npm run cap:open:android`
-2. Generate signed APK/AAB
-3. Upload to Google Play Console
 
 ---
 

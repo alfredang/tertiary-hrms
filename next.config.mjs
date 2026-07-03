@@ -25,7 +25,7 @@ const nextConfig = {
   },
   experimental: {
     instrumentationHook: true,
-    serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist"],
+    serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist", "playwright", "playwright-core"],
     // Dramatically reduces cold-start compile time by tree-shaking icon/component libraries
     optimizePackageImports: [
       'lucide-react',

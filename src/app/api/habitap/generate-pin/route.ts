@@ -5,25 +5,16 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
-import {
-  generateStaffInvites,
-  getHabitapCredentials,
-  type StaffInvitee,
-} from "@/lib/habitap";
-import { withLock } from "@/lib/process-lock";
 import { HABITAP_DATE_FMT, MAX_WINDOW_DAYS } from "@/lib/woods-square";
+import { resolveInvitees, runWoodsSquareSendGapAware } from "@/lib/woods-square-send";
 
 // Playwright needs the Node runtime and time to drive a real browser.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
-
-// Single-flight guard, backed by a DB lock so it holds across server instances —
-// two clicks (even on different instances) can't spin up two Chromium processes
-// and spike memory or create duplicate events. TTL sits just past maxDuration so a
-// crashed send's lock auto-frees shortly after the request would have been killed.
-const SEND_LOCK_KEY = "woods-square-send";
-const SEND_LOCK_TTL_MS = 360_000;
+// 600s — matches the cron/run-now routes and sits UNDER the 660s send-lock TTL, so a big
+// "Invite All" with fragmented coverage finishes and releases the lock cleanly instead of
+// being killed at 300s mid-send (which wedged the lock ~11 min, blocking all sends). (#6)
+export const maxDuration = 600;
 
 async function requireAdmin() {
   if (isDevAuthSkipped()) return true;
@@ -63,15 +54,34 @@ const eventWindowSchema = z
         message: `Window must be ${MAX_WINDOW_DAYS} days or fewer.`,
       });
     }
+    // Reject a window that's already fully in the past (e.g. inviting a stale request) —
+    // Habitap rejects past dates, so catch it here with a clean error instead of a failed
+    // automation run. "Today" is pinned to Singapore time to match the date pickers.
+    const todayStart = parseISO(
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore" }).format(new Date()),
+    );
+    if (isValid(to) && to < todayStart) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "This access window has already passed." });
+    }
   });
 
 const generatePinSchema = z.object({
-  /** Specific employee ids to invite. Omit to invite all ACTIVE staff with an email. */
-  staffIds: z.array(z.string()).optional(),
+  /**
+   * Employee ids to invite — REQUIRED and non-empty. There is deliberately no
+   * "omit to invite everyone" fallback: a missing list must never silently fan a
+   * real building-access PIN out to all staff. Callers always pass an explicit set.
+   */
+  staffIds: z.array(z.string().min(1)).min(1, "Select at least one staff member to invite."),
   /** Event date/time window — required unless dryRun. */
   window: eventWindowSchema.optional(),
   /** When true, resolve the staff list and echo it back without touching Habitap. */
   dryRun: z.boolean().optional(),
+  /**
+   * Resend an already-issued PIN to a staffer who lost theirs. Skips the
+   * containment dedup (which would otherwise mark an already-covered window
+   * SKIPPED and send nothing), so the invite email actually goes back out.
+   */
+  resend: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -88,26 +98,15 @@ export async function POST(req: NextRequest) {
   }
   const body = parsed.data;
 
-  // Resolve the staff batch.
-  const employees = await prisma.employee.findMany({
-    where: {
-      email: { not: "" },
-      ...(body.staffIds?.length ? { id: { in: body.staffIds } } : { status: "ACTIVE" }),
-    },
-    select: { id: true, name: true, email: true },
-    orderBy: { name: "asc" },
-  });
-
-  const invitees: (StaffInvitee & { id: string })[] = employees
-    .filter((e) => e.email && !e.email.includes(".noemail@"))
-    .map((e) => ({ id: e.id, name: e.name, email: e.email }));
-
-  if (invitees.length === 0) {
-    return NextResponse.json({ error: "No staff with an email address matched." }, { status: 400 });
-  }
-
-  // Dry run: preview who would be invited without writing to Habitap.
+  // Dry run: preview who would actually be invited, without touching Habitap.
   if (body.dryRun) {
+    const invitees = await resolveInvitees(body.staffIds);
+    if (invitees.length === 0) {
+      return NextResponse.json(
+        { error: "No matching staff on the Woods Square invite roster." },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({
       dryRun: true,
       count: invitees.length,
@@ -115,184 +114,22 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const win = body.window;
-  if (!win) {
+  if (!body.window) {
     return NextResponse.json({ error: "Missing event window (dates/times)." }, { status: 400 });
   }
 
-  const creds = await getHabitapCredentials();
-  if (!creds) {
-    return NextResponse.json(
-      { error: "Woods Square credentials not set. Add HABITAP_USERNAME / HABITAP_PASSWORD in Settings → Credentials." },
-      { status: 400 },
-    );
-  }
-
-  // Dedup: skip staff only when the requested window is ALREADY FULLY COVERED by an
-  // existing invite (containment) — so re-sending the same/subset window is blocked,
-  // but extending it (e.g. 1 Jul → 1–3 Jul) is allowed through.
-  const DATE_FMT = HABITAP_DATE_FMT;
-  const reqFrom = parse(win.fromDate, DATE_FMT, new Date());
-  const reqTo = parse(win.toDate, DATE_FMT, new Date());
-  const priorSent = await prisma.habitapInviteLog.findMany({
-    where: { status: "SENT", email: { in: invitees.map((i) => i.email) } },
-    select: { email: true, fromDate: true, toDate: true },
+  // Hand off to the shared gap-aware send (same path the scheduler uses): each person
+  // gets only the missing sub-windows of the requested range, never an overlapping PIN.
+  const outcome = await runWoodsSquareSendGapAware({
+    staffIds: body.staffIds,
+    window: body.window,
+    resend: body.resend,
   });
-  // First existing window that fully covers the request becomes the "conflict".
-  // Keyed by lowercased email so a case difference between the log and the
-  // employee record can't slip a duplicate past the dedup.
-  const conflictByEmail = new Map<string, { from: string; to: string }>();
-  for (const p of priorSent) {
-    const key = p.email.toLowerCase();
-    if (conflictByEmail.has(key)) continue;
-    const existFrom = parse(p.fromDate, DATE_FMT, new Date());
-    const existTo = parse(p.toDate, DATE_FMT, new Date());
-    if (existFrom <= reqFrom && existTo >= reqTo) {
-      conflictByEmail.set(key, { from: p.fromDate, to: p.toDate });
-    }
+  if (!outcome.ok) {
+    return NextResponse.json({ error: outcome.error }, { status: outcome.status });
   }
-  const toInvite = invitees.filter((i) => !conflictByEmail.has(i.email.toLowerCase()));
-  const skippedInvitees = invitees.filter((i) => conflictByEmail.has(i.email.toLowerCase()));
-  const skipped = skippedInvitees.map(({ name, email }) => {
-    const c = conflictByEmail.get(email.toLowerCase())!;
-    return { name, email, existingFrom: c.from, existingTo: c.to };
-  });
-
-  // Record skipped attempts in the log so there's a trail of blocked sends.
-  if (skippedInvitees.length > 0) {
-    await prisma.habitapInviteLog.createMany({
-      data: skippedInvitees.map((i) => {
-        const c = conflictByEmail.get(i.email.toLowerCase())!;
-        return {
-          employeeId: i.id,
-          name: i.name,
-          email: i.email,
-          eventId: null,
-          fromDate: win.fromDate,
-          toDate: win.toDate,
-          status: "SKIPPED",
-          error: `Already covered by ${c.from} – ${c.to}`,
-        };
-      }),
-    });
-  }
-
-  if (toInvite.length === 0) {
-    return NextResponse.json({
-      eventId: null,
-      invitedCount: 0,
-      failedCount: 0,
-      skippedCount: skipped.length,
-      skipped,
-      failed: [],
-    });
-  }
-
-  let send;
-  try {
-    send = await withLock(SEND_LOCK_KEY, SEND_LOCK_TTL_MS, () =>
-      generateStaffInvites(creds, toInvite, win),
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: `Woods Square automation failed: ${message}` }, { status: 502 });
-  }
-  if (!send.ran) {
-    return NextResponse.json(
-      { error: "A Woods Square send is already running. Please wait a moment and try again." },
-      { status: 409 },
-    );
-  }
-  const result = send.result;
-
-  // Stamp invited employees (match back by email).
-  const invitedAt = new Date();
-  const byEmail = new Map(toInvite.map((i) => [i.email, i.id]));
-  await Promise.all(
-    result.invited.map((i) => {
-      const id = byEmail.get(i.email);
-      if (!id) return Promise.resolve();
-      return prisma.employee.update({
-        where: { id },
-        data: { habitapInviteAt: invitedAt, habitapEventId: result.eventId },
-      });
-    }),
-  );
-
-  // Write a log row per invitee (sent + failed).
-  await prisma.habitapInviteLog.createMany({
-    data: [
-      ...result.invited.map((i) => ({
-        employeeId: byEmail.get(i.email) ?? null,
-        name: i.name,
-        email: i.email,
-        eventId: result.eventId,
-        fromDate: win.fromDate,
-        toDate: win.toDate,
-        status: "SENT",
-      })),
-      ...result.failed.map((f) => ({
-        employeeId: byEmail.get(f.invitee.email) ?? null,
-        name: f.invitee.name,
-        email: f.invitee.email,
-        eventId: result.eventId,
-        fromDate: win.fromDate,
-        toDate: win.toDate,
-        status: "FAILED",
-        error: f.error,
-      })),
-    ],
-  });
-
-  // Notify every invited staff member (check email for PIN), and close any pending requests.
-  const invitedIds = result.invited
-    .map((i) => byEmail.get(i.email))
-    .filter((id): id is string => Boolean(id));
-  if (invitedIds.length > 0) {
-    const emps = await prisma.employee.findMany({
-      where: { id: { in: invitedIds } },
-      select: { userId: true },
-    });
-    await prisma.notification.createMany({
-      data: emps.map((e) => ({
-        userId: e.userId,
-        title: "Woods Square Access Approved",
-        message: `Your building access for ${win.fromDate} – ${win.toDate} was approved — check your email for the PIN.`,
-        type: "INFO",
-        link: "/profile",
-      })),
-    });
-    // Only close pending requests this send actually satisfies: a request with
-    // no specific dates is fulfilled by any grant; a dated request only if the
-    // sent window fully covers it. Other pending requests stay open.
-    const pendingReqs = await prisma.accessRequest.findMany({
-      where: { status: "PENDING", employeeId: { in: invitedIds } },
-      select: { id: true, fromDate: true, toDate: true },
-    });
-    const sentFrom = parse(win.fromDate, DATE_FMT, new Date());
-    const sentTo = parse(win.toDate, DATE_FMT, new Date());
-    const coveredIds = pendingReqs
-      .filter((r) => {
-        if (!r.fromDate || !r.toDate) return true;
-        return sentFrom <= parseISO(r.fromDate) && sentTo >= parseISO(r.toDate);
-      })
-      .map((r) => r.id);
-    if (coveredIds.length > 0) {
-      await prisma.accessRequest.updateMany({
-        where: { id: { in: coveredIds } },
-        data: { status: "FULFILLED", resolvedAt: invitedAt },
-      });
-    }
-  }
-
-  return NextResponse.json({
-    eventId: result.eventId,
-    invitedCount: result.invited.length,
-    failedCount: result.failed.length,
-    skippedCount: skipped.length,
-    skipped,
-    failed: result.failed,
-  });
+  const { ok: _ok, ...result } = outcome;
+  return NextResponse.json(result);
 }
 
 export async function GET() {

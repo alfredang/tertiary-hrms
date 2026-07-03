@@ -48,6 +48,7 @@ type NavItem = {
   financeOnly?: true;
   hideForIntern?: true;
   staffOnly?: true;   // visible only in staff/intern view (hidden for admin + accountant)
+  allowAccountant?: true; // exception: a staffOnly item that should ALSO show in accountant view
   children?: Child[];
 };
 
@@ -88,6 +89,7 @@ const navigation: NavItem[] = [
   { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
   { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
   { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
+  { name: "Woods Square Access", href: "/woods-square-access", icon: KeyRound, staffOnly: true as const, allowAccountant: true as const },
   {
     name: "Settings",
     href: "/settings",
@@ -197,7 +199,12 @@ export function Sidebar({
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
             if ("hideForIntern" in item && item.hideForIntern && isInternView) return null;
-            if ("staffOnly" in item && item.staffOnly && (isAdmin || isAccountantView)) return null;
+            if (
+              "staffOnly" in item &&
+              item.staffOnly &&
+              (isAdmin || (isAccountantView && !("allowAccountant" in item && item.allowAccountant)))
+            )
+              return null;
             return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} isAdmin={isAdmin} />;
           })}
         </ul>
