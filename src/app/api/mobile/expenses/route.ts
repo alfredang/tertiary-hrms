@@ -39,6 +39,7 @@ export async function GET() {
       expenseDate: iso(c.expenseDate),
       status: c.status,
       receiptUrl: c.receiptUrl,
+      driveWebViewLink: c.driveWebViewLink,
       approver: c.approver?.name ?? null,
       approvedAt: iso(c.approvedAt),
       rejectionReason: c.rejectionReason,
