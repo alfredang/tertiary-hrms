@@ -35,6 +35,7 @@ export async function GET() {
       amount: num(c.amount),
       currency: c.currency,
       category: c.category?.name ?? null,
+      categoryCode: c.category?.code ?? null,
       expenseDate: iso(c.expenseDate),
       status: c.status,
       receiptUrl: c.receiptUrl,

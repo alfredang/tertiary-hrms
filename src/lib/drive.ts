@@ -87,6 +87,16 @@ export async function getEmployeeSubfolderId(
   return findFolderByName(drive, subfolderName, folderId);
 }
 
+export async function getOrCreateEmployeeSubfolderId(
+  employeeId: string,
+  subfolderName: string,
+): Promise<string | null> {
+  const folderId = await getOrAssignEmployeeFolderId(employeeId);
+  if (!folderId) return null;
+  const drive = await getDriveClient();
+  return findOrCreateFolder(drive, subfolderName, folderId);
+}
+
 export async function uploadPdfToFolder(
   folderId: string,
   fileName: string,
