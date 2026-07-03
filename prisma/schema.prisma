@@ -111,7 +111,8 @@ model Employee {
   otWorkLogs       OtWorkLog[]
   payslips         Payslip[]
   salaryInfo       SalaryInfo?
-  timesheetEntries TimesheetEntry[]
+  timesheetEntries  TimesheetEntry[]
+  attendancePunches AttendancePunch[]
   accessRequests   AccessRequest[]
 }
 
@@ -495,6 +496,20 @@ model TimesheetEntry {
   adminComment      String?
   status            String   @default("PENDING")
   employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+model AttendancePunch {
+  id         String    @id @default(cuid())
+  employeeId String
+  date       DateTime  @db.Date
+  clockIn    DateTime?
+  clockOut   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, date])
   @@index([employeeId])
