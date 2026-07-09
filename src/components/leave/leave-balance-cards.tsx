@@ -118,7 +118,7 @@ function buildBreakdown(
 }
 
 function formatPeriod(start: Date, end: Date): string {
-  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Singapore" };
   return `${start.toLocaleDateString("en-SG", opts)} – ${end.toLocaleDateString("en-SG", opts)}`;
 }
 

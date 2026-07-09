@@ -74,7 +74,8 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-800 bg-gray-950 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 shrink-0 border-b border-gray-800 bg-gray-950 shadow-sm" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+      <div className="flex h-16 items-center gap-x-4 px-4 sm:gap-x-6 sm:px-6 lg:px-8">
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <div className="flex items-center gap-x-3">
           <MobileSidebar fallbackName={fallbackName} fallbackEmail={fallbackEmail} companyShortName={companyShortName} companyLogo={companyLogo} />
@@ -127,6 +128,7 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
       </div>
     </header>
   );
