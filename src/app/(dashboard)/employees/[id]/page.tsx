@@ -12,6 +12,7 @@ import { StaffCompensationCard } from "@/components/employees/staff-compensation
 import { ManagersCard } from "@/components/employees/managers-card";
 import { AdminOtLogPanel } from "@/components/employees/admin-ot-log-panel";
 import { LeaveBalanceEditDialog } from "@/components/employees/leave-balance-edit-dialog";
+import { ResetPasswordButton } from "@/components/employees/reset-password-button";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
@@ -117,6 +118,11 @@ export default async function EmployeeDetailPage({
 
   return (
     <div className="space-y-6">
+      {isAdmin && (
+        <div className="flex justify-end">
+          <ResetPasswordButton employeeId={employee.id} employeeName={employee.name} />
+        </div>
+      )}
       <EmployeeDetailEditable employee={employee} departments={departments} canEdit={canEdit} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

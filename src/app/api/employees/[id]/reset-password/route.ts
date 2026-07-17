@@ -35,13 +35,7 @@ export async function POST(
       );
     }
 
-    const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD;
-    if (!defaultPassword) {
-      return NextResponse.json(
-        { error: "Default password not configured on server" },
-        { status: 500 }
-      );
-    }
+    const defaultPassword = process.env.DEFAULT_EMPLOYEE_PASSWORD || "Password123";
     const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
     await prisma.user.update({
