@@ -185,7 +185,8 @@ export default async function EmployeeDetailPage({
                     const allocation = isAL
                       ? prorateLeave(Number(balance.entitlement), employee.startDate ?? undefined, monthlyLeaveRate, true)
                       : Number(balance.entitlement);
-                    const totalBalance = allocation + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
+                    const earned = Number(balance.earned ?? 0);
+                    const totalBalance = allocation + earned + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
                     return (
                       <div key={balance.id} className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -217,6 +218,12 @@ export default async function EmployeeDetailPage({
                               <span className="text-cyan-400 font-medium">
                                 {allocation} days <span className="text-gray-500 text-xs">(prorated)</span>
                               </span>
+                            </div>
+                          )}
+                          {earned > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Earned (OT):</span>
+                              <span className="text-emerald-400 font-medium">+{earned} days</span>
                             </div>
                           )}
                           {Number(balance.carriedOver) > 0 && (
