@@ -15,6 +15,7 @@ interface Props {
   leaveTypeCode: string;
   currentEntitlement: number;
   currentCarriedOver: number;
+  currentUsed: number;
 }
 
 export function LeaveBalanceEditDialog({
@@ -24,17 +25,20 @@ export function LeaveBalanceEditDialog({
   leaveTypeCode,
   currentEntitlement,
   currentCarriedOver,
+  currentUsed,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [entitlement, setEntitlement] = useState(String(currentEntitlement));
   const [carriedOver, setCarriedOver] = useState(String(currentCarriedOver));
+  const [used, setUsed] = useState(String(currentUsed));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleOpen = () => {
     setEntitlement(String(currentEntitlement));
     setCarriedOver(String(currentCarriedOver));
+    setUsed(String(currentUsed));
     setError(null);
     setOpen(true);
   };
@@ -42,6 +46,7 @@ export function LeaveBalanceEditDialog({
   const handleSave = async () => {
     const entitlementNum = parseFloat(entitlement);
     const carriedOverNum = parseFloat(carriedOver);
+    const usedNum = parseFloat(used);
 
     if (isNaN(entitlementNum) || entitlementNum < 0) {
       setError("Entitlement must be a valid non-negative number.");
@@ -49,6 +54,10 @@ export function LeaveBalanceEditDialog({
     }
     if (isNaN(carriedOverNum) || carriedOverNum < 0) {
       setError("Carried over must be a valid non-negative number.");
+      return;
+    }
+    if (isNaN(usedNum) || usedNum < 0) {
+      setError("Used days must be a valid non-negative number.");
       return;
     }
 
@@ -62,6 +71,7 @@ export function LeaveBalanceEditDialog({
           leaveBalanceId,
           entitlement: entitlementNum,
           carriedOver: carriedOverNum,
+          used: usedNum,
         }),
       });
       if (!res.ok) {
@@ -124,6 +134,17 @@ export function LeaveBalanceEditDialog({
                   step={0.5}
                   value={carriedOver}
                   onChange={(e) => setCarriedOver(e.target.value)}
+                  className="bg-gray-900 border-gray-700 text-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-gray-300">Used (days)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={used}
+                  onChange={(e) => setUsed(e.target.value)}
                   className="bg-gray-900 border-gray-700 text-white"
                 />
               </div>

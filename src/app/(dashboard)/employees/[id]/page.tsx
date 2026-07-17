@@ -202,6 +202,7 @@ export default async function EmployeeDetailPage({
                               leaveTypeCode={balance.leaveType.code}
                               currentEntitlement={Number(balance.entitlement)}
                               currentCarriedOver={Number(balance.carriedOver)}
+                              currentUsed={Number(balance.used)}
                             />
                           </div>
                         </div>

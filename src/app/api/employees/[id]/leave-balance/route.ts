@@ -19,13 +19,16 @@ export async function PATCH(
 
   const { id: employeeId } = await params;
   const body = await req.json();
-  const { leaveBalanceId, entitlement, carriedOver } = body;
+  const { leaveBalanceId, entitlement, carriedOver, used } = body;
 
   if (!leaveBalanceId || entitlement === undefined)
     return NextResponse.json({ error: "leaveBalanceId and entitlement are required" }, { status: 400 });
 
   if (typeof entitlement !== "number" || entitlement < 0)
     return NextResponse.json({ error: "entitlement must be a non-negative number" }, { status: 400 });
+
+  if (used !== undefined && (typeof used !== "number" || used < 0))
+    return NextResponse.json({ error: "used must be a non-negative number" }, { status: 400 });
 
   const balance = await prisma.leaveBalance.findFirst({
     where: { id: leaveBalanceId, employeeId },
@@ -39,6 +42,7 @@ export async function PATCH(
     data: {
       entitlement,
       ...(carriedOver !== undefined && { carriedOver }),
+      ...(used !== undefined && { used }),
       updatedAt: new Date(),
     },
     include: { leaveType: true },
