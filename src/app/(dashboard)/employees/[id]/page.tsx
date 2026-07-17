@@ -11,6 +11,7 @@ import { InternCompensationCard } from "@/components/employees/intern-compensati
 import { StaffCompensationCard } from "@/components/employees/staff-compensation-card";
 import { ManagersCard } from "@/components/employees/managers-card";
 import { AdminOtLogPanel } from "@/components/employees/admin-ot-log-panel";
+import { LeaveBalanceEditDialog } from "@/components/employees/leave-balance-edit-dialog";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export const dynamic = 'force-dynamic';
@@ -189,9 +190,19 @@ export default async function EmployeeDetailPage({
                       <div key={balance.id} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="font-medium text-white">{balance.leaveType.name}</p>
-                          <Badge variant="outline" className="text-gray-400 border-gray-700">
-                            {balance.leaveType.code}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="outline" className="text-gray-400 border-gray-700">
+                              {balance.leaveType.code}
+                            </Badge>
+                            <LeaveBalanceEditDialog
+                              employeeId={employee.id}
+                              leaveBalanceId={balance.id}
+                              leaveTypeName={balance.leaveType.name}
+                              leaveTypeCode={balance.leaveType.code}
+                              currentEntitlement={Number(balance.entitlement)}
+                              currentCarriedOver={Number(balance.carriedOver)}
+                            />
+                          </div>
                         </div>
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
