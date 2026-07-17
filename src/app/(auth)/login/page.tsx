@@ -102,6 +102,7 @@ function LoginForm() {
       setError("Please enter a valid email address.");
       return;
     }
+    if (isLoading) return;
     setError("");
     setIsLoading(true);
 
@@ -159,11 +160,13 @@ function LoginForm() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     setIsLoading(true);
     try {
       const result = await signIn("otp", { email, otp, redirect: false });
       if (result?.error) {
-        setError("Invalid or expired OTP. Please try again or request a new one.");
+        setError("Invalid or expired OTP. Please request a new one.");
+        setOtp("");
         setIsLoading(false);
       } else {
         window.location.href = "/dashboard";
