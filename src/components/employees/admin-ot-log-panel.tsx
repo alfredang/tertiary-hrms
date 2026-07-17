@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Loader2, Calendar } from "lucide-react";
+import { Plus, Loader2, Calendar, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface OtLog {
@@ -40,6 +40,7 @@ export function AdminOtLogPanel({ employeeId }: Props) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [date, setDate] = useState("");
   const [type, setType] = useState("WEEKEND");
@@ -60,6 +61,17 @@ export function AdminOtLogPanel({ employeeId }: Props) {
   }, [employeeId]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remove this OT entry? The Off In Lieu balance will be recalculated.")) return;
+    setDeletingId(id);
+    try {
+      await fetch(`/api/ot-log?id=${id}`, { method: "DELETE" });
+      await fetchLogs();
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +192,21 @@ export function AdminOtLogPanel({ employeeId }: Props) {
                 {log.note && <p className="text-xs text-gray-400 mt-0.5">{log.note}</p>}
                 {log.recordedBy && <p className="text-[10px] text-gray-600 mt-0.5">Recorded by {log.recordedBy}</p>}
               </div>
-              <span className="text-sm font-bold text-emerald-400 shrink-0">+{log.daysEarned}d</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-bold text-emerald-400">+{log.daysEarned}d</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-gray-600 hover:text-red-400"
+                  onClick={() => handleDelete(log.id)}
+                  disabled={deletingId === log.id}
+                  title="Remove entry"
+                >
+                  {deletingId === log.id
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Trash2 className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
             </div>
           ))}
         </div>

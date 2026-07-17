@@ -36,6 +36,43 @@ export async function GET(req: Request) {
   );
 }
 
+export async function DELETE(req: Request) {
+  const session = await auth();
+  if (!session?.user || !hasAdminAccess(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+
+  const log = await prisma.otWorkLog.findUnique({ where: { id } });
+  if (!log) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const currentYear = new Date(log.date).getFullYear();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.otWorkLog.delete({ where: { id } });
+
+    const alOtType = await tx.leaveType.findUnique({ where: { code: "AL_OT" } });
+    if (alOtType) {
+      const yearStart = new Date(Date.UTC(currentYear, 0, 1));
+      const yearEnd   = new Date(Date.UTC(currentYear + 1, 0, 1));
+      const remaining = await tx.otWorkLog.findMany({
+        where: { employeeId: log.employeeId, date: { gte: yearStart, lt: yearEnd } },
+        select: { daysEarned: true },
+      });
+      const recalcEarned = remaining.reduce((sum, l) => sum + Number(l.daysEarned), 0);
+      await tx.leaveBalance.updateMany({
+        where: { employeeId: log.employeeId, leaveTypeId: alOtType.id, year: currentYear },
+        data: { earned: recalcEarned },
+      });
+    }
+  });
+
+  return NextResponse.json({ success: true });
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user || !hasAdminAccess(session.user.role)) {
