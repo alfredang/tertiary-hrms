@@ -136,9 +136,17 @@ export async function GET() {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Scope to the last 12 months rather than a flat newest-N cap: the Overview
+  // coverage calendar needs a full month of SENT windows to render, and a 15-person
+  // roster burns ~75 rows/month, so a small take (e.g. 100) silently truncated the
+  // early-month windows of older months. A 12-month window keeps every recent month
+  // whole while still bounding the query; the high take is just a safety backstop.
+  const since = new Date();
+  since.setMonth(since.getMonth() - 12);
   const logs = await prisma.habitapInviteLog.findMany({
+    where: { createdAt: { gte: since } },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: 5000,
   });
   // Attach each logged staff member's roles (the log has no Employee relation).
   const ids = Array.from(new Set(logs.map((l) => l.employeeId).filter((x): x is string => Boolean(x))));
