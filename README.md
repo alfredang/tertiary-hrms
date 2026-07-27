@@ -54,9 +54,8 @@ Recent additions (July 2026):
 - **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
   - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
   - Rows are matched to employees by **CPF account number (NRIC) first**, then exact name, then fuzzy name tokens — CPF prints names as per NRIC, which often differ from the HRMS record. Ambiguous rows are reported as unmatched rather than guessed, and cannot be selected.
-  - Review table shows every parsed row with its match status before anything is written; existing payslips for the period are skipped unless **Overwrite** is ticked.
-  - Each uploaded PDF is archived to the shared CPF Google Drive folder.
-  - Requires an Anthropic key in `CompanyCredential` (`CLAUDE_API_KEY`, set under Settings → Credentials) or `ANTHROPIC_API_KEY` in the environment.
+  - One-shot **Upload & Process Payroll** button: the PDF is archived to the shared CPF Google Drive folder first (a failed archive aborts the run), then the month's payslips are created/updated automatically for every matched employee; unmatched rows are listed with a fix hint instead of blocking.
+  - Parsing runs on the **Claude Agent SDK under the company's Claude subscription** (OAuth token from `claude setup-token`, stored as `CLAUDE_API_KEY` in Settings → Credentials) — no pay-as-you-go API keys.
 - **Payroll Management sidebar dropdown** — expands into **Payroll** and **Upload CPF** (the latter admin-only).
 - **SOP section** — browsable standard-operating-procedure pages at `/sop`.
 
@@ -315,16 +314,6 @@ npm run dev
 ```
 
 Open [http://localhost:3080](http://localhost:3080) (the dev server is pinned to port 3080)
-
-### Test Accounts
-
-In development mode, use the **Dev Quick Login** buttons on the login page, or enter credentials manually:
-
-| Email | Password | Role | Employee |
-|-------|----------|------|----------|
-| admin@tertiaryinfotech.com | 123456 | Admin | TEST ADMIN (EMP098) |
-| staff@tertiaryinfotech.com | 123456 | Staff | TEST STAFF (EMP099) |
-| staff2@tertiaryinfotech.com | 123456 | Staff | TEST STAFF 2 (EMP097) |
 
 ---
 
