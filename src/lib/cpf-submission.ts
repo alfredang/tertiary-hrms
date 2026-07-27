@@ -1,4 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+import { writeFile, mkdtemp, rm } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
@@ -6,11 +9,14 @@ import { prisma } from "@/lib/prisma";
  * Parsing of a CPF EZPay "Confirm Employee Details" PDF into per-employee
  * contribution rows, so payroll can be generated from the figures actually
  * submitted to the CPF Board rather than recomputed locally.
+ *
+ * The PDF is read by the Claude Agent SDK under the company's Claude
+ * subscription (OAuth token, `sk-ant-oat…`) — the house convention; no
+ * pay-as-you-go API keys. The token is stored in CompanyCredential under
+ * CLAUDE_API_KEY and generated with `claude setup-token`.
  */
 
 export const CPF_SUBMISSION_FOLDER_ID = "1MxYeWySFBfblSVn1qCoRK_XH445td731";
-
-const MODEL = "claude-sonnet-5";
 
 const RowSchema = z.object({
   cpfAccountNo: z.string().trim().min(1),
@@ -38,7 +44,7 @@ const ResponseSchema = z.object({
 export type CpfSubmissionRow = z.infer<typeof RowSchema>;
 export type CpfSubmission = z.infer<typeof ResponseSchema>;
 
-const SYSTEM_PROMPT = `You extract structured data from Singapore CPF Board "CPF EZPay" contribution statements (the "Confirm Employee Details" PDF).
+const SYSTEM_APPEND = `You extract structured data from Singapore CPF Board "CPF EZPay" contribution statements (the "Confirm Employee Details" PDF).
 
 The document has:
 - A header block: CPF Submission No., Company Name, and "Contribution Details For" (a month and year, e.g. "JUL 2026").
@@ -52,53 +58,37 @@ Rules:
 - Strip thousands separators and currency symbols; return plain numbers (1,280.00 -> 1280.00).
 - A dash "-" or blank in a numeric column means 0.
 - Keep the employee name exactly as printed, in its original order and capitalisation.
-- "Contribution Details For: JUL 2026" means month 7, year 2026.
-- Reply with ONLY a single JSON object inside a \`\`\`json fenced code block. No prose before or after.
-
-JSON shape:
-{
-  "cpfSubmissionNo": string|null,
-  "companyName": string|null,
-  "month": number,
-  "year": number,
-  "totalCpfContributions": number|null,
-  "totalSdl": number|null,
-  "grandTotal": number|null,
-  "employees": [
-    {
-      "cpfAccountNo": string,
-      "name": string,
-      "cpfToBePaid": number,
-      "sdlToBePaid": number,
-      "employerCpf": number,
-      "employeeCpf": number,
-      "ordinaryWages": number,
-      "additionalWages": number
-    }
-  ]
-}`;
+- "Contribution Details For: JUL 2026" means month 7, year 2026.`;
 
 /**
- * Strip the noise a pasted key commonly carries — surrounding quotes,
- * whitespace/newlines, or a copied "x-api-key:" / "Bearer" prefix — any of
- * which makes Anthropic reject the request with "invalid x-api-key".
+ * Strip the noise a pasted token commonly carries — surrounding quotes,
+ * whitespace/newlines, or a copied header prefix.
  */
-function sanitizeApiKey(raw: string | null | undefined): string | null {
+function sanitizeToken(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const cleaned = raw
     .trim()
     .replace(/^["']+|["']+$/g, "")
     .replace(/^(x-api-key\s*[:=]\s*|Bearer\s+)/i, "")
-    .trim();
+    .replace(/\s+/g, "");
   return cleaned || null;
 }
 
-/** Resolve the Anthropic API key from CompanyCredential, falling back to env. */
-export async function getClaudeApiKey(): Promise<string | null> {
+/**
+ * Resolve the Claude subscription OAuth token (or, if one is ever stored, an
+ * API key) from CompanyCredential, falling back to env. May return null — the
+ * Agent SDK can still authenticate off a logged-in `claude` CLI session in
+ * local dev.
+ */
+export async function getClaudeAuthToken(): Promise<string | null> {
   const row = await prisma.companyCredential.findUnique({
     where: { keyName: "CLAUDE_API_KEY" },
   });
-  return sanitizeApiKey(row?.keyValue) ?? sanitizeApiKey(process.env.ANTHROPIC_API_KEY);
+  return (
+    sanitizeToken(row?.keyValue) ??
+    sanitizeToken(process.env.CLAUDE_CODE_OAUTH_TOKEN) ??
+    sanitizeToken(process.env.ANTHROPIC_API_KEY)
+  );
 }
 
 function extractJson(text: string): string {
@@ -111,70 +101,101 @@ function extractJson(text: string): string {
 }
 
 /**
- * Send the raw PDF bytes to Claude as a native `document` content block and
- * parse the per-employee CPF contribution rows out of the response.
+ * Build the subprocess env for the Agent SDK. A subscription token
+ * (`sk-ant-oat…`) goes in CLAUDE_CODE_OAUTH_TOKEN; an API key (`sk-ant-api…`)
+ * in ANTHROPIC_API_KEY. An empty ANTHROPIC_API_KEY inherited from the host
+ * env is dropped so it cannot shadow the real auth.
+ */
+function buildAgentEnv(authToken: string | null): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v === "string" && v !== "") env[k] = v;
+  }
+  if (authToken) {
+    if (authToken.startsWith("sk-ant-api")) env.ANTHROPIC_API_KEY = authToken;
+    else env.CLAUDE_CODE_OAUTH_TOKEN = authToken;
+  }
+  return env;
+}
+
+/**
+ * Have the Claude Agent SDK read the PDF from disk (Read tool) and return the
+ * per-employee CPF contribution rows. Authenticates with the company's Claude
+ * subscription token; in local dev an ambient `claude` CLI login also works.
  */
 export async function parseCpfSubmissionPdf(opts: {
   pdfBuffer: Buffer;
   filename: string;
-  apiKey: string;
+  authToken?: string | null;
 }): Promise<CpfSubmission> {
-  const client = new Anthropic({ apiKey: opts.apiKey });
+  const dir = await mkdtemp(join(tmpdir(), "cpf-"));
+  const safeName = opts.filename.replace(/[^A-Za-z0-9._-]/g, "_") || "statement.pdf";
+  const pdfPath = join(dir, safeName);
+  await writeFile(pdfPath, opts.pdfBuffer);
 
-  let message: Anthropic.Message;
+  const userPrompt = [
+    `Read the PDF at ${pdfPath} (a CPF EZPay "Confirm Employee Details" statement) and extract the header details and EVERY employee contribution row.`,
+    "",
+    "Return ONLY a single fenced ```json block (no other prose) with this exact shape:",
+    "```json",
+    '{"cpfSubmissionNo":"string|null","companyName":"string|null","month":number,"year":number,' +
+      '"totalCpfContributions":number|null,"totalSdl":number|null,"grandTotal":number|null,' +
+      '"employees":[{"cpfAccountNo":"string","name":"string","cpfToBePaid":number,"sdlToBePaid":number,' +
+      '"employerCpf":number,"employeeCpf":number,"ordinaryWages":number,"additionalWages":number}]}',
+    "```",
+  ].join("\n");
+
+  let finalText = "";
   try {
-    message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "document",
-            source: {
-              type: "base64",
-              media_type: "application/pdf",
-              data: opts.pdfBuffer.toString("base64"),
-            },
-          },
-          {
-            type: "text",
-            text: `Extract every employee contribution row from this CPF EZPay statement (source file: ${opts.filename}).`,
-          },
-        ],
-      },
-    ],
-    });
+    for await (const msg of query({
+      prompt: userPrompt,
+      options: {
+        systemPrompt: { type: "preset", preset: "claude_code", append: SYSTEM_APPEND } as any,
+        allowedTools: ["Read"],
+        additionalDirectories: [dir],
+        settingSources: [],
+        permissionMode: "bypassPermissions",
+        env: buildAgentEnv(opts.authToken ?? null),
+      } as any,
+    })) {
+      if (msg.type === "result") {
+        if (msg.subtype === "success") {
+          finalText = msg.result;
+        } else {
+          const apiErrorStatus = (msg as any).api_error_status as number | undefined;
+          if (apiErrorStatus === 401 || apiErrorStatus === 403) {
+            throw new Error(
+              "Claude authentication failed — the stored subscription token was rejected or has expired. " +
+                "Generate a fresh one with `claude setup-token` and save it under Settings → Credentials.",
+            );
+          }
+          throw new Error(
+            `Claude agent failed (${msg.subtype}` +
+              (apiErrorStatus ? `, api status ${apiErrorStatus}` : "") +
+              ")",
+          );
+        }
+      }
+    }
   } catch (err) {
-    if (err instanceof Anthropic.APIError) {
-      if (err.status === 401) {
-        throw new Error(
-          "The configured Claude API key was rejected (invalid x-api-key). " +
-            "Update CLAUDE_API_KEY under Settings → Credentials with a valid key from console.anthropic.com.",
-        );
-      }
-      if (err.status === 429) {
-        throw new Error("Claude API rate limit reached — try again in a minute.");
-      }
-      throw new Error(`Claude API error (${err.status ?? "network"}): ${err.message}`);
+    if (err instanceof Error && /authentication|login|OAuth|API key/i.test(err.message)) {
+      throw new Error(
+        "Claude authentication failed — the stored subscription token was rejected or has expired. " +
+          "Generate a fresh one with `claude setup-token` and save it under Settings → Credentials.",
+      );
     }
     throw err;
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 
-  const text = message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
-
-  if (!text.trim()) {
+  if (!finalText.trim()) {
     throw new Error("Claude returned an empty response for the CPF statement");
   }
 
   let raw: unknown;
   try {
-    raw = JSON.parse(extractJson(text));
+    raw = JSON.parse(extractJson(finalText));
   } catch {
     throw new Error("Could not parse JSON out of the CPF statement response");
   }
