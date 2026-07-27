@@ -33,11 +33,21 @@ import {
   ClipboardList,
   FolderOpen,
   FileSliders,
+  BookOpen,
+  ShieldCheck,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
 type Grandchild = { name: string; href: string };
-type Child = { name: string; href: string; icon?: IconType; children?: Grandchild[]; external?: boolean };
+type Child = {
+  name: string;
+  href: string;
+  icon?: IconType;
+  children?: Grandchild[];
+  external?: boolean;
+  adminOnly?: true;
+  exact?: true; // match the route exactly instead of by prefix
+};
 type NavItem = {
   name: string;
   adminName?: string; // override label shown in admin view
@@ -68,7 +78,22 @@ const navigation: NavItem[] = [
     ],
   },
   { name: "Expense Claims",  adminName: "Claim Management",   href: "/expenses",  icon: Receipt,    noAccountant:  true as const },
-  { name: "Payroll",         adminName: "Payroll Management", href: "/payroll",   icon: DollarSign, hideForIntern: true as const },
+  {
+    name: "Payroll",
+    adminName: "Payroll Management",
+    href: "/payroll",
+    icon: DollarSign,
+    hideForIntern: true as const,
+    children: [
+      { name: "Payroll", href: "/payroll", icon: DollarSign, exact: true as const },
+      {
+        name: "Upload CPF",
+        href: "/payroll/generate",
+        icon: ShieldCheck,
+        adminOnly: true as const,
+      },
+    ],
+  },
   {
     name: "Accounting",
     href: "/accounting",
@@ -86,6 +111,7 @@ const navigation: NavItem[] = [
     ],
   },
   { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
+  { name: "SOP",         href: "/sop",         icon: BookOpen },
   { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
   { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
   { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
@@ -234,7 +260,10 @@ function TopLevelNavItem({
   collapsed: boolean;
   isAdmin: boolean;
 }) {
-  const children = item.children;
+  // Children may be admin-gated (e.g. Upload CPF). Drop hidden ones up front so
+  // the expand chevron disappears too when nothing is left to show.
+  const visibleChildren = item.children?.filter((c) => !c.adminOnly || isAdmin);
+  const children = visibleChildren && visibleChildren.length > 0 ? visibleChildren : undefined;
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   const [manuallyOpen, setManuallyOpen] = useState<boolean | null>(null);
   const expanded = manuallyOpen ?? isActive;
@@ -312,8 +341,12 @@ function NestedChildRow({
   pathname: string;
 }) {
   const grandchildren = child.children;
-  const childActive =
-    pathname === child.href || pathname.startsWith(child.href + "/");
+  // `exact` is for a child that points at its own parent's route (e.g. the
+  // "Payroll" row under Payroll Management). Prefix matching would light it up
+  // on every sibling route such as /payroll/generate.
+  const childActive = child.exact
+    ? pathname === child.href
+    : pathname === child.href || pathname.startsWith(child.href + "/");
   const [manuallyOpen, setManuallyOpen] = useState<boolean | null>(null);
   // route-driven default, overridable by user click
   const expanded = manuallyOpen ?? childActive;

@@ -16,6 +16,8 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
   <a href="https://github.com/alfredang/tertiary-hrms/issues"><strong>Report Bug</strong></a>
 </p>
 
+![HR Portal — payroll processing with CPF submission upload](screenshot.png)
+
 ---
 
 ## Architecture
@@ -45,7 +47,18 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
-Recent additions (May 2026):
+Recent additions (July 2026):
+
+- **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
+  - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
+  - Rows are matched to employees by **CPF account number (NRIC) first**, then exact name, then fuzzy name tokens — CPF prints names as per NRIC, which often differ from the HRMS record. Ambiguous rows are reported as unmatched rather than guessed, and cannot be selected.
+  - Review table shows every parsed row with its match status before anything is written; existing payslips for the period are skipped unless **Overwrite** is ticked.
+  - Each uploaded PDF is archived to the shared CPF Google Drive folder.
+  - Requires an Anthropic key in `CompanyCredential` (`CLAUDE_API_KEY`, set under Settings → Credentials) or `ANTHROPIC_API_KEY` in the environment.
+- **Payroll Management sidebar dropdown** — expands into **Payroll** and **Upload CPF** (the latter admin-only).
+- **SOP section** — browsable standard-operating-procedure pages at `/sop`.
+
+Earlier additions (May 2026):
 
 - **Editable Compensation cards on the employee profile**
   - Staff card always renders (even before any salary is entered); admin edits **Basic Salary** inline with a pencil-icon Save flow.
@@ -71,7 +84,7 @@ Recent additions (May 2026):
   - **Create Intern** form locks employment type to "Intern"; `User.roles` is force-set to `["INTERN"]` even when reusing a Google OAuth account
   - "Role" column renamed to "Job Function" for clarity; new **Accounting** job function; the old "Intern" job function renamed to "Software Development"
 - **Branding-aware footer** — "Powered by <Company Name>" pulled from `CompanySettings.name`, shown on every dashboard page.
-- **Dev server pinned to port 3080** (`npm run dev` runs `next dev --turbo -p 3080`).
+- **Dev server pinned to port 3080** (`npm run dev` runs `next dev -p 3080`; `npm run dev:turbo` adds `--turbo`).
 
 ## Features
 
@@ -140,6 +153,10 @@ Recent additions (May 2026):
   - Flexible column matching (supports "Basic Salary", "BasicSalary", "Basic", etc.)
   - Employee matching by Employee ID or Name
   - Detailed upload results with per-row error reporting
+- **CPF submission upload** — admin uploads the CPF EZPay "Confirm Employee Details" PDF and payslips are created from the figures actually filed with the CPF Board
+  - Pay period, ordinary/additional wages and per-employee CPF are parsed from the statement; CPF is used verbatim rather than recomputed
+  - Employees matched by CPF account number (NRIC) first, then exact name, then fuzzy tokens; ambiguous rows are surfaced as unmatched, never guessed
+  - Reviewable preview table before any write; opt-in overwrite of existing payslips; PDFs archived to Google Drive
 - **Auto-generate payroll** from employee salary data with CPF calculations
 - Monthly payslip generation with PDF download
 - Payment status tracking (Generated, Finalized, Paid)
@@ -251,7 +268,7 @@ DIRECT_URL="postgresql://user:password@host:5432/database"
 
 # NextAuth
 AUTH_SECRET="your-secret-key"
-AUTH_URL="http://localhost:3000"
+AUTH_URL="http://localhost:3080"
 
 # Google OAuth (for Social Login)
 GOOGLE_CLIENT_ID="your-google-client-id"
@@ -262,6 +279,8 @@ GOOGLE_ANDROID_CLIENT_ID="your-android-client-id"
 DEFAULT_EMPLOYEE_PASSWORD="your-default-password"
 
 # AI Chatbot (at least one required for chatbot feature)
+# ANTHROPIC_API_KEY is also the fallback for CPF-submission PDF parsing —
+# preferred source is the CLAUDE_API_KEY credential in Settings → Credentials.
 GOOGLE_GENERATIVE_AI_API_KEY=""
 OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""

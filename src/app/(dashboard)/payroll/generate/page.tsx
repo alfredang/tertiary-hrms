@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { CpfSubmissionUpload } from "@/components/payroll/cpf-submission-upload";
 import { DollarSign, Loader2, Upload, FileSpreadsheet, X } from "lucide-react";
 
 const MONTHS = [
@@ -148,7 +149,7 @@ export default function ProcessPayrollPage() {
       <div>
         <h1 className="text-3xl font-bold text-white">Process Payroll</h1>
         <p className="text-gray-400 mt-1">
-          Upload salary data or auto-generate payslips
+          Upload a CPF submission or salary data, or auto-generate payslips
         </p>
       </div>
 
@@ -192,6 +193,9 @@ export default function ProcessPayrollPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* CPF Submission PDF */}
+      <CpfSubmissionUpload />
 
       {/* Excel Upload */}
       <Card className="bg-gray-950 border-gray-800">
