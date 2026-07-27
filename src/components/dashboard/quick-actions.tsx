@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Clock, DollarSign, Calendar, ChevronRight } from "lucide-react";
+import { Users, Clock, DollarSign, Calendar, ChevronRight, AlarmClockOff } from "lucide-react";
 
 const adminActions = [
   {
@@ -42,6 +42,13 @@ const staffActions = [
     href: "/leave/request",
     icon: Clock,
     iconBg: "bg-amber-500",
+  },
+  {
+    title: "Request Time Off",
+    description: "Exams, emergency, others",
+    href: "/time-off/request",
+    icon: AlarmClockOff,
+    iconBg: "bg-orange-500",
   },
   {
     title: "Submit Expense",
