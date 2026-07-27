@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertTriangle,
-  CheckCircle2,
   ExternalLink,
   FileText,
   Loader2,
@@ -53,7 +52,6 @@ interface ParseResult {
   counts: { total: number; matched: number; unmatched: number; existing: number };
   rows: ParsedRow[];
   driveWebViewLink: string | null;
-  driveWarning: string | null;
 }
 
 interface ApplyResult {
@@ -65,6 +63,15 @@ interface ApplyResult {
   details?: string[];
 }
 
+interface ProcessOutcome {
+  month: number;
+  year: number;
+  driveWebViewLink: string | null;
+  apply: ApplyResult;
+  unmatched: ParsedRow[];
+  processedNames: string[];
+}
+
 const money = (n: number) =>
   n.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -74,18 +81,12 @@ export function CpfSubmissionUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isParsing, setIsParsing] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
-  const [parsed, setParsed] = useState<ParseResult | null>(null);
-  const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
-  const [overwrite, setOverwrite] = useState(false);
-  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [outcome, setOutcome] = useState<ProcessOutcome | null>(null);
 
   const reset = () => {
     setSelectedFile(null);
-    setParsed(null);
-    setApplyResult(null);
-    setExcluded(new Set());
+    setOutcome(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -93,78 +94,45 @@ export function CpfSubmissionUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
     setSelectedFile(file);
-    setParsed(null);
-    setApplyResult(null);
-    setExcluded(new Set());
+    setOutcome(null);
   };
 
-  const handleParse = async () => {
+  // One-shot flow: archive the PDF to the CPF Drive folder + parse it, then
+  // immediately create/update the month's payslips from the matched rows.
+  const handleUploadAndProcess = async () => {
     if (!selectedFile) return;
-    setIsParsing(true);
-    setParsed(null);
-    setApplyResult(null);
+    setIsProcessing(true);
+    setOutcome(null);
 
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const res = await fetch("/api/payroll/cpf-submission/parse", {
+      const parseRes = await fetch("/api/payroll/cpf-submission/parse", {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to parse the CPF statement");
-
-      setParsed(data);
-      toast({
-        title: "CPF statement parsed",
-        description: `${data.counts.matched} of ${data.counts.total} employees matched for ${MONTHS[data.month - 1]} ${data.year}`,
-      });
-      if (data.driveWarning) {
-        toast({
-          title: "Drive archive failed",
-          description: data.driveWarning,
-          variant: "destructive",
-        });
+      const parsed: ParseResult & { error?: string } = await parseRes.json();
+      if (!parseRes.ok) {
+        throw new Error(parsed.error || "Failed to read the CPF statement");
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to parse the statement",
-        variant: "destructive",
-      });
-    } finally {
-      setIsParsing(false);
-    }
-  };
 
-  const toggleRow = (cpfAccountNo: string) => {
-    setExcluded((prev) => {
-      const next = new Set(prev);
-      if (next.has(cpfAccountNo)) next.delete(cpfAccountNo);
-      else next.add(cpfAccountNo);
-      return next;
-    });
-  };
+      const matched = parsed.rows.filter((r) => r.employeeId);
+      const unmatched = parsed.rows.filter((r) => !r.employeeId);
+      if (matched.length === 0) {
+        throw new Error(
+          "No employees in the statement could be matched to HRMS records — payroll was not changed.",
+        );
+      }
 
-  const selectableRows = parsed
-    ? parsed.rows.filter((r) => r.employeeId && !excluded.has(r.cpfAccountNo))
-    : [];
-
-  const handleApply = async () => {
-    if (!parsed || selectableRows.length === 0) return;
-    setIsApplying(true);
-    setApplyResult(null);
-
-    try {
-      const res = await fetch("/api/payroll/cpf-submission/apply", {
+      const applyRes = await fetch("/api/payroll/cpf-submission/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           month: parsed.month,
           year: parsed.year,
-          overwrite,
-          rows: selectableRows.map((r) => ({
+          overwrite: true,
+          rows: matched.map((r) => ({
             employeeId: r.employeeId,
             name: r.name,
             ordinaryWages: r.ordinaryWages,
@@ -174,27 +142,35 @@ export function CpfSubmissionUpload() {
           })),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create payroll");
+      const apply: ApplyResult & { error?: string } = await applyRes.json();
+      if (!applyRes.ok) {
+        throw new Error(apply.error || "The statement was read but payroll could not be written");
+      }
 
-      setApplyResult(data);
+      setOutcome({
+        month: parsed.month,
+        year: parsed.year,
+        driveWebViewLink: parsed.driveWebViewLink,
+        apply,
+        unmatched,
+        processedNames: matched.map((r) => r.matchedName ?? r.name),
+      });
       toast({
-        title: "Payroll created",
-        description: `Created ${data.created}, updated ${data.updated} payslips for ${MONTHS[parsed.month - 1]} ${parsed.year}`,
+        title: "Payroll processed",
+        description: `${MONTHS[parsed.month - 1]} ${parsed.year}: ${apply.created} created, ${apply.updated} updated${unmatched.length ? `, ${unmatched.length} unmatched` : ""}`,
       });
       router.refresh();
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create payroll",
+        description:
+          error instanceof Error ? error.message : "Failed to process the CPF statement",
         variant: "destructive",
       });
     } finally {
-      setIsApplying(false);
+      setIsProcessing(false);
     }
   };
-
-  const busy = isParsing || isApplying;
 
   return (
     <Card className="bg-gray-950 border-gray-800">
@@ -207,9 +183,9 @@ export function CpfSubmissionUpload() {
       <CardContent className="space-y-4">
         <p className="text-sm text-gray-400">
           Upload the CPF EZPay <span className="font-medium">Confirm Employee Details</span> PDF.
-          The pay period, wages and CPF contributions are read straight from the statement, so
-          payslips match what was actually filed with the CPF Board. The PDF is archived to the
-          shared CPF Drive folder.
+          The PDF is first archived to the shared CPF Drive folder, then payroll for the
+          statement&apos;s month is created or updated automatically — wages and CPF are taken
+          straight from what was filed with the CPF Board.
         </p>
 
         <input
@@ -226,7 +202,7 @@ export function CpfSubmissionUpload() {
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             className="border-gray-700 hover:bg-gray-800"
-            disabled={busy}
+            disabled={isProcessing}
           >
             <Upload className="mr-2 h-4 w-4" />
             Choose CPF PDF
@@ -239,7 +215,7 @@ export function CpfSubmissionUpload() {
               <button
                 type="button"
                 onClick={reset}
-                disabled={busy}
+                disabled={isProcessing}
                 aria-label="Remove selected file"
                 className="text-gray-500 hover:text-gray-300"
               >
@@ -248,51 +224,47 @@ export function CpfSubmissionUpload() {
             </div>
           )}
 
-          <Button type="button" onClick={handleParse} disabled={!selectedFile || busy}>
-            {isParsing ? (
+          <Button
+            type="button"
+            onClick={handleUploadAndProcess}
+            disabled={!selectedFile || isProcessing}
+          >
+            {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Reading statement…
+                Uploading &amp; processing…
               </>
             ) : (
-              "Read statement"
+              "Upload & Process Payroll"
             )}
           </Button>
         </div>
 
-        {parsed && (
+        {outcome && (
           <div className="space-y-4 border-t border-gray-800 pt-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="font-medium text-white">
-                  {MONTHS[parsed.month - 1]} {parsed.year}
-                  {parsed.companyName ? ` · ${parsed.companyName}` : ""}
-                </p>
-                {parsed.cpfSubmissionNo && (
-                  <p className="text-xs text-gray-500">
-                    CSN {parsed.cpfSubmissionNo}
-                  </p>
-                )}
-              </div>
-              {parsed.driveWebViewLink && (
+              <p className="font-medium text-white">
+                {MONTHS[outcome.month - 1]} {outcome.year} payroll processed
+              </p>
+              {outcome.driveWebViewLink && (
                 <a
-                  href={parsed.driveWebViewLink}
+                  href={outcome.driveWebViewLink}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-sm text-blue-500 hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  View archived PDF
+                  View archived PDF in Drive
                 </a>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { label: "Employees", value: String(parsed.counts.total) },
-                { label: "Matched", value: String(parsed.counts.matched) },
-                { label: "Unmatched", value: String(parsed.counts.unmatched) },
-                { label: "Ordinary wages", value: `$${money(parsed.totals.ordinaryWages)}` },
+                { label: "Created", value: outcome.apply.created },
+                { label: "Updated", value: outcome.apply.updated },
+                { label: "Unmatched", value: outcome.unmatched.length },
+                { label: "Errors", value: outcome.apply.errors },
               ].map((s) => (
                 <div key={s.label} className="rounded-lg border border-gray-800 bg-gray-900 p-3">
                   <p className="text-xs text-gray-500">{s.label}</p>
@@ -301,119 +273,35 @@ export function CpfSubmissionUpload() {
               ))}
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-800">
-              <table className="w-full text-sm text-gray-300">
-                <thead className="bg-gray-900 text-left text-gray-400">
-                  <tr>
-                    <th className="p-2 font-medium">Include</th>
-                    <th className="p-2 font-medium">CPF name</th>
-                    <th className="p-2 font-medium">Matched employee</th>
-                    <th className="p-2 text-right font-medium">Gross</th>
-                    <th className="p-2 text-right font-medium">CPF (EE)</th>
-                    <th className="p-2 text-right font-medium">CPF (ER)</th>
-                    <th className="p-2 text-right font-medium">Net</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parsed.rows.map((row) => {
-                    const included = !!row.employeeId && !excluded.has(row.cpfAccountNo);
-                    return (
-                      <tr key={row.cpfAccountNo} className="border-t border-gray-800">
-                        <td className="p-2">
-                          <input
-                            type="checkbox"
-                            checked={included}
-                            disabled={!row.employeeId || busy}
-                            onChange={() => toggleRow(row.cpfAccountNo)}
-                            aria-label={`Include ${row.name}`}
-                          />
-                        </td>
-                        <td className="p-2">
-                          <div>{row.name}</div>
-                          <div className="text-xs text-gray-500">{row.cpfAccountNo}</div>
-                        </td>
-                        <td className="p-2">
-                          {row.employeeId ? (
-                            <span className="inline-flex items-center gap-1">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                              {row.matchedName}
-                              {row.matchMethod !== "nric" && (
-                                <span className="text-xs text-gray-500">
-                                  (by name)
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-amber-500">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              {row.ambiguous ? "Ambiguous — resolve manually" : "No match"}
-                            </span>
-                          )}
-                          {row.alreadyHasPayslip && (
-                            <div className="text-xs text-amber-500">
-                              Payslip already exists for this period
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-2 text-right">${money(row.grossSalary)}</td>
-                        <td className="p-2 text-right">${money(row.employeeCpf)}</td>
-                        <td className="p-2 text-right">${money(row.employerCpf)}</td>
-                        <td className="p-2 text-right font-medium">${money(row.netSalary)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {parsed.counts.existing > 0 && (
-              <label className="flex items-center gap-2 text-sm text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={overwrite}
-                  disabled={busy}
-                  onChange={(e) => setOverwrite(e.target.checked)}
-                />
-                Overwrite the {parsed.counts.existing} payslip
-                {parsed.counts.existing === 1 ? "" : "s"} that already exist for this period
-              </label>
+            {outcome.processedNames.length > 0 && (
+              <p className="text-xs text-gray-500">
+                Processed: {outcome.processedNames.join(", ")}
+              </p>
             )}
 
-            <Button
-              type="button"
-              onClick={handleApply}
-              disabled={busy || selectableRows.length === 0}
-            >
-              {isApplying ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating payroll…
-                </>
-              ) : (
-                `Create payroll for ${selectableRows.length} employee${selectableRows.length === 1 ? "" : "s"}`
-              )}
-            </Button>
-          </div>
-        )}
+            {outcome.unmatched.length > 0 && (
+              <div className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-3 text-sm">
+                <p className="mb-1 flex items-center gap-2 font-medium text-amber-500">
+                  <AlertTriangle className="h-4 w-4" />
+                  Not processed — no matching employee found
+                </p>
+                <ul className="list-inside list-disc text-amber-200/80">
+                  {outcome.unmatched.map((r) => (
+                    <li key={r.cpfAccountNo}>
+                      {r.name} ({r.cpfAccountNo}) — ${money(r.grossSalary)}
+                      {r.ambiguous ? " — ambiguous match, resolve manually" : ""}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 text-xs text-amber-200/60">
+                  Check the employee&apos;s NRIC or name in Staff Management, then upload again.
+                </p>
+              </div>
+            )}
 
-        {applyResult && (
-          <div className="space-y-2 border-t border-gray-800 pt-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                { label: "Created", value: applyResult.created },
-                { label: "Updated", value: applyResult.updated },
-                { label: "Skipped", value: applyResult.skipped },
-                { label: "Errors", value: applyResult.errors },
-              ].map((s) => (
-                <div key={s.label} className="rounded-lg border border-gray-800 bg-gray-900 p-3">
-                  <p className="text-xs text-gray-500">{s.label}</p>
-                  <p className="text-lg font-semibold text-white">{s.value}</p>
-                </div>
-              ))}
-            </div>
-            {applyResult.details && applyResult.details.length > 0 && (
+            {outcome.apply.details && outcome.apply.details.length > 0 && (
               <ul className="list-inside list-disc text-sm text-amber-500">
-                {applyResult.details.map((d, i) => (
+                {outcome.apply.details.map((d, i) => (
                   <li key={i}>{d}</li>
                 ))}
               </ul>

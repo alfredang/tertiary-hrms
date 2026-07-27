@@ -65,10 +65,10 @@ export async function POST(req: NextRequest) {
       apiKey,
     });
 
-    // Archive the statement to the shared CPF Drive folder. Non-fatal: parsing
-    // already succeeded and the admin can still apply the payroll.
+    // Archive the statement to the shared CPF Drive folder BEFORE any payroll
+    // is written — the filed statement must be on record, so a failed archive
+    // stops the run.
     let driveWebViewLink: string | null = null;
-    let driveWarning: string | null = null;
     try {
       const uploaded = await uploadPdfToFolder(
         CPF_SUBMISSION_FOLDER_ID,
@@ -79,8 +79,14 @@ export async function POST(req: NextRequest) {
       driveWebViewLink = uploaded.webViewLink;
     } catch (err) {
       console.error("CPF statement Drive upload failed:", err);
-      driveWarning =
-        err instanceof Error ? err.message : "Failed to archive the statement to Drive";
+      return NextResponse.json(
+        {
+          error:
+            "Could not archive the PDF to the CPF Drive folder — payroll was not processed. " +
+            (err instanceof Error ? err.message : "Drive upload failed"),
+        },
+        { status: 502 },
+      );
     }
 
     const candidates = await prisma.employee.findMany({
@@ -133,7 +139,6 @@ export async function POST(req: NextRequest) {
       },
       rows,
       driveWebViewLink,
-      driveWarning,
     });
   } catch (error) {
     console.error("Error parsing CPF submission:", error);

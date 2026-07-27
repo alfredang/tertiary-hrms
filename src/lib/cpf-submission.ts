@@ -78,12 +78,27 @@ JSON shape:
   ]
 }`;
 
+/**
+ * Strip the noise a pasted key commonly carries — surrounding quotes,
+ * whitespace/newlines, or a copied "x-api-key:" / "Bearer" prefix — any of
+ * which makes Anthropic reject the request with "invalid x-api-key".
+ */
+function sanitizeApiKey(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = raw
+    .trim()
+    .replace(/^["']+|["']+$/g, "")
+    .replace(/^(x-api-key\s*[:=]\s*|Bearer\s+)/i, "")
+    .trim();
+  return cleaned || null;
+}
+
 /** Resolve the Anthropic API key from CompanyCredential, falling back to env. */
 export async function getClaudeApiKey(): Promise<string | null> {
   const row = await prisma.companyCredential.findUnique({
     where: { keyName: "CLAUDE_API_KEY" },
   });
-  return row?.keyValue?.trim() || process.env.ANTHROPIC_API_KEY?.trim() || null;
+  return sanitizeApiKey(row?.keyValue) ?? sanitizeApiKey(process.env.ANTHROPIC_API_KEY);
 }
 
 function extractJson(text: string): string {
@@ -106,7 +121,9 @@ export async function parseCpfSubmissionPdf(opts: {
 }): Promise<CpfSubmission> {
   const client = new Anthropic({ apiKey: opts.apiKey });
 
-  const message = await client.messages.create({
+  let message: Anthropic.Message;
+  try {
+    message = await client.messages.create({
     model: MODEL,
     max_tokens: 16000,
     system: SYSTEM_PROMPT,
@@ -129,7 +146,22 @@ export async function parseCpfSubmissionPdf(opts: {
         ],
       },
     ],
-  });
+    });
+  } catch (err) {
+    if (err instanceof Anthropic.APIError) {
+      if (err.status === 401) {
+        throw new Error(
+          "The configured Claude API key was rejected (invalid x-api-key). " +
+            "Update CLAUDE_API_KEY under Settings → Credentials with a valid key from console.anthropic.com.",
+        );
+      }
+      if (err.status === 429) {
+        throw new Error("Claude API rate limit reached — try again in a minute.");
+      }
+      throw new Error(`Claude API error (${err.status ?? "network"}): ${err.message}`);
+    }
+    throw err;
+  }
 
   const text = message.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
