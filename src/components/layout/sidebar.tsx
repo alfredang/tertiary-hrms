@@ -35,6 +35,8 @@ import {
   FileSliders,
   BookOpen,
   ShieldCheck,
+  Timer,
+  AlarmClock,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -77,6 +79,7 @@ const navigation: NavItem[] = [
       { name: "Medical Leave", href: "/leave/medical", icon: Stethoscope },
     ],
   },
+  { name: "Time Off", adminName: "Time Off Approvals", href: "/time-off", icon: Timer, noAccountant: true as const },
   { name: "Expense Claims",  adminName: "Claim Management",   href: "/expenses",  icon: Receipt,    noAccountant:  true as const },
   {
     name: "Payroll",
@@ -112,6 +115,7 @@ const navigation: NavItem[] = [
   },
   { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
   { name: "SOP",         href: "/sop",         icon: BookOpen },
+  { name: "Clock In/Out", href: "/attendance",  icon: AlarmClock,    staffOnly:    true as const },
   { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
   { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
   { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },

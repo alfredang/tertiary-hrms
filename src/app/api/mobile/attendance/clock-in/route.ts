@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized } from "@/lib/mobile-api";
-import { startOfDay } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
+import { clockIn } from "@/lib/attendance";
 
 export const dynamic = "force-dynamic";
-
-const TZ = "Asia/Singapore";
 
 // POST /api/mobile/attendance/clock-in
 export async function POST() {
@@ -15,22 +11,13 @@ export async function POST() {
   if (!ctx.employeeId)
     return NextResponse.json({ error: "No employee profile linked" }, { status: 400 });
 
-  const now = new Date();
-  const today = startOfDay(toZonedTime(now, TZ));
-
-  const existing = await prisma.attendancePunch.findUnique({
-    where: { employeeId_date: { employeeId: ctx.employeeId, date: today } },
-  });
-
-  if (existing?.clockIn) {
-    return NextResponse.json({ error: "Already clocked in today" }, { status: 400 });
+  try {
+    const punch = await clockIn(ctx.employeeId);
+    return NextResponse.json({ id: punch.id, clockIn: punch.clockIn?.toISOString() ?? null });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Could not clock in" },
+      { status: 400 },
+    );
   }
-
-  const punch = await prisma.attendancePunch.upsert({
-    where: { employeeId_date: { employeeId: ctx.employeeId, date: today } },
-    create: { employeeId: ctx.employeeId, date: today, clockIn: now },
-    update: { clockIn: now },
-  });
-
-  return NextResponse.json({ id: punch.id, clockIn: punch.clockIn?.toISOString() ?? null });
 }

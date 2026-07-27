@@ -49,6 +49,8 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 Recent additions (July 2026):
 
+- **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer, last-7-days hours + days-worked stats, and a recent-days list. Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
+- **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, others) measured in hours on a single date; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.
 - **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
   - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
   - Rows are matched to employees by **CPF account number (NRIC) first**, then exact name, then fuzzy name tokens — CPF prints names as per NRIC, which often differ from the HRMS record. Ambiguous rows are reported as unmatched rather than guessed, and cannot be selected.
@@ -142,6 +144,12 @@ Earlier additions (May 2026):
 - Status filtering (Pending, Approved, Rejected, Cancelled) with sortable columns
 - Automatic balance deduction upon approval
 - Calendar sync — approved leave/MC events automatically appear on the calendar
+
+### Time Off (hourly)
+- Short single-day, hour-based absence requests — separate from leave, no balance deduction
+- Reasons: **Exams**, **Emergency — Pls approve**, **Others — Pls specify** (detail required)
+- Manager approval workflow (approve with comment / reject with reason), staff cancel while pending
+- Same-day overlap prevention and in-app notifications for both parties
 
 ### Payroll
 - Singapore CPF contribution calculations using `decimal.js` for precision
@@ -286,7 +294,7 @@ OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""
 
 # App
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:3080"
 
 # Development (skip auth for quick testing)
 SKIP_AUTH="false"
@@ -305,7 +313,7 @@ npx tsx scripts/import-staff.ts
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3080](http://localhost:3080) (the dev server is pinned to port 3080)
 
 ### Test Accounts
 
@@ -403,6 +411,10 @@ tertiary-hrms/
 │   │   │   ├── expenses/          # Expense claims + submit + edit
 │   │   │   ├── payroll/           # Payroll + generation + Excel upload
 │   │   │   ├── calendar/          # Calendar view + day detail + add/edit
+│   │   │   ├── attendance/        # Web clock in / out (one-tap punch)
+│   │   │   ├── timesheet/         # Weekly OT timesheet + admin overview
+│   │   │   ├── time-off/          # Partial-day time off requests + approvals
+│   │   │   ├── sop/               # Standard operating procedures
 │   │   │   ├── settings/          # System settings (admin only)
 │   │   │   └── pending-setup/     # OAuth user pending setup page
 │   │   └── api/                   # API routes
@@ -411,6 +423,10 @@ tertiary-hrms/
 │   │       ├── leave/             # Leave request + approval
 │   │       ├── expenses/          # Expense claim + approval
 │   │       ├── payroll/           # Payroll generation + Excel upload
+│   │       ├── attendance/        # Clock in/out punches (web)
+│   │       ├── timesheet/         # Weekly OT timesheet
+│   │       ├── time-off/          # Time off requests + approval
+│   │       ├── mobile/            # Read-only JSON API for the native apps
 │   │       ├── upload/            # File uploads
 │   │       ├── settings/          # Settings API
 │   │       ├── cron/              # Scheduled tasks
