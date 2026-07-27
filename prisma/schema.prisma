@@ -114,6 +114,8 @@ model Employee {
   timesheetEntries  TimesheetEntry[]
   attendancePunches AttendancePunch[]
   accessRequests   AccessRequest[]
+  timeOffRequests  TimeOffRequest[] @relation("TimeOffRequest_employeeIdToEmployee")
+  approvedTimeOffs TimeOffRequest[] @relation("TimeOffRequest_approverIdToEmployee")
 }
 
 model ExpenseCategory {
@@ -200,6 +202,39 @@ model LeaveRequest {
   approver         Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
   employee         Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
   leaveType        LeaveType   @relation(fields: [leaveTypeId], references: [id])
+}
+
+/// A short, partial-day absence request (e.g. leaving for an exam or an
+/// emergency). Unlike LeaveRequest this is measured in hours on a single date
+/// and never touches LeaveBalance — it only needs manager sign-off.
+model TimeOffRequest {
+  id              String          @id @default(cuid())
+  employeeId      String
+  date            DateTime        @db.Date
+  startTime       String // "HH:mm", 24h local (Asia/Singapore)
+  endTime         String // "HH:mm", 24h local (Asia/Singapore)
+  hours           Decimal         @db.Decimal(5, 2)
+  reason          TimeOffReason
+  reasonDetail    String? // required when reason = OTHERS
+  status          LeaveStatus     @default(PENDING)
+  approverId      String?
+  approvedAt      DateTime?
+  approvalComment String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  employee        Employee        @relation("TimeOffRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
+  approver        Employee?       @relation("TimeOffRequest_approverIdToEmployee", fields: [approverId], references: [id])
+
+  @@index([employeeId, date])
+  @@index([status])
+}
+
+enum TimeOffReason {
+  EXAMS
+  EMERGENCY
+  OTHERS
 }
 
 model LeaveType {
