@@ -287,8 +287,9 @@ GOOGLE_ANDROID_CLIENT_ID="your-android-client-id"
 DEFAULT_EMPLOYEE_PASSWORD="your-default-password"
 
 # AI Chatbot (at least one required for chatbot feature)
-# ANTHROPIC_API_KEY is also the fallback for CPF-submission PDF parsing —
-# preferred source is the CLAUDE_API_KEY credential in Settings → Credentials.
+# CPF-submission PDF parsing runs on the Claude subscription OAuth token
+# (`claude setup-token`) stored as CLAUDE_API_KEY in Settings → Credentials —
+# not on a pay-as-you-go API key.
 GOOGLE_GENERATIVE_AI_API_KEY=""
 OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""

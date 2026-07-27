@@ -6,7 +6,7 @@ import { hasAdminAccess } from "@/lib/utils";
 import { uploadPdfToFolder } from "@/lib/drive";
 import {
   CPF_SUBMISSION_FOLDER_ID,
-  getClaudeApiKey,
+  getClaudeAuthToken,
   matchEmployee,
   parseCpfSubmissionPdf,
 } from "@/lib/cpf-submission";
@@ -48,21 +48,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = await getClaudeApiKey();
-    if (!apiKey) {
-      return NextResponse.json(
-        {
-          error:
-            "Claude API key is not configured. Add CLAUDE_API_KEY under Settings → Credentials.",
-        },
-        { status: 400 },
-      );
-    }
+    // Subscription OAuth token from CompanyCredential; may be null in local
+    // dev where the Agent SDK can ride the logged-in `claude` CLI session.
+    const authToken = await getClaudeAuthToken();
 
     const submission = await parseCpfSubmissionPdf({
       pdfBuffer: buffer,
       filename: file.name,
-      apiKey,
+      authToken,
     });
 
     // Archive the statement to the shared CPF Drive folder BEFORE any payroll
