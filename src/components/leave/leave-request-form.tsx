@@ -118,8 +118,8 @@ export function LeaveRequestForm({
   }, [startDate, endDate, dayType, halfDayPosition, publicHolidays]);
 
   useEffect(() => {
-    if (leaveTypeId && !isAL) { setDayType("FULL_DAY"); setHalfDayPosition(null); }
-  }, [leaveTypeId, isAL]);
+    if (leaveTypeId) { setDayType("FULL_DAY"); setHalfDayPosition(null); }
+  }, [leaveTypeId]);
 
   useEffect(() => {
     if (startDate && endDate) {
@@ -432,7 +432,7 @@ export function LeaveRequestForm({
             </div>
           </div>
 
-          {isAL && renderDayTypeSelector()}
+          {leaveTypeId && renderDayTypeSelector()}
 
           <div className="space-y-2">
             <Label className="text-white">Number of Working Days</Label>
