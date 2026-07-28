@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasAdminAccess } from "@/lib/utils";
 import { computeTimeOffHours, timeOffReasonLabel } from "@/lib/time-off";
+import { sendTimeOffApprovalEmail } from "@/lib/approval-email";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import type { TimeOffReason } from "@prisma/client";
 
@@ -141,6 +142,23 @@ export async function POST(req: Request) {
       });
     } catch {
       // Non-critical
+    }
+
+    // Send email to approvers (best effort).
+    try {
+      await sendTimeOffApprovalEmail({
+        timeOffRequestId: created.id,
+        employeeId: actor.employeeId,
+        employeeName: created.employee.name,
+        date: String(date).slice(0, 10),
+        startTime,
+        endTime,
+        hours,
+        reason: timeOffReasonLabel(reason),
+        reasonDetail: reasonDetail ?? null,
+      });
+    } catch (err) {
+      console.error("Failed to send time off approval email:", err);
     }
 
     return NextResponse.json(created, { status: 201 });

@@ -172,7 +172,7 @@ function textToHtml(body: string, actionButtonsHtml: string): string {
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">${paragraphs}</div>`;
 }
 
-async function issueToken(kind: "LEAVE" | "EXPENSE", targetId: string): Promise<string> {
+async function issueToken(kind: "LEAVE" | "EXPENSE" | "TIME_OFF", targetId: string): Promise<string> {
   const token = generateEndpointToken();
   const expiresAt = new Date(Date.now() + APPROVAL_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
   await prisma.approvalToken.create({
@@ -268,6 +268,57 @@ export async function sendExpenseApprovalEmail(args: {
   const attachment = await attachmentFromLocalUrl(args.receiptUrl, args.receiptFileName);
   const attachments = attachment ? [attachment] : undefined;
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc, attachments })));
+}
+
+function formatDateDisplay(dateStr: string): string {
+  const d = new Date(`${String(dateStr).slice(0, 10)}T00:00:00Z`);
+  return d.toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+export async function sendTimeOffApprovalEmail(args: {
+  timeOffRequestId: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  hours: number | string;
+  reason: string;
+  reasonDetail?: string | null;
+}): Promise<void> {
+  const token = await issueToken("TIME_OFF", args.timeOffRequestId);
+  const base = getBaseUrl();
+  const approveUrl = `${base}/api/public/time-off-approval/respond?token=${token}&action=accept`;
+  const declineUrl = `${base}/api/public/time-off-approval/respond?token=${token}&action=decline`;
+
+  const dateDisplay = formatDateDisplay(args.date);
+  const { subject } = await renderEmail("TIME_OFF_REQUEST", {
+    EMPLOYEE_NAME: args.employeeName,
+    DATE: dateDisplay,
+  });
+
+  const branding = await getCompanyBranding();
+  const rows: Array<{ label: string; value: string; style?: RowStyle }> = [
+    { label: "Date", value: dateDisplay, style: "bold" },
+    { label: "Time", value: `${args.startTime} – ${args.endTime}` },
+    { label: "Duration", value: `${args.hours} hour${Number(args.hours) === 1 ? "" : "s"}`, style: "pill" },
+    { label: "Reason", value: args.reason, style: "accent" },
+  ];
+  if (args.reasonDetail) rows.push({ label: "Details", value: args.reasonDetail });
+
+  const html = buildNotificationEmailHtml({
+    companyName: branding.name,
+    headerTitle: "Time Off Request",
+    employeeName: args.employeeName,
+    introAction: "a time off request",
+    rows,
+    ctaLabel: "Please review and take action:",
+    buttonsHtml: buildActionButtonsHtml(approveUrl, declineUrl),
+    siteUrl: base,
+  });
+
+  const { to, cc } = await getApproverEmails(args.employeeId);
+  await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc })));
 }
 
 export async function sendDecisionEmailToStaff(args: {

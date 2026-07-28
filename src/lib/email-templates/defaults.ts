@@ -14,6 +14,9 @@ export type TemplateKey =
   | "EXPENSE_REQUEST"
   | "EXPENSE_APPROVED"
   | "EXPENSE_REJECTED"
+  | "TIME_OFF_REQUEST"
+  | "TIME_OFF_APPROVED"
+  | "TIME_OFF_REJECTED"
   | "PASSWORD_RESET";
 
 export interface TemplateDef {
@@ -202,6 +205,79 @@ Your {CATEGORY} expense claim for {AMOUNT} has been approved by {APPROVER_NAME}.
     defaultBody: `Hi {EMPLOYEE_NAME},
 
 Your {CATEGORY} expense claim for {AMOUNT} was not approved by {APPROVER_NAME}.
+
+Please contact your manager if you have questions.
+
+- {COMPANY_NAME}`,
+  },
+
+  TIME_OFF_REQUEST: {
+    key: "TIME_OFF_REQUEST",
+    label: "Time Off Request — Approver",
+    description: "Sent to the approver when a staff member submits a time off request. Contains Approve / Decline buttons.",
+    variables: [
+      { name: "EMPLOYEE_NAME", description: "Name of the requesting employee" },
+      { name: "DATE", description: "Date of the time off" },
+      { name: "START_TIME", description: "Start time (e.g. 9:00 AM)" },
+      { name: "END_TIME", description: "End time (e.g. 1:00 PM)" },
+      { name: "HOURS", description: "Duration in hours" },
+      { name: "REASON", description: "Reason label (Exams / Emergency / Others)" },
+      { name: "REASON_DETAIL", description: "Additional detail if reason is Others" },
+      { name: "ACCEPT_URL", description: "Approve link (single-use)" },
+      { name: "DECLINE_URL", description: "Reject link (single-use)" },
+      ...COMMON_VARS,
+    ],
+    defaultSubject: "Time off request from {EMPLOYEE_NAME} — {DATE}",
+    defaultBody: `Hi,
+
+{EMPLOYEE_NAME} has submitted a time off request:
+
+  Date:    {DATE}
+  Time:    {START_TIME} to {END_TIME} ({HOURS}h)
+  Reason:  {REASON}
+
+Please review in the HR Portal: {SITE_URL}
+
+- {COMPANY_NAME}`,
+  },
+
+  TIME_OFF_APPROVED: {
+    key: "TIME_OFF_APPROVED",
+    label: "Time Off Approved — Requester",
+    description: "Sent to the staff member after the approver approves a time off request.",
+    variables: [
+      { name: "EMPLOYEE_NAME", description: "Requesting employee" },
+      { name: "DATE", description: "Date of the time off" },
+      { name: "START_TIME", description: "Start time" },
+      { name: "END_TIME", description: "End time" },
+      { name: "HOURS", description: "Duration in hours" },
+      { name: "APPROVER_NAME", description: "Who approved" },
+      ...COMMON_VARS,
+    ],
+    defaultSubject: "Your time off request was approved",
+    defaultBody: `Hi {EMPLOYEE_NAME},
+
+Your time off on {DATE} ({START_TIME} to {END_TIME}, {HOURS}h) has been approved by {APPROVER_NAME}.
+
+- {COMPANY_NAME}`,
+  },
+
+  TIME_OFF_REJECTED: {
+    key: "TIME_OFF_REJECTED",
+    label: "Time Off Rejected — Requester",
+    description: "Sent to the staff member after the approver declines a time off request.",
+    variables: [
+      { name: "EMPLOYEE_NAME", description: "Requesting employee" },
+      { name: "DATE", description: "Date of the time off" },
+      { name: "START_TIME", description: "Start time" },
+      { name: "END_TIME", description: "End time" },
+      { name: "APPROVER_NAME", description: "Who declined" },
+      ...COMMON_VARS,
+    ],
+    defaultSubject: "Your time off request was not approved",
+    defaultBody: `Hi {EMPLOYEE_NAME},
+
+Your time off request on {DATE} ({START_TIME} to {END_TIME}) was not approved by {APPROVER_NAME}.
 
 Please contact your manager if you have questions.
 
