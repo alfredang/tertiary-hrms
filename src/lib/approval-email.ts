@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, type EmailAttachment } from "@/lib/send-email";
 import { renderEmail } from "@/lib/email-templates/render";
+import { getCompanyBranding } from "@/lib/company-settings";
 import { generateEndpointToken, getBaseUrl } from "@/lib/webhooks";
 import type { TemplateKey } from "@/lib/email-templates/defaults";
 
@@ -88,18 +89,74 @@ async function getApproverEmails(employeeId?: string): Promise<{ to: string[]; c
   return { to: toList, cc: ccList };
 }
 
-function buildActionButtonsHtml(acceptUrl: string, declineUrl: string): string {
-  return `
-  <table cellpadding="0" cellspacing="0" border="0" style="margin: 24px 0;">
-    <tr>
-      <td style="padding-right: 12px;">
-        <a href="${acceptUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:12px 24px;border-radius:8px;font-weight:600;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">Accept</a>
-      </td>
-      <td>
-        <a href="${declineUrl}" style="display:inline-block;background:#dc2626;color:#ffffff;padding:12px 24px;border-radius:8px;font-weight:600;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">Decline</a>
-      </td>
-    </tr>
-  </table>`;
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+type RowStyle = "accent" | "bold" | "pill";
+
+function buildNotificationEmailHtml(opts: {
+  companyName: string;
+  headerTitle: string;
+  employeeName: string;
+  introAction: string;
+  rows: Array<{ label: string; value: string; style?: RowStyle }>;
+  ctaLabel: string;
+  buttonsHtml: string;
+  siteUrl: string;
+}): string {
+  const { companyName, headerTitle, employeeName, introAction, rows, ctaLabel, buttonsHtml, siteUrl } = opts;
+
+  const rowsHtml = rows
+    .map((row, i) => {
+      const v = esc(row.value);
+      let valueCell: string;
+      if (row.style === "accent") {
+        valueCell = `<strong style="color:#1B3A6B;font-weight:700;">${v}</strong>`;
+      } else if (row.style === "bold") {
+        valueCell = `<strong style="color:#111827;font-weight:700;">${v}</strong>`;
+      } else if (row.style === "pill") {
+        valueCell = `<span style="background:#EEF3FF;border:1px solid #C7D5F0;color:#1B3A6B;font-weight:700;padding:2px 10px;border-radius:12px;font-size:13px;display:inline-block;">${v}</span>`;
+      } else {
+        valueCell = v;
+      }
+      const bg = i % 2 === 1 ? "background:#F8FAFD;" : "";
+      const border = i < rows.length - 1 ? "border-bottom:1px solid #E5E9F0;" : "";
+      return `<tr style="${bg}"><td style="padding:11px 16px;font-size:13.5px;color:#6B7280;font-weight:500;width:130px;white-space:nowrap;${border}">${esc(row.label)}</td><td style="padding:11px 16px;font-size:13.5px;color:#111827;${border}">${valueCell}</td></tr>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#E8ECF3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;padding:24px 16px;">
+<div style="background:#ffffff;border-radius:6px;overflow:hidden;box-shadow:0 2px 16px rgba(27,58,107,0.10),0 1px 4px rgba(0,0,0,0.06);">
+<div style="background:#1B3A6B;padding:22px 32px;">
+<div style="font-size:11px;font-weight:600;letter-spacing:0.10em;text-transform:uppercase;color:rgba(255,255,255,0.55);">${esc(companyName)}</div>
+<div style="font-size:16px;font-weight:700;color:#ffffff;margin-top:2px;">${esc(headerTitle)} &mdash; Action Required</div>
+</div>
+<div style="padding:28px 32px 24px;">
+<p style="font-size:14px;color:#6B7280;margin:0 0 14px;">Hi,</p>
+<p style="font-size:15px;color:#1F2937;margin:0 0 16px;line-height:1.55;"><strong style="color:#1B3A6B;font-weight:700;">${esc(employeeName)}</strong> has submitted ${esc(introAction)} that requires your approval.</p>
+<div style="display:inline-block;background:#EEF3FF;border:1px solid #C7D5F0;color:#1B3A6B;font-size:12px;font-weight:600;letter-spacing:0.04em;padding:4px 12px;border-radius:20px;margin-bottom:20px;text-transform:uppercase;">&#x25CF;&nbsp;&nbsp;Awaiting Review</div>
+<table style="width:100%;border-collapse:collapse;border:1px solid #E5E9F0;margin-bottom:24px;" cellpadding="0" cellspacing="0"><tbody>${rowsHtml}</tbody></table>
+<p style="font-size:13px;color:#6B7280;margin:0 0 12px;">${esc(ctaLabel)}</p>
+${buttonsHtml}
+<div style="height:1px;background:#E5E9F0;margin:24px 0 0;"></div>
+</div>
+<div style="padding:0 32px 28px;">
+<p style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin:0;">Or review this request directly in the <a href="${siteUrl}" style="color:#2563EB;text-decoration:none;">HR Portal &#x2192;</a></p>
+<p style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin:6px 0 0;">This is an automated notification from ${esc(companyName)} HRMS. Do not reply to this email.</p>
+</div>
+</div>
+</div>
+</body>
+</html>`;
+}
+
+function buildActionButtonsHtml(approveUrl: string, declineUrl: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0;"><tr><td style="padding-right:10px;"><a href="${approveUrl}" style="display:inline-block;background:#16A34A;color:#ffffff;padding:11px 28px;border-radius:6px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;">Approve</a></td><td><a href="${declineUrl}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:11px 28px;border-radius:6px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;">Decline</a></td></tr></table>`;
 }
 
 function textToHtml(body: string, actionButtonsHtml: string): string {
@@ -108,7 +165,11 @@ function textToHtml(body: string, actionButtonsHtml: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
   const withButtons = escaped.replace(/\{ACTION_BUTTONS\}/g, actionButtonsHtml);
-  return `<div style="font-family:Arial,Helvetica,sans-serif;color:#111;line-height:1.5;white-space:pre-wrap;">${withButtons}</div>`;
+  const paragraphs = withButtons
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 12px;line-height:1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">${paragraphs}</div>`;
 }
 
 async function issueToken(kind: "LEAVE" | "EXPENSE", targetId: string): Promise<string> {
@@ -134,24 +195,33 @@ export async function sendLeaveApprovalEmail(args: {
 }): Promise<void> {
   const token = await issueToken("LEAVE", args.leaveRequestId);
   const base = getBaseUrl();
-  const acceptUrl = `${base}/api/public/leave-approval/respond?token=${token}&action=accept`;
+  const approveUrl = `${base}/api/public/leave-approval/respond?token=${token}&action=accept`;
   const declineUrl = `${base}/api/public/leave-approval/respond?token=${token}&action=decline`;
-  const actionButtons = buildActionButtonsHtml(acceptUrl, declineUrl);
 
-  const { subject, body } = await renderEmail("LEAVE_REQUEST", {
+  const { subject } = await renderEmail("LEAVE_REQUEST", {
     EMPLOYEE_NAME: args.employeeName,
-    LEAVE_TYPE: args.leaveType,
     START_DATE: args.startDate,
-    END_DATE: args.endDate,
-    DAYS: String(args.days),
-    REASON: args.reason || "-",
-    ACCEPT_URL: acceptUrl,
-    DECLINE_URL: declineUrl,
-    ACTION_BUTTONS: "{ACTION_BUTTONS}", // keep placeholder so HTML conversion injects the buttons
+  });
+
+  const branding = await getCompanyBranding();
+  const days = Number(args.days);
+  const html = buildNotificationEmailHtml({
+    companyName: branding.name,
+    headerTitle: "Leave Request",
+    employeeName: args.employeeName,
+    introAction: "a leave request",
+    rows: [
+      { label: "Leave Type", value: args.leaveType, style: "accent" },
+      { label: "Period", value: `${args.startDate} – ${args.endDate}`, style: "bold" },
+      { label: "Duration", value: `${days} day${days === 1 ? "" : "s"}`, style: "pill" },
+      { label: "Reason", value: args.reason || "—" },
+    ],
+    ctaLabel: "Please review and take action:",
+    buttonsHtml: buildActionButtonsHtml(approveUrl, declineUrl),
+    siteUrl: base,
   });
 
   const { to, cc } = await getApproverEmails(args.employeeId);
-  const html = textToHtml(body, actionButtons);
   const attachment = await attachmentFromLocalUrl(args.documentUrl, args.documentFileName);
   const attachments = attachment ? [attachment] : undefined;
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc, attachments })));
@@ -170,23 +240,31 @@ export async function sendExpenseApprovalEmail(args: {
 }): Promise<void> {
   const token = await issueToken("EXPENSE", args.expenseClaimId);
   const base = getBaseUrl();
-  const acceptUrl = `${base}/api/public/expense-approval/respond?token=${token}&action=accept`;
+  const approveUrl = `${base}/api/public/expense-approval/respond?token=${token}&action=accept`;
   const declineUrl = `${base}/api/public/expense-approval/respond?token=${token}&action=decline`;
-  const actionButtons = buildActionButtonsHtml(acceptUrl, declineUrl);
 
-  const { subject, body } = await renderEmail("EXPENSE_REQUEST", {
+  const { subject } = await renderEmail("EXPENSE_REQUEST", {
     EMPLOYEE_NAME: args.employeeName,
-    CATEGORY: args.category,
-    AMOUNT: String(args.amount),
-    EXPENSE_DATE: args.expenseDate,
-    DESCRIPTION: args.description,
-    ACCEPT_URL: acceptUrl,
-    DECLINE_URL: declineUrl,
-    ACTION_BUTTONS: "{ACTION_BUTTONS}",
+  });
+
+  const branding = await getCompanyBranding();
+  const html = buildNotificationEmailHtml({
+    companyName: branding.name,
+    headerTitle: "Expense Claim",
+    employeeName: args.employeeName,
+    introAction: "an expense claim",
+    rows: [
+      { label: "Category", value: args.category, style: "accent" },
+      { label: "Amount", value: String(args.amount), style: "bold" },
+      { label: "Date", value: args.expenseDate },
+      { label: "Description", value: args.description },
+    ],
+    ctaLabel: "Please review and take action:",
+    buttonsHtml: buildActionButtonsHtml(approveUrl, declineUrl),
+    siteUrl: base,
   });
 
   const { to, cc } = await getApproverEmails(args.employeeId);
-  const html = textToHtml(body, actionButtons);
   const attachment = await attachmentFromLocalUrl(args.receiptUrl, args.receiptFileName);
   const attachments = attachment ? [attachment] : undefined;
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc, attachments })));
