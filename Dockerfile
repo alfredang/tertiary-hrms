@@ -72,6 +72,15 @@ COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/eng
 COPY --from=builder /app/node_modules/playwright ./node_modules/playwright
 COPY --from=builder /app/node_modules/playwright-core ./node_modules/playwright-core
 
+# Copy the Claude Agent SDK with its native CLI binaries (resolved dynamically
+# at runtime, so Next's standalone tracing misses them). Used by the CPF
+# submission parser and bank-statement enrichment.
+COPY --from=builder /app/node_modules/@anthropic-ai ./node_modules/@anthropic-ai
+
+# Writable HOME for the Agent SDK CLI (config/cache) when running as nextjs
+RUN mkdir -p /home/nextjs && chown nextjs:nodejs /home/nextjs
+ENV HOME=/home/nextjs
+
 # uploads dir created at startup (see CMD below — root fixes perms, then drops to nextjs)
 
 EXPOSE 3000
