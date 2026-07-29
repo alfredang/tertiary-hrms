@@ -38,7 +38,7 @@ export async function renderEmail(
   vars: Record<string, string | number | undefined | null>,
 ): Promise<{ subject: string; body: string }> {
   const branding = await getCompanyBranding();
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "";
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "https://hrms.tertiaryinfo.tech";
   const merged = {
     COMPANY_NAME: branding.name,
     COMPANY_SHORT_NAME: branding.shortName || branding.name,

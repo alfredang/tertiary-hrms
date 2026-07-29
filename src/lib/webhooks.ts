@@ -55,7 +55,7 @@ export function getBaseUrl(): string {
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.AUTH_URL ||
     process.env.NEXTAUTH_URL ||
-    ""
+    "https://hrms.tertiaryinfo.tech"
   ).replace(/\/$/, "");
 }
 
