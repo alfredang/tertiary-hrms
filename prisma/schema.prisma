@@ -234,6 +234,7 @@ model TimeOffRequest {
 enum TimeOffReason {
   EXAMS
   EMERGENCY
+  UNPAID_LEAVE
   OTHERS
 }
 

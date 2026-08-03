@@ -12,6 +12,11 @@ export const TIME_OFF_REASONS = [
     hint: "Urgent personal or family matter that cannot wait.",
   },
   {
+    value: "UNPAID_LEAVE" as const,
+    label: "Unpaid Leave",
+    hint: "Time off without pay. No leave balance will be deducted.",
+  },
+  {
     value: "OTHERS" as const,
     label: "Others — Pls specify",
     hint: "Anything else. You must describe the reason.",
