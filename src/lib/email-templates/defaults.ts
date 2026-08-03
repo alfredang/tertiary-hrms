@@ -74,7 +74,7 @@ Warm regards,
       { name: "ACTION_BUTTONS", description: "Placeholder - replaced with styled Accept/Decline buttons in the HTML email" },
       ...COMMON_VARS,
     ],
-    defaultSubject: "Leave request from {EMPLOYEE_NAME} - {START_DATE}",
+    defaultSubject: "Approval for leave request from {EMPLOYEE_NAME} - {START_DATE}",
     defaultBody: `Hi,
 
 {EMPLOYEE_NAME} has submitted a leave request:
@@ -152,7 +152,7 @@ Please contact your manager if you have questions.
       { name: "ACTION_BUTTONS", description: "Placeholder - replaced with styled Accept/Decline buttons" },
       ...COMMON_VARS,
     ],
-    defaultSubject: "Expense claim from {EMPLOYEE_NAME}",
+    defaultSubject: "Approval for expense claim from {EMPLOYEE_NAME}",
     defaultBody: `Hi,
 
 {EMPLOYEE_NAME} has submitted an expense claim:
@@ -227,7 +227,7 @@ Please contact your manager if you have questions.
       { name: "DECLINE_URL", description: "Reject link (single-use)" },
       ...COMMON_VARS,
     ],
-    defaultSubject: "Time off request from {EMPLOYEE_NAME} — {DATE}",
+    defaultSubject: "Approval for time off request from {EMPLOYEE_NAME} — {DATE}",
     defaultBody: `Hi,
 
 {EMPLOYEE_NAME} has submitted a time off request:
