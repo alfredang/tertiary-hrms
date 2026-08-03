@@ -200,7 +200,7 @@ export async function sendLeaveApprovalEmail(args: {
 
   const { subject } = await renderEmail("LEAVE_REQUEST", {
     EMPLOYEE_NAME: args.employeeName,
-    START_DATE: args.startDate,
+    START_DATE: formatDateDisplay(args.startDate),
   });
 
   const branding = await getCompanyBranding();
@@ -212,7 +212,7 @@ export async function sendLeaveApprovalEmail(args: {
     introAction: "a leave request",
     rows: [
       { label: "Leave Type", value: args.leaveType, style: "accent" },
-      { label: "Period", value: `${args.startDate} – ${args.endDate}`, style: "bold" },
+      { label: "Period", value: `${formatDateDisplay(args.startDate)} – ${formatDateDisplay(args.endDate)}`, style: "bold" },
       { label: "Duration", value: `${days} day${days === 1 ? "" : "s"}`, style: "pill" },
       { label: "Reason", value: args.reason || "—" },
     ],
@@ -245,6 +245,7 @@ export async function sendExpenseApprovalEmail(args: {
 
   const { subject } = await renderEmail("EXPENSE_REQUEST", {
     EMPLOYEE_NAME: args.employeeName,
+    EXPENSE_DATE: formatDateDisplay(args.expenseDate),
   });
 
   const branding = await getCompanyBranding();
@@ -256,7 +257,7 @@ export async function sendExpenseApprovalEmail(args: {
     rows: [
       { label: "Category", value: args.category, style: "accent" },
       { label: "Amount", value: String(args.amount), style: "bold" },
-      { label: "Date", value: args.expenseDate },
+      { label: "Date", value: formatDateDisplay(args.expenseDate) },
       { label: "Description", value: args.description },
     ],
     ctaLabel: "Please review and take action:",
