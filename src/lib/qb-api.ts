@@ -226,6 +226,15 @@ async function qboFetchJson(opts: {
   return data;
 }
 
+// Reference project's proxy endpoint requires either a user session or this
+// machine service key (withAuth's machine-caller path) — see QBO_PROXY_API_KEY.
+function proxyAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const key = process.env.QBO_PROXY_API_KEY;
+  if (key) headers["x-api-key"] = key;
+  return headers;
+}
+
 export async function qbQuery(base: string, token: string, query: string): Promise<any> {
   const refUrl = await getProxyUrl();
   if (refUrl) {
@@ -233,7 +242,7 @@ export async function qbQuery(base: string, token: string, query: string): Promi
     const entity = (query.match(/FROM\s+(\w+)/i)?.[1] ?? "invoice").toLowerCase();
     const res = await fetch(`${refUrl}/api/quickbooks/proxy`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: proxyAuthHeaders(),
       body: JSON.stringify({ action: "query", entity, query }),
     });
     const json = await res.json().catch(() => null);
@@ -251,7 +260,7 @@ export async function qbCreate(base: string, token: string, entity: string, body
   if (refUrl) {
     const res = await fetch(`${refUrl}/api/quickbooks/proxy`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: proxyAuthHeaders(),
       body: JSON.stringify({ action: "create", entity, body }),
     });
     const json = await res.json().catch(() => null);
