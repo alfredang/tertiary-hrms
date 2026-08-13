@@ -58,10 +58,11 @@ describe("timeOffReasonLabel", () => {
   it("maps every enum value to its display label", () => {
     expect(timeOffReasonLabel("EXAMS")).toBe("Exams");
     expect(timeOffReasonLabel("EMERGENCY")).toBe("Emergency — Pls approve");
+    expect(timeOffReasonLabel("UNPAID_LEAVE")).toBe("Unpaid Leave");
     expect(timeOffReasonLabel("OTHERS")).toBe("Others — Pls specify");
   });
 
-  it("has exactly the three required reasons", () => {
-    expect(TIME_OFF_REASONS.map((r) => r.value)).toEqual(["EXAMS", "EMERGENCY", "OTHERS"]);
+  it("has exactly the four required reasons", () => {
+    expect(TIME_OFF_REASONS.map((r) => r.value)).toEqual(["EXAMS", "EMERGENCY", "UNPAID_LEAVE", "OTHERS"]);
   });
 });

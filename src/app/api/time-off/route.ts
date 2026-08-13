@@ -9,7 +9,7 @@ import type { TimeOffReason } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-const VALID_REASONS: TimeOffReason[] = ["EXAMS", "EMERGENCY", "OTHERS"];
+const VALID_REASONS: TimeOffReason[] = ["EXAMS", "EMERGENCY", "UNPAID_LEAVE", "OTHERS"];
 
 async function resolveActor() {
   if (isDevAuthSkipped()) {
