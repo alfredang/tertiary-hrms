@@ -19,25 +19,39 @@ async function buildOtpHtml(code: string, to: string) {
 
 // ── SMTP send (nodemailer) ───────────────────────────────────────────────────
 
+async function getSmtpCreds() {
+  const rows = await prisma.companyCredential.findMany({
+    where: { keyName: { in: ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_PORT", "SMTP_FROM", "SMTP_SECURE"] } },
+  });
+  const db: Record<string, string> = {};
+  for (const r of rows) db[r.keyName] = r.keyValue;
+
+  const host = db["SMTP_HOST"] || process.env.SMTP_HOST;
+  const user = db["SMTP_USER"] || process.env.SMTP_USER;
+  const pass = db["SMTP_PASS"] || process.env.SMTP_PASS;
+  const port = db["SMTP_PORT"] || process.env.SMTP_PORT;
+  const from = db["SMTP_FROM"] || process.env.SMTP_FROM;
+  const secure = db["SMTP_SECURE"] || process.env.SMTP_SECURE;
+
+  return { host, user, pass, port, from, secure };
+}
+
 async function sendViaSmtp(to: string, code: string) {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const { host, user, pass, port, from, secure } = await getSmtpCreds();
   if (!host || !user || !pass) return false;
 
   const transport = nodemailer.createTransport({
     host,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === "true",
+    port: Number(port ?? 587),
+    secure: secure === "true",
     auth: { user, pass },
   });
 
   const branding = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
   const companyName = branding?.name || "HR Portal";
-  const from = process.env.SMTP_FROM || user;
   const { subject, htmlBody } = await buildOtpHtml(code, to);
 
-  await transport.sendMail({ from: `${companyName} <${from}>`, to, subject, html: htmlBody });
+  await transport.sendMail({ from: `${companyName} <${from || user}>`, to, subject, html: htmlBody });
   console.log(`[send-otp] SMTP email sent to ${to}`);
   return true;
 }

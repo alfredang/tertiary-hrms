@@ -10,18 +10,31 @@ export interface EmailAttachment {
 
 // ── SMTP transport (nodemailer) ──────────────────────────────────────────────
 
-function getSmtpTransport() {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+async function getSmtpTransport() {
+  const rows = await prisma.companyCredential.findMany({
+    where: { keyName: { in: ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_PORT", "SMTP_FROM", "SMTP_SECURE"] } },
+  });
+  const db: Record<string, string> = {};
+  for (const r of rows) db[r.keyName] = r.keyValue;
+
+  const host = db["SMTP_HOST"] || process.env.SMTP_HOST;
+  const user = db["SMTP_USER"] || process.env.SMTP_USER;
+  const pass = db["SMTP_PASS"] || process.env.SMTP_PASS;
   if (!host || !user || !pass) return null;
 
-  return nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: { user, pass },
-  });
+  const port = db["SMTP_PORT"] || process.env.SMTP_PORT;
+  const secure = db["SMTP_SECURE"] || process.env.SMTP_SECURE;
+  const from = db["SMTP_FROM"] || process.env.SMTP_FROM || user;
+
+  return {
+    transport: nodemailer.createTransport({
+      host,
+      port: Number(port ?? 587),
+      secure: secure === "true",
+      auth: { user, pass },
+    }),
+    from,
+  };
 }
 
 // ── Gmail OAuth transport ────────────────────────────────────────────────────
@@ -90,11 +103,11 @@ export async function sendEmail({
   const ccList = Array.isArray(cc) ? cc : cc ? [cc] : [];
 
   // ── Try SMTP first (if configured); fall back to Gmail OAuth on failure ──
-  const smtpTransport = getSmtpTransport();
-  if (smtpTransport) {
+  const smtp = await getSmtpTransport();
+  if (smtp) {
     try {
-      const fromAddr = process.env.SMTP_FROM || process.env.SMTP_USER || "";
-      await smtpTransport.sendMail({
+      const fromAddr = smtp.from;
+      await smtp.transport.sendMail({
         from: `${companyName} <${fromAddr}>`,
         to,
         cc: ccList.length ? ccList.join(", ") : undefined,
