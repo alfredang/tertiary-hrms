@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2, FlaskConical, HardDrive, Loader2 } from "lucide-react";
+import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2, FlaskConical, HardDrive, Loader2, LogIn } from "lucide-react";
 
 interface GmailCredentialsCardProps {
   emailUser: string;
@@ -29,6 +29,35 @@ export function GmailCredentialsCard({
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testingDrive, setTestingDrive] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [callbackUri, setCallbackUri] = useState("");
+
+  // Result of the Google sign-in connect flow, passed back as query params by
+  // /api/settings/google-oauth/callback.
+  useEffect(() => {
+    setCallbackUri(`${window.location.origin}/api/settings/google-oauth/callback`);
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("google");
+    const error = params.get("google_error");
+    if (!connected && !error) return;
+    if (connected === "connected") {
+      const email = params.get("email");
+      toast({
+        title: "Google connected",
+        description: `New refresh token saved${email ? ` for ${email}` : ""}. Use Test / Test Drive to verify.`,
+      });
+    } else if (error) {
+      toast({ title: "Google sign-in failed", description: error, variant: "destructive" });
+    }
+    router.replace("/settings/credentials");
+    router.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleConnect = () => {
+    setConnecting(true);
+    window.location.href = "/api/settings/google-oauth/start";
+  };
   const [form, setForm] = useState({ emailUser, clientId, clientSecret, refreshToken });
   const [visible, setVisible] = useState({ clientId: false, clientSecret: false, refreshToken: false });
 
@@ -339,8 +368,22 @@ export function GmailCredentialsCard({
               )}
             </div>
           )}
+          <Button
+            onClick={handleConnect}
+            disabled={connecting || !form.clientId || !form.clientSecret}
+            className="w-full bg-primary hover:bg-primary/90 text-white"
+          >
+            {connecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}
+            {connecting ? "Redirecting to Google..." : "Sign in with Google to renew token"}
+          </Button>
           <p className="text-xs text-gray-500">
-            Generate at{" "}
+            Sign in as the company account ({form.emailUser || "the Gmail sender"}) — the new refresh
+            token (Gmail + Drive scopes) is saved automatically. One-time setup: the OAuth client in{" "}
+            <span className="text-gray-400">Google Cloud Console</span> must list this redirect URI:{" "}
+            <span className="text-gray-400 break-all">{callbackUri || "…/api/settings/google-oauth/callback"}</span>
+          </p>
+          <p className="text-xs text-gray-500">
+            Manual alternative: generate at{" "}
             <span className="text-gray-400">developers.google.com/oauthplayground</span> (gear icon → use
             your own OAuth credentials) authorising BOTH scopes:{" "}
             <span className="text-gray-400">https://mail.google.com/</span> and{" "}
