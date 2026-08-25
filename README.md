@@ -47,7 +47,11 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
-Recent additions (July 2026):
+Recent additions (August 2026):
+
+- **Google Drive connection hardening** (Settings → Credentials → Google OAuth) — the stored Google OAuth refresh token drives both outbound email **and** Drive uploads (CPF statement archiving, payslip PDFs), so it must be minted with **both** scopes: `https://mail.google.com/` and `https://www.googleapis.com/auth/drive`. The credentials card now says so, and a new **Test Drive** button (`/api/settings/test-drive`) verifies token refresh *and* write access to the shared CPF Drive folder in one click. An expired/revoked token now surfaces an actionable "regenerate at OAuth Playground" message on the CPF upload page instead of a raw `invalid_grant`. Pasted credentials are sanitised (quotes/whitespace) and fall back to `GMAIL_*` env vars.
+
+Earlier additions (July 2026):
 
 - **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer, last-7-days hours + days-worked stats, and a recent-days list. Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
 - **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, others) measured in hours on a single date; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.

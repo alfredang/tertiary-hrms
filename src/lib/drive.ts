@@ -7,14 +7,32 @@ export const EMPLOYEES_PARENT_FOLDER_ID = "15EMi7S_HE9t_2en-C3csjRSoE_GOc-FN";
 let cachedClient: drive_v3.Drive | null = null;
 let cachedKey = "";
 
+/** Strip the noise a pasted credential commonly carries — quotes and whitespace. */
+function sanitizeCredential(raw: string | undefined): string | undefined {
+  const cleaned = raw?.trim().replace(/^["']+|["']+$/g, "");
+  return cleaned || undefined;
+}
+
+/** True when Google rejected the OAuth refresh token itself (revoked/expired). */
+export function isDriveAuthRevoked(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /invalid_grant|Token has been expired or revoked/i.test(msg);
+}
+
+export const DRIVE_REAUTH_HINT =
+  "The Google refresh token has expired or been revoked. Generate a new one at " +
+  "developers.google.com/oauthplayground (gear icon → use your own OAuth credentials, " +
+  "then authorise BOTH scopes: https://mail.google.com/ and https://www.googleapis.com/auth/drive) " +
+  "and update the Refresh Token under Settings → Credentials → Google OAuth.";
+
 export async function getDriveClient(): Promise<drive_v3.Drive> {
   const rows = await prisma.companyCredential.findMany({
     where: { keyName: { in: ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN"] } },
   });
   const creds = Object.fromEntries(rows.map((r) => [r.keyName, r.keyValue]));
-  const clientId = creds.GMAIL_CLIENT_ID;
-  const clientSecret = creds.GMAIL_CLIENT_SECRET;
-  const refreshToken = creds.GMAIL_REFRESH_TOKEN;
+  const clientId = sanitizeCredential(creds.GMAIL_CLIENT_ID) ?? sanitizeCredential(process.env.GMAIL_CLIENT_ID);
+  const clientSecret = sanitizeCredential(creds.GMAIL_CLIENT_SECRET) ?? sanitizeCredential(process.env.GMAIL_CLIENT_SECRET);
+  const refreshToken = sanitizeCredential(creds.GMAIL_REFRESH_TOKEN) ?? sanitizeCredential(process.env.GMAIL_REFRESH_TOKEN);
   if (!clientId || !clientSecret || !refreshToken) {
     throw new Error("Google OAuth credentials are not configured");
   }
@@ -98,6 +116,20 @@ export async function getOrCreateEmployeeSubfolderId(
 }
 
 export async function uploadPdfToFolder(
+  folderId: string,
+  fileName: string,
+  buffer: Buffer,
+  opts: { replaceByName?: boolean } = {},
+): Promise<{ id: string; webViewLink: string | null }> {
+  try {
+    return await uploadPdfToFolderInner(folderId, fileName, buffer, opts);
+  } catch (err) {
+    if (isDriveAuthRevoked(err)) throw new Error(DRIVE_REAUTH_HINT);
+    throw err;
+  }
+}
+
+async function uploadPdfToFolderInner(
   folderId: string,
   fileName: string,
   buffer: Buffer,

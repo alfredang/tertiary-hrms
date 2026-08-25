@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
+import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2, FlaskConical, HardDrive, Loader2 } from "lucide-react";
 
 interface GmailCredentialsCardProps {
   emailUser: string;
@@ -28,6 +28,7 @@ export function GmailCredentialsCard({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [testingDrive, setTestingDrive] = useState(false);
   const [form, setForm] = useState({ emailUser, clientId, clientSecret, refreshToken });
   const [visible, setVisible] = useState({ clientId: false, clientSecret: false, refreshToken: false });
 
@@ -98,6 +99,27 @@ export function GmailCredentialsCard({
     }
   };
 
+  const handleTestDrive = async () => {
+    setTestingDrive(true);
+    try {
+      const res = await fetch("/api/settings/test-drive", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        toast({ title: "Google Drive working", description: data.message });
+      } else {
+        toast({
+          title: `Drive test failed (${data.step})`,
+          description: data.hint || data.error,
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Test request failed", variant: "destructive" });
+    } finally {
+      setTestingDrive(false);
+    }
+  };
+
   const mask = (val: string) =>
     val ? val.slice(0, 4) + "•".repeat(Math.max(0, val.length - 8)) + val.slice(-4) : "—";
 
@@ -129,6 +151,18 @@ export function GmailCredentialsCard({
                   Test
                 </Button>
               )}
+              {isConfigured && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleTestDrive}
+                  disabled={testingDrive}
+                  className="text-gray-400 hover:text-cyan-400 hover:bg-gray-800"
+                >
+                  {testingDrive ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <HardDrive className="h-4 w-4 mr-1" />}
+                  Test Drive
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -152,8 +186,9 @@ export function GmailCredentialsCard({
           )}
         </div>
         <p className="text-sm text-gray-400 mt-1">
-          Gmail OAuth 2.0 credentials used to send OTP verification emails. Configure via{" "}
-          <span className="text-gray-300">Google Cloud Console</span> with the Gmail API scope.
+          Google OAuth 2.0 credentials used to send OTP/payslip emails <em>and</em> to archive files to
+          Google Drive (CPF statements, payslips). Configure via{" "}
+          <span className="text-gray-300">Google Cloud Console</span> with the Gmail and Drive API scopes.
         </p>
       </CardHeader>
 
@@ -306,8 +341,12 @@ export function GmailCredentialsCard({
           )}
           <p className="text-xs text-gray-500">
             Generate at{" "}
-            <span className="text-gray-400">developers.google.com/oauthplayground</span> using the{" "}
-            <span className="text-gray-400">https://mail.google.com/</span> scope.
+            <span className="text-gray-400">developers.google.com/oauthplayground</span> (gear icon → use
+            your own OAuth credentials) authorising BOTH scopes:{" "}
+            <span className="text-gray-400">https://mail.google.com/</span> and{" "}
+            <span className="text-gray-400">https://www.googleapis.com/auth/drive</span> — the same token
+            sends email and uploads to Drive. If tokens keep expiring after ~7 days, publish the OAuth
+            consent screen to Production in Google Cloud Console.
           </p>
         </div>
       </CardContent>
