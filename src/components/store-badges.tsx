@@ -8,8 +8,9 @@
 const APP_STORE_URL = "https://apps.apple.com/sg/app/tertiary-hrms/id6759821144";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal";
 
+/** Dark badge on a light surface — the treatment Apple and Google specify for white backgrounds. */
 const badgeClass =
-  "inline-flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-900 px-4 py-2.5 text-white transition hover:bg-gray-800 hover:border-gray-600";
+  "inline-flex items-center gap-3 rounded-xl bg-black px-4 py-2.5 text-white transition hover:bg-gray-800";
 
 export function AppStoreBadge({ className = "" }: { className?: string }) {
   return (
@@ -24,7 +25,7 @@ export function AppStoreBadge({ className = "" }: { className?: string }) {
         <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C71.5 141.1 0 184.6 0 273.5c0 26.2 4.8 53.3 14.4 81.2 12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zM255.6 88.3c30.4-36.1 27.6-68.9 26.7-80.7-26.8 1.6-57.8 18.3-75.5 38.9-19.5 22.1-31 49.4-28.5 79.9 28.9 2.2 55.3-12.7 77.3-38.1z" />
       </svg>
       <span className="flex flex-col leading-tight">
-        <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wider text-gray-400">
+        <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wider text-gray-300">
           Download on the
         </span>
         <span className="whitespace-nowrap text-lg font-semibold tracking-tight">App Store</span>
@@ -49,7 +50,7 @@ export function GooglePlayBadge({ className = "" }: { className?: string }) {
         <path fill="#00C244" d="M349.9 176.1L85.4 26.1C69.8 17.2 56 18.3 47.6 27.2l225.6 225.6 76.7-76.7z" />
       </svg>
       <span className="flex flex-col leading-tight">
-        <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wider text-gray-400">
+        <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wider text-gray-300">
           Get it on
         </span>
         <span className="whitespace-nowrap text-lg font-semibold tracking-tight">Google Play</span>

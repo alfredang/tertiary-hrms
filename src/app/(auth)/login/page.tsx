@@ -248,32 +248,32 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 px-4 py-10 lg:flex lg:items-center lg:py-16">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
-        {/* ── Left column: branding, headline, app download badges ─────────── */}
-        <div className="space-y-8 text-center lg:text-left">
+    <div className="min-h-screen lg:grid lg:grid-cols-2">
+      {/* ── Left panel (white): branding, headline, app download badges ───── */}
+      <div className="flex items-center justify-center bg-white px-6 py-12 lg:px-12 lg:py-16">
+        <div className="w-full max-w-lg space-y-8 text-center lg:text-left">
           <div className="flex items-center justify-center gap-3 lg:justify-start">
             {branding.logo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={branding.logo}
                 alt={`${displayName} logo`}
-                className="w-12 h-12 rounded-xl object-contain bg-white shadow-lg shadow-primary/20"
+                className="w-12 h-12 rounded-xl object-contain"
               />
             ) : (
               <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
                 <span className="text-xl font-bold text-white">{logoInitials}</span>
               </div>
             )}
-            <span className="text-lg font-semibold text-white">{displayName}</span>
+            <span className="text-lg font-semibold text-gray-900">{displayName}</span>
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
               Your HR portal,
               <br className="hidden sm:block" /> in one place.
             </h1>
-            <p className="mx-auto max-w-lg text-lg text-gray-400 lg:mx-0">
+            <p className="mx-auto max-w-lg text-lg text-gray-600 lg:mx-0">
               Leave, payslips, expense claims, timesheets and the team calendar — for
               everyone at {footerName}, on the web and on your phone.
             </p>
@@ -281,16 +281,18 @@ function LoginForm() {
 
           {/* App download badges */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-400">Get the mobile app</p>
+            <p className="text-sm font-medium text-gray-500">Get the mobile app</p>
             <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
               <AppStoreBadge />
               <GooglePlayBadge />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* ── Right column: sign-in card ───────────────────────────────────── */}
-        <div className="mx-auto w-full max-w-md space-y-6 lg:mx-0 lg:ml-auto">
+      {/* ── Right panel (dark): sign-in card ─────────────────────────────── */}
+      <div className="flex items-center justify-center bg-gray-950 px-6 py-12 lg:px-12 lg:py-16">
+        <div className="w-full max-w-md space-y-6">
         <div className="space-y-1 text-center lg:text-left">
           <h2 className="text-2xl font-bold text-white">Welcome back</h2>
           <p className="text-gray-400">Sign in to {displayName} HR Portal</p>
@@ -565,7 +567,7 @@ function LoginForm() {
 
         {/* Footer */}
         <div className="text-center lg:text-left">
-          <p className="text-xs text-gray-600">Powered by {footerName}</p>
+          <p className="text-xs text-gray-500">Powered by {footerName}</p>
         </div>
         </div>
       </div>
@@ -575,20 +577,22 @@ function LoginForm() {
 
 function LoginSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-950 px-4 py-10 lg:flex lg:items-center lg:py-16">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="space-y-8">
-          <div className="h-12 w-12 bg-gray-800 rounded-xl animate-pulse mx-auto lg:mx-0" />
+    <div className="min-h-screen lg:grid lg:grid-cols-2">
+      <div className="flex items-center justify-center bg-white px-6 py-12 lg:px-12 lg:py-16">
+        <div className="w-full max-w-lg space-y-8">
+          <div className="h-12 w-12 bg-gray-200 rounded-xl animate-pulse mx-auto lg:mx-0" />
           <div className="space-y-3">
-            <div className="h-12 bg-gray-800 rounded w-full max-w-md animate-pulse" />
-            <div className="h-5 bg-gray-800 rounded w-full max-w-lg animate-pulse" />
+            <div className="h-12 bg-gray-200 rounded w-full max-w-md animate-pulse" />
+            <div className="h-5 bg-gray-200 rounded w-full animate-pulse" />
           </div>
           <div className="flex gap-3 justify-center lg:justify-start">
-            <div className="h-14 w-44 bg-gray-800 rounded-xl animate-pulse" />
-            <div className="h-14 w-44 bg-gray-800 rounded-xl animate-pulse" />
+            <div className="h-14 w-44 bg-gray-200 rounded-xl animate-pulse" />
+            <div className="h-14 w-44 bg-gray-200 rounded-xl animate-pulse" />
           </div>
         </div>
-        <div className="mx-auto w-full max-w-md space-y-6 lg:mx-0 lg:ml-auto">
+      </div>
+      <div className="flex items-center justify-center bg-gray-950 px-6 py-12 lg:px-12 lg:py-16">
+        <div className="w-full max-w-md space-y-6">
           <div className="space-y-2">
             <div className="h-7 bg-gray-800 rounded w-48 animate-pulse" />
             <div className="h-5 bg-gray-800 rounded w-64 animate-pulse" />
