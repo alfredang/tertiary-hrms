@@ -216,6 +216,21 @@ Earlier additions (May 2026):
 - Responsive layout with mobile hamburger menu + bottom tab navigation
 - Safe area support for notched devices
 
+### Mobile Apps
+Native iOS and Android companion apps talk to this web app over its JSON API
+(`/api/mobile/*` + `/api/auth/google-mobile`). Both are published and linked from
+the login page:
+
+[![Download on the App Store](https://img.shields.io/badge/App_Store-Download-000000?style=flat-square&logo=apple)](https://apps.apple.com/sg/app/tertiary-hrms/id6759821144)
+[![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_it_on-414141?style=flat-square&logo=google-play)](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)
+
+- **iOS** — [apps.apple.com/sg/app/tertiary-hrms](https://apps.apple.com/sg/app/tertiary-hrms/id6759821144)
+- **Android** — [play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)
+
+The login page uses a two-column layout — branding, headline and both store
+badges on the left, the sign-in card on the right — collapsing to a single
+stacked column on mobile.
+
 ---
 
 ## Tech Stack
