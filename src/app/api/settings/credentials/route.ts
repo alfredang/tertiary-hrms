@@ -23,6 +23,11 @@ const ALLOWED_KEYS = [
   "CLAUDE_API_KEY",
   "HABITAP_USERNAME",
   "HABITAP_PASSWORD",
+  // Native app OAuth client ids, checked by /api/auth/google-mobile. Public
+  // values (native clients carry no secret) kept here so a new mobile build can
+  // be authorised without a redeploy.
+  "GOOGLE_IOS_CLIENT_ID",
+  "GOOGLE_ANDROID_CLIENT_ID",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];

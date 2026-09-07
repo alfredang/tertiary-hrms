@@ -93,7 +93,7 @@ async function sendViaGmailOAuth(
         const msg = err?.message ?? String(err);
         throw new Error(
           msg.includes("invalid_grant") || msg.includes("Token has been expired")
-            ? "Gmail refresh token is expired. Go to Settings → Credentials and regenerate it from OAuth Playground."
+            ? "Gmail sign-in has expired. An admin can fix this in Settings → Credentials by clicking \"Sign in with Google to renew token\". Meanwhile, sign in with your password or with Google."
             : `Gmail auth failed: ${msg}`
         );
       }

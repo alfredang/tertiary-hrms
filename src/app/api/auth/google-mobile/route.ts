@@ -34,16 +34,39 @@ export async function POST(req: Request) {
 
     const googleUser = await googleResponse.json();
 
-    // Validate the token audience matches one of our client IDs (web, iOS, Android)
+    // Validate the token audience matches one of our client IDs (web, iOS, Android).
+    // The native client ids are also readable from CompanyCredential so they can be
+    // set from Settings → Credentials without a redeploy, matching how every other
+    // third-party credential in this app is managed.
+    const credRows = await prisma.companyCredential.findMany({
+      where: { keyName: { in: ["GOOGLE_IOS_CLIENT_ID", "GOOGLE_ANDROID_CLIENT_ID"] } },
+    });
+    const storedIds = Object.fromEntries(credRows.map((r) => [r.keyName, r.keyValue]));
+
     const allowedAudiences = [
       process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_IOS_CLIENT_ID,
-      process.env.GOOGLE_ANDROID_CLIENT_ID,
-    ].filter(Boolean);
+      storedIds.GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID,
+      storedIds.GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_ANDROID_CLIENT_ID,
+    ]
+      .map((v) => v?.trim().replace(/^["']+|["']+$/g, ""))
+      .filter(Boolean);
 
     if (!allowedAudiences.includes(googleUser.aud)) {
+      console.warn(
+        `[google-mobile] Audience mismatch: token aud=${googleUser.aud} is not in the allow-list ` +
+          `(${allowedAudiences.length} client id(s) configured). Add the mobile OAuth client id in ` +
+          `Settings → Credentials or as GOOGLE_IOS_CLIENT_ID / GOOGLE_ANDROID_CLIENT_ID.`,
+      );
       return NextResponse.json(
-        { error: "Token audience mismatch" },
+        { error: "This app build is not authorised to sign in. Please contact IT." },
+        { status: 401 }
+      );
+    }
+
+    // Google only asserts the address is real once it is verified.
+    if (googleUser.email_verified === "false" || googleUser.email_verified === false) {
+      return NextResponse.json(
+        { error: "This Google account's email is not verified." },
         { status: 401 }
       );
     }

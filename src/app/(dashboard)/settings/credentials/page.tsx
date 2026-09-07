@@ -3,6 +3,7 @@ import { QuickBooksCredentialsCard } from "@/components/settings/quickbooks-cred
 import { GmailCredentialsCard } from "@/components/settings/gmail-credentials-card";
 import { ClaudeCredentialsCard } from "@/components/settings/claude-credentials-card";
 import { WoodsSquareCredentialsCard } from "@/components/settings/woods-square-credentials-card";
+import { MobileSignInCard } from "@/components/settings/mobile-signin-card";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ async function getCredentials() {
           "CLAUDE_API_KEY",
           "HABITAP_USERNAME",
           "HABITAP_PASSWORD",
+          "GOOGLE_IOS_CLIENT_ID",
+          "GOOGLE_ANDROID_CLIENT_ID",
         ],
       },
     },
@@ -42,6 +45,10 @@ export default async function CredentialsPage() {
         clientId={credentials["GMAIL_CLIENT_ID"] ?? ""}
         clientSecret={credentials["GMAIL_CLIENT_SECRET"] ?? ""}
         refreshToken={credentials["GMAIL_REFRESH_TOKEN"] ?? ""}
+      />
+      <MobileSignInCard
+        iosClientId={credentials["GOOGLE_IOS_CLIENT_ID"] ?? ""}
+        androidClientId={credentials["GOOGLE_ANDROID_CLIENT_ID"] ?? ""}
       />
       <QuickBooksCredentialsCard
         clientId={credentials["QUICKBOOKS_CLIENT_ID"] ?? ""}

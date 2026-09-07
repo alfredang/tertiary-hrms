@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2, FlaskConical, HardDrive, Loader2, LogIn } from "lucide-react";
+import { Pencil, X, Eye, EyeOff, Mail, CheckCircle2, FlaskConical, HardDrive, Loader2, LogIn, AlertTriangle, RefreshCw } from "lucide-react";
+
+interface TokenStatus {
+  status: "ok" | "expired" | "unconfigured" | "error";
+  email?: string | null;
+  hasDrive?: boolean;
+  message: string;
+}
 
 interface GmailCredentialsCardProps {
   emailUser: string;
@@ -31,6 +38,28 @@ export function GmailCredentialsCard({
   const [testingDrive, setTestingDrive] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [callbackUri, setCallbackUri] = useState("");
+
+  // Live health of the stored refresh token. This is the credential whose
+  // expiry surfaces to employees as a login error on the web and mobile apps,
+  // so it is checked on load rather than only when something breaks.
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  const checkTokenStatus = async () => {
+    setChecking(true);
+    try {
+      const res = await fetch("/api/settings/google-oauth/status");
+      setTokenStatus(await res.json());
+    } catch {
+      setTokenStatus({ status: "error", message: "Could not reach the status endpoint." });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    checkTokenStatus();
+  }, []);
 
   // Result of the Google sign-in connect flow, passed back as query params by
   // /api/settings/google-oauth/callback.
@@ -159,12 +188,27 @@ export function GmailCredentialsCard({
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-gray-400" />
             <CardTitle className="text-white">Google OAuth</CardTitle>
-            {isConfigured && (
+            {checking ? (
+              <span className="flex items-center gap-1 text-xs text-gray-500 font-medium">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Checking
+              </span>
+            ) : tokenStatus?.status === "ok" ? (
               <span className="flex items-center gap-1 text-xs text-green-400 font-medium">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Configured
+                Connected
               </span>
-            )}
+            ) : tokenStatus?.status === "expired" ? (
+              <span className="flex items-center gap-1 text-xs text-red-400 font-medium">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Token expired
+              </span>
+            ) : isConfigured ? (
+              <span className="flex items-center gap-1 text-xs text-amber-400 font-medium">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Needs attention
+              </span>
+            ) : null}
           </div>
           {!editing ? (
             <div className="flex items-center gap-2">
@@ -195,6 +239,16 @@ export function GmailCredentialsCard({
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={checkTokenStatus}
+                disabled={checking}
+                className="text-gray-400 hover:text-cyan-400 hover:bg-gray-800"
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${checking ? "animate-spin" : ""}`} />
+                Re-check
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setEditing(true)}
                 className="text-gray-400 hover:text-white hover:bg-gray-800"
               >
@@ -222,6 +276,43 @@ export function GmailCredentialsCard({
       </CardHeader>
 
       <CardContent className="space-y-5">
+        {/* Live token health. Renewing is a one-click action here because an
+            expired token blocks OTP email on both the web and mobile apps. */}
+        {!checking && tokenStatus && tokenStatus.status !== "ok" && (
+          <div className="rounded-md border border-red-900/60 bg-red-950/40 p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-red-300">
+                  {tokenStatus.status === "expired"
+                    ? "Google token expired — employees cannot receive one-time codes"
+                    : tokenStatus.status === "unconfigured"
+                      ? "Google is not connected yet"
+                      : "Google token check failed"}
+                </p>
+                <p className="text-xs text-red-200/80">{tokenStatus.message}</p>
+              </div>
+            </div>
+            <Button
+              onClick={handleConnect}
+              disabled={connecting || !form.clientId || !form.clientSecret}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              {connecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              {connecting ? "Redirecting to Google..." : "Renew token now"}
+            </Button>
+          </div>
+        )}
+        {!checking && tokenStatus?.status === "ok" && (
+          <div className="rounded-md border border-green-900/60 bg-green-950/30 px-4 py-3 flex items-start gap-2">
+            <CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-green-200/90">
+              {tokenStatus.message}
+              {tokenStatus.email ? ` Connected as ${tokenStatus.email}.` : ""}
+            </p>
+          </div>
+        )}
+
         {/* Email User */}
         <div className="space-y-2">
           <Label className="text-gray-300">Gmail Address</Label>
@@ -332,7 +423,7 @@ export function GmailCredentialsCard({
         <div className="border-t border-gray-800 pt-5 space-y-2">
           <Label className="text-gray-300">
             Refresh Token{" "}
-            <span className="text-xs text-gray-500 font-normal">(enter manually from OAuth Playground)</span>
+            <span className="text-xs text-gray-500 font-normal">(set automatically by “Sign in with Google” below)</span>
           </Label>
           {editing ? (
             <div className="flex items-center gap-2">
