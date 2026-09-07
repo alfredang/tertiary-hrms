@@ -492,6 +492,23 @@ tertiary-hrms/
 
 Deployed on Coolify with Traefik reverse proxy at [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech). Auto-deploys on `git push` to `main`. Database is PostgreSQL on Coolify.
 
+**Schema changes** are not applied by the build — run `npm run db:push` against the production database when a deploy includes a Prisma schema change.
+
+#### Redeploying after a failed deploy
+
+Coolify keeps the previous version running when a deploy fails, so the live site is never taken down by a bad build.
+
+- **Retry from the Coolify UI**: open the application → **Actions** (top right) → **Redeploy**. **Restart** only restarts the current container without rebuilding.
+- **Retry from git**: any new push to `main` fires the deploy webhook again.
+- **`git ls-remote` / `git clone` fails with "Failed to connect to github.com port 443"** in the first two minutes of the log: the Coolify server could not reach GitHub. This is an upstream network outage, not a code problem — nothing in the repo needs changing. Wait a few minutes and redeploy. To confirm it has cleared, SSH to the server and run the same check the deploy runs, inside the helper image on the `coolify` Docker network:
+
+  ```bash
+  docker run --rm --network coolify coollabsio/coolify-helper:1.0.16 \
+    bash -c "git ls-remote https://github.com/alfredang/tertiary-hrms refs/heads/main"
+  ```
+
+  It should print the `main` commit SHA within a second or two.
+
 ---
 
 ## Links
