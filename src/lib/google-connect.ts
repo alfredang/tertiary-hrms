@@ -12,6 +12,13 @@ import { prisma } from "@/lib/prisma";
 
 export const GOOGLE_CONNECT_STATE_COOKIE = "google_connect_state";
 
+/**
+ * Google's OAuth Playground redirect. Registered on the company's OAuth client
+ * already, so the paste-a-code renewal flow works without Cloud Console access
+ * to that client's project.
+ */
+export const PLAYGROUND_REDIRECT = "https://developers.google.com/oauthplayground";
+
 export const GOOGLE_CONNECT_SCOPES = [
   "openid",
   "email",
