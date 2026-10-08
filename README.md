@@ -54,7 +54,8 @@ Recent additions (August 2026):
 
 Earlier additions (July 2026):
 
-- **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer, last-7-days hours + days-worked stats, and a recent-days list. Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
+- **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer plus a **monthly daily history** (date, check-in, check-out, hours) with month navigation, total hours and days worked. Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
+- **Intern Attendance overview** (`/attendance/overview`, admin) — every active intern (`employmentType = INTERN`, so zero-check-in interns are visible) plus anyone else who punched that month, with days worked, total hours, last check-in and a live "Working" badge; select a row to open that intern's daily check-in / check-out history. Served by `/api/attendance/summary` (admin only) and `/api/attendance/history?month=YYYY-MM[&employeeId=]`, mirrored 1:1 at `/api/mobile/attendance/{summary,history}` for the native apps.
 - **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, others) measured in hours on a single date; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.
 - **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
   - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
@@ -421,7 +422,7 @@ tertiary-hrms/
 │   │   │   ├── expenses/          # Expense claims + submit + edit
 │   │   │   ├── payroll/           # Payroll + generation + Excel upload
 │   │   │   ├── calendar/          # Calendar view + day detail + add/edit
-│   │   │   ├── attendance/        # Web clock in / out (one-tap punch)
+│   │   │   ├── attendance/        # Web clock in / out + monthly history; overview/ = admin intern attendance
 │   │   │   ├── timesheet/         # Weekly OT timesheet + admin overview
 │   │   │   ├── time-off/          # Partial-day time off requests + approvals
 │   │   │   ├── sop/               # Standard operating procedures
@@ -433,7 +434,7 @@ tertiary-hrms/
 │   │       ├── leave/             # Leave request + approval
 │   │       ├── expenses/          # Expense claim + approval
 │   │       ├── payroll/           # Payroll generation + Excel upload
-│   │       ├── attendance/        # Clock in/out punches (web)
+│   │       ├── attendance/        # Clock in/out punches, history, admin summary
 │   │       ├── timesheet/         # Weekly OT timesheet
 │   │       ├── time-off/          # Time off requests + approval
 │   │       ├── mobile/            # Read-only JSON API for the native apps

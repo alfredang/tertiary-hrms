@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LogIn, LogOut, Loader2, Sigma, CalendarCheck, AlertCircle } from "lucide-react";
+import { LogIn, LogOut, Loader2, AlertCircle } from "lucide-react";
+import { AttendanceHistory } from "./attendance-history";
+import { formatTime } from "./attendance-format";
 
 interface Punch {
   id: string;
@@ -13,31 +15,6 @@ interface Punch {
 
 interface AttendanceData {
   today: Punch | null;
-  recent: Punch[];
-  totalHours: number;
-  daysWorked: number;
-}
-
-const TZ = "Asia/Singapore";
-
-function formatTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("en-SG", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: TZ,
-  });
-}
-
-function formatDay(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-SG", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 /** HH:MM:SS elapsed since the given instant. */
@@ -55,6 +32,8 @@ export function ClockWidget() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [nowMs, setNowMs] = useState(() => Date.now());
+  // Bumped after each punch so the history below refetches.
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Avoid a hydration mismatch: the live timer only renders after mount.
   const [mounted, setMounted] = useState(false);
@@ -102,6 +81,7 @@ export function ClockWidget() {
         setError(body.error ?? "Something went wrong.");
       } else {
         await load();
+        setReloadKey((k) => k + 1);
       }
     } catch {
       setError("Network error — please try again.");
@@ -180,56 +160,7 @@ export function ClockWidget() {
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5">
-          <Sigma className="h-5 w-5 text-emerald-400" />
-          <p className="mt-2 text-3xl font-bold text-white">
-            {(data?.totalHours ?? 0).toFixed(1)} h
-          </p>
-          <p className="text-sm text-gray-400">Logged (last 7 days)</p>
-        </div>
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5">
-          <CalendarCheck className="h-5 w-5 text-blue-400" />
-          <p className="mt-2 text-3xl font-bold text-white">{data?.daysWorked ?? 0}</p>
-          <p className="text-sm text-gray-400">Days worked</p>
-        </div>
-      </div>
-
-      {/* Recent days */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold text-white">Recent days</h2>
-        {data?.recent.length ? (
-          <ul className="space-y-2">
-            {data.recent.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium text-white">{formatDay(p.date)}</p>
-                  <p className="text-sm text-gray-400">
-                    {formatTime(p.clockIn)} – {p.clockOut ? formatTime(p.clockOut) : "…"}
-                  </p>
-                </div>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                    p.clockOut
-                      ? "border-gray-700 bg-gray-800/60 text-gray-300"
-                      : "border-amber-800/50 bg-amber-950/30 text-amber-400"
-                  }`}
-                >
-                  {p.clockOut ? `${p.hours?.toFixed(2) ?? "0.00"} h` : "Working"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-8 text-center text-sm text-gray-500">
-            No attendance records yet.
-          </p>
-        )}
-      </div>
+      <AttendanceHistory reloadKey={reloadKey} />
     </div>
   );
 }
