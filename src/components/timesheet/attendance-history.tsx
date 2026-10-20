@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Sigma, CalendarCheck, AlertCircle } from "lucide-react";
-import { formatDay, formatMonth, formatTime, shiftMonth, currentMonth } from "./attendance-format";
+import { formatDay, formatMonth, formatTime, shiftMonth, currentMonth, todayDate, hoursSince } from "./attendance-format";
 
 interface Punch {
   id: string;
@@ -128,18 +128,37 @@ export function AttendanceHistory({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800 bg-gray-900/60">
-              {data.days.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-4 py-3 font-medium text-white">{formatDay(p.date)}</td>
-                  <td className="px-4 py-3 text-gray-300">{formatTime(p.clockIn)}</td>
-                  <td className="px-4 py-3 text-gray-300">
-                    {p.clockOut ? formatTime(p.clockOut) : p.clockIn ? <span className="text-amber-400">Working…</span> : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-white">
-                    {p.hours != null ? p.hours.toFixed(2) : "—"}
-                  </td>
-                </tr>
-              ))}
+              {data.days.map((p) => {
+                // Open punch: still accruing if it's today, otherwise the clock-out was missed.
+                const open = p.clockIn && !p.clockOut;
+                const inProgress = open && p.date === todayDate();
+                return (
+                  <tr key={p.id}>
+                    <td className="px-4 py-3 font-medium text-white">{formatDay(p.date)}</td>
+                    <td className="px-4 py-3 text-gray-300">{formatTime(p.clockIn)}</td>
+                    <td className="px-4 py-3 text-gray-300">
+                      {p.clockOut ? (
+                        formatTime(p.clockOut)
+                      ) : inProgress ? (
+                        <span className="text-amber-400">Still in…</span>
+                      ) : open ? (
+                        <span className="text-amber-400">No clock-out</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-white">
+                      {p.hours != null ? (
+                        p.hours.toFixed(2)
+                      ) : inProgress ? (
+                        <span className="text-amber-400">{hoursSince(p.clockIn!).toFixed(2)} so far</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot className="bg-gray-900 text-white">
               <tr>

@@ -45,3 +45,14 @@ export function currentMonth(): string {
   // en-CA formats as YYYY-MM-DD.
   return new Date().toLocaleDateString("en-CA", { timeZone: TZ }).slice(0, 7);
 }
+
+/** Today's `YYYY-MM-DD` in Singapore time. */
+export function todayDate(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+}
+
+/** Hours elapsed since `iso`, rounded to 2dp — for a punch still open today. */
+export function hoursSince(iso: string): number {
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.round((ms / 3_600_000) * 100) / 100);
+}
