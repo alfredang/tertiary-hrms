@@ -49,7 +49,7 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 Recent additions (August 2026):
 
-- **AI agent leave & MC summary API** (`GET /api/agent/leave-summary?month=YYYY-MM[&format=json|markdown]`) — read-only monthly report of every active staff member and intern (plus anyone who left during the month) for an external AI agent to pull on a schedule. Returns approved vs pending days per leave type (AL, MC, CL, NPL, AL_OT) counted as working days inside the month — leaves crossing a month boundary are split and half days respected — intern hourly time-off, year balances, and company totals; `format=markdown` returns a ready-to-send report. Authenticated with `Authorization: Bearer <AGENT_API_KEY>` (env var); `month` defaults to the previous month in SGT.
+- **AI agent leave & MC summary API** (`GET /api/agent/leave-summary?month=YYYY-MM[&format=json|markdown]`) — read-only monthly report of every active staff member and intern (plus anyone who left during the month) for an external AI agent to pull on a schedule. Returns approved vs pending days per leave type (AL, MC, CL, NPL, AL_OT) counted as working days inside the month — leaves crossing a month boundary are split and half days respected — intern hourly time-off, year balances, and company totals; `format=markdown` returns a ready-to-send report. Authenticated with `Authorization: Bearer <AGENT_API_KEY>`, the key stored in `CompanyCredential` and managed (generate / rotate) under **Settings → Credentials → AI Agent API Key**; `month` defaults to the previous month in SGT.
 - **Google Drive connection hardening** (Settings → Credentials → Google OAuth) — the stored Google OAuth refresh token drives both outbound email **and** Drive uploads (CPF statement archiving, payslip PDFs), so it must be minted with **both** scopes: `https://mail.google.com/` and `https://www.googleapis.com/auth/drive`. The credentials card now says so, and a new **Test Drive** button (`/api/settings/test-drive`) verifies token refresh *and* write access to the shared CPF Drive folder in one click. An expired/revoked token now surfaces an actionable message on the CPF upload page instead of a raw `invalid_grant`. Pasted credentials are sanitised (quotes/whitespace) and fall back to `GMAIL_*` env vars.
 - **One-click Google token renewal** — a **Sign in with Google** button on the credentials card runs the OAuth consent flow in-app (`/api/settings/google-oauth/start` → `/callback`) and saves the new refresh token (and connected account email) straight into `CompanyCredential`. One-time setup: register `<app-origin>/api/settings/google-oauth/callback` as an authorised redirect URI on the OAuth client in Google Cloud Console.
 
@@ -318,8 +318,6 @@ ANTHROPIC_API_KEY=""
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3080"
 
-# External AI agent access to /api/agent/* (generate with: openssl rand -hex 32)
-AGENT_API_KEY=""
 
 # Development (skip auth for quick testing)
 SKIP_AUTH="false"

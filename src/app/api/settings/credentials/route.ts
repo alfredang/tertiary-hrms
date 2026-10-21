@@ -28,6 +28,8 @@ const ALLOWED_KEYS = [
   // be authorised without a redeploy.
   "GOOGLE_IOS_CLIENT_ID",
   "GOOGLE_ANDROID_CLIENT_ID",
+  // Bearer key external AI agents send to /api/agent/*.
+  "AGENT_API_KEY",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];

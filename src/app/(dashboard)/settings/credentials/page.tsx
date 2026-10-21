@@ -4,6 +4,7 @@ import { GmailCredentialsCard } from "@/components/settings/gmail-credentials-ca
 import { ClaudeCredentialsCard } from "@/components/settings/claude-credentials-card";
 import { WoodsSquareCredentialsCard } from "@/components/settings/woods-square-credentials-card";
 import { MobileSignInCard } from "@/components/settings/mobile-signin-card";
+import { AgentApiKeyCard } from "@/components/settings/agent-api-key-card";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ async function getCredentials() {
           "HABITAP_PASSWORD",
           "GOOGLE_IOS_CLIENT_ID",
           "GOOGLE_ANDROID_CLIENT_ID",
+          "AGENT_API_KEY",
         ],
       },
     },
@@ -59,6 +61,7 @@ export default async function CredentialsPage() {
         proxyUrl={credentials["QUICKBOOKS_PROXY_URL"] ?? ""}
       />
       <ClaudeCredentialsCard apiKey={credentials["CLAUDE_API_KEY"] ?? ""} />
+      <AgentApiKeyCard apiKey={credentials["AGENT_API_KEY"] ?? ""} />
       <WoodsSquareCredentialsCard
         username={credentials["HABITAP_USERNAME"] ?? ""}
         password={credentials["HABITAP_PASSWORD"] ?? ""}
