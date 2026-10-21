@@ -33,6 +33,7 @@ export function middleware(req: NextRequest) {
     "/register",
     "/api/auth",
     "/api/cron",
+    "/api/agent",
     "/api/uploadthing",
     "/api/public",
     "/api/webhooks",
