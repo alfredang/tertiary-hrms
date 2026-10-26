@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchEmployee, normaliseName } from "@/lib/cpf-submission";
+import { describeClaudeAuthError, matchEmployee, normaliseName } from "@/lib/cpf-submission";
 
 const candidates = [
   { id: "e1", name: "ALFRED ANG CHEW HOE", nric: "S1808997A" },
@@ -82,5 +82,33 @@ describe("matchEmployee", () => {
       candidates,
     );
     expect(m.employeeId).toBeNull();
+  });
+});
+
+describe("describeClaudeAuthError", () => {
+  it("flags an organization that has disabled subscription access (CLI wording)", () => {
+    const msg = describeClaudeAuthError(
+      "Claude Code returned an error result: Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+    );
+    expect(msg).toMatch(/organization it was issued under has disabled subscription access/);
+    expect(msg).not.toMatch(/expired/);
+  });
+
+  it("flags the same condition from the raw API 403 body", () => {
+    const msg = describeClaudeAuthError(
+      '{"type":"permission_error","message":"OAuth authentication is currently not allowed for this organization.","details":{"error_code":"oauth_not_allowed_for_organization"}}',
+      403,
+    );
+    expect(msg).toMatch(/disabled subscription access/);
+  });
+
+  it("reports an expired or invalid token", () => {
+    expect(describeClaudeAuthError("OAuth token has expired")).toMatch(/rejected or has expired/);
+    expect(describeClaudeAuthError("", 401)).toMatch(/rejected or has expired/);
+  });
+
+  it("leaves non-auth failures alone", () => {
+    expect(describeClaudeAuthError("Claude Code process exited with code 1")).toBeNull();
+    expect(describeClaudeAuthError("Overloaded", 529)).toBeNull();
   });
 });
