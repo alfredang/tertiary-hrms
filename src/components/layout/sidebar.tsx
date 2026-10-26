@@ -118,6 +118,7 @@ const navigation: NavItem[] = [
   { name: "Clock In/Out", href: "/attendance",  icon: AlarmClock,    staffOnly:    true as const },
   { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
   { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
+  { name: "Intern Attendance", href: "/attendance/overview", icon: AlarmClock, adminOnly: true as const },
   { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
   { name: "Woods Square Access", href: "/woods-square-access", icon: KeyRound, staffOnly: true as const, allowAccountant: true as const },
   {

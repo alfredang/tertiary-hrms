@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       step: "send",
       error: message,
       hint: isExpired
-        ? "Refresh token is expired or revoked. Go to https://developers.google.com/oauthplayground, re-authorise Gmail (https://mail.google.com/), get a new refresh token, and update it in Settings → Credentials."
+        ? "Refresh token is expired or revoked. Go to https://developers.google.com/oauthplayground, re-authorise BOTH https://mail.google.com/ and https://www.googleapis.com/auth/drive (the same token also uploads CPF statements and payslips to Drive), get a new refresh token, and update it in Settings → Credentials."
         : "Check Coolify logs for more detail.",
     });
   }

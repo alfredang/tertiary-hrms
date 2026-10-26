@@ -3,6 +3,8 @@ import { QuickBooksCredentialsCard } from "@/components/settings/quickbooks-cred
 import { GmailCredentialsCard } from "@/components/settings/gmail-credentials-card";
 import { ClaudeCredentialsCard } from "@/components/settings/claude-credentials-card";
 import { WoodsSquareCredentialsCard } from "@/components/settings/woods-square-credentials-card";
+import { MobileSignInCard } from "@/components/settings/mobile-signin-card";
+import { AgentApiKeyCard } from "@/components/settings/agent-api-key-card";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,9 @@ async function getCredentials() {
           "CLAUDE_API_KEY",
           "HABITAP_USERNAME",
           "HABITAP_PASSWORD",
+          "GOOGLE_IOS_CLIENT_ID",
+          "GOOGLE_ANDROID_CLIENT_ID",
+          "AGENT_API_KEY",
         ],
       },
     },
@@ -43,6 +48,10 @@ export default async function CredentialsPage() {
         clientSecret={credentials["GMAIL_CLIENT_SECRET"] ?? ""}
         refreshToken={credentials["GMAIL_REFRESH_TOKEN"] ?? ""}
       />
+      <MobileSignInCard
+        iosClientId={credentials["GOOGLE_IOS_CLIENT_ID"] ?? ""}
+        androidClientId={credentials["GOOGLE_ANDROID_CLIENT_ID"] ?? ""}
+      />
       <QuickBooksCredentialsCard
         clientId={credentials["QUICKBOOKS_CLIENT_ID"] ?? ""}
         clientSecret={credentials["QUICKBOOKS_CLIENT_SECRET"] ?? ""}
@@ -52,6 +61,7 @@ export default async function CredentialsPage() {
         proxyUrl={credentials["QUICKBOOKS_PROXY_URL"] ?? ""}
       />
       <ClaudeCredentialsCard apiKey={credentials["CLAUDE_API_KEY"] ?? ""} />
+      <AgentApiKeyCard apiKey={credentials["AGENT_API_KEY"] ?? ""} />
       <WoodsSquareCredentialsCard
         username={credentials["HABITAP_USERNAME"] ?? ""}
         password={credentials["HABITAP_PASSWORD"] ?? ""}

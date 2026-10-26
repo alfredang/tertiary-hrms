@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { punchHours, toPunchDto } from "@/lib/attendance";
+import { punchHours, toPunchDto, monthRange, totalHoursOf } from "@/lib/attendance";
 
 describe("punchHours", () => {
   it("returns null when not clocked out yet", () => {
@@ -46,5 +46,35 @@ describe("toPunchDto", () => {
     });
     expect(dto.clockOut).toBeNull();
     expect(dto.hours).toBeNull();
+  });
+});
+
+describe("monthRange", () => {
+  it("returns a half-open UTC range for the month", () => {
+    const r = monthRange("2026-02");
+    expect(r.month).toBe("2026-02");
+    expect(r.from.toISOString()).toBe("2026-02-01T00:00:00.000Z");
+    expect(r.to.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+  });
+
+  it("rolls December over into the next year", () => {
+    const r = monthRange("2026-12");
+    expect(r.to.toISOString()).toBe("2027-01-01T00:00:00.000Z");
+  });
+
+  it("falls back to the current month for bad input", () => {
+    expect(monthRange("2026-13").month).toMatch(/^\d{4}-\d{2}$/);
+    expect(monthRange(null).month).toBe(monthRange(undefined).month);
+  });
+});
+
+describe("totalHoursOf", () => {
+  it("sums completed punches and ignores open ones", () => {
+    const total = totalHoursOf([
+      { clockIn: new Date("2026-07-27T01:00:00Z"), clockOut: new Date("2026-07-27T09:30:00Z") },
+      { clockIn: new Date("2026-07-28T01:00:00Z"), clockOut: new Date("2026-07-28T05:15:00Z") },
+      { clockIn: new Date("2026-07-29T01:00:00Z"), clockOut: null },
+    ]);
+    expect(total).toBe(12.75);
   });
 });

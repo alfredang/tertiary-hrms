@@ -47,9 +47,16 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
-Recent additions (July 2026):
+Recent additions (August 2026):
 
-- **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer, last-7-days hours + days-worked stats, and a recent-days list. Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
+- **AI agent leave & MC summary API** (`GET /api/agent/leave-summary?month=YYYY-MM[&format=json|markdown]`) — read-only monthly report of every active staff member and intern (plus anyone who left during the month) for an external AI agent to pull on a schedule. Returns approved vs pending days per leave type (AL, MC, CL, NPL, AL_OT) counted as working days inside the month — leaves crossing a month boundary are split and half days respected — intern hourly time-off, year balances, and company totals; `format=markdown` returns a ready-to-send report. Authenticated with `Authorization: Bearer <AGENT_API_KEY>`, the key stored in `CompanyCredential` and managed (generate / rotate) under **Settings → Credentials → AI Agent API Key**; `month` defaults to the previous month in SGT. Admins see the same report in the native apps via `/api/mobile/leave-summary?month=YYYY-MM` (session auth, defaults to the current month).
+- **Google Drive connection hardening** (Settings → Credentials → Google OAuth) — the stored Google OAuth refresh token drives both outbound email **and** Drive uploads (CPF statement archiving, payslip PDFs), so it must be minted with **both** scopes: `https://mail.google.com/` and `https://www.googleapis.com/auth/drive`. The credentials card now says so, and a new **Test Drive** button (`/api/settings/test-drive`) verifies token refresh *and* write access to the shared CPF Drive folder in one click. An expired/revoked token now surfaces an actionable message on the CPF upload page instead of a raw `invalid_grant`. Pasted credentials are sanitised (quotes/whitespace) and fall back to `GMAIL_*` env vars.
+- **One-click Google token renewal** — a **Sign in with Google** button on the credentials card runs the OAuth consent flow in-app (`/api/settings/google-oauth/start` → `/callback`) and saves the new refresh token (and connected account email) straight into `CompanyCredential`. One-time setup: register `<app-origin>/api/settings/google-oauth/callback` as an authorised redirect URI on the OAuth client in Google Cloud Console.
+
+Earlier additions (July 2026):
+
+- **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer plus a **monthly daily history** (date, check-in, check-out, hours) with month navigation, total hours and days worked. A punch with no clock-out shows the **hours so far** when it is today, or **"No clock-out"** for an earlier day (a missed clock-out, so it adds no hours). Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
+- **Intern Attendance overview** (`/attendance/overview`, admin) — every active intern (`employmentType = INTERN`, so zero-check-in interns are visible) plus anyone else who punched that month, with days worked, total hours, last check-in and a live "Working" badge; select a row to open that intern's daily check-in / check-out history. Served by `/api/attendance/summary` (admin only) and `/api/attendance/history?month=YYYY-MM[&employeeId=]`, mirrored 1:1 at `/api/mobile/attendance/{summary,history}` for the native apps.
 - **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, others) measured in hours on a single date; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.
 - **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
   - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
@@ -211,6 +218,21 @@ Earlier additions (May 2026):
 - Responsive layout with mobile hamburger menu + bottom tab navigation
 - Safe area support for notched devices
 
+### Mobile Apps
+Native iOS and Android companion apps talk to this web app over its JSON API
+(`/api/mobile/*` + `/api/auth/google-mobile`). Both are published and linked from
+the login page:
+
+[![Download on the App Store](https://img.shields.io/badge/App_Store-Download-000000?style=flat-square&logo=apple)](https://apps.apple.com/sg/app/tertiary-hrms/id6759821144)
+[![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_it_on-414141?style=flat-square&logo=google-play)](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)
+
+- **iOS** — [apps.apple.com/sg/app/tertiary-hrms](https://apps.apple.com/sg/app/tertiary-hrms/id6759821144)
+- **Android** — [play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)
+
+The login page uses a two-column layout — branding, headline and both store
+badges on the left, the sign-in card on the right — collapsing to a single
+stacked column on mobile.
+
 ---
 
 ## Tech Stack
@@ -295,6 +317,7 @@ ANTHROPIC_API_KEY=""
 
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3080"
+
 
 # Development (skip auth for quick testing)
 SKIP_AUTH="false"
@@ -401,7 +424,7 @@ tertiary-hrms/
 │   │   │   ├── expenses/          # Expense claims + submit + edit
 │   │   │   ├── payroll/           # Payroll + generation + Excel upload
 │   │   │   ├── calendar/          # Calendar view + day detail + add/edit
-│   │   │   ├── attendance/        # Web clock in / out (one-tap punch)
+│   │   │   ├── attendance/        # Web clock in / out + monthly history; overview/ = admin intern attendance
 │   │   │   ├── timesheet/         # Weekly OT timesheet + admin overview
 │   │   │   ├── time-off/          # Partial-day time off requests + approvals
 │   │   │   ├── sop/               # Standard operating procedures
@@ -413,10 +436,11 @@ tertiary-hrms/
 │   │       ├── leave/             # Leave request + approval
 │   │       ├── expenses/          # Expense claim + approval
 │   │       ├── payroll/           # Payroll generation + Excel upload
-│   │       ├── attendance/        # Clock in/out punches (web)
+│   │       ├── attendance/        # Clock in/out punches, history, admin summary
 │   │       ├── timesheet/         # Weekly OT timesheet
 │   │       ├── time-off/          # Time off requests + approval
 │   │       ├── mobile/            # Read-only JSON API for the native apps
+│   │       ├── agent/             # Bearer-key API for external AI agents (monthly leave/MC summary)
 │   │       ├── upload/            # File uploads
 │   │       ├── settings/          # Settings API
 │   │       ├── cron/              # Scheduled tasks
@@ -471,6 +495,23 @@ tertiary-hrms/
 ### Web (Coolify — Self-Hosted)
 
 Deployed on Coolify with Traefik reverse proxy at [https://hrms.tertiaryinfo.tech](https://hrms.tertiaryinfo.tech). Auto-deploys on `git push` to `main`. Database is PostgreSQL on Coolify.
+
+**Schema changes** are not applied by the build — run `npm run db:push` against the production database when a deploy includes a Prisma schema change.
+
+#### Redeploying after a failed deploy
+
+Coolify keeps the previous version running when a deploy fails, so the live site is never taken down by a bad build.
+
+- **Retry from the Coolify UI**: open the application → **Actions** (top right) → **Redeploy**. **Restart** only restarts the current container without rebuilding.
+- **Retry from git**: any new push to `main` fires the deploy webhook again.
+- **`git ls-remote` / `git clone` fails with "Failed to connect to github.com port 443"** in the first two minutes of the log: the Coolify server could not reach GitHub. This is an upstream network outage, not a code problem — nothing in the repo needs changing. Wait a few minutes and redeploy. To confirm it has cleared, SSH to the server and run the same check the deploy runs, inside the helper image on the `coolify` Docker network:
+
+  ```bash
+  docker run --rm --network coolify coollabsio/coolify-helper:1.0.16 \
+    bash -c "git ls-remote https://github.com/alfredang/tertiary-hrms refs/heads/main"
+  ```
+
+  It should print the `main` commit SHA within a second or two.
 
 ---
 
