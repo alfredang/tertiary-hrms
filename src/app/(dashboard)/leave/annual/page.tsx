@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { prorateLeave, hasAdminAccess } from "@/lib/utils";
 import { LeaveList } from "@/components/leave/leave-list";
 import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
-import { OtBreakdownDialog } from "@/components/leave/ot-breakdown-dialog";
+import { OtBalancePanel, type OtUsageEntry } from "@/components/leave/ot-breakdown-dialog";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,44 @@ async function getOtLeaveBalance(employeeId: string) {
   // Allow negative remaining — represents deficit owed back via future OT work
   const remaining = earned - used - autoDeducted - pending;
   return { earned, used, autoDeducted, pending, remaining };
+}
+
+// Leave requests this year that drew on (or are holding) Off In Lieu days:
+// AL requests that used OT days or went into deficit, plus direct AL_OT requests.
+async function getOtUsage(employeeId: string): Promise<OtUsageEntry[]> {
+  const currentYear = new Date().getFullYear();
+  const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
+  const requests = await prisma.leaveRequest.findMany({
+    where: {
+      employeeId,
+      status: { in: ["APPROVED", "PENDING"] },
+      startDate: { gte: new Date(Date.UTC(currentYear, 0, 1)), lt: new Date(Date.UTC(currentYear + 1, 0, 1)) },
+      OR: [
+        { otDaysUsed: { gt: 0 } },
+        { deficitDays: { gt: 0 } },
+        ...(alOtType ? [{ leaveTypeId: alOtType.id }] : []),
+      ],
+    },
+    select: {
+      id: true, startDate: true, endDate: true, days: true, status: true,
+      otDaysUsed: true, deficitDays: true, leaveTypeId: true,
+      leaveType: { select: { name: true } },
+    },
+    orderBy: { startDate: "desc" },
+  });
+
+  return requests.map((r) => {
+    const isOtLeave = r.leaveTypeId === alOtType?.id;
+    return {
+      id: r.id,
+      startDate: r.startDate.toISOString(),
+      endDate: r.endDate.toISOString(),
+      status: r.status as "APPROVED" | "PENDING",
+      leaveTypeName: r.leaveType.name,
+      oilDays: isOtLeave ? Number(r.days) : Number(r.otDaysUsed),
+      deficitDays: Number(r.deficitDays),
+    };
+  });
 }
 
 export const dynamic = 'force-dynamic';
@@ -148,11 +186,12 @@ export default async function LeavePage() {
     );
   }
 
-  const [leaveBalance, otBalance, requests] = await Promise.all([
+  const [leaveBalance, otBalance, otUsage, requests] = await Promise.all([
     currentEmployeeId
       ? getLeaveBalance(currentEmployeeId)
       : Promise.resolve({ carriedOver: 0, allocation: 12, taken: 0, rejected: 0, proRated: 12, employeeStartDate: null, employeeEndDate: null, monthlyLeaveRate: null }),
     currentEmployeeId ? getOtLeaveBalance(currentEmployeeId) : Promise.resolve(null),
+    currentEmployeeId ? getOtUsage(currentEmployeeId) : Promise.resolve([]),
     getLeaveRequests(filterByEmployeeId),
   ]);
 
@@ -208,39 +247,7 @@ export default async function LeavePage() {
 
       {/* OT Leave Balance — show when earned > 0 OR there is a deficit */}
       {viewAs !== "admin" && otBalance !== null && (otBalance.earned > 0 || otBalance.remaining < 0) && (
-        <div className={`bg-gray-950 border rounded-xl p-4 ${otBalance.remaining < 0 ? "border-red-800/50" : "border-emerald-800/40"}`}>
-          <div className="mb-3">
-            <OtBreakdownDialog
-              otStats={otBalance}
-              employeeId={currentEmployeeId}
-            />
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-gray-900 rounded-lg p-3">
-              <p className="text-xs text-gray-400 mb-1">Earned</p>
-              <p className="text-xl font-bold text-emerald-400">{otBalance.earned}</p>
-            </div>
-            <div className="bg-gray-900 rounded-lg p-3">
-              <p className="text-xs text-gray-400 mb-1">Used</p>
-              <p className="text-xl font-bold text-amber-400">{otBalance.used}</p>
-            </div>
-            <div className="bg-gray-900 rounded-lg p-3">
-              <p className="text-xs text-gray-400 mb-1">Deficit</p>
-              <p className="text-xl font-bold text-red-400">{otBalance.autoDeducted}</p>
-            </div>
-            <div className="bg-gray-900 rounded-lg p-3">
-              <p className="text-xs text-gray-400 mb-1">Remaining</p>
-              <p className={`text-xl font-bold ${otBalance.remaining < 0 ? "text-red-400" : "text-green-400"}`}>
-                {otBalance.remaining}
-              </p>
-            </div>
-          </div>
-          {otBalance.remaining < 0 && (
-            <p className="text-xs text-gray-500 mt-2">
-              Work on weekends or public holidays to earn OT days and reduce this deficit.
-            </p>
-          )}
-        </div>
+        <OtBalancePanel otStats={otBalance} employeeId={currentEmployeeId} usage={otUsage} />
       )}
 
       {viewAs === "admin" && (
