@@ -298,14 +298,14 @@ export function EmploymentInfoForm({
             ) : (
               <>
                 <p className="text-xs text-gray-500">
-                  Short contract: <span className="text-gray-300 font-medium">{autoLeave} days total</span> for this {contractMonths}-month contract (1 day per working month).
+                  Short contract: accrues at the yearly AL entitlement prorated by months worked, capped at <span className="text-gray-300 font-medium">{autoLeave} days</span>.
                 </p>
               </>
             )}
           </div>
         )}
         {!leaveIsAutoSet && (
-          <p className="text-xs text-gray-500">Contract under 6 months — enter the total leave days to grant.</p>
+          <p className="text-xs text-gray-500">Contract under 6 months — enter the maximum leave days. Leave accrues at the yearly AL entitlement prorated by months worked, up to this cap.</p>
         )}
       </div>
 

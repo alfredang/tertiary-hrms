@@ -203,10 +203,6 @@ export function computeAlFullEntitlement(
   const monthsEmployed = (effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24) / 30.44;
   if (monthsEmployed <= 0) return 0;
 
-  if (monthlyLeaveRate != null && monthlyLeaveRate < 6) {
-    // Short contract (< 6 months): 1 day/month up to admin-set total — matches prorateLeave
-    return Math.min(Math.ceil(monthsEmployed), monthlyLeaveRate);
-  }
   const cap = monthlyLeaveRate != null && monthlyLeaveRate < 12 ? Math.min(monthlyLeaveRate, annualDays) : annualDays;
   return Math.min(Math.ceil((annualDays / 12) * monthsEmployed), cap);
 }
@@ -254,13 +250,10 @@ export function prorateLeave(
     const monthsElapsed = daysElapsed / 30.44;
     if (monthsElapsed <= 0) return 0;
 
-    if (monthlyLeaveRate != null && monthlyLeaveRate < 6) {
-      // Short contract (< 6 months): 1 day/month up to admin-set total
-      return Math.min(Math.ceil(monthsElapsed), monthlyLeaveRate);
-    }
-
+    // Everyone (incl. short contracts) accrues the yearly entitlement prorated by months worked;
+    // the per-employee leave days only cap it.
     const accrued = (annualEntitlement / 12) * monthsElapsed;
-    const cap = monthlyLeaveRate != null && monthlyLeaveRate < 12 ? monthlyLeaveRate : annualEntitlement;
+    const cap = monthlyLeaveRate != null && monthlyLeaveRate < 12 ? Math.min(monthlyLeaveRate, annualEntitlement) : annualEntitlement;
     return Math.min(Math.ceil(accrued), cap);
   }
 

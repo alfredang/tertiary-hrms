@@ -43,8 +43,9 @@ function buildBreakdown(
 
   const startDate = startDateStr ? new Date(startDateStr) : null;
   const startedThisYear = startDate && startDate.getFullYear() === currentYear;
-  const isShortContract = customLeaveRate != null && customLeaveRate < 6;
-  const yearly = isShortContract && customLeaveRate != null ? customLeaveRate : annualEntitlement;
+  const yearly = annualEntitlement;
+  // Per-employee leave days only cap accrual — same as prorateLeave()
+  const cap = customLeaveRate != null && customLeaveRate < 12 ? Math.min(customLeaveRate, yearly) : yearly;
 
   const rows: MonthRow[] = [];
 
@@ -53,9 +54,9 @@ function buildBreakdown(
   const contractEnd = contractEndDateStr ? new Date(contractEndDateStr) : null;
 
   if (startedThisYear && startDate) {
-    const maxPeriods = customLeaveRate != null && customLeaveRate < 12 ? customLeaveRate : 12;
     let s = new Date(startDate);
-    for (let i = 0; i < maxPeriods; i++) {
+    for (let i = 0; i < 12; i++) {
+      if (contractEnd && s > contractEnd) break;
       const e = new Date(s);
       e.setMonth(e.getMonth() + 1);
       e.setDate(e.getDate() - 1);
@@ -79,14 +80,9 @@ function buildBreakdown(
     let cumulative = 0;
 
     if (!isFuture) {
-      const prevCum = Math.min(Math.ceil((i * yearly) / 12), yearly);
+      const prevCum = Math.min(Math.ceil((i * yearly) / 12), cap);
 
-      if (isShortContract) {
-        // Short contract: 1 day/month up to the cap
-        const thisCum = Math.min(i + 1, yearly);
-        accrued = thisCum - prevCum;
-        cumulative = thisCum;
-      } else if (isPartial) {
+      if (isPartial) {
         // Current (partial) month: compute fractional months elapsed within period
         const daysInPeriod = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
         const daysElapsed = Math.min(
@@ -95,12 +91,12 @@ function buildBreakdown(
         );
         const fraction = daysElapsed / daysInPeriod;
         const totalMonths = i + fraction;
-        const thisCum = Math.min(Math.ceil((totalMonths * yearly) / 12), yearly);
+        const thisCum = Math.min(Math.ceil((totalMonths * yearly) / 12), cap);
         accrued = thisCum - prevCum;
         cumulative = thisCum;
       } else {
         // Full completed month
-        const thisCum = Math.min(Math.ceil(((i + 1) * yearly) / 12), yearly);
+        const thisCum = Math.min(Math.ceil(((i + 1) * yearly) / 12), cap);
         accrued = thisCum - prevCum;
         cumulative = thisCum;
       }
@@ -133,7 +129,6 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
   const rows = buildBreakdown(yearlyEntitlement, employeeStartDate, monthlyLeaveRate, employeeEndDate);
   const remaining = leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken;
 
-  const isShortContract = monthlyLeaveRate != null && monthlyLeaveRate < 6;
 
   // Deficit threshold: the yearly entitlement prorated over the months employed this year
   const fullEntitlement = leaveBalance.fullEntitlement ?? yearlyEntitlement;
@@ -246,9 +241,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               </div>
 
               <p className="text-xs text-gray-600">
-                {isShortContract
-                  ? `Short contract: ${yearlyEntitlement} day${yearlyEntitlement !== 1 ? "s" : ""} total, accruing at 1 day/month.`
-                  : `Accrues as ceil(${yearlyEntitlement} days ÷ 12 × months worked). Rate: ${yearlyEntitlement} days/year.`}
+                {`Accrues as ceil(${yearlyEntitlement} days ÷ 12 × months worked). Rate: ${yearlyEntitlement} days/year.`}
               </p>
               {advanceAl && (
                 <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-300">
