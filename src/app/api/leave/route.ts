@@ -22,6 +22,8 @@ const leaveRequestSchema = z.object({
   documentUrl: z.string().optional(),
   documentFileName: z.string().optional(),
   otDaysUsed: z.number().min(0).default(0),
+  // AL only: borrow from the rest of the year's entitlement. Off → unearned days are deficit.
+  useAdvance: z.boolean().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { leaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason, documentUrl, documentFileName, otDaysUsed } = validation.data;
+    const { leaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason, documentUrl, documentFileName, otDaysUsed, useAdvance } = validation.data;
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -202,7 +204,12 @@ export async function POST(req: NextRequest) {
     } else {
       let effectiveEntitlement = Number(balance.entitlement);
       if (isAL && employee?.startDate) {
-        effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee.startDate, null, true);
+        effectiveEntitlement = prorateLeave(
+          Number(balance.entitlement),
+          employee.startDate,
+          employee.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null,
+          true,
+        );
       } else if (leaveType?.code === "MC" && employee?.startDate) {
         effectiveEntitlement = prorateLeave(
           Number(balance.entitlement),
@@ -239,12 +246,14 @@ export async function POST(req: NextRequest) {
           resolvedOtDaysUsed = Math.min(otDaysUsed, otAvailable);
         }
       }
-      // Deficit = days beyond the FULL year entitlement (not prorated to today).
-      // Using within-entitlement days ahead of accrual = advance AL, not deficit.
+      // With advance on: deficit = days beyond the FULL year entitlement (not prorated to today);
+      // within-entitlement days ahead of accrual are advance AL. With advance off: anything
+      // beyond the balance earned to date is deficit.
       const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
       const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, Number(balance.entitlement), employee?.endDate);
       const fullAvailable = fullEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
-      deficitDays = Math.max(0, days - fullAvailable - resolvedOtDaysUsed);
+      const coveredByAl = Math.max(0, useAdvance ? Math.max(fullAvailable, available) : available);
+      deficitDays = Math.min(days, Math.max(0, days - coveredByAl - resolvedOtDaysUsed));
     }
 
     // Create leave request

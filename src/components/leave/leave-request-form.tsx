@@ -62,6 +62,7 @@ export function LeaveRequestForm({
   const [breakdown, setBreakdown] = useState<{ calendarDays: number; weekendDays: number; holidayDays: number } | null>(null);
   const [useOt, setUseOt] = useState(false);
   const [otDaysToUse, setOtDaysToUse] = useState(0);
+  const [useAdvance, setUseAdvance] = useState(false);
 
   const selectedLeaveType = leaveTypes.find((t) => t.id === leaveTypeId);
   const isMC = selectedLeaveType?.code === "MC" || selectedLeaveType?.code === "SL";
@@ -73,13 +74,21 @@ export function LeaveRequestForm({
 
   const daysNum = parseFloat(days) || 0;
 
-  // True deficit: beyond full-year entitlement
-  const deficitBeforeOt = isAL ? Math.max(0, daysNum - alFullAvailable) : 0;
+  // Days still to be earned this year (full-year entitlement − earned so far) that can be borrowed
+  const advanceAvailable = Math.max(0, alFullAvailable - availableNow);
+  // What annual leave itself covers: the earned balance, plus the rest of the year if advance is on
+  const alCover = useAdvance ? availableNow + advanceAvailable : availableNow;
+  // Deficit: beyond what annual leave covers (full-year entitlement with advance, earned balance without)
+  const deficitBeforeOt = isAL ? Math.max(0, daysNum - alCover) : 0;
   const effectiveOtUsed = useOt ? Math.min(otDaysToUse, otBalance, daysNum) : 0;
+  // Off In Lieu covers the deficit first, then any advance — so each OIL day is subtracted once.
+  const otForDeficit = Math.min(effectiveOtUsed, deficitBeforeOt);
+  const otForAdvance = effectiveOtUsed - otForDeficit;
   // Advance AL: within full entitlement but ahead of accrual (after OT offset)
-  const advanceDays = isAL ? Math.max(0, Math.min(daysNum, alFullAvailable) - availableNow - effectiveOtUsed) : 0;
-  const deficitDays = isAL ? Math.max(0, deficitBeforeOt - effectiveOtUsed) : 0;
-  const fullyWithinEntitlement = isAL && daysNum <= alFullAvailable;
+  const advanceBeforeOt = isAL && useAdvance ? Math.max(0, Math.min(daysNum, alCover) - availableNow) : 0;
+  const advanceDays = Math.max(0, advanceBeforeOt - otForAdvance);
+  const deficitDays = isAL ? Math.max(0, deficitBeforeOt - otForDeficit) : 0;
+  const fullyWithinEntitlement = isAL && daysNum <= alCover;
   // Days not yet earned (advance + deficit) — OT can cover any of this
   const nonEarnedDays = isAL ? Math.max(0, daysNum - availableNow) : 0;
 
@@ -171,6 +180,7 @@ export function LeaveRequestForm({
           documentUrl,
           documentFileName,
           otDaysUsed: effectiveOtUsed,
+          useAdvance: isAL && useAdvance,
         }),
       });
 
@@ -257,6 +267,11 @@ export function LeaveRequestForm({
               <p className={`text-base font-bold ${alRemaining - daysNum + effectiveOtUsed < 0 ? "text-red-400" : "text-cyan-400"}`}>
                 {alRemaining - daysNum + effectiveOtUsed}
               </p>
+              {(advanceDays > 0 || deficitDays > 0) && (
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  {[advanceDays > 0 && `${advanceDays} advance`, deficitDays > 0 && `${deficitDays} deficit`].filter(Boolean).join(" + ")}
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs text-gray-500">Off In Lieu Available</p>
@@ -264,6 +279,26 @@ export function LeaveRequestForm({
             </div>
           </div>
         </div>
+
+        {/* Advance AL toggle — borrow from what's still to be earned this year */}
+        {isAL && advanceAvailable > 0 && daysNum > availableNow && (
+          <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
+            <div>
+              <p className="text-sm text-white font-medium">Use advance annual leave</p>
+              <p className="text-xs text-gray-500">
+                Borrow up to {advanceAvailable} day(s) you&apos;ll earn by the end of this year.
+                {!useAdvance && " If off, days beyond your balance count as deficit."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUseAdvance(!useAdvance)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${useAdvance ? "bg-amber-500" : "bg-gray-700"}`}
+            >
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useAdvance ? "translate-x-5" : "translate-x-1"}`} />
+            </button>
+          </div>
+        )}
 
         {/* OT Toggle — show whenever AL is selected and OT balance exists */}
         {isAL && otBalance > 0 && nonEarnedDays > 0 && (
