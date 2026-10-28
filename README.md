@@ -63,6 +63,7 @@ Earlier additions (July 2026):
   - Rows are matched to employees by **CPF account number (NRIC) first**, then exact name, then fuzzy name tokens — CPF prints names as per NRIC, which often differ from the HRMS record. Ambiguous rows are reported as unmatched rather than guessed, and cannot be selected.
   - One-shot **Upload & Process Payroll** button: the PDF is archived to the shared CPF Google Drive folder first (a failed archive aborts the run), then the month's payslips are created/updated automatically for every matched employee; unmatched rows are listed with a fix hint instead of blocking.
   - Parsing runs on the **Claude Agent SDK under the company's Claude subscription** (OAuth token from `claude setup-token`, stored as `CLAUDE_API_KEY` in Settings → Credentials) — no pay-as-you-go API keys.
+  - Claude auth failures are classified instead of masked: a token whose Claude organization has **disabled subscription access for Claude Code** (403 `oauth_not_allowed_for_organization`) is reported as such — re-issuing from the same org won't help, so generate the token from an account whose org allows Claude Code (e.g. a personal Pro/Max plan). Only a genuinely invalid/expired token gets the "expired" message; other SDK errors surface verbatim.
 - **Payroll Management sidebar dropdown** — expands into **Payroll** and **Upload CPF** (the latter admin-only).
 - **SOP section** — browsable standard-operating-procedure pages at `/sop`.
 

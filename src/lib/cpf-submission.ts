@@ -118,6 +118,50 @@ function buildAgentEnv(authToken: string | null): Record<string, string> {
   return env;
 }
 
+class ClaudeAuthError extends Error {}
+
+const TOKEN_FIX_HINT =
+  "Generate a fresh one with `claude setup-token` and save it under Settings → Credentials.";
+
+/**
+ * Turn a Claude Agent SDK / API failure into an actionable message. Returns
+ * null when the failure isn't an auth problem, so the original error surfaces.
+ *
+ * Two auth failures look alike but need different fixes:
+ * - the token's organization has switched off subscription access for Claude
+ *   Code (403 `oauth_not_allowed_for_organization`) — a fresh token from the
+ *   same org fails the same way, so it must come from an org that allows it;
+ * - the token is invalid, revoked or expired (401) — any fresh token works.
+ */
+export function describeClaudeAuthError(message: string, status?: number | null): string | null {
+  if (
+    /disabled Claude subscription access|oauth_not_allowed_for_organization|OAuth authentication is currently not allowed/i.test(
+      message,
+    )
+  ) {
+    return (
+      "Claude rejected the stored subscription token: the Claude organization it was issued under has " +
+      "disabled subscription access for Claude Code. Run `claude setup-token` while signed in to a Claude " +
+      "account whose organization allows Claude Code (e.g. a personal Pro/Max plan), then save the new " +
+      "token under Settings → Credentials."
+    );
+  }
+  if (
+    status === 401 ||
+    status === 403 ||
+    /authentication_error|invalid (?:x-api-key|api key|bearer token)|OAuth token (?:has )?(?:expired|revoked)|token has expired|Not logged in|Please run \/login/i.test(
+      message,
+    )
+  ) {
+    return (
+      "Claude authentication failed — the stored subscription token was rejected or has expired. " +
+      TOKEN_FIX_HINT +
+      (message ? ` (Claude said: ${message})` : "")
+    );
+  }
+  return null;
+}
+
 /**
  * Have the Claude Agent SDK read the PDF from disk (Read tool) and return the
  * per-employee CPF contribution rows. Authenticates with the company's Claude
@@ -163,26 +207,24 @@ export async function parseCpfSubmissionPdf(opts: {
           finalText = msg.result;
         } else {
           const apiErrorStatus = (msg as any).api_error_status as number | undefined;
-          if (apiErrorStatus === 401 || apiErrorStatus === 403) {
-            throw new Error(
-              "Claude authentication failed — the stored subscription token was rejected or has expired. " +
-                "Generate a fresh one with `claude setup-token` and save it under Settings → Credentials.",
-            );
-          }
+          const detail = ((msg as any).errors as string[] | undefined)?.join("; ") ?? "";
+          const authMessage = describeClaudeAuthError(detail, apiErrorStatus);
+          if (authMessage) throw new ClaudeAuthError(authMessage);
           throw new Error(
             `Claude agent failed (${msg.subtype}` +
               (apiErrorStatus ? `, api status ${apiErrorStatus}` : "") +
-              ")",
+              ")" +
+              (detail ? `: ${detail}` : ""),
           );
         }
       }
     }
   } catch (err) {
-    if (err instanceof Error && /authentication|login|OAuth|API key/i.test(err.message)) {
-      throw new Error(
-        "Claude authentication failed — the stored subscription token was rejected or has expired. " +
-          "Generate a fresh one with `claude setup-token` and save it under Settings → Credentials.",
-      );
+    if (err instanceof Error && !(err instanceof ClaudeAuthError)) {
+      // Log the raw SDK error; the UI gets the classified message below.
+      console.error("CPF statement Claude agent error:", err.message);
+      const authMessage = describeClaudeAuthError(err.message);
+      if (authMessage) throw new ClaudeAuthError(authMessage);
     }
     throw err;
   } finally {
