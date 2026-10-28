@@ -23,13 +23,13 @@ async function getOtBalance(employeeId: string): Promise<number> {
 }
 
 async function getAlData(employeeId: string): Promise<{
-  earned: number;       // prorated to today
+  remaining: number;     // accrued to today + carried over - used - pending (same as the Annual Leave page)
   fullAvailable: number; // full-year entitlement - used - pending
   personalEntitlement: number; // the total days they're entitled to this year
 }> {
   const currentYear = new Date().getFullYear();
   const alType = await prisma.leaveType.findUnique({ where: { code: "AL" } });
-  if (!alType) return { earned: 0, fullAvailable: 0, personalEntitlement: 12 };
+  if (!alType) return { remaining: 0, fullAvailable: 0, personalEntitlement: 12 };
 
   const [balance, employee] = await Promise.all([
     prisma.leaveBalance.findUnique({
@@ -37,19 +37,21 @@ async function getAlData(employeeId: string): Promise<{
     }),
     prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { startDate: true, monthlyLeaveRate: true },
+      select: { startDate: true, endDate: true, monthlyLeaveRate: true },
     }),
   ]);
 
   const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
-  const personalEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate);
+  const yearlyEntitlement = balance ? Number(balance.entitlement) : alType.defaultDays;
+  const personalEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, yearlyEntitlement, employee?.endDate);
 
-  if (!balance) return { earned: 0, fullAvailable: personalEntitlement, personalEntitlement };
+  if (!balance) return { remaining: 0, fullAvailable: personalEntitlement, personalEntitlement };
 
-  const earned = prorateLeave(Number(balance.entitlement), employee?.startDate ?? undefined, null, true);
+  const earned = prorateLeave(Number(balance.entitlement), employee?.startDate ?? undefined, monthlyLeaveRate, true);
+  const remaining = earned + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
   const fullAvailable = personalEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
 
-  return { earned, fullAvailable, personalEntitlement };
+  return { remaining, fullAvailable, personalEntitlement };
 }
 
 export default async function LeaveRequestPage({
@@ -74,7 +76,7 @@ export default async function LeaveRequestPage({
   const [leaveTypes, otBalance, alData] = await Promise.all([
     getLeaveTypes(),
     employeeId ? getOtBalance(employeeId) : Promise.resolve(0),
-    employeeId ? getAlData(employeeId) : Promise.resolve({ earned: 0, fullAvailable: 12, personalEntitlement: 12 }),
+    employeeId ? getAlData(employeeId) : Promise.resolve({ remaining: 0, fullAvailable: 12, personalEntitlement: 12 }),
   ]);
 
   return (
@@ -87,7 +89,7 @@ export default async function LeaveRequestPage({
       <LeaveRequestForm
         leaveTypes={leaveTypes}
         otBalance={otBalance}
-        alEarned={alData.earned}
+        alRemaining={alData.remaining}
         alFullAvailable={alData.fullAvailable}
         alPersonalEntitlement={alData.personalEntitlement}
         defaultLeaveTypeCode={params.type}

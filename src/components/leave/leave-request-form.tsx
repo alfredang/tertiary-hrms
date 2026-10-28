@@ -28,25 +28,21 @@ interface LeaveType {
 interface LeaveRequestFormProps {
   leaveTypes: LeaveType[];
   otBalance?: number;
-  alEarned?: number;         // AL accrued to today
+  alRemaining?: number;      // AL balance available now: accrued to today + carried over - used - pending
   alFullAvailable?: number;  // full-year entitlement minus used/pending
   alPersonalEntitlement?: number; // total days entitled this year (for display)
   defaultLeaveTypeCode?: string; // e.g. "MC" to pre-select Medical Leave
-  // legacy prop — kept for backwards compat when form is reused elsewhere
-  alAvailable?: number;
 }
 
 export function LeaveRequestForm({
   leaveTypes,
   otBalance = 0,
-  alEarned = 0,
+  alRemaining = 0,
   alFullAvailable = 0,
   alPersonalEntitlement = 12,
   defaultLeaveTypeCode,
-  alAvailable,
 }: LeaveRequestFormProps) {
-  // alEarned falls back to legacy alAvailable prop
-  const earnedToday = alEarned ?? alAvailable ?? 0;
+  const availableNow = Math.max(0, alRemaining);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -81,11 +77,11 @@ export function LeaveRequestForm({
   const deficitBeforeOt = isAL ? Math.max(0, daysNum - alFullAvailable) : 0;
   const effectiveOtUsed = useOt ? Math.min(otDaysToUse, otBalance, daysNum) : 0;
   // Advance AL: within full entitlement but ahead of accrual (after OT offset)
-  const advanceDays = isAL ? Math.max(0, Math.min(daysNum, alFullAvailable) - earnedToday - effectiveOtUsed) : 0;
+  const advanceDays = isAL ? Math.max(0, Math.min(daysNum, alFullAvailable) - availableNow - effectiveOtUsed) : 0;
   const deficitDays = isAL ? Math.max(0, deficitBeforeOt - effectiveOtUsed) : 0;
   const fullyWithinEntitlement = isAL && daysNum <= alFullAvailable;
   // Days not yet earned (advance + deficit) — OT can cover any of this
-  const nonEarnedDays = isAL ? Math.max(0, daysNum - earnedToday) : 0;
+  const nonEarnedDays = isAL ? Math.max(0, daysNum - availableNow) : 0;
 
   // Fetch public holidays when start date year changes
   useEffect(() => {
@@ -251,14 +247,14 @@ export function LeaveRequestForm({
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Leave Balance Summary</p>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-              <p className="text-xs text-gray-500">Earned to Date</p>
-              <p className={`text-base font-bold ${earnedToday >= daysNum ? "text-green-400" : "text-amber-400"}`}>
-                {earnedToday.toFixed(1)}
-              </p>
+              <p className="text-xs text-gray-500">Remaining Balance</p>
+              <p className="text-base font-bold text-green-400">{alRemaining}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Full Entitlement</p>
-              <p className="text-base font-bold text-cyan-400">{alPersonalEntitlement}</p>
+              <p className="text-xs text-gray-500">After This Request</p>
+              <p className={`text-base font-bold ${alRemaining - daysNum + effectiveOtUsed < 0 ? "text-red-400" : "text-cyan-400"}`}>
+                {alRemaining - daysNum + effectiveOtUsed}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Off In Lieu Available</p>
@@ -320,10 +316,10 @@ export function LeaveRequestForm({
             : "bg-green-950/20 border-green-800/40"
           }`}>
             {/* Earned portion */}
-            {Math.min(earnedToday, daysNum) > 0 && (
+            {Math.min(availableNow, daysNum) > 0 && (
               <div className="flex justify-between">
-                <span className="text-gray-400">Already earned (accrued):</span>
-                <span className="text-white font-medium">{Math.min(earnedToday, daysNum).toFixed(1)} day(s)</span>
+                <span className="text-gray-400">From your remaining balance:</span>
+                <span className="text-white font-medium">{Math.min(availableNow, daysNum).toFixed(1)} day(s)</span>
               </div>
             )}
             {/* Advance portion (within entitlement, not yet accrued) */}
@@ -384,7 +380,7 @@ export function LeaveRequestForm({
 
   const leaveTypeLabel = (type: LeaveType) => {
     if (type.code === "AL_OT") return `${type.name} (${otBalance} days available)`;
-    if (type.code === "AL") return `${type.name} (${earnedToday} days available)`;
+    if (type.code === "AL") return `${type.name} (${alRemaining} days available)`;
     if (type.defaultDays > 0) return `${type.name} (${type.defaultDays} days/year)`;
     return type.name;
   };

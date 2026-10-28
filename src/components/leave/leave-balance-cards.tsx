@@ -10,6 +10,7 @@ interface LeaveBalance {
   taken: number;
   rejected: number;
   carriedOver: number;
+  fullEntitlement?: number; // yearly entitlement prorated over months employed this year
 }
 
 interface Props {
@@ -134,8 +135,10 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
 
   const isShortContract = monthlyLeaveRate != null && monthlyLeaveRate < 6;
 
-  const advanceAl = remaining < 0 && leaveBalance.taken <= yearlyEntitlement + leaveBalance.carriedOver;
-  const trueDeficit = remaining < 0 && leaveBalance.taken > yearlyEntitlement + leaveBalance.carriedOver;
+  // Deficit threshold: the yearly entitlement prorated over the months employed this year
+  const fullEntitlement = leaveBalance.fullEntitlement ?? yearlyEntitlement;
+  const advanceAl = remaining < 0 && leaveBalance.taken <= fullEntitlement + leaveBalance.carriedOver;
+  const trueDeficit = remaining < 0 && leaveBalance.taken > fullEntitlement + leaveBalance.carriedOver;
   const remainingColor = remaining < 0
     ? (trueDeficit ? "text-red-400" : "text-amber-400")
     : "text-green-400";

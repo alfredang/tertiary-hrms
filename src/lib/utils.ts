@@ -67,7 +67,9 @@ export function calculateWorkingDays(
   while (cursor <= endNorm) {
     calendarDays++;
     const dow = cursor.getDay(); // 0=Sun, 6=Sat
-    const iso = cursor.toISOString().slice(0, 10);
+    // Local date parts, not toISOString(): in UTC+8, local midnight is the previous UTC day,
+    // which made 25 Dec match "2026-12-24" and miss Christmas.
+    const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
     if (dow === 0 || dow === 6) {
       weekendDays++;
     } else if (holidaySet.has(iso)) {
@@ -178,18 +180,35 @@ export function computeYearlyEntitlement(
 }
 
 /**
- * Full-year AL entitlement for an employee — the total days they will earn
- * by the end of the contract/year (not prorated to today).
+ * Full-year AL entitlement for an employee — the total days they will have accrued
+ * by 31 Dec (or their end date, if sooner) this year, not prorated to today.
+ * Same accrual rule as prorateLeave(..., true), evaluated at year/contract end:
+ * the yearly entitlement prorated over the months employed this year.
  * Used to distinguish advance AL (within entitlement) from true deficit (beyond entitlement).
  */
 export function computeAlFullEntitlement(
   startDate: Date | string | null | undefined,
   monthlyLeaveRate?: number | null,
   annualDays: number = 7,
+  endDate?: Date | string | null,
 ): number {
   if (!startDate) return annualDays;
-  if (monthlyLeaveRate != null && monthlyLeaveRate < 12) return monthlyLeaveRate;
-  return annualDays;
+  const year = new Date().getFullYear();
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+  const effectiveStart = start > yearStart ? start : yearStart;
+  const effectiveEnd = end && end < yearEnd ? end : yearEnd;
+  const monthsEmployed = (effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24) / 30.44;
+  if (monthsEmployed <= 0) return 0;
+
+  if (monthlyLeaveRate != null && monthlyLeaveRate < 6) {
+    // Short contract (< 6 months): 1 day/month up to admin-set total — matches prorateLeave
+    return Math.min(Math.ceil(monthsEmployed), monthlyLeaveRate);
+  }
+  const cap = monthlyLeaveRate != null && monthlyLeaveRate < 12 ? Math.min(monthlyLeaveRate, annualDays) : annualDays;
+  return Math.min(Math.ceil((annualDays / 12) * monthsEmployed), cap);
 }
 
 /**

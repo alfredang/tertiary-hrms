@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { prorateLeave, hasAdminAccess } from "@/lib/utils";
+import { prorateLeave, hasAdminAccess, computeAlFullEntitlement } from "@/lib/utils";
 import { LeaveList } from "@/components/leave/leave-list";
 import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
 import { OtBalancePanel, type OtUsageEntry } from "@/components/leave/ot-breakdown-dialog";
@@ -114,7 +114,9 @@ async function getLeaveBalance(employeeId: string) {
   const employeeStartDate = employee?.startDate?.toISOString() ?? null;
   const employeeEndDate = employee?.endDate?.toISOString() ?? null;
 
-  return { carriedOver, allocation, taken, rejected: rejectedCount, proRated, employeeStartDate, employeeEndDate, monthlyLeaveRate };
+  const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, allocation, employee?.endDate);
+
+  return { carriedOver, allocation, taken, rejected: rejectedCount, proRated, fullEntitlement, employeeStartDate, employeeEndDate, monthlyLeaveRate };
 }
 
 async function getLeaveRequests(employeeId?: string) {

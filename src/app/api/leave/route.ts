@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { startDate: true, monthlyLeaveRate: true },
+      select: { startDate: true, endDate: true, monthlyLeaveRate: true },
     });
 
     const isAL = leaveType?.code === "AL";
@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
       // Deficit = days beyond the FULL year entitlement (not prorated to today).
       // Using within-entitlement days ahead of accrual = advance AL, not deficit.
       const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
-      const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate);
+      const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, Number(balance.entitlement), employee?.endDate);
       const fullAvailable = fullEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
       deficitDays = Math.max(0, days - fullAvailable - resolvedOtDaysUsed);
     }
