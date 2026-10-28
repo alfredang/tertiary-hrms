@@ -97,10 +97,11 @@ export async function PATCH(
     }
 
     // Fetch holidays for working-day calculation
-    const year = newStart.getFullYear();
-    const dbHolidays = await prisma.publicHoliday.findMany({ where: { year, countryCode: "SG" } });
+    // Every year the leave covers — a Dec–Jan request needs next year's holidays (e.g. 1 Jan).
+    const years = Array.from({ length: newEnd.getFullYear() - newStart.getFullYear() + 1 }, (_, i) => newStart.getFullYear() + i);
+    const dbHolidays = await prisma.publicHoliday.findMany({ where: { year: { in: years }, countryCode: "SG" } });
     const allHolidayDates = Array.from(
-      new Set([...getSgHolidaysForYear(year), ...dbHolidays.map((h) => h.date.toISOString().slice(0, 10))])
+      new Set([...years.flatMap(getSgHolidaysForYear), ...dbHolidays.map((h) => h.date.toISOString().slice(0, 10))])
     );
 
     // Calculate working days based on dayType and halfDayPosition

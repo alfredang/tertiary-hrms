@@ -70,9 +70,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch public holidays for working-day calculation
-    const year = start.getFullYear();
-    const dbHolidays = await prisma.publicHoliday.findMany({ where: { year, countryCode: "SG" } });
-    const staticHolidays = getSgHolidaysForYear(year);
+    // Every year the leave covers — a Dec–Jan request needs next year's holidays (e.g. 1 Jan).
+    const years = Array.from({ length: end.getFullYear() - start.getFullYear() + 1 }, (_, i) => start.getFullYear() + i);
+    const dbHolidays = await prisma.publicHoliday.findMany({ where: { year: { in: years }, countryCode: "SG" } });
+    const staticHolidays = years.flatMap(getSgHolidaysForYear);
     const allHolidayDates = Array.from(
       new Set([...staticHolidays, ...dbHolidays.map((h) => h.date.toISOString().slice(0, 10))])
     );

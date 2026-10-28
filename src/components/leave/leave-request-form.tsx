@@ -83,15 +83,17 @@ export function LeaveRequestForm({
   // Days not yet earned (advance + deficit) — OT can cover any of this
   const nonEarnedDays = isAL ? Math.max(0, daysNum - availableNow) : 0;
 
-  // Fetch public holidays when start date year changes
+  // Fetch public holidays when the start or end year changes
   useEffect(() => {
     if (!startDate) return;
-    const year = startDate.slice(0, 4);
-    fetch(`/api/public-holidays?year=${year}`)
-      .then((r) => r.json())
-      .then((d) => setPublicHolidays(d.dates ?? []))
+    // Load every year the leave covers so a Dec–Jan request also skips 1 Jan
+    const startYear = Number(startDate.slice(0, 4));
+    const endYear = endDate && endDate >= startDate ? Number(endDate.slice(0, 4)) : startYear;
+    const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+    Promise.all(years.map((y) => fetch(`/api/public-holidays?year=${y}`).then((r) => r.json())))
+      .then((results) => setPublicHolidays(results.flatMap((d) => d.dates ?? [])))
       .catch(() => {});
-  }, [startDate.slice(0, 4)]);
+  }, [startDate.slice(0, 4), endDate.slice(0, 4)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-calculate working days
   useEffect(() => {
