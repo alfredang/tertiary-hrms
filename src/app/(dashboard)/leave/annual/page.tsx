@@ -120,15 +120,17 @@ async function getLeaveBalance(employeeId: string) {
 }
 
 async function getLeaveRequests(employeeId?: string) {
-  // Annual Leave page: show AL + AL_OT requests only. MC requests live on the
-  // /leave/medical page.
-  const alType = await prisma.leaveType.findUnique({ where: { code: "AL" } });
-  const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
-  const typeIds = [alType?.id, alOtType?.id].filter((x): x is string => !!x);
+  // Everything except medical leave, which lives on /leave/medical. Listing by
+  // exclusion keeps No Pay and Compassionate Leave visible, since neither has a
+  // page of its own and approvers would otherwise never see them.
+  const medicalTypes = await prisma.leaveType.findMany({
+    where: { code: { in: ["MC", "SL", "MEDICAL"] } },
+    select: { id: true },
+  });
 
   const where = {
     ...(employeeId ? { employeeId } : {}),
-    ...(typeIds.length ? { leaveTypeId: { in: typeIds } } : {}),
+    leaveTypeId: { notIn: medicalTypes.map((t) => t.id) },
   };
 
   const requests = await prisma.leaveRequest.findMany({
@@ -204,7 +206,7 @@ export default async function LeavePage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Annual Leave</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">
             {viewAs === "admin"
-              ? "Manage all employee annual leave requests"
+              ? "Manage annual, no pay and compassionate leave requests"
               : "Paid annual leave — prorated from your join date"}
           </p>
         </div>

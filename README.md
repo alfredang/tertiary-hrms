@@ -136,7 +136,8 @@ Earlier additions (May 2026):
 - Manager assignment and organizational hierarchy
 
 ### Leave Management
-- **Leave types**: Annual Leave (AL: 14 days), Medical Certificate (MC: 14 days), Compassionate Leave (CL: 3 days), No-Pay Leave (NPL: 14 days)
+- **Leave types**: Annual Leave (AL: 14 days), Medical Certificate (MC: 14 days), Compassionate Leave (CL: 3 days), No-Pay Leave (NPL: 7 days, unpaid)
+- **Where requests appear**: `/leave/medical` lists medical leave; `/leave/annual` lists everything else, including No Pay and Compassionate Leave, for staff and approvers
 - **Half-day leave** (AM/PM) — available for Annual Leave only, single-day or multi-day with first/last day half
 - **Monthly accrual proration** for Annual Leave and Medical Leave — allocation = entitlement x completed months / 12, rounded down to nearest 0.5 day (join month excluded)
 - **Year-end rollover** — admin triggers via Settings page; Annual Leave carries forward (no cap), MC/CL/NPL reset
