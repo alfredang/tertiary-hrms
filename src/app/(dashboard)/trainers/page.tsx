@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getTrainerAccess } from "@/lib/trainer-access";
 import { TrainerDirectory } from "@/components/trainers/trainer-directory";
-import type { TrainerListItem } from "@/lib/trainers";
+import { lastClassTitleOf, type TrainerListItem } from "@/lib/trainers";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +14,14 @@ export default async function TrainersPage() {
     select: {
       id: true, name: true, nickname: true, phone: true, email: true, trainerType: true, status: true, inTms: true,
       trainingCerts: true, certifications: true, skills: true, education: true, summary: true, financeBackground: true,
-      ibfFitDeclaration: true, classesCount: true, lastClassDate: true, courses: true, importedAt: true,
+      ibfFitDeclaration: true, classesCount: true, lastClassDate: true, courses: true, recentClasses: true, importedAt: true,
     },
     orderBy: { name: "asc" },
   });
 
-  const trainers: TrainerListItem[] = rows.map(({ courses, importedAt: _i, ...t }) => ({
+  const trainers: TrainerListItem[] = rows.map(({ courses, recentClasses, importedAt: _i, ...t }) => ({
     ...t,
+    lastClassTitle: lastClassTitleOf(recentClasses, t.lastClassDate),
     courseTitles: Array.isArray(courses)
       ? courses.map((c) => String((c as { title?: string })?.title ?? "")).filter(Boolean)
       : [],

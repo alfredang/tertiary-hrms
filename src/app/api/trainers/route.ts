@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrainerAccess } from "@/lib/trainer-access";
-import { trainerInputSchema, filterTrainers, type TrainerListItem } from "@/lib/trainers";
+import { trainerInputSchema, filterTrainers, lastClassTitleOf, type TrainerListItem } from "@/lib/trainers";
 
 export const dynamic = "force-dynamic";
 
 const LIST_SELECT = {
   id: true, name: true, nickname: true, phone: true, email: true, trainerType: true, status: true, inTms: true,
   trainingCerts: true, certifications: true, skills: true, education: true, summary: true, financeBackground: true,
-  ibfFitDeclaration: true, classesCount: true, lastClassDate: true, courses: true,
+  ibfFitDeclaration: true, classesCount: true, lastClassDate: true, courses: true, recentClasses: true,
 } as const;
 
 /** GET /api/trainers?q=&cert=ACLP&cert=ACTA&tag=PMP&finance=1&ibfFit=1&status=trainers — Trainer Admin only. No NRIC. */
@@ -18,7 +18,11 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const rows = await prisma.trainer.findMany({ select: LIST_SELECT, orderBy: { name: "asc" } });
-  const list: TrainerListItem[] = rows.map(({ courses, ...t }) => ({ ...t, courseTitles: courseTitles(courses) }));
+  const list: TrainerListItem[] = rows.map(({ courses, recentClasses, ...t }) => ({
+    ...t,
+    lastClassTitle: lastClassTitleOf(recentClasses, t.lastClassDate),
+    courseTitles: courseTitles(courses),
+  }));
   const status = sp.get("status");
   const trainers = filterTrainers(list, {
     q: sp.get("q") ?? undefined,

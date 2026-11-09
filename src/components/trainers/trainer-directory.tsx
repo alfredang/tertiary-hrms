@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, X, Mail, Phone, Copy, Check, MessageCircle } from "lucide-react";
+import { Search, Plus, X, Copy, Check, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -177,49 +177,53 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
 
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b whitespace-nowrap">
+          <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground border-b whitespace-nowrap">
             <tr>
-              <th className="px-4 py-3 font-medium">Trainer</th>
-              <th className="px-4 py-3 font-medium">Accreditation</th>
-              <th className="px-4 py-3 font-medium">Expertise</th>
-              <th className="px-4 py-3 font-medium">Contact</th>
-              <th className="px-4 py-3 font-medium">Last class</th>
-              <th className="px-4 py-3 font-medium text-right">Classes</th>
+              <th className="px-2.5 py-3 font-semibold">Trainer</th>
+              <th className="px-2.5 py-3 font-semibold">Certifications · Skills</th>
+              <th className="px-2.5 py-3 font-semibold">Tel</th>
+              <th className="px-2.5 py-3 font-semibold">Email</th>
+              <th className="px-2.5 py-3 font-semibold">Last class taught</th>
+              <th className="px-2.5 py-3 font-semibold text-right">Classes</th>
             </tr>
           </thead>
           <tbody>
             {results.slice(0, limit).map((t) => {
               const expertise = orderByMatch([...t.certifications, ...t.skills], [...tags, q]);
+              const badges = [...t.trainingCerts];
+              const shown = expertise.slice(0, Math.max(1, 3 - badges.length));
+              const more = expertise.length - shown.length;
               return (
-                <tr key={t.id} className="border-b last:border-0 hover:bg-muted/40 whitespace-nowrap">
-                  <td className="px-4 py-2.5 max-w-[260px]">
-                    <Link href={`/trainers/${t.id}`} className="block truncate font-medium text-primary hover:underline" title={t.name}>{t.name}</Link>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {isApplicant(t) ? `Applicant · ${t.status}` : t.inTms ? `TMS${t.trainerType ? ` · ${t.trainerType}` : ""}` : "ACTA folder · not in TMS"}
+                <tr key={t.id} className="group/row border-b last:border-0 hover:bg-muted/40">
+                  <td className="px-2.5 py-2.5">
+                    <div className="flex max-w-[190px] items-center gap-1.5">
+                      <Link href={`/trainers/${t.id}`} className="truncate font-medium text-primary hover:underline" title={t.name}>{t.name}</Link>
+                      {t.financeBackground && <span title="Finance background" className="shrink-0 text-[11px]">💰</span>}
+                      {t.ibfFitDeclaration && <span title="IBF Fit and Proper declaration on file" className="shrink-0 rounded border border-emerald-500/40 px-1 text-[10px] font-semibold text-emerald-700">IBF</span>}
+                      {isApplicant(t) && <span className="shrink-0 rounded border px-1 text-[10px] text-muted-foreground">{t.status}</span>}
                     </div>
                   </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-1">
-                      {t.trainingCerts.map((c) => <Tag key={c} tone="acta">{c}</Tag>)}
-                      {t.financeBackground && <Tag tone="fin">Finance</Tag>}
-                      {t.ibfFitDeclaration && <Tag tone="ibf">IBF Fit</Tag>}
-                      {!t.trainingCerts.length && !t.financeBackground && !t.ibfFitDeclaration && <span className="text-muted-foreground">—</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex max-w-[300px] items-center gap-1" title={expertise.join(", ")}>
-                      {expertise.slice(0, 2).map((e) => (
-                        <span key={e} className="min-w-0 max-w-[140px] truncate"><Tag tone={t.certifications.includes(e) ? "default" : "skill"}>{e}</Tag></span>
+                  <td className="px-2.5 py-2.5">
+                    <div className="flex max-w-[230px] items-center gap-1" title={[...badges, ...expertise].join(", ")}>
+                      {badges.map((c) => <Tag key={c} tone="acta">{c}</Tag>)}
+                      {shown.map((e) => (
+                        <span key={e} className="min-w-0 max-w-[96px] truncate"><Tag tone={t.certifications.includes(e) ? "default" : "skill"}>{e}</Tag></span>
                       ))}
-                      {expertise.length > 2 && <span className="shrink-0 text-xs text-muted-foreground">+{expertise.length - 2}</span>}
-                      {!expertise.length && <span className="text-muted-foreground">—</span>}
+                      {more > 0 && <span className="shrink-0 text-xs text-muted-foreground">+{more}</span>}
+                      {!badges.length && !expertise.length && <span className="text-muted-foreground">—</span>}
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-xs">
-                    <ContactCell email={t.email} phone={t.phone} />
+                  <td className="px-2.5 py-2.5 tabular-nums"><PhoneCell phone={t.phone} /></td>
+                  <td className="px-2.5 py-2.5"><EmailCell email={t.email} /></td>
+                  <td className="px-2.5 py-2.5">
+                    {t.lastClassDate ? (
+                      <div className="max-w-[160px] truncate" title={t.lastClassTitle ? `${formatDay(t.lastClassDate)} · ${t.lastClassTitle}` : undefined}>
+                        <span className="tabular-nums">{formatDay(t.lastClassDate)}</span>
+                        {t.lastClassTitle && <span className="text-muted-foreground"> · {t.lastClassTitle}</span>}
+                      </div>
+                    ) : <span className="text-muted-foreground">—</span>}
                   </td>
-                  <td className="px-4 py-2.5 text-xs">{t.lastClassDate ? formatDay(t.lastClassDate) : <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">{t.classesCount || <span className="text-muted-foreground">0</span>}</td>
+                  <td className="px-2.5 py-2.5 text-right tabular-nums">{t.classesCount || <span className="text-muted-foreground">0</span>}</td>
                 </tr>
               );
             })}
@@ -348,33 +352,31 @@ function SkillSearch({ q, setQ, vocab, selected, onPick }: {
   );
 }
 
-/** Email and phone, each clickable (mail / call / WhatsApp) with a copy button. */
-function ContactCell({ email, phone }: { email: string | null; phone: string | null }) {
-  if (!email && !phone) return <span className="text-muted-foreground">—</span>;
-  const wa = phone ? phone.replace(/[^\d]/g, "") : "";
-  const waNumber = wa.length === 8 ? `65${wa}` : wa; // Singapore numbers are stored without the country code
+/** Phone: call link plus WhatsApp (revealed on row hover). */
+function PhoneCell({ phone }: { phone: string | null }) {
+  if (!phone) return <span className="text-muted-foreground">—</span>;
+  const digits = phone.replace(/[^\d]/g, "");
+  const wa = digits.length === 8 ? `65${digits}` : digits; // SG numbers are stored without the country code
   return (
-    <div className="space-y-0.5">
-      {email && (
-        <div className="group flex items-center gap-1.5">
-          <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <a href={`mailto:${email}`} className="max-w-[210px] truncate hover:underline" title={email}>{email}</a>
-          <CopyButton value={email} label="email" />
-        </div>
+    <div className="group flex items-center gap-1">
+      <a href={`tel:${phone}`} className="hover:underline">{phone}</a>
+      {wa && (
+        <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" aria-label="WhatsApp"
+          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-emerald-600 group-hover/row:opacity-100 focus:opacity-100">
+          <MessageCircle className="h-3.5 w-3.5" />
+        </a>
       )}
-      {phone && (
-        <div className="group flex items-center gap-1.5 text-muted-foreground">
-          <Phone className="h-3.5 w-3.5 shrink-0" />
-          <a href={`tel:${phone}`} className="hover:underline">{phone}</a>
-          {waNumber && (
-            <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener" title="WhatsApp" aria-label="WhatsApp"
-              className="rounded p-0.5 opacity-0 transition-opacity hover:text-emerald-400 group-hover:opacity-100 focus:opacity-100">
-              <MessageCircle className="h-3.5 w-3.5" />
-            </a>
-          )}
-          <CopyButton value={phone} label="phone number" />
-        </div>
-      )}
+    </div>
+  );
+}
+
+/** Email: mail link and copy. */
+function EmailCell({ email }: { email: string | null }) {
+  if (!email) return <span className="text-muted-foreground">—</span>;
+  return (
+    <div className="flex items-center gap-1">
+      <a href={`mailto:${email}`} className="max-w-[170px] truncate hover:underline" title={email}>{email}</a>
+      <CopyButton value={email} label="email" />
     </div>
   );
 }
@@ -384,7 +386,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   return (
     <button type="button" aria-label={`Copy ${label}`} title={`Copy ${label}`}
       onClick={() => { navigator.clipboard?.writeText(value).then(() => { setDone(true); setTimeout(() => setDone(false), 1200); }); }}
-      className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 focus:opacity-100">
+      className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 focus:opacity-100">
       {done ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );

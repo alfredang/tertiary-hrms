@@ -32,6 +32,7 @@ export type TrainerListItem = {
   ibfFitDeclaration: boolean;
   classesCount: number;
   lastClassDate: string | null;
+  lastClassTitle?: string | null;
   courseTitles: string[];
 };
 
@@ -219,3 +220,15 @@ export const trainerInputSchema = z.object({
 });
 
 export type TrainerInput = z.infer<typeof trainerInputSchema>;
+
+/** Title of the class taught on `lastClassDate` (else the latest past class), from the TMS recent-classes list. */
+export function lastClassTitleOf(recentClasses: unknown, lastClassDate: string | null): string | null {
+  if (!Array.isArray(recentClasses)) return null;
+  const rows = recentClasses
+    .map((r) => ({ start: String((r as { start?: unknown })?.start ?? "").slice(0, 10), title: String((r as { title?: unknown })?.title ?? "").trim() }))
+    .filter((r) => r.start && r.title);
+  const exact = lastClassDate ? rows.find((r) => r.start === lastClassDate.slice(0, 10)) : undefined;
+  if (exact) return exact.title;
+  const today = new Date().toISOString().slice(0, 10);
+  return rows.filter((r) => r.start <= today).sort((a, b) => b.start.localeCompare(a.start))[0]?.title ?? null;
+}
