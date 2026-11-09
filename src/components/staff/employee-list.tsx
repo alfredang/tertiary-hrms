@@ -45,6 +45,7 @@ const roleColors: Record<Role, string> = {
   ACCOUNTANT: "bg-sky-100 text-sky-800 border-sky-200",
   STAFF:      "bg-gray-100 text-gray-800 border-gray-200",
   INTERN:     "bg-amber-100 text-amber-800 border-amber-200",
+  TRAINER_ADMIN: "bg-teal-100 text-teal-800 border-teal-200",
 };
 
 const rolePriority: Record<Role, number> = {
@@ -54,6 +55,7 @@ const rolePriority: Record<Role, number> = {
   INTERN: 3,
   HR: 4,
   MANAGER: 5,
+  TRAINER_ADMIN: 6,
 };
 
 const roleLabels: Record<Role, string> = {
@@ -63,6 +65,7 @@ const roleLabels: Record<Role, string> = {
   ACCOUNTANT: "Accountant",
   STAFF:      "Staff",
   INTERN:     "Intern",
+  TRAINER_ADMIN: "Trainer Admin",
 };
 
 function formatDate(d: Date | string | null | undefined): string {

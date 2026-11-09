@@ -79,7 +79,7 @@ export const updateEmployeeSchema = z
     personalInfo:   lenientSection(personalInfoSchema.partial()).optional(),
     employmentInfo: lenientSection(employmentInfoSchema.partial()).optional(),
     salaryInfo:     lenientSection(salaryInfoSchema.partial(), ["basicSalary", "allowances", "cpfEmployeeRate", "cpfEmployerRate"]).optional(),
-    roles: z.enum(["STAFF", "INTERN", "ACCOUNTANT", "MANAGER", "HR", "ADMIN"]).array().min(1, "At least one role is required").optional(),
+    roles: z.enum(["STAFF", "INTERN", "ACCOUNTANT", "MANAGER", "HR", "ADMIN", "TRAINER_ADMIN"]).array().min(1, "At least one role is required").optional(),
   })
   .refine(
     (data) => data.personalInfo || data.employmentInfo || data.salaryInfo || data.roles,

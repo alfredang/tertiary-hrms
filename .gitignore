@@ -65,6 +65,12 @@ skills-lock.json
 .claude/*
 !.claude/skills/
 !.claude/skills/**
+# Project hooks + rules that guard the HRMS business logic ship with the repo.
+!.claude/settings.json
+!.claude/hooks/
+!.claude/hooks/**
+!.claude/rules/
+!.claude/rules/**
 
 # Local secrets backups and runtime uploads — never commit.
 env_backup
@@ -90,3 +96,6 @@ key.properties
 
 # Source material the project was derived from — not ours to republish.
 **/reference/
+
+# Trainer export (NRIC, phone, email) — never commit
+/.trainers/

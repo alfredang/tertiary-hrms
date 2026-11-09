@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { TEMPLATES, TEMPLATE_KEYS } from "@/lib/email-templates/defaults";
 import { useViewMode } from "./view-mode-context";
+import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 import {
   LayoutDashboard,
   Users,
@@ -37,6 +38,7 @@ import {
   ShieldCheck,
   Timer,
   AlarmClock,
+  GraduationCap,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -61,6 +63,7 @@ type NavItem = {
   hideForIntern?: true;
   staffOnly?: true;   // visible only in staff/intern view (hidden for admin + accountant)
   allowAccountant?: true; // exception: a staffOnly item that should ALSO show in accountant view
+  trainerAdminOnly?: true; // visible only to holders of the TRAINER_ADMIN role, in every view
   children?: Child[];
 };
 
@@ -119,6 +122,7 @@ const navigation: NavItem[] = [
   { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
   { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
   { name: "Intern Attendance", href: "/attendance/overview", icon: AlarmClock, adminOnly: true as const },
+  { name: "Trainer Management", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
   { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
   { name: "Woods Square Access", href: "/woods-square-access", icon: KeyRound, staffOnly: true as const, allowAccountant: true as const },
   {
@@ -182,6 +186,8 @@ export function Sidebar({
   };
 
   const isActualAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
+  // Trainer Management is its own role (TRAINER_ADMIN), independent of the view mode.
+  const isTrainerAdmin = hasTrainerAdminAccess(actualRoles);
   const isAdmin = isActualAdmin && viewAs === "admin";
   // Finance: admins respect viewAs; pure accountant role always sees finance
   const canSeeFinance = isActualAdmin
@@ -226,6 +232,10 @@ export function Sidebar({
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-1">
           {navigation.map((item) => {
+            if ("trainerAdminOnly" in item && item.trainerAdminOnly) {
+              if (!isTrainerAdmin) return null;
+              return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} isAdmin={isAdmin} />;
+            }
             if ("adminOnly" in item && item.adminOnly && !isAdmin) return null;
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;

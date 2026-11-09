@@ -72,6 +72,7 @@ const ALL_ROLES: { value: Role; label: string }[] = [
   { value: "STAFF",      label: "Staff" },
   { value: "INTERN",     label: "Intern" },
   { value: "ACCOUNTANT", label: "Accountant" },
+  { value: "TRAINER_ADMIN", label: "Trainer Admin" },
 ];
 
 const EDUCATION_OPTIONS: { value: EducationLevel; label: string }[] = [
@@ -526,10 +527,12 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                           ? "border-green-500 text-green-400 bg-green-950/30"
                           : r === "INTERN"
                           ? "border-amber-500 text-amber-400 bg-amber-950/30"
+                          : r === "TRAINER_ADMIN"
+                          ? "border-teal-500 text-teal-400 bg-teal-950/30"
                           : "border-blue-500 text-blue-400 bg-blue-950/30";
                       return (
                         <Badge key={r} variant="outline" className={cls}>
-                          {r.charAt(0) + r.slice(1).toLowerCase()}
+                          {ALL_ROLES.find((x) => x.value === r)?.label ?? r.charAt(0) + r.slice(1).toLowerCase()}
                         </Badge>
                       );
                     })

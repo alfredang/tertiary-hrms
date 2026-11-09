@@ -635,4 +635,57 @@ enum Role {
   ADMIN
   INTERN
   ACCOUNTANT
+  TRAINER_ADMIN
+}
+
+/// Trainer directory (Trainer Management). Freelance/adjunct trainers, not employees.
+/// Imported from the LMS/TMS snapshot, the ACTA Trainers folder and email applications
+/// (scripts/trainers/). Holds NRIC/phone/email — readable only by the TRAINER_ADMIN role.
+model Trainer {
+  id                String    @id @default(cuid())
+  sourceKey         String    @unique // "tms:<uuid>" | "folder:<ACTA folder>" | "email:<address>"
+  tmsId             String?   @unique
+  name              String
+  nickname          String?
+  nric              String?
+  phone             String?
+  email             String?
+  secondaryEmail    String?
+  nationality       String?
+  gender            String?
+  linkedinUrl       String?
+  cvUrl             String?
+  cvFolderUrl       String?
+  trainerType       String? // ACLP | non-ACLP | Not in TMS | Applicant (from the TMS)
+  status            String    @default("Active") // Active | Inactive | Applicant | Contacted
+  inTms             Boolean   @default(false)
+  isActaTrainer     Boolean   @default(false)
+  trainingCerts     String[]  @default([]) // ACLP, ACTA, DACE, DDDLP, AE Registry
+  certifications    String[]  @default([]) // professional: PMP, CCAR-F, CFA, AWS …
+  skills            String[]  @default([]) // e.g. Articulate Storyline, Python, Power BI
+  education         String?
+  experience        String[]  @default([])
+  summary           String?
+  financeBackground Boolean   @default(false)
+  financeEvidence   String[]  @default([])
+  ibfFitDeclaration Boolean   @default(false) // IBF Fit and Proper (Trainer/Assessor) form on file
+  ibfFitFiles       String[]  @default([])
+  actaFolder        String?
+  moreFolders       String[]  @default([])
+  evidenceFiles     String[]  @default([]) // file names inside the ACTA Trainers folder
+  courses           Json? // [{title, code, classes, first, last}]
+  recentClasses     Json? // [{start, title, run, status}]
+  calendarClasses   Json? // [{date, title, calendar}]
+  classesCount      Int       @default(0)
+  lastClassDate     String? // YYYY-MM-DD
+  adminNotes        String?
+  profileSource     String? // where the CV details came from
+  editedAt          DateTime? // set when a Trainer Admin edits the profile; the importer then keeps their edits
+  editedBy          String?
+  importedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([name])
+  @@index([status])
 }
