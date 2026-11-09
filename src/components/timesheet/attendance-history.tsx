@@ -117,7 +117,7 @@ export function AttendanceHistory({
           {error}
         </p>
       ) : data?.days.length ? (
-        <div className="overflow-hidden rounded-2xl border border-gray-800">
+        <div className="overflow-x-auto rounded-2xl border border-gray-800">
           <table className="w-full text-sm">
             <thead className="bg-gray-900 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>

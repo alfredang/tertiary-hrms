@@ -64,3 +64,16 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+/* Tables: one line per record, never word-wrapped (house rule, 10 Nov 2026). Long text cells use
+   `truncate` + a dialog / title; wide tables sit in an overflow-x-auto wrapper.
+   Opt out (document previews) with `allow-wrap` on the table or a cell. */
+td,
+th {
+  white-space: nowrap;
+}
+.allow-wrap td,
+.allow-wrap th,
+td.allow-wrap,
+th.allow-wrap {
+  white-space: normal;
+}

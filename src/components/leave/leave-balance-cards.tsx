@@ -203,7 +203,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               </div>
 
               {/* Monthly table */}
-              <div className="overflow-hidden rounded-lg border border-gray-800">
+              <div className="overflow-x-auto rounded-lg border border-gray-800">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-gray-900 border-b border-gray-800">

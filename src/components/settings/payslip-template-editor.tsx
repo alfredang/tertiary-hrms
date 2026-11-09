@@ -188,7 +188,7 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
             </h2>
 
             {/* Employee details */}
-            <table className="w-full text-sm mb-6">
+            <table className="allow-wrap w-full text-sm mb-6">
               <tbody>
                 <tr>
                   <td className="py-1 font-semibold text-gray-700 w-40">Employee Name</td>
@@ -210,7 +210,7 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
             </table>
 
             {/* Salary breakdown */}
-            <table className="w-full text-sm border border-gray-300 mb-4">
+            <table className="allow-wrap w-full text-sm border border-gray-300 mb-4">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="text-left px-3 py-2 border-b border-gray-300">Description</th>
