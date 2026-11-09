@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { LeaveCategory, MonthlyLeavePoint } from "@/lib/hr-insights";
 import { cn } from "@/lib/utils";
 
-// Categorical slots validated with the dataviz validator (dark surface #0B1020): all checks pass.
+// Categorical slots validated with the dataviz validator (light surface, 10 Nov 2026; earlier dark): all checks pass.
 // Fixed order — colour follows the category, never its rank.
 const SERIES: { key: LeaveCategory; label: string; color: string }[] = [
   { key: "LEAVE", label: "Leave", color: "#5B82F0" },
@@ -85,7 +85,7 @@ export function LeaveTrendChart({ data, year }: { data: MonthlyLeavePoint[]; yea
           <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Leave days by month, ${who}`}>
             {[0, 0.5, 1].map((f) => (
               <g key={f}>
-                <line x1={padL} x2={W} y1={y(niceMax * f)} y2={y(niceMax * f)} stroke="#1F2937" strokeWidth={1} />
+                <line x1={padL} x2={W} y1={y(niceMax * f)} y2={y(niceMax * f)} stroke="#E3E9F5" strokeWidth={1} />
                 <text x={padL - 6} y={y(niceMax * f) + 3} textAnchor="end" fontSize={10} fill="#6B7280">{fmt(niceMax * f)}</text>
               </g>
             ))}
@@ -96,7 +96,7 @@ export function LeaveTrendChart({ data, year }: { data: MonthlyLeavePoint[]; yea
               return (
                 <g key={r.month} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} tabIndex={0} aria-label={`${r.month}: ${SERIES.map((s) => `${s.label} ${fmt(r.v[s.key])}`).join(", ")}`}>
                   {/* hit target larger than the mark */}
-                  <rect x={cx - slot / 2} y={padT} width={slot} height={plotH} fill={hover === i ? "#ffffff08" : "transparent"} />
+                  <rect x={cx - slot / 2} y={padT} width={slot} height={plotH} fill={hover === i ? "#2F5BE60D" : "transparent"} />
                   {segs.map((s, j) => {
                     const h = Math.max(1, (r.v[s.key] / niceMax) * plotH);
                     const top = base - h;
@@ -108,7 +108,7 @@ export function LeaveTrendChart({ data, year }: { data: MonthlyLeavePoint[]; yea
                     base = top - 2; // 2px surface gap between stacked segments
                     return el;
                   })}
-                  <text x={cx} y={H - 6} textAnchor="middle" fontSize={10} fill={hover === i ? "#E5E7EB" : "#6B7280"}>{r.month}</text>
+                  <text x={cx} y={H - 6} textAnchor="middle" fontSize={10} fill={hover === i ? "#0F1C45" : "#6B7280"}>{r.month}</text>
                 </g>
               );
             })}
