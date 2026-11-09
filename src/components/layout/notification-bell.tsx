@@ -14,7 +14,16 @@ interface Notification {
   createdAt: string;
 }
 
-const ADMIN_TYPES = new Set(["LEAVE_SUBMITTED", "OT_PENDING", "WOODS_SQUARE_REQUEST", "WOODS_SQUARE_SEND_FAILED"]);
+const ADMIN_TYPES = new Set([
+  "LEAVE_SUBMITTED",
+  "OT_PENDING",
+  "WOODS_SQUARE_REQUEST",
+  "WOODS_SQUARE_SEND_FAILED",
+  // HR attendance + compliance alerts
+  "ATTENDANCE_ROLLUP",
+  "ATTENDANCE_CORRECTION_SUBMITTED",
+  "HR_COMPLIANCE",
+]);
 const EMPLOYEE_TYPES = new Set([
   "LEAVE_APPROVED",
   "LEAVE_REJECTED",
@@ -23,6 +32,10 @@ const EMPLOYEE_TYPES = new Set([
   "WOODS_SQUARE_APPROVED",
   "WOODS_SQUARE_DECLINED",
   "INFO",
+  // Missed clock-in/out reminders and correction outcomes
+  "ATTENDANCE_MISSED",
+  "ATTENDANCE_CORRECTION_APPROVED",
+  "ATTENDANCE_CORRECTION_REJECTED",
 ]);
 
 const typeIcon: Record<string, React.ReactNode> = {
@@ -36,6 +49,12 @@ const typeIcon: Record<string, React.ReactNode> = {
   WOODS_SQUARE_APPROVED: <Building2 className="h-4 w-4 text-emerald-400" />,
   WOODS_SQUARE_DECLINED: <Building2 className="h-4 w-4 text-red-400" />,
   WOODS_SQUARE_SEND_FAILED: <AlertTriangle className="h-4 w-4 text-red-400" />,
+  ATTENDANCE_MISSED: <AlertTriangle className="h-4 w-4 text-amber-400" />,
+  ATTENDANCE_ROLLUP: <AlertTriangle className="h-4 w-4 text-amber-400" />,
+  ATTENDANCE_CORRECTION_SUBMITTED: <Clock className="h-4 w-4 text-blue-400" />,
+  ATTENDANCE_CORRECTION_APPROVED: <CalendarCheck className="h-4 w-4 text-green-400" />,
+  ATTENDANCE_CORRECTION_REJECTED: <CalendarX className="h-4 w-4 text-red-400" />,
+  HR_COMPLIANCE: <AlertTriangle className="h-4 w-4 text-red-400" />,
 };
 
 function timeAgo(dateStr: string): string {

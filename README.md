@@ -136,10 +136,13 @@ Earlier additions (May 2026):
 - Manager assignment and organizational hierarchy
 
 ### Leave Management
-- **Leave types**: Annual Leave (AL: 14 days), Medical Certificate (MC: 14 days), Compassionate Leave (CL: 3 days), No-Pay Leave (NPL: 7 days, unpaid)
+- **Leave types**: Annual Leave (AL: 7 days), Medical Certificate (MC: 14 days; none paid for interns), Compassionate Leave (CL: 3 days), No-Pay Leave (NPL: capped at 21 days/year, prorated, unpaid)
+- **Leave policy** (`src/lib/leave-policy.ts`): AL beyond the available balance (earned + carried over + opt-in advance + Off In Lieu) is rejected with guidance to apply for the excess as No Pay Leave; NPL requests beyond the prorated cap are rejected; interns' MC requests are submitted as No Pay Leave (the API rejects a paid MC from an intern). Interns are users whose roles are exactly `["INTERN"]`.
 - **Where requests appear**: `/leave/medical` lists medical leave; `/leave/annual` lists everything else, including No Pay and Compassionate Leave, for staff and approvers
 - **Half-day leave** (AM/PM) — available for Annual Leave only, single-day or multi-day with first/last day half
-- **Monthly accrual proration** for Annual Leave and Medical Leave — allocation = entitlement x completed months / 12, rounded down to nearest 0.5 day (join month excluded)
+- **Monthly accrual proration** for Annual Leave, Medical Leave and the No Pay Leave cap — allocation = entitlement x completed months served this year / 12, rounded down to nearest 0.5 day. Months count from the join date (1 Jan for earlier joiners) and a month counts only once complete (joined 1 Sep, on 9 Nov → 2 months)
+- **Intern attendance**: interns must clock in and out; a daily 21:00 SGT job reminds anyone who forgot, an 08:30 SGT roll-up goes to the admins, and interns submit a missing clock-in/out on `/attendance` for an admin to approve on `/attendance/overview`
+- **HR compliance agent** (`/api/cron/hr-compliance`, Mondays 08:30 SGT): NPL near/over cap, MC above entitlement or patterned, AL beyond entitlement, repeated missed punches — emailed and notified to the admins; the same alerts show on the admin dashboard
 - **Year-end rollover** — admin triggers via Settings page; Annual Leave carries forward (no cap), MC/CL/NPL reset
 - Leave balance tracking per employee per year with carry-over support
 - Dashboard shows Entitlement, Allocation (pro-rated), Carry-over, Leave Taken, Leave Rejected, and Remaining Balance

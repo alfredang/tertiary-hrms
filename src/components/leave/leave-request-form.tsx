@@ -32,6 +32,9 @@ interface LeaveRequestFormProps {
   alFullAvailable?: number;  // full-year entitlement minus used/pending
   alPersonalEntitlement?: number; // total days entitled this year (for display)
   defaultLeaveTypeCode?: string; // e.g. "MC" to pre-select Medical Leave
+  isIntern?: boolean;        // interns have no paid MC — sick leave goes in as No Pay Leave
+  npl?: { cap: number; used: number; pending: number; remaining: number }; // prorated NPL cap status
+  nplAnnualCap?: number;
 }
 
 export function LeaveRequestForm({
@@ -39,8 +42,11 @@ export function LeaveRequestForm({
   otBalance = 0,
   alRemaining = 0,
   alFullAvailable = 0,
-  alPersonalEntitlement = 12,
+  alPersonalEntitlement = 7,
   defaultLeaveTypeCode,
+  isIntern = false,
+  npl = { cap: 0, used: 0, pending: 0, remaining: 0 },
+  nplAnnualCap = 21,
 }: LeaveRequestFormProps) {
   const availableNow = Math.max(0, alRemaining);
 
@@ -68,6 +74,11 @@ export function LeaveRequestForm({
   const isMC = selectedLeaveType?.code === "MC" || selectedLeaveType?.code === "SL";
   const isAL = selectedLeaveType?.code === "AL";
   const isOT = selectedLeaveType?.code === "AL_OT";
+  const nplType = leaveTypes.find((t) => t.code === "NPL");
+  const isNPL = selectedLeaveType?.code === "NPL";
+  // Interns have no paid MC: their sick leave is submitted as No Pay Leave (with the MC attached).
+  const internSick = isIntern && isMC;
+  const submitAsNpl = isNPL || internSick;
 
   const isSingleDay = startDate && endDate && startDate === endDate;
   const isMultiDay = startDate && endDate && startDate < endDate;
@@ -91,6 +102,9 @@ export function LeaveRequestForm({
   const fullyWithinEntitlement = isAL && daysNum <= alCover;
   // Days not yet earned (advance + deficit) — OT can cover any of this
   const nonEarnedDays = isAL ? Math.max(0, daysNum - availableNow) : 0;
+  // Policy: AL beyond what the balance (+ advance + Off In Lieu) covers must be No Pay Leave.
+  const alExcess = deficitDays > 0;
+  const nplExceeded = submitAsNpl && daysNum > npl.remaining;
 
   // Fetch public holidays when the start or end year changes
   useEffect(() => {
@@ -166,17 +180,20 @@ export function LeaveRequestForm({
         documentFileName = uploadData.fileName;
       }
 
+      const submitTypeId = internSick && nplType ? nplType.id : leaveTypeId;
+      const submitReason = internSick ? `Sick leave (MC)${reason ? ` — ${reason}` : ""}` : reason;
+
       const res = await fetch("/api/leave", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          leaveTypeId,
+          leaveTypeId: submitTypeId,
           startDate,
           endDate,
           days: daysNum,
           dayType: isSingleDay ? dayType : "FULL_DAY",
           halfDayPosition: isMultiDay ? halfDayPosition : null,
-          reason,
+          reason: submitReason,
           documentUrl,
           documentFileName,
           otDaysUsed: effectiveOtUsed,
@@ -269,7 +286,7 @@ export function LeaveRequestForm({
               </p>
               {(advanceDays > 0 || deficitDays > 0) && (
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  {[advanceDays > 0 && `${advanceDays} advance`, deficitDays > 0 && `${deficitDays} deficit`].filter(Boolean).join(" + ")}
+                  {[advanceDays > 0 && `${advanceDays} advance`, deficitDays > 0 && `${deficitDays} over — needs No Pay Leave`].filter(Boolean).join(" + ")}
                 </p>
               )}
             </div>
@@ -287,7 +304,7 @@ export function LeaveRequestForm({
               <p className="text-sm text-white font-medium">Use advance annual leave</p>
               <p className="text-xs text-gray-500">
                 Borrow up to {advanceAvailable} day(s) you&apos;ll earn by the end of this year.
-                {!useAdvance && " If off, days beyond your balance count as deficit."}
+                {!useAdvance && " If off, days beyond your balance must be taken as No Pay Leave."}
               </p>
             </div>
             <button
@@ -308,7 +325,7 @@ export function LeaveRequestForm({
               <p className="text-xs text-gray-500">
                 {otBalance} Off In Lieu day(s) available
                 {deficitBeforeOt > 0
-                  ? ` — offset the ${deficitBeforeOt} day deficit`
+                  ? ` — cover the ${deficitBeforeOt} day(s) your AL balance can't`
                   : ` — cover advance leave ahead of accrual`}
               </p>
             </div>
@@ -376,7 +393,7 @@ export function LeaveRequestForm({
             {/* True deficit */}
             {deficitDays > 0 && (
               <div className="flex justify-between">
-                <span className="text-red-400 font-medium">Deficit (beyond entitlement):</span>
+                <span className="text-red-400 font-medium">Not covered by AL (needs No Pay Leave):</span>
                 <span className="text-red-400 font-bold">{deficitDays.toFixed(1)} day(s)</span>
               </div>
             )}
@@ -394,9 +411,22 @@ export function LeaveRequestForm({
             {deficitDays > 0 && (
               <div className="flex items-start gap-1.5 text-red-300 pt-1">
                 <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                <span>
-                  {deficitDays.toFixed(1)} day(s) exceed your full entitlement. These will be recorded as a deficit, offset by future Off In Lieu days earned from weekend/holiday work.
-                </span>
+                <div className="space-y-2">
+                  <span className="block">
+                    {deficitDays.toFixed(1)} day(s) exceed the annual leave you have available. Leave beyond your entitlement
+                    must be taken as No Pay Leave: shorten this request to {Math.max(0, daysNum - deficitDays).toFixed(1)} day(s)
+                    and apply for the rest as No Pay Leave ({npl.remaining} day(s) left this year), or apply for the whole period as No Pay Leave.
+                  </span>
+                  {nplType && (
+                    <button
+                      type="button"
+                      onClick={() => setLeaveTypeId(nplType.id)}
+                      className="rounded-md border border-red-700 px-2.5 py-1 text-red-200 hover:bg-red-900/40"
+                    >
+                      Apply as No Pay Leave instead
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {fullyWithinEntitlement && advanceDays === 0 && deficitDays === 0 && (
@@ -415,9 +445,40 @@ export function LeaveRequestForm({
     );
   };
 
+  const renderNplPanel = () => {
+    if (!submitAsNpl) return null;
+    return (
+      <div className={`rounded-lg p-3 border space-y-2 text-xs ${nplExceeded ? "bg-red-950/20 border-red-800/40" : "bg-amber-950/20 border-amber-800/40"}`}>
+        {internSick && (
+          <p className="flex items-start gap-1.5 text-amber-300">
+            <Info className="h-3 w-3 mt-0.5 shrink-0" />
+            <span>Interns do not have paid medical leave. This sick leave will be submitted as <strong>No Pay Leave</strong> with your medical certificate attached.</span>
+          </p>
+        )}
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div><p className="text-gray-500">NPL cap to date</p><p className="text-base font-bold text-white">{npl.cap}</p></div>
+          <div><p className="text-gray-500">Taken</p><p className="text-base font-bold text-amber-400">{npl.used}</p></div>
+          <div><p className="text-gray-500">Pending</p><p className="text-base font-bold text-purple-400">{npl.pending}</p></div>
+          <div><p className="text-gray-500">Remaining</p><p className={`text-base font-bold ${nplExceeded ? "text-red-400" : "text-green-400"}`}>{npl.remaining}</p></div>
+        </div>
+        <p className="text-gray-500">
+          No Pay Leave is capped at {nplAnnualCap} days a year, prorated by the full months you have served this year.
+        </p>
+        {nplExceeded && (
+          <p className="flex items-start gap-1.5 text-red-300">
+            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+            <span>This request ({daysNum} day(s)) is more than your remaining No Pay Leave ({npl.remaining} day(s)). Please shorten it or speak to HR.</span>
+          </p>
+        )}
+      </div>
+    );
+  };
+
   const leaveTypeLabel = (type: LeaveType) => {
     if (type.code === "AL_OT") return `${type.name} (${otBalance} days available)`;
     if (type.code === "AL") return `${type.name} (${alRemaining} days available)`;
+    if (type.code === "NPL") return `${type.name} (${npl.remaining} of ${npl.cap} days left)`;
+    if (isIntern && (type.code === "MC" || type.code === "SL")) return `${type.name} (unpaid for interns — goes in as No Pay Leave)`;
     if (type.defaultDays > 0) return `${type.name} (${type.defaultDays} days/year)`;
     return type.name;
   };
@@ -496,6 +557,9 @@ export function LeaveRequestForm({
           {/* AL balance panel */}
           {renderAlBalancePanel()}
 
+          {/* No Pay Leave cap (also intern sick leave) */}
+          {renderNplPanel()}
+
           <div className="space-y-2">
             <Label htmlFor="reason" className="text-white">Reason (optional)</Label>
             <Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)}
@@ -532,10 +596,10 @@ export function LeaveRequestForm({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !leaveTypeId || !startDate || !endDate || !days || parseFloat(days) < 0.5 || (isOT && parseFloat(days) > otBalance)}
+              disabled={isLoading || !leaveTypeId || !startDate || !endDate || !days || parseFloat(days) < 0.5 || (isOT && parseFloat(days) > otBalance) || alExcess || nplExceeded || (internSick && !nplType)}
             >
               <Send className="h-4 w-4 mr-2" />
-              {isLoading ? "Submitting..." : deficitDays > 0 ? `Submit with ${deficitDays.toFixed(1)}d deficit` : "Submit Request"}
+              {isLoading ? "Submitting..." : alExcess ? "Exceeds AL — use No Pay Leave" : internSick ? "Submit as No Pay Leave" : "Submit Request"}
             </Button>
           </div>
         </CardContent>

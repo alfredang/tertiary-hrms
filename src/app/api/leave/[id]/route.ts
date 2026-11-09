@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
+import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates, computeAlFullEntitlement } from "@/lib/utils";
+import {
+  alExcessMessage,
+  evaluateAlRequest,
+  evaluateNplRequest,
+  INTERN_MC_MESSAGE,
+  isMedicalLeaveCode,
+  mcAnnualEntitlement,
+  nplCapMessage,
+  NPL_CODE,
+} from "@/lib/leave-policy";
+import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
 import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import * as z from "zod";
 
@@ -192,25 +203,71 @@ export async function PATCH(
       );
     }
 
-    // For non-AL types: enforce balance check
-    if (leaveType?.code !== "AL") {
-      const employee = await prisma.employee.findUnique({
-        where: { id: leaveRequest.employeeId },
-        select: { startDate: true, monthlyLeaveRate: true },
-      });
+    // Same policy as submission (src/lib/leave-policy.ts), with this request's own days excluded.
+    const employee = await getLeaveProfile(leaveRequest.employeeId);
+    const isMedical = isMedicalLeaveCode(leaveType?.code);
+    const pendingWithoutOld = Number(balance.pending) - oldDays;
 
+    if (isMedical && employee?.isIntern) {
+      return NextResponse.json(
+        { error: INTERN_MC_MESSAGE, code: "INTERN_MC_NOT_PAID", suggestedLeaveTypeCode: NPL_CODE },
+        { status: 400 }
+      );
+    }
+
+    if (leaveType?.code === NPL_CODE) {
+      const npl = await getNplStatus(leaveRequest.employeeId, employee, new Date(), id);
+      if (!evaluateNplRequest(newDays, npl).ok) {
+        return NextResponse.json(
+          { error: nplCapMessage(newDays, npl), code: "NPL_CAP_EXCEEDED", npl, requested: newDays },
+          { status: 400 }
+        );
+      }
+    } else if (isAL) {
+      const rate = employee?.monthlyLeaveRate ?? null;
+      const entitlement = Number(balance.entitlement);
+      const base = Number(balance.carriedOver) - Number(balance.used) - pendingWithoutOld;
+      const earnedAvailable = prorateLeave(entitlement, employee?.startDate, rate, true, new Date(), employee?.endDate) + base;
+      const fullAvailable = computeAlFullEntitlement(employee?.startDate, rate, entitlement, employee?.endDate) + base;
+      const otHeld = Number(leaveRequest.otDaysUsed);
+      const alCheck = evaluateAlRequest({
+        days: newDays,
+        earnedAvailable,
+        fullAvailable,
+        otAvailable: otHeld,
+        otRequested: otHeld,
+        useAdvance: true,
+      });
+      // Edits that don't lengthen the request stay allowed, so a pending pre-policy
+      // request (recorded with a deficit) can still have its reason/dates tidied.
+      if (!alCheck.ok && newDays > oldDays) {
+        const npl = await getNplStatus(leaveRequest.employeeId, employee);
+        return NextResponse.json(
+          {
+            error: alExcessMessage(alCheck, newDays, npl.remaining),
+            code: "AL_EXCEEDS_BALANCE",
+            excessDays: alCheck.excessDays,
+            npl,
+            suggestedLeaveTypeCode: NPL_CODE,
+          },
+          { status: 400 }
+        );
+      }
+    } else {
       let effectiveEntitlement = Number(balance.entitlement);
       if (leaveType?.code === "AL_OT") {
         effectiveEntitlement = Number(balance.earned) - Number(balance.autoDeducted);
-      } else if (leaveType?.code === "MC" && employee?.startDate) {
+      } else if (isMedical) {
         effectiveEntitlement = prorateLeave(
-          Number(balance.entitlement),
-          employee.startDate,
-          employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null,
+          mcAnnualEntitlement(Number(balance.entitlement), !!employee?.isIntern),
+          employee?.startDate,
+          null,
+          false,
+          new Date(),
+          employee?.endDate,
         );
       }
 
-      const pendingWithoutOld = Number(balance.pending) - oldDays;
       const available =
         effectiveEntitlement +
         (leaveType?.code === "AL_OT" ? 0 : Number(balance.carriedOver)) -

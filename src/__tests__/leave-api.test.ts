@@ -20,9 +20,12 @@ const { mockPrisma, mockAuth } = vi.hoisted(() => ({
     calendarEvent: {
       create: vi.fn(),
     },
+    publicHoliday: { findMany: vi.fn().mockResolvedValue([]) },
   },
   mockAuth: vi.fn(),
 }));
+
+vi.mock("@/lib/approval-email", () => ({ sendLeaveApprovalEmail: vi.fn().mockResolvedValue(undefined) }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
@@ -220,7 +223,7 @@ describe("Leave Submission (POST /api/leave)", () => {
     const req = makeRequest({
       leaveTypeId: LEAVE_TYPE_ID,
       startDate: "2026-03-02",
-      endDate: "2026-03-11", // 10 days
+      endDate: "2026-03-13", // Mon 2 – Fri 13 Mar = 10 working days
     });
 
     const res = await submitLeave(req);
@@ -558,8 +561,8 @@ describe("Leave Balance & Forecast", () => {
 
     const req = makeRequest({
       leaveTypeId: LEAVE_TYPE_ID,
-      startDate: "2026-04-01",
-      endDate: "2026-04-03", // 3 days
+      startDate: "2026-04-06",
+      endDate: "2026-04-08", // Mon–Wed = 3 working days (3 Apr 2026 is Good Friday)
     });
 
     const res = await submitLeave(req);

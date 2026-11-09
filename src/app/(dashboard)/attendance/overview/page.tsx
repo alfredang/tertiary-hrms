@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { hasAdminAccess } from "@/lib/utils";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { AdminAttendanceOverview } from "@/components/timesheet/admin-attendance-overview";
+import { CorrectionApprovals } from "@/components/attendance/punch-corrections";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function AttendanceOverviewPage() {
           Daily check-in / check-out history and total hours for each intern. Select a row to see their days.
         </p>
       </div>
+      <CorrectionApprovals />
       <AdminAttendanceOverview />
     </div>
   );

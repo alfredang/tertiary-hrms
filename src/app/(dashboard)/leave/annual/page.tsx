@@ -9,6 +9,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, AlertTriangle } from "lucide-react";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { getNplStatus } from "@/lib/leave-allowance";
+import { NPL_ANNUAL_CAP_DAYS } from "@/lib/leave-policy";
 
 async function getOtLeaveBalance(employeeId: string) {
   const currentYear = new Date().getFullYear();
@@ -110,7 +112,7 @@ async function getLeaveBalance(employeeId: string) {
   const carriedOver = balance ? Number(balance.carriedOver) : 0;
   const taken = balance ? Number(balance.used) : 0;
   const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
-  const proRated = prorateLeave(allocation, employee?.startDate ?? undefined, monthlyLeaveRate, true);
+  const proRated = prorateLeave(allocation, employee?.startDate, monthlyLeaveRate, true, new Date(), employee?.endDate);
   const employeeStartDate = employee?.startDate?.toISOString() ?? null;
   const employeeEndDate = employee?.endDate?.toISOString() ?? null;
 
@@ -190,13 +192,14 @@ export default async function LeavePage() {
     );
   }
 
-  const [leaveBalance, otBalance, otUsage, requests] = await Promise.all([
+  const [leaveBalance, otBalance, otUsage, requests, npl] = await Promise.all([
     currentEmployeeId
       ? getLeaveBalance(currentEmployeeId)
-      : Promise.resolve({ carriedOver: 0, allocation: 12, taken: 0, rejected: 0, proRated: 12, employeeStartDate: null, employeeEndDate: null, monthlyLeaveRate: null }),
+      : Promise.resolve({ carriedOver: 0, allocation: 7, taken: 0, rejected: 0, proRated: 7, employeeStartDate: null, employeeEndDate: null, monthlyLeaveRate: null }),
     currentEmployeeId ? getOtLeaveBalance(currentEmployeeId) : Promise.resolve(null),
     currentEmployeeId ? getOtUsage(currentEmployeeId) : Promise.resolve([]),
     getLeaveRequests(filterByEmployeeId),
+    currentEmployeeId && viewAs !== "admin" ? getNplStatus(currentEmployeeId) : Promise.resolve(null),
   ]);
 
   return (
@@ -247,6 +250,26 @@ export default async function LeavePage() {
           employeeEndDate={leaveBalance.employeeEndDate ?? null}
           monthlyLeaveRate={leaveBalance.monthlyLeaveRate ?? null}
         />
+      )}
+
+      {/* No Pay Leave — 21 days/year, prorated by completed months served */}
+      {viewAs !== "admin" && npl && (
+        <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-medium text-white">No Pay Leave</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Capped at {NPL_ANNUAL_CAP_DAYS} days a year, prorated by the full months you have served ({npl.cap} day(s) so far).
+                Annual leave beyond your balance must be taken as No Pay Leave.
+              </p>
+            </div>
+            <div className="flex gap-6 text-center">
+              <div><p className="text-xs text-gray-500">Taken</p><p className="text-xl font-bold text-amber-400">{npl.used}</p></div>
+              <div><p className="text-xs text-gray-500">Pending</p><p className="text-xl font-bold text-purple-400">{npl.pending}</p></div>
+              <div><p className="text-xs text-gray-500">Remaining</p><p className={`text-xl font-bold ${npl.remaining <= 0 ? "text-red-400" : "text-green-400"}`}>{npl.remaining}</p></div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* OT Leave Balance — show when earned > 0 OR there is a deficit */}

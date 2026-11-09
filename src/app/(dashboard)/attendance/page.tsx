@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { ClockWidget } from "@/components/timesheet/clock-widget";
+import { MissingPunchPanel } from "@/components/attendance/punch-corrections";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function AttendancePage() {
           Tap the button when you start and end work. Your hours are recorded automatically.
         </p>
       </div>
+      <MissingPunchPanel />
       <ClockWidget />
     </div>
   );

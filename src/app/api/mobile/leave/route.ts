@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, iso, num } from "@/lib/mobile-api";
 import { prorateLeave } from "@/lib/utils";
+import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
+import { isMedicalLeaveCode, mcAnnualEntitlement, NPL_CODE } from "@/lib/leave-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +16,9 @@ export async function GET() {
   const employeeId = ctx.employeeId;
   const year = new Date().getFullYear();
 
-  const [employee, types, balances, requests] = await Promise.all([
-    prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: { startDate: true, endDate: true, monthlyLeaveRate: true },
-    }),
+  const employee = await getLeaveProfile(employeeId);
+  const [npl, types, balances, requests] = await Promise.all([
+    getNplStatus(employeeId, employee).catch(() => null),
     prisma.leaveType.findMany({ orderBy: { name: "asc" } }),
     prisma.leaveBalance.findMany({ where: { employeeId, year }, include: { leaveType: true } }),
     prisma.leaveRequest.findMany({
@@ -47,8 +47,16 @@ export async function GET() {
     if (isOT) {
       available = earned - used - autoDeducted - pending;
     } else if (isAL) {
-      proRated = prorateLeave(entitlement || b.leaveType.defaultDays, employee?.startDate ?? undefined, employee?.monthlyLeaveRate != null ? num(employee.monthlyLeaveRate) : null, true);
+      proRated = prorateLeave(entitlement || b.leaveType.defaultDays, employee?.startDate, employee?.monthlyLeaveRate ?? null, true, new Date(), employee?.endDate);
       available = proRated + carriedOver - used - pending;
+    } else if (isMedicalLeaveCode(b.leaveType.code)) {
+      // MC: prorated by completed months served; interns have none.
+      proRated = prorateLeave(mcAnnualEntitlement(entitlement, !!employee?.isIntern), employee?.startDate, null, false, new Date(), employee?.endDate);
+      available = proRated + carriedOver - used - pending;
+    } else if (b.leaveType.code === NPL_CODE && npl) {
+      // NPL: 21 days/year prorated by months served (not the balance row).
+      proRated = npl.cap;
+      available = npl.remaining;
     } else {
       available = entitlement + carriedOver - used - pending;
     }

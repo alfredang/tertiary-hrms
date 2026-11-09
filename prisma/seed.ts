@@ -70,8 +70,8 @@ async function main() {
   });
   const noPayLeave = await prisma.leaveType.upsert({
     where: { code: "NPL" },
-    update: { defaultDays: 7 },
-    create: { id: randomUUID(), name: "No Pay Leave", code: "NPL", defaultDays: 7, description: "Unpaid leave", paid: false, carryOver: false },
+    update: { defaultDays: 21 },
+    create: { id: randomUUID(), name: "No Pay Leave", code: "NPL", defaultDays: 21, description: "Unpaid leave", paid: false, carryOver: false },
   });
   const accumulatedLeave = await prisma.leaveType.upsert({
     where: { code: "AL_OT" },
