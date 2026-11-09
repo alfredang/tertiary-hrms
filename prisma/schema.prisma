@@ -551,6 +551,42 @@ model AttendancePunch {
   @@index([employeeId])
 }
 
+/// A missing clock-in / clock-out an employee (usually an intern) asks an admin
+/// to fill in. Approval writes the times onto that day's AttendancePunch.
+/// Standalone (no Prisma relation) so the Employee model is untouched.
+model AttendanceCorrection {
+  id                String      @id @default(cuid())
+  employeeId        String
+  date              DateTime    @db.Date
+  kind              String // CLOCK_IN | CLOCK_OUT | BOTH
+  requestedClockIn  DateTime?
+  requestedClockOut DateTime?
+  reason            String
+  status            LeaveStatus @default(PENDING)
+  approverId        String?
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  rejectionReason   String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([employeeId, date])
+  @@index([status])
+}
+
+/// One execution of a scheduled job (Settings → Cron Jobs shows the latest per job).
+model CronRun {
+  id         String    @id @default(cuid())
+  jobId      String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean?
+  summary    Json?
+  error      String?
+
+  @@index([jobId, startedAt])
+}
+
 model OtWorkLog {
   id         String   @id @default(cuid())
   employeeId String

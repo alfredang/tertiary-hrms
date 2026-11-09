@@ -7,6 +7,30 @@ import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { getLeaveProfile } from "@/lib/leave-allowance";
+import { mcAnnualEntitlement } from "@/lib/leave-policy";
+import { getInternAttendance, getLeaveOverview, getPendingApprovals } from "@/lib/hr-insights";
+import { buildFindings } from "@/lib/hr-compliance";
+import { AdminHrOverview } from "@/components/dashboard/admin-hr-overview";
+
+/** Admin HR overview: leave by staff/interns, intern hours, alerts. Null on failure so the dashboard still renders. */
+async function getAdminHrOverview() {
+  try {
+    const now = new Date();
+    const [people, interns, pending] = await Promise.all([getLeaveOverview(now), getInternAttendance(14, now), getPendingApprovals()]);
+    return {
+      people,
+      interns,
+      pending,
+      findings: buildFindings(people, interns),
+      monthLabel: now.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" }),
+      year: now.getFullYear(),
+    };
+  } catch (err) {
+    console.error("[dashboard] admin HR overview failed:", err);
+    return null;
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -60,23 +84,21 @@ async function getStaffStats(employeeId: string) {
       },
       select: { amount: true },
     }),
-    prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: { startDate: true, monthlyLeaveRate: true },
-    }),
+    getLeaveProfile(employeeId),
   ]);
 
   // Fall back to leave type default if no balance record exists (same as leave page)
   const alAllocation = alBalance ? Number(alBalance.entitlement) : (alType?.defaultDays ?? 0);
-  const alMonthlyRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
-  const alEntitlement = prorateLeave(alAllocation, employee?.startDate ?? undefined, alMonthlyRate, true);
+  const alMonthlyRate = employee?.monthlyLeaveRate ?? null;
+  const alEntitlement = prorateLeave(alAllocation, employee?.startDate, alMonthlyRate, true, new Date(), employee?.endDate);
   const alCarriedOver = alBalance ? Number(alBalance.carriedOver) : 0;
   const alUsed = alBalance ? Number(alBalance.used) : 0;
   const alPending = alBalance ? Number(alBalance.pending) : 0;
   const leaveBalance = alEntitlement + alCarriedOver - alUsed - alPending;
 
-  // MC is not prorated — employees receive their full entitlement, not monthly accrual
-  const mcAllocation = mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0);
+  // MC is prorated by completed months served, like AL; interns have no paid MC.
+  const mcYearly = mcAnnualEntitlement(mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0), !!employee?.isIntern);
+  const mcAllocation = prorateLeave(mcYearly, employee?.startDate, null, false, new Date(), employee?.endDate);
   const mcCarriedOver = mcBalance ? Number(mcBalance.carriedOver) : 0;
   const mcUsed = mcBalance ? Number(mcBalance.used) : 0;
   const mcPending = mcBalance ? Number(mcBalance.pending) : 0;
@@ -185,6 +207,7 @@ export default async function DashboardPage() {
   // For admin users, fetch both stats so they can toggle views
   const adminStats = isAdmin ? await getAdminStats() : null;
   const staffStats = currentEmployeeId ? await getStaffStats(currentEmployeeId) : null;
+  const hrOverview = isAdmin && !isStaffView ? await getAdminHrOverview() : null;
 
   return (
     <div className="space-y-8">
@@ -203,6 +226,9 @@ export default async function DashboardPage() {
         adminStats={isStaffView ? null : adminStats}
         staffStats={isStaffView ? staffStats : null}
       />
+
+      {/* Admin HR overview: MC / leave / NPL, intern hours, alerts */}
+      {hrOverview && <AdminHrOverview {...hrOverview} />}
 
       {/* Quick Actions and Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -16,6 +16,8 @@ interface CronJobView {
   path: string;
   fullUrl: string;
   status: "active" | "planned";
+  /** Latest recorded run (jobs that log to CronRun); null = never run / not tracked. */
+  lastRun?: { startedAt: string; finishedAt: string | null; ok: boolean | null; error: string | null } | null;
 }
 
 export function CronJobsPanel({
@@ -182,6 +184,21 @@ export function CronJobsPanel({
                   </span>
                 </div>
                 <p className="text-sm text-gray-400 mt-1.5">{j.description}</p>
+                {j.lastRun !== undefined && (
+                  <p className="text-xs mt-1.5 text-gray-500">
+                    Last run:{" "}
+                    {j.lastRun ? (
+                      <>
+                        {new Date(j.lastRun.startedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore", dateStyle: "medium", timeStyle: "short" })}{" "}
+                        <span className={j.lastRun.ok === false ? "text-red-400" : j.lastRun.ok ? "text-green-400" : "text-amber-400"}>
+                          {j.lastRun.ok === false ? `failed${j.lastRun.error ? ` — ${j.lastRun.error}` : ""}` : j.lastRun.ok ? "succeeded" : "running"}
+                        </span>
+                      </>
+                    ) : (
+                      "never"
+                    )}
+                  </p>
+                )}
               </div>
               <Button
                 size="sm"
