@@ -7,7 +7,9 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Retry: a transient TLS error fetching the Alpine index failed the 9 Nov 2026 deploy. Newer Alpine images
+# ship glibc compatibility as gcompat, so fall back to it if libc6-compat is unavailable.
+RUN for i in 1 2 3; do apk add --no-cache libc6-compat && exit 0; apk add --no-cache gcompat && exit 0; sleep 5; done; exit 1
 WORKDIR /app
 
 # Configure npm for better reliability
@@ -49,7 +51,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # su-exec for the perms trick below; chromium + libs so Playwright can drive a
 # real browser (Woods Square invite automation).
-RUN apk add --no-cache su-exec chromium nss freetype harfbuzz ca-certificates ttf-freefont
+RUN for i in 1 2 3; do apk add --no-cache su-exec chromium nss freetype harfbuzz ca-certificates ttf-freefont && exit 0; sleep 5; done; exit 1
 
 # Point Playwright at the system Chromium installed above.
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
