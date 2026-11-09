@@ -190,7 +190,7 @@ export function QuickBooksCredentialsCard({
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-primary hover:bg-primary/90 text-white"
+            className="w-full bg-primary hover:bg-primary/90 text-on-color"
           >
             {saving ? "Saving..." : "Save Credentials"}
           </Button>
@@ -295,7 +295,7 @@ export function QuickBooksCredentialsCard({
           <Button
             type="button"
             onClick={handleConnect}
-            className="bg-green-600 hover:bg-green-700 text-white gap-2"
+            className="bg-green-600 hover:bg-green-700 text-on-color gap-2"
           >
             <Link2 className="h-4 w-4" />
             {isConnected ? "Reconnect QuickBooks" : "Connect QuickBooks"}

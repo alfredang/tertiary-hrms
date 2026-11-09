@@ -348,7 +348,7 @@ export function GmailCredentialsCard({
             <Button
               onClick={handleConnect}
               disabled={connecting || !form.clientId || !form.clientSecret}
-              className="w-full bg-red-600 hover:bg-red-700 text-white"
+              className="w-full bg-red-600 hover:bg-red-700 text-on-color"
             >
               {connecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
               {connecting ? "Redirecting to Google..." : "Renew token now"}
@@ -465,7 +465,7 @@ export function GmailCredentialsCard({
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-primary hover:bg-primary/90 text-white"
+            className="w-full bg-primary hover:bg-primary/90 text-on-color"
           >
             {saving ? "Saving..." : "Save Credentials"}
           </Button>
@@ -514,7 +514,7 @@ export function GmailCredentialsCard({
           <Button
             onClick={handleConnect}
             disabled={connecting || !form.clientId || !form.clientSecret}
-            className="w-full bg-primary hover:bg-primary/90 text-white"
+            className="w-full bg-primary hover:bg-primary/90 text-on-color"
           >
             {connecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogIn className="h-4 w-4 mr-2" />}
             {connecting ? "Redirecting to Google..." : "Sign in with Google to renew token"}
@@ -556,7 +556,7 @@ export function GmailCredentialsCard({
                   <Button
                     onClick={submitCode}
                     disabled={exchanging || !pasteCode.trim()}
-                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-on-color"
                   >
                     {exchanging ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     {exchanging ? "Saving..." : "Save token"}

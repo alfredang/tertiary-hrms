@@ -57,7 +57,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
     { label: "Leave", value: pending.leave, href: "/leave/annual" },
     { label: "MC", value: pending.mc, href: "/leave/medical" },
     { label: "Time off", value: pending.timeOff, href: "/time-off" },
-    { label: "Missing punches", value: pending.corrections, href: "/attendance/overview" },
+    { label: "Missing punches", value: pending.corrections, href: "/timesheet/overview" },
     { label: "Expense claims", value: pending.expenses, href: "/expenses" },
   ];
 
@@ -189,7 +189,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
         id="interns"
         title="Intern hours"
         icon={Clock}
-        right={<Link href="/attendance/overview" className="text-xs text-primary hover:underline">Attendance details</Link>}
+        right={<Link href="/timesheet/overview" className="text-xs text-primary hover:underline">Attendance details</Link>}
       >
         {interns.length === 0 ? (
           <p className="text-sm text-gray-500">No active interns.</p>

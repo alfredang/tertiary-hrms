@@ -162,7 +162,7 @@ export function AgentApiKeyCard({ apiKey }: AgentApiKeyCardProps) {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-primary hover:bg-primary/90 text-white"
+            className="w-full bg-primary hover:bg-primary/90 text-on-color"
           >
             {saving ? "Saving..." : "Save API Key"}
           </Button>

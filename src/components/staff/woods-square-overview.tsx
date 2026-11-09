@@ -167,7 +167,7 @@ export function WoodsSquareOverview({
                       <div className="text-[9px] uppercase text-gray-600">{WEEKDAY[d.dow]}</div>
                       <div
                         className={`mx-auto flex h-5 w-5 items-center justify-center rounded-full text-[10px] tabular-nums ${
-                          isToday ? "bg-blue-500 font-semibold text-white" : "text-gray-400"
+                          isToday ? "bg-blue-500 font-semibold text-on-color" : "text-gray-400"
                         }`}
                       >
                         {d.day}

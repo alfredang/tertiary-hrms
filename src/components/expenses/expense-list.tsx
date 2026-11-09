@@ -44,10 +44,10 @@ interface ExpenseListProps {
 }
 
 const statusColors: Record<string, string> = {
-  PAID: "bg-blue-100 text-blue-800 border-blue-200",
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  APPROVED: "bg-green-100 text-green-800 border-green-200",
-  REJECTED: "bg-red-100 text-red-800 border-red-200",
+  PAID: "bg-blue-900 text-blue-200 border-blue-800",
+  PENDING: "bg-amber-900 text-amber-200 border-amber-800",
+  APPROVED: "bg-green-900 text-green-200 border-green-800",
+  REJECTED: "bg-red-900 text-red-200 border-red-800",
   CANCELLED: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
@@ -322,7 +322,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             size="sm"
             onClick={() => handleReject(id)}
             disabled={isLoading === id}
-            className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-white"
+            className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-on-color"
           >
             {isLoading === id ? "Rejecting..." : "Yes, Reject"}
           </Button>
@@ -353,7 +353,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
             size="sm"
             onClick={() => { setRejectConfirm(id); setResetConfirm(null); }}
             disabled={isLoading === id}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 text-sm flex-1 sm:flex-none"
+            className="text-red-400 hover:text-red-300 hover:bg-red-950 h-8 px-3 text-sm flex-1 sm:flex-none"
           >
             <X className="h-4 w-4 mr-1" />
             Reject
@@ -422,7 +422,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
           size="sm"
           onClick={() => handleAcknowledge(id)}
           disabled={isLoading === id}
-          className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-white"
+          className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-on-color"
         >
           {isLoading === id ? "Confirming..." : "Yes, Received"}
         </Button>

@@ -41,7 +41,7 @@ function Calendar({
           buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-normal text-gray-300 hover:bg-gray-800 hover:text-white"
         ),
-        selected: "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-600 focus:text-white rounded-md",
+        selected: "bg-blue-600 text-on-color hover:bg-blue-700 hover:text-on-color focus:bg-blue-600 focus:text-on-color rounded-md",
         today: "bg-gray-800 text-white rounded-md",
         outside: "text-gray-600 opacity-50",
         disabled: "text-gray-700 opacity-50",

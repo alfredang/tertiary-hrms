@@ -163,14 +163,14 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
             <h3 className="text-sm font-medium text-gray-300">Payslip Preview</h3>
             <span className="text-xs text-gray-500">(dummy values)</span>
           </div>
-          <div className="bg-white text-gray-900 rounded-md border border-gray-300 p-8 max-h-[40rem] overflow-y-auto shadow-sm">
+          <div className="bg-on-color text-[#0f172a] rounded-md border border-[#cbd5e1] p-8 max-h-[40rem] overflow-y-auto shadow-sm">
             {/* Header: logo + company name */}
             <div className="flex items-center gap-4 border-b border-gray-300 pb-4">
               {companyLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={companyLogo} alt={companyName} className="h-14 w-auto object-contain" />
               ) : (
-                <div className="h-14 w-14 rounded-full bg-blue-700 text-white font-bold text-2xl flex items-center justify-center">
+                <div className="h-14 w-14 rounded-full bg-blue-700 text-on-color font-bold text-2xl flex items-center justify-center">
                   T
                 </div>
               )}

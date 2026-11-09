@@ -261,7 +261,7 @@ export function WeeklyTimesheet() {
                               onClick={() => setDraft((prev) => ({ ...prev, [day.date]: opt.value }))}
                               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer
                                 ${hours === opt.value
-                                  ? opt.value === 0 ? "bg-gray-700 text-gray-300" : "bg-emerald-600 text-white"
+                                  ? opt.value === 0 ? "bg-gray-700 text-gray-300" : "bg-emerald-600 text-on-color"
                                   : "bg-gray-900 border border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
                                 }`}
                             >{opt.short}</button>
@@ -309,7 +309,7 @@ export function WeeklyTimesheet() {
                                 onClick={() => setDraft((prev) => ({ ...prev, [day.date]: opt.value }))}
                                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer
                                   ${hours === opt.value
-                                    ? opt.value === 0 ? "bg-gray-700 text-gray-300" : "bg-emerald-600 text-white"
+                                    ? opt.value === 0 ? "bg-gray-700 text-gray-300" : "bg-emerald-600 text-on-color"
                                     : "bg-gray-900 border border-gray-700 text-gray-400"
                                   }`}
                               >{opt.short}</button>

@@ -88,7 +88,7 @@ export function RequestAccessButton({ pendingCount = 0 }: { pendingCount?: numbe
             size="sm"
             disabled={atLimit}
             title={atLimit ? `You already have ${MAX_PENDING_REQUESTS} pending requests` : undefined}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-blue-600 text-on-color hover:bg-blue-700"
           >
             <Send className="h-3.5 w-3.5 mr-1.5" />
             Request access

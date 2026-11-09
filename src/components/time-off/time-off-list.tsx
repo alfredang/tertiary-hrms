@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/utils";
 import { formatTime12h, timeOffReasonLabel } from "@/lib/time-off";
 import { Calendar, Check, X, Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TextViewDialog, TruncatedTextButton, type TextView } from "@/components/ui/text-view-dialog";
 import type { LeaveStatus, TimeOffReason } from "@prisma/client";
 
 export interface TimeOffRow {
@@ -35,9 +36,9 @@ export interface TimeOffRow {
 }
 
 const statusColors: Record<LeaveStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  APPROVED: "bg-green-100 text-green-800 border-green-200",
-  REJECTED: "bg-red-100 text-red-800 border-red-200",
+  PENDING: "bg-amber-900 text-amber-200 border-amber-800",
+  APPROVED: "bg-green-900 text-green-200 border-green-800",
+  REJECTED: "bg-red-900 text-red-200 border-red-800",
   CANCELLED: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
@@ -59,6 +60,8 @@ export function TimeOffList({
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  // Full text of a truncated Reason / Comment cell, shown in a dialog.
+  const [textView, setTextView] = useState<TextView | null>(null);
 
   const filtered = requests.filter((r) => {
     const haystack = [
@@ -123,6 +126,26 @@ export function TimeOffList({
     return <span className="text-xs text-gray-600">—</span>;
   };
 
+  // Desktop table: one-line truncated cells that open the full text in a dialog.
+  const openText = (r: TimeOffRow, title: string, text: string, tone = "text-white") =>
+    setTextView({
+      title,
+      subtitle: `${r.employee.name} · ${formatDate(r.date)} · ${timeRange(r)}`,
+      text,
+      tone,
+    });
+  const reasonText = (r: TimeOffRow) =>
+    r.reasonDetail ? `${timeOffReasonLabel(r.reason)}: ${r.reasonDetail}` : timeOffReasonLabel(r.reason);
+  const renderReasonCell = (r: TimeOffRow) => (
+    <TruncatedTextButton text={reasonText(r)} onOpen={() => openText(r, "Reason", reasonText(r))} />
+  );
+  const renderCommentCell = (r: TimeOffRow) =>
+    r.status === "APPROVED"
+      ? <TruncatedTextButton text={r.approvalComment} tone="text-green-400" onOpen={() => openText(r, "Comment", r.approvalComment ?? "", "text-green-400")} />
+      : r.status === "REJECTED"
+        ? <TruncatedTextButton text={r.rejectionReason} tone="text-red-400" onOpen={() => openText(r, "Rejection reason", r.rejectionReason ?? "", "text-red-400")} />
+        : <span className="text-xs text-gray-600">—</span>;
+
   const renderManagerActions = (id: string) => {
     if (approveConfirm === id) {
       return (
@@ -142,7 +165,7 @@ export function TimeOffList({
                 act(id, "approve", { approvalComment: approveComment.trim() || undefined }, "Time off approved")
               }
               disabled={isLoading === id}
-              className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-white"
+              className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-on-color"
             >
               {isLoading === id ? "Approving..." : "Confirm Approve"}
             </Button>
@@ -176,7 +199,7 @@ export function TimeOffList({
               size="sm"
               onClick={() => act(id, "reject", { reason: rejectReason.trim() || undefined }, "Time off rejected")}
               disabled={isLoading === id}
-              className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-white"
+              className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-on-color"
             >
               {isLoading === id ? "Rejecting..." : "Confirm Reject"}
             </Button>
@@ -346,12 +369,12 @@ export function TimeOffList({
               {isManager && (
                 <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Employee</th>
               )}
-              <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Reason</th>
+              <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Status</th>
               <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Date</th>
               <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Time</th>
               <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Hours</th>
               <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Applied</th>
-              <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Status</th>
+              <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Reason</th>
               <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Comment</th>
               <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Action</th>
             </tr>
@@ -364,7 +387,11 @@ export function TimeOffList({
                     {r.employee.name}
                   </td>
                 )}
-                <td className="px-2 sm:px-4 py-3 max-w-[220px]">{renderReason(r)}</td>
+                <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                  <Badge className={`min-w-[88px] justify-center ${statusColors[r.status]}`}>
+                    {r.status}
+                  </Badge>
+                </td>
                 <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                   {formatDate(r.date)}
                 </td>
@@ -377,13 +404,9 @@ export function TimeOffList({
                 <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                   {formatDate(r.createdAt)}
                 </td>
-                <td className="px-2 sm:px-4 py-3">
-                  <Badge className={`min-w-[88px] justify-center ${statusColors[r.status]}`}>
-                    {r.status}
-                  </Badge>
-                </td>
-                <td className="px-2 sm:px-4 py-3 max-w-[200px]">{renderComment(r)}</td>
-                <td className="px-2 sm:px-4 py-3 min-w-[180px]">
+                <td className="px-2 sm:px-4 py-3">{renderReasonCell(r)}</td>
+                <td className="px-2 sm:px-4 py-3">{renderCommentCell(r)}</td>
+                <td className="px-2 sm:px-4 py-3 min-w-[180px] whitespace-nowrap">
                   {r.status === "PENDING"
                     ? isManager
                       ? renderManagerActions(r.id)
@@ -401,6 +424,8 @@ export function TimeOffList({
           </div>
         )}
       </div>
+
+      <TextViewDialog view={textView} onClose={() => setTextView(null)} />
     </div>
   );
 }

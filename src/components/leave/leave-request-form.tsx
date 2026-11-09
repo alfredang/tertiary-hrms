@@ -228,7 +228,7 @@ export function LeaveRequestForm({
           <div className="flex gap-2">
             {(["FULL_DAY", "AM_HALF", "PM_HALF"] as const).map((v) => (
               <button key={v} type="button" onClick={() => setDayType(v)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${dayType === v ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"}`}>
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${dayType === v ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color hover:border-gray-500"}`}>
                 {v === "FULL_DAY" ? "Full Day" : v === "AM_HALF" ? "AM Half" : "PM Half"}
               </button>
             ))}
@@ -246,7 +246,7 @@ export function LeaveRequestForm({
           <Label className="text-white">Include a half-day?</Label>
           <div className="flex gap-2">
             <button type="button" onClick={() => setHalfDayPosition(halfDayPosition ? null : "first")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${halfDayPosition ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"}`}>
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${halfDayPosition ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color hover:border-gray-500"}`}>
               {halfDayPosition ? "Yes" : "No — all full days"}
             </button>
           </div>
@@ -254,7 +254,7 @@ export function LeaveRequestForm({
             <div className="flex flex-wrap gap-2 mt-2">
               {(["first", "last"] as const).map((pos) => (
                 <button key={pos} type="button" onClick={() => setHalfDayPosition(pos)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${halfDayPosition === pos ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"}`}>
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${halfDayPosition === pos ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color hover:border-gray-500"}`}>
                   Half on {pos} day ({pos === "first" ? startDate : endDate})
                 </button>
               ))}
@@ -312,7 +312,7 @@ export function LeaveRequestForm({
               onClick={() => setUseAdvance(!useAdvance)}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${useAdvance ? "bg-amber-500" : "bg-gray-700"}`}
             >
-              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useAdvance ? "translate-x-5" : "translate-x-1"}`} />
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-on-color transition-transform ${useAdvance ? "translate-x-5" : "translate-x-1"}`} />
             </button>
           </div>
         )}
@@ -334,7 +334,7 @@ export function LeaveRequestForm({
               onClick={() => setUseOt(!useOt)}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${useOt ? "bg-emerald-600" : "bg-gray-700"}`}
             >
-              <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useOt ? "translate-x-5" : "translate-x-1"}`} />
+              <span className={`inline-block h-3 w-3 transform rounded-full bg-on-color transition-transform ${useOt ? "translate-x-5" : "translate-x-1"}`} />
             </button>
           </div>
         )}

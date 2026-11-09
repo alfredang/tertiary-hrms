@@ -302,7 +302,7 @@ export function AddEmployeeForm({ departments, managers = [], defaultManagerIds 
               <Button
                 type="button"
                 onClick={() => setActiveTab("employment")}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-green-600 hover:bg-green-700 text-on-color"
               >
                 Next: Employment
               </Button>
@@ -324,7 +324,7 @@ export function AddEmployeeForm({ departments, managers = [], defaultManagerIds 
                   type="button"
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 hover:bg-green-700 text-on-color"
                 >
                   {isLoading ? (
                     <>
@@ -339,7 +339,7 @@ export function AddEmployeeForm({ departments, managers = [], defaultManagerIds 
                 <Button
                   type="button"
                   onClick={() => setActiveTab("salary")}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 hover:bg-green-700 text-on-color"
                 >
                   Next: Salary
                 </Button>
@@ -362,7 +362,7 @@ export function AddEmployeeForm({ departments, managers = [], defaultManagerIds 
                   type="button"
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 hover:bg-green-700 text-on-color"
                 >
                   {isLoading ? (
                     <>

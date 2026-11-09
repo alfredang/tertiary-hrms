@@ -129,7 +129,7 @@ export async function POST(req: Request) {
         title: "Missing Punch Correction",
         message: `${emp?.name ?? "An employee"} submitted a missing ${what} for ${date}: ${created.reason}`,
         type: "ATTENDANCE_CORRECTION_SUBMITTED",
-        link: "/attendance/overview",
+        link: "/timesheet/overview",
       })),
     });
   } catch {

@@ -20,7 +20,6 @@ import { LogOut, RefreshCw, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
 import { NotificationBell } from "./notification-bell";
-import { ThemeToggle } from "./theme-toggle";
 import { useViewModeOptional } from "./view-mode-context";
 
 interface HeaderProps {
@@ -91,7 +90,6 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
           >
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
-          <ThemeToggle />
           {isAdmin && <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} />}
           <NotificationBell viewAs={viewAs} />
           <DropdownMenu>

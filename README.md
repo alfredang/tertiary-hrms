@@ -67,7 +67,7 @@ Earlier additions (August 2026):
 Earlier additions (July 2026):
 
 - **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer plus a **monthly daily history** (date, check-in, check-out, hours) with month navigation, total hours and days worked. A punch with no clock-out shows the **hours so far** when it is today, or **"No clock-out"** for an earlier day (a missed clock-out, so it adds no hours). Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
-- **Intern Attendance overview** (`/attendance/overview`, admin) — every active intern (`employmentType = INTERN`, so zero-check-in interns are visible) plus anyone else who punched that month, with days worked, total hours, last check-in and a live "Working" badge; select a row to open that intern's daily check-in / check-out history. Served by `/api/attendance/summary` (admin only) and `/api/attendance/history?month=YYYY-MM[&employeeId=]`, mirrored 1:1 at `/api/mobile/attendance/{summary,history}` for the native apps.
+- **Timesheet** (`/timesheet/overview`, admin; the old Intern Attendance page `/attendance/overview` redirects here) — one page for interns: missing-punch approvals, Off In Lieu approvals (shown only when there are any), and every active intern (`employmentType = INTERN`, so zero-check-in interns are visible) plus anyone else who punched that month, with days worked, total hours, last check-in and a live "Working" badge; select a row to open that intern's daily check-in / check-out history. Served by `/api/attendance/summary` (admin only) and `/api/attendance/history?month=YYYY-MM[&employeeId=]`, mirrored 1:1 at `/api/mobile/attendance/{summary,history}` for the native apps.
 - **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, others) measured in hours on a single date; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.
 - **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
   - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
@@ -126,6 +126,9 @@ Earlier additions (May 2026):
 - **Staff view**: can only see own leave, expenses, payslips, and personal profile
 - View toggle lets admins preview the staff experience
 - **Trainer Admin** (`TRAINER_ADMIN`) is a separate role held alongside a person's normal role; only it opens Trainer Management (trainer records hold NRIC). It never becomes the primary role, so it does not change anyone's dashboard or view. It is also linked from the **View As** menu. Signed-in sessions re-read their roles from the database every 5 minutes, so a newly granted role appears without signing out
+- **One theme.** A single light premium-blue theme matching the iOS app (no dark mode, no theme toggle). The code was written dark-first, so `tailwind.config.ts` adapts the palette instead: `gray-*` is inverted (950 = white card, 50 = navy ink), `white` is the ink colour, chromatic scales swap their dark-tint / light-text ends, and solid fills that need real white text use `text-on-color` (`bg-on-color` for real white surfaces).
+- **Demo accounts are hidden.** The App Review login(s) (`E9999`, `src/lib/demo-accounts.ts`) are dropped from every employee list and count by a Prisma extension in `src/lib/prisma.ts`; `scripts/create-demo-employee.ts` no longer seeds sample leave/claims/timesheets unless `--with-samples`.
+- **Tables** keep one line per row; long reasons and comments open in a dialog (`src/components/ui/text-view-dialog.tsx`). Trainer Management has a skill / certification search with suggestions and click-to-mail / call / WhatsApp / copy contacts.
 - **One canonical host.** Page visits on the `hrms.tertiaryinfo.tech` alias are redirected (308) to the `AUTH_URL` host (`hrms.tertiaryinfotech.com`) so Google sign-in's PKCE cookie and callback share a domain; `/api/*` is never redirected, so the native apps keep working on either host (`src/lib/canonical-host.ts`).
 - Settings page restricted to admin view only
 - Employee list filters and edit buttons hidden in staff view
@@ -154,7 +157,7 @@ Earlier additions (May 2026):
 - **Where requests appear**: `/leave/medical` lists medical leave; `/leave/annual` lists everything else, including No Pay and Compassionate Leave, for staff and approvers
 - **Half-day leave** (AM/PM) — available for Annual Leave only, single-day or multi-day with first/last day half
 - **Monthly accrual proration** for Annual Leave, Medical Leave and the No Pay Leave cap — allocation = entitlement x completed months served this year / 12, rounded down to nearest 0.5 day. Months count from the join date (1 Jan for earlier joiners) and a month counts only once complete (joined 1 Sep, on 9 Nov → 2 months)
-- **Intern attendance**: interns must clock in and out; a daily 21:00 SGT job reminds anyone who forgot, an 08:30 SGT roll-up goes to the admins, and interns submit a missing clock-in/out on `/attendance` for an admin to approve on `/attendance/overview`
+- **Intern attendance**: interns must clock in and out; a daily 21:00 SGT job reminds anyone who forgot, an 08:30 SGT roll-up goes to the admins, and interns submit a missing clock-in/out on `/attendance` for an admin to approve on the admin **Timesheet** page (`/timesheet/overview`). Only interns see "Timesheet" in their menu; staff log weekend / public-holiday work under **Off In Lieu**
 - **HR compliance agent** (`/api/cron/hr-compliance`, Mondays 08:30 SGT): NPL near/over cap, MC above entitlement or patterned, AL beyond entitlement, repeated missed punches — emailed and notified to the admins; the same alerts show on the admin dashboard
 - **Year-end rollover** — admin triggers via Settings page; Annual Leave carries forward (no cap), MC/CL/NPL reset
 - Leave balance tracking per employee per year with carry-over support
@@ -444,7 +447,7 @@ tertiary-hrms/
 │   └── setup-test-salary.ts       # Create salary info for test accounts
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/                # Login page (dark theme)
+│   │   ├── (auth)/                # Login page
 │   │   ├── privacy-policy/        # Public privacy policy (no auth)
 │   │   ├── (dashboard)/           # Protected dashboard pages
 │   │   │   ├── dashboard/         # Main dashboard

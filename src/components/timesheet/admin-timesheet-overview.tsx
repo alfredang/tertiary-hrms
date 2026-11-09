@@ -117,7 +117,11 @@ function StatusBadge({ status }: { status: EmployeeRow["status"] }) {
   return <span className="text-xs text-gray-600">—</span>;
 }
 
-export function AdminTimesheetOverview() {
+/**
+ * Admin Timesheet: Off In Lieu approvals, plus (when `showWeekly`) the weekly submission grid.
+ * The merged /timesheet/overview page uses `showWeekly={false}` and hides an empty OIL section.
+ */
+export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boolean }) {
   const currentWeekStart = getMonday(new Date());
   const [weekStart, setWeekStart] = useState(currentWeekStart);
   const [data, setData] = useState<OverviewData | null>(null);
@@ -152,7 +156,7 @@ export function AdminTimesheetOverview() {
     }
   }, []);
 
-  useEffect(() => { fetchData(weekStart); }, [weekStart, fetchData]);
+  useEffect(() => { if (showWeekly) fetchData(weekStart); }, [weekStart, fetchData, showWeekly]);
   useEffect(() => { fetchOilEntries(); }, [fetchOilEntries]);
 
   const handleAction = async (entryId: string, action: "APPROVE" | "REJECT") => {
@@ -188,6 +192,8 @@ export function AdminTimesheetOverview() {
 
   const pendingOil = oilEntries.filter((e) => e.status === "PENDING");
   const recentOil  = oilEntries.filter((e) => e.status !== "PENDING").slice(0, 10);
+
+  if (!showWeekly && (oilLoading || (pendingOil.length === 0 && recentOil.length === 0))) return null;
 
   return (
     <div className="space-y-8">
@@ -267,11 +273,11 @@ export function AdminTimesheetOverview() {
                             />
                             <div className="flex gap-1.5">
                               <Button size="sm" onClick={() => handleAction(entry.id, "APPROVE")} disabled={actioningId === entry.id}
-                                className="h-6 px-2 text-xs bg-green-700 hover:bg-green-600 text-white">
+                                className="h-6 px-2 text-xs bg-green-700 hover:bg-green-600 text-on-color">
                                 <Check className="h-3 w-3 mr-1" />{actioningId === entry.id ? "..." : "Approve"}
                               </Button>
                               <Button size="sm" onClick={() => handleAction(entry.id, "REJECT")} disabled={actioningId === entry.id}
-                                className="h-6 px-2 text-xs bg-red-800 hover:bg-red-700 text-white">
+                                className="h-6 px-2 text-xs bg-red-800 hover:bg-red-700 text-on-color">
                                 <X className="h-3 w-3 mr-1" />{actioningId === entry.id ? "..." : "Reject"}
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => { setCommentId(null); setComment(""); }}
@@ -298,6 +304,7 @@ export function AdminTimesheetOverview() {
       </div>
 
       {/* Weekly overview */}
+      {showWeekly && (
       <div className="space-y-5">
       {/* Week nav + filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -463,6 +470,7 @@ export function AdminTimesheetOverview() {
         Shows weekend and public holiday submissions only. Off In Lieu days are credited after admin approval.
       </p>
       </div>
+      )}
     </div>
   );
 }

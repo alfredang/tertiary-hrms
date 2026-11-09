@@ -107,7 +107,7 @@ function PgBtn({
       className={
         "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm transition-colors " +
         (active
-          ? "bg-primary text-white"
+          ? "bg-primary text-on-color"
           : "bg-gray-900 text-gray-300 hover:bg-gray-800") +
         " disabled:opacity-40 disabled:hover:bg-gray-900"
       }

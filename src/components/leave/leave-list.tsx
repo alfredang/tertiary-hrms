@@ -17,6 +17,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import { Calendar, Clock, Check, X, Pencil, RotateCcw, Search, ChevronUp, ChevronDown, Eye } from "lucide-react";
 import { DocumentPreviewModal } from "@/components/ui/document-preview-modal";
+import { TextViewDialog, TruncatedTextButton, type TextView } from "@/components/ui/text-view-dialog";
 import { useToast } from "@/hooks/use-toast";
 import type { LeaveStatus } from "@prisma/client";
 
@@ -51,9 +52,9 @@ interface LeaveListProps {
 }
 
 const statusColors: Record<LeaveStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  APPROVED: "bg-green-100 text-green-800 border-green-200",
-  REJECTED: "bg-red-100 text-red-800 border-red-200",
+  PENDING: "bg-amber-900 text-amber-200 border-amber-800",
+  APPROVED: "bg-green-900 text-green-200 border-green-800",
+  REJECTED: "bg-red-900 text-red-200 border-red-800",
   CANCELLED: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
@@ -74,6 +75,8 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
   const [approveConfirm, setApproveConfirm] = useState<string | null>(null);
   const [approveComment, setApproveComment] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ url: string; fileName: string } | null>(null);
+  // Full text of a truncated Reason / Admin Comment cell, shown in a dialog.
+  const [textView, setTextView] = useState<TextView | null>(null);
   const { toast } = useToast();
 
   type LeaveSortKey = "employee" | "type" | "startDate" | "endDate" | "days" | "createdAt" | "status";
@@ -373,7 +376,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
               size="sm"
               onClick={() => handleApprove(id)}
               disabled={isLoading === id}
-              className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-white"
+              className="h-7 px-3 text-xs bg-green-700 hover:bg-green-600 text-on-color"
             >
               {isLoading === id ? "Approving..." : "Confirm Approve"}
             </Button>
@@ -403,7 +406,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
               size="sm"
               onClick={() => handleReject(id)}
               disabled={isLoading === id}
-              className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-white"
+              className="h-7 px-3 text-xs bg-red-800 hover:bg-red-700 text-on-color"
             >
               {isLoading === id ? "Rejecting..." : "Confirm Reject"}
             </Button>
@@ -486,7 +489,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
     }
 
     return (
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex items-center gap-1 whitespace-nowrap">
         {base}
         {otUsed > 0 && (
           <span className="text-xs bg-emerald-950/40 text-emerald-400 border border-emerald-800/50 rounded px-1.5 py-0.5">
@@ -501,6 +504,20 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
       </div>
     );
   };
+
+  // One-line cell: truncated text that opens the full text in a dialog on click.
+  const renderTextCell = (text: string | null | undefined, title: string, request: LeaveRequest, tone = "text-white") => (
+    <TruncatedTextButton
+      text={text}
+      tone={tone}
+      onOpen={() => setTextView({
+        title,
+        subtitle: `${request.employee.name} · ${request.leaveType.name} · ${formatDate(request.startDate)} — ${formatDate(request.endDate)}`,
+        text: text ?? "",
+        tone,
+      })}
+    />
+  );
 
   const renderDocButton = (request: LeaveRequest) => {
     if (!request.documentUrl) return null;
@@ -676,13 +693,13 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                     />
                   </th>
                   {renderSortTh("Employee", "employee")}
-                  <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Reason</th>
+                  {renderSortTh("Status", "status")}
                   {renderSortTh("Type", "type")}
                   {renderSortTh("Start", "startDate")}
                   {renderSortTh("End", "endDate")}
                   {renderSortTh("Days", "days")}
                   {renderSortTh("Applied", "createdAt")}
-                  {renderSortTh("Status", "status")}
+                  <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Reason</th>
                   <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Admin Comment</th>
                   <th className="text-left text-xs sm:text-sm font-medium text-gray-400 px-2 sm:px-4 py-3 whitespace-nowrap">Action</th>
                 </tr>
@@ -704,11 +721,10 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-white whitespace-nowrap">
                       {request.employee.name}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 max-w-[160px]">
-                      {request.reason
-                        ? <span className="text-xs text-white">{request.reason}</span>
-                        : <span className="text-xs text-gray-600">—</span>
-                      }
+                    <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                      <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>
+                        {request.status}
+                      </Badge>
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                       {request.leaveType.name}
@@ -719,28 +735,24 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                       {formatDate(request.endDate)}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300">
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                       {renderDaysDisplay(request)}
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                       {formatDate(request.createdAt)}
                     </td>
                     <td className="px-2 sm:px-4 py-3">
-                      <Badge className={`min-w-[88px] justify-center ${statusColors[request.status]}`}>
-                        {request.status}
-                      </Badge>
+                      {renderTextCell(request.reason, "Reason", request)}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 max-w-[200px]">
-                      {request.status === "APPROVED" && request.approvalComment ? (
-                        <span className="text-xs text-green-400">{request.approvalComment}</span>
-                      ) : request.status === "REJECTED" && request.rejectionReason ? (
-                        <span className="text-xs text-red-400">{request.rejectionReason}</span>
-                      ) : (
-                        <span className="text-xs text-gray-600">—</span>
-                      )}
+                    <td className="px-2 sm:px-4 py-3">
+                      {request.status === "APPROVED"
+                        ? renderTextCell(request.approvalComment, "Admin comment", request, "text-green-400")
+                        : request.status === "REJECTED"
+                          ? renderTextCell(request.rejectionReason, "Rejection reason", request, "text-red-400")
+                          : <span className="text-xs text-gray-600">—</span>}
                     </td>
                     <td className="px-2 sm:px-4 py-3 min-w-[180px]">
-                      <div className="flex items-start gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 whitespace-nowrap">
                         {renderDocButton(request)}
                         {request.status === "PENDING"
                           ? renderAdminPendingActions(request.id)
@@ -860,6 +872,8 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
           </div>
         </>
       )}
+
+      <TextViewDialog view={textView} onClose={() => setTextView(null)} />
 
       {previewDoc && (
         <DocumentPreviewModal

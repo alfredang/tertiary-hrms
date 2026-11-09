@@ -190,7 +190,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
                   dayType === option.value
                     ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color hover:border-gray-500"
                 }`}
               >
                 {option.label}
@@ -217,7 +217,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
                 halfDayPosition
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+                  : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color hover:border-gray-500"
               }`}
             >
               {halfDayPosition ? "Yes" : "No — all full days"}
@@ -231,7 +231,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
                   halfDayPosition === "first"
                     ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color hover:border-gray-500"
                 }`}
               >
                 Half on first day ({startDate})
@@ -242,7 +242,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
                   halfDayPosition === "last"
                     ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white hover:border-gray-500"
+                    : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color hover:border-gray-500"
                 }`}
               >
                 Half on last day ({endDate})

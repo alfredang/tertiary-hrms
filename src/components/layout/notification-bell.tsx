@@ -193,7 +193,7 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
+          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-on-color leading-none">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -215,7 +215,7 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
               </div>
               <button
                 onClick={requestPermission}
-                className="shrink-0 rounded-md bg-blue-600 hover:bg-blue-500 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors"
+                className="shrink-0 rounded-md bg-blue-600 hover:bg-blue-500 px-2.5 py-1 text-[11px] font-semibold text-on-color transition-colors"
               >
                 Allow
               </button>

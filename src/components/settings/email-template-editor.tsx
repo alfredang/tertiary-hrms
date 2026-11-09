@@ -210,7 +210,7 @@ export function EmailTemplateEditor({ def, initialSubject, initialBody, isCustom
           <p className="text-sm font-medium text-white">Preview</p>
           <span className="text-xs text-gray-500">(dummy values)</span>
         </div>
-        <div className="bg-white text-gray-900 rounded-md border border-gray-300 overflow-hidden">
+        <div className="bg-on-color text-[#0f172a] rounded-md border border-[#cbd5e1] overflow-hidden">
           <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
             <p className="text-xs text-gray-500">Subject</p>
             <p className="text-sm font-semibold">

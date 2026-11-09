@@ -43,11 +43,11 @@ import type {
 } from "@prisma/client";
 
 const STATUS_OPTIONS: { value: EmployeeStatus; label: string; className: string }[] = [
-  { value: "ACTIVE",     label: "Active",     className: "bg-green-100 text-green-800 border-green-200" },
-  { value: "ON_LEAVE",   label: "On Leave",   className: "bg-amber-100 text-amber-800 border-amber-200" },
-  { value: "TERMINATED", label: "Terminated", className: "bg-red-100 text-red-800 border-red-200" },
+  { value: "ACTIVE",     label: "Active",     className: "bg-green-900 text-green-200 border-green-800" },
+  { value: "ON_LEAVE",   label: "On Leave",   className: "bg-amber-900 text-amber-200 border-amber-800" },
+  { value: "TERMINATED", label: "Terminated", className: "bg-red-900 text-red-200 border-red-800" },
   { value: "RESIGNED",   label: "Resigned",   className: "bg-gray-100 text-gray-800 border-gray-200" },
-  { value: "INACTIVE",   label: "Inactive",   className: "bg-slate-100 text-slate-800 border-slate-200" },
+  { value: "INACTIVE",   label: "Inactive",   className: "bg-slate-900 text-slate-200 border-slate-800" },
 ];
 
 const WORKDAY_OPTIONS: { value: number; short: string; full: string }[] = [
@@ -265,7 +265,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center shadow border-2 border-gray-950 hover:bg-primary/90 disabled:opacity-60"
+                  className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary text-on-color flex items-center justify-center shadow border-2 border-gray-950 hover:bg-primary/90 disabled:opacity-60"
                   title="Upload photo"
                 >
                   {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
@@ -507,7 +507,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                         onClick={() => toggleRole(r.value)}
                         className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
                           active
-                            ? "bg-primary text-white border-primary"
+                            ? "bg-primary text-on-color border-primary"
                             : "bg-gray-900 text-gray-400 border-gray-700 hover:border-gray-500"
                         }`}
                       >
@@ -604,7 +604,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                         title={d.full}
                         className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
                           active
-                            ? "bg-primary text-white border-primary"
+                            ? "bg-primary text-on-color border-primary"
                             : "bg-gray-900 text-gray-400 border-gray-700 hover:border-gray-500"
                         }`}
                       >

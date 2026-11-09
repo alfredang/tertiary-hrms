@@ -99,3 +99,6 @@ key.properties
 
 # Trainer export (NRIC, phone, email) — never commit
 /.trainers/
+
+# Local DB backups made before data clean-ups (PII) - never commit.
+/.backups/

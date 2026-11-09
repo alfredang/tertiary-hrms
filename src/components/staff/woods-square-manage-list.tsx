@@ -65,7 +65,7 @@ export function Toggle({ on, onClick, label }: { on: boolean; onClick: () => voi
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+        className={`inline-block h-4 w-4 transform rounded-full bg-on-color shadow transition-transform ${
           on ? "translate-x-[18px]" : "translate-x-0.5"
         }`}
       />

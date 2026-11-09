@@ -346,7 +346,7 @@ export function TransactionsTable({
             <button
               onClick={bulkGenerate}
               disabled={bulkGenerating || bulkSettling}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 text-white transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 text-on-color transition-colors"
             >
               <Loader2 className={`h-3.5 w-3.5 ${bulkGenerating ? "animate-spin" : "hidden"}`} />
               {!bulkGenerating && <Send className="h-3.5 w-3.5" />}
@@ -372,7 +372,7 @@ export function TransactionsTable({
             <button
               onClick={bulkReceivePayments}
               disabled={bulkReceiving}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-60 text-white transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-60 text-on-color transition-colors"
             >
               <Loader2 className={`h-3.5 w-3.5 ${bulkReceiving ? "animate-spin" : "hidden"}`} />
               {!bulkReceiving && <CreditCard className="h-3.5 w-3.5" />}

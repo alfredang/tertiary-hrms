@@ -134,7 +134,7 @@ export function ClockWidget() {
               type="button"
               onClick={() => punch(working ? "clock-out" : "clock-in")}
               disabled={busy}
-              className={`flex w-full max-w-md items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-semibold text-white shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`flex w-full max-w-md items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-semibold text-on-color shadow-lg transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
                 working
                   ? "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400"
                   : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500"

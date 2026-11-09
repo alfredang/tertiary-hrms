@@ -50,7 +50,7 @@ const STATUS_LIGHT: Record<
     dot: "bg-teal-500 ring-4 ring-teal-500/15",
     bar: "bg-gradient-to-r from-teal-400 to-emerald-500",
     fill: "bg-gradient-to-r from-teal-400 to-emerald-500",
-    avatar: "bg-teal-50 text-teal-700 ring-teal-200",
+    avatar: "bg-teal-950 text-teal-300 ring-teal-200",
   },
   UPCOMING: {
     word: "Scheduled",
@@ -58,7 +58,7 @@ const STATUS_LIGHT: Record<
     dot: "bg-amber-900 ring-4 ring-amber-900/15",
     bar: "bg-gradient-to-r from-amber-800 to-amber-900",
     fill: "bg-gradient-to-r from-amber-800 to-amber-900",
-    avatar: "bg-amber-100 text-amber-900 ring-amber-300",
+    avatar: "bg-amber-900 text-amber-100 ring-amber-300",
   },
   EXPIRED: {
     word: "Expired",

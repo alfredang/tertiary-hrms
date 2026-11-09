@@ -354,12 +354,12 @@ export default async function EmployeeDetailPage({
                             <Badge
                               className={
                                 request.status === "APPROVED"
-                                  ? "bg-green-100 text-green-800 border-green-200"
+                                  ? "bg-green-900 text-green-200 border-green-800"
                                   : request.status === "REJECTED"
-                                  ? "bg-red-100 text-red-800 border-red-200"
+                                  ? "bg-red-900 text-red-200 border-red-800"
                                   : request.status === "CANCELLED"
                                   ? "bg-gray-100 text-gray-800 border-gray-200"
-                                  : "bg-amber-100 text-amber-800 border-amber-200"
+                                  : "bg-amber-900 text-amber-200 border-amber-800"
                               }
                             >
                               {request.status}

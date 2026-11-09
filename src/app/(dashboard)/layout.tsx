@@ -54,7 +54,7 @@ export default async function DashboardLayout({
       <div className="min-h-screen bg-gray-900">
         {/* Sidebar - desktop only */}
         <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-[width] duration-200 lg:w-[var(--sidebar-w,18rem)]">
-          <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-[#1A2F86]/60 bg-gradient-to-b from-[#0D1638] via-[#111f52] to-[#162a6e]">
+          <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-800 bg-card">
             <Sidebar role={role} companyShortName={companyShortName} companyLogo={companyLogo} />
           </div>
         </div>

@@ -23,11 +23,11 @@ interface EmployeeListProps {
 }
 
 const statusColors: Record<EmployeeStatus, string> = {
-  ACTIVE: "bg-green-100 text-green-800 border-green-200",
-  ON_LEAVE: "bg-amber-100 text-amber-800 border-amber-200",
-  TERMINATED: "bg-red-100 text-red-800 border-red-200",
+  ACTIVE: "bg-green-900 text-green-200 border-green-800",
+  ON_LEAVE: "bg-amber-900 text-amber-200 border-amber-800",
+  TERMINATED: "bg-red-900 text-red-200 border-red-800",
   RESIGNED: "bg-gray-100 text-gray-800 border-gray-200",
-  INACTIVE: "bg-slate-100 text-slate-800 border-slate-200",
+  INACTIVE: "bg-slate-900 text-slate-200 border-slate-800",
 };
 
 const statusLabels: Record<EmployeeStatus, string> = {
@@ -39,13 +39,13 @@ const statusLabels: Record<EmployeeStatus, string> = {
 };
 
 const roleColors: Record<Role, string> = {
-  ADMIN:      "bg-purple-100 text-purple-800 border-purple-200",
-  HR:         "bg-blue-100 text-blue-800 border-blue-200",
-  MANAGER:    "bg-blue-100 text-blue-800 border-blue-200",
-  ACCOUNTANT: "bg-sky-100 text-sky-800 border-sky-200",
+  ADMIN:      "bg-purple-900 text-purple-200 border-purple-800",
+  HR:         "bg-blue-900 text-blue-200 border-blue-800",
+  MANAGER:    "bg-blue-900 text-blue-200 border-blue-800",
+  ACCOUNTANT: "bg-sky-900 text-sky-200 border-sky-800",
   STAFF:      "bg-gray-100 text-gray-800 border-gray-200",
-  INTERN:     "bg-amber-100 text-amber-800 border-amber-200",
-  TRAINER_ADMIN: "bg-teal-100 text-teal-800 border-teal-200",
+  INTERN:     "bg-amber-900 text-amber-200 border-amber-800",
+  TRAINER_ADMIN: "bg-teal-900 text-teal-200 border-teal-800",
 };
 
 const rolePriority: Record<Role, number> = {

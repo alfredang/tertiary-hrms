@@ -218,7 +218,7 @@ export default function LeavePolicyPage() {
                     size="sm"
                     onClick={() => save(lt)}
                     disabled={isSaving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[80px]"
+                    className="bg-blue-600 hover:bg-blue-700 text-on-color min-w-[80px]"
                   >
                     {isSaving ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />

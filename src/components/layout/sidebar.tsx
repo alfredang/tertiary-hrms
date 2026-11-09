@@ -62,6 +62,7 @@ type NavItem = {
   noAccountant?: true;
   financeOnly?: true;
   hideForIntern?: true;
+  internOnly?: true;  // visible only in intern view
   staffOnly?: true;   // visible only in staff/intern view (hidden for admin + accountant)
   allowAccountant?: true; // exception: a staffOnly item that should ALSO show in accountant view
   trainerAdminOnly?: true; // visible only to holders of the TRAINER_ADMIN role, in every view
@@ -121,9 +122,11 @@ const navigation: NavItem[] = [
   { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
   { name: "SOP",         href: "/sop",         icon: BookOpen },
   { name: "Clock In/Out", href: "/attendance",  icon: AlarmClock,    staffOnly:    true as const },
-  { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const },
-  { name: "Timesheet Overview", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
-  { name: "Intern Attendance", href: "/attendance/overview", icon: AlarmClock, adminOnly: true as const },
+  // Timesheets are for interns only. Staff log weekend / public-holiday work for Off In Lieu on the same page.
+  { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const, internOnly: true as const },
+  { name: "Off In Lieu", href: "/timesheet",  icon: ClipboardList, staffOnly:    true as const, hideForIntern: true as const },
+  // Admin: one Timesheet page (intern clock-in days/hours, missing punches, Off In Lieu approvals)
+  { name: "Timesheet", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
   { name: "Trainer Management", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
   { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
   { name: "Woods Square Access", href: "/woods-square-access", icon: KeyRound, staffOnly: true as const, allowAccountant: true as const },
@@ -242,6 +245,7 @@ export function Sidebar({
             if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
             if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
             if ("hideForIntern" in item && item.hideForIntern && isInternView) return null;
+            if ("internOnly" in item && item.internOnly && !isInternView) return null;
             if (
               "staffOnly" in item &&
               item.staffOnly &&
@@ -292,7 +296,7 @@ function TopLevelNavItem({
         className={cn(
           "group flex items-center rounded-xl text-sm font-medium transition-all",
           isActive && !children
-            ? "bg-primary text-white"
+            ? "bg-primary text-on-color"
             : isActive && children
               ? "bg-gray-800 text-white"
               : "text-gray-300 hover:bg-gray-800",
@@ -374,7 +378,7 @@ function NestedChildRow({
         className={cn(
           "group flex items-center rounded-lg text-sm transition-all",
           childActive && !grandchildren
-            ? "bg-primary text-white"
+            ? "bg-primary text-on-color"
             : childActive && grandchildren
               ? "bg-gray-800 text-white"
               : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
@@ -437,7 +441,7 @@ function NestedChildRow({
                   className={cn(
                     "block rounded-md px-3 py-1.5 text-xs transition-all",
                     gActive
-                      ? "bg-primary/80 text-white"
+                      ? "bg-primary/80 text-on-color"
                       : "text-gray-400 hover:bg-gray-800 hover:text-gray-100",
                   )}
                 >

@@ -142,12 +142,12 @@ export function CalendarView({ events }: CalendarViewProps) {
           </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-px bg-gray-700 border border-gray-700 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-7 gap-px bg-gray-800 border border-gray-800 rounded-lg overflow-hidden">
             {/* Blank days */}
             {blanks.map((_, index) => (
               <div
                 key={`blank-${index}`}
-                className="bg-gray-900 h-[60px] sm:h-[100px] p-1 sm:p-2"
+                className="bg-gray-900 h-[72px] sm:h-[118px] p-1 sm:p-2"
               />
             ))}
 
@@ -161,7 +161,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                   key={day}
                   href={getDayHref(day)}
                   className={cn(
-                    "block bg-gray-950 h-[60px] sm:h-[100px] p-1 sm:p-2 cursor-pointer transition-colors overflow-hidden",
+                    "block bg-gray-950 h-[72px] sm:h-[118px] p-1 sm:p-2 cursor-pointer transition-colors overflow-hidden",
                     isCurrentDay ? "bg-blue-950/50 hover:bg-blue-950/70" : "hover:bg-gray-900"
                   )}
                 >
@@ -169,7 +169,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                     className={cn(
                       "text-sm font-medium mb-1",
                       isCurrentDay
-                        ? "text-white bg-blue-600 w-7 h-7 rounded-full flex items-center justify-center"
+                        ? "text-on-color bg-blue-600 w-7 h-7 rounded-full flex items-center justify-center"
                         : "text-gray-200"
                     )}
                   >
@@ -179,8 +179,8 @@ export function CalendarView({ events }: CalendarViewProps) {
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 rounded truncate text-white"
-                        style={{ backgroundColor: event.color }}
+                        className="line-clamp-2 break-words rounded-r border-l-[3px] px-1 py-0.5 text-[10px] font-medium leading-tight text-gray-50 sm:px-1.5 sm:text-xs"
+                        style={chipStyle(event.color)}
                         title={event.title}
                       >
                         {event.title}
@@ -200,4 +200,10 @@ export function CalendarView({ events }: CalendarViewProps) {
       </Card>
     </div>
   );
+}
+
+/** Light tint of the event colour with a solid left edge, so names stay readable in dark ink. */
+function chipStyle(color: string): React.CSSProperties {
+  const hex = /^#[0-9a-f]{6}$/i.test(color) ? color : "#2F5BE6";
+  return { backgroundColor: `${hex}26`, borderLeftColor: hex };
 }

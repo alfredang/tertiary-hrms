@@ -50,7 +50,7 @@ export function LeaveTrendChart({ data, year }: { data: MonthlyLeavePoint[]; yea
           <div role="tablist" aria-label="Who" className="inline-flex rounded-lg border border-gray-800 bg-gray-900 p-0.5 text-xs">
             {(["all", "staff", "interns"] as Who[]).map((w) => (
               <button key={w} role="tab" aria-selected={who === w} onClick={() => setWho(w)}
-                className={cn("rounded-md px-3 py-1 capitalize transition-colors", who === w ? "bg-primary text-white" : "text-gray-400 hover:text-white")}>
+                className={cn("rounded-md px-3 py-1 capitalize transition-colors", who === w ? "bg-primary text-on-color" : "text-gray-400 hover:text-white")}>
                 {w}
               </button>
             ))}

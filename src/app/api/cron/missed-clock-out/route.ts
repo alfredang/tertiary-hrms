@@ -122,14 +122,14 @@ async function runRollup() {
     title: "Intern missed punches",
     message,
     type: "ATTENDANCE_ROLLUP",
-    link: "/attendance/overview",
+    link: "/timesheet/overview",
     subject: `Intern missed punches: ${noOut} clock-out, ${noIn} clock-in (last 7 days)`,
     html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:640px;">
 <p>${escapeHtml(message)}</p>
 <table style="border-collapse:collapse;font-size:13px">${lines
       .map((l) => `<tr><td style="padding:3px 8px">${escapeHtml(l.date)}</td><td style="padding:3px 8px">${escapeHtml(l.who)}</td><td style="padding:3px 8px;color:#b45309">${l.what}</td></tr>`)
       .join("")}</table>
-<p style="margin-top:16px"><a href="${siteUrl()}/attendance/overview" style="color:#2563eb">Review intern attendance and corrections</a></p>
+<p style="margin-top:16px"><a href="${siteUrl()}/timesheet/overview" style="color:#2563eb">Review intern attendance and corrections</a></p>
 </div>`,
   });
 

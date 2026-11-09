@@ -160,7 +160,7 @@ export function MissingPunchPanel() {
                 <div className="flex gap-2">
                   {(Object.keys(KIND_LABEL) as Kind[]).map((k) => (
                     <button key={k} type="button" onClick={() => setKind(k)}
-                      className={`px-3 py-2 rounded-lg text-sm border ${kind === k ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-white"}`}>
+                      className={`px-3 py-2 rounded-lg text-sm border ${kind === k ? "bg-primary text-primary-foreground border-primary" : "bg-gray-900 text-gray-400 border-gray-700 hover:text-on-color"}`}>
                       {KIND_LABEL[k]}
                     </button>
                   ))}

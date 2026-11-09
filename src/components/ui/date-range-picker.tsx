@@ -98,7 +98,7 @@ export function DateRangePicker({
             classNames={{
               // Target the day button so the colour is actually visible.
               selected:
-                "[&>button]:bg-blue-600 [&>button]:text-white [&>button]:hover:bg-blue-600 [&>button]:hover:text-white",
+                "[&>button]:bg-blue-600 [&>button]:text-on-color [&>button]:hover:bg-blue-600 [&>button]:hover:text-on-color",
               range_start: "[&>button]:rounded-l-md [&>button]:rounded-r-none",
               range_end: "[&>button]:rounded-r-md [&>button]:rounded-l-none",
               range_middle:

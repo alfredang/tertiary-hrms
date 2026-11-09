@@ -11,7 +11,7 @@ export default function GlobalError({
     <html lang="en">
       <body>
         <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-          <div className="w-full max-w-md rounded-lg border bg-white p-6 shadow-sm">
+          <div className="w-full max-w-md rounded-lg border bg-on-color p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">Application error</h2>
             <p className="mt-2 text-sm text-gray-600">
               The app encountered an unrecoverable error.

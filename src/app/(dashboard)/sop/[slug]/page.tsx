@@ -70,7 +70,7 @@ export default function SopDetailPage({ params }: { params: { slug: string } }) 
             {sop.steps.map((step, i) => (
               <div key={step.title} className="flex items-center">
                 <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-on-color">
                     {i + 1}
                   </span>
                   <span className="text-xs font-medium text-gray-200">{step.title}</span>
@@ -90,7 +90,7 @@ export default function SopDetailPage({ params }: { params: { slug: string } }) 
         <ol className="relative space-y-6 border-l border-gray-700 pl-8 ml-4">
           {sop.steps.map((step, i) => (
             <li key={step.title} className="relative">
-              <span className="absolute -left-[3.25rem] flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-white ring-4 ring-gray-900">
+              <span className="absolute -left-[3.25rem] flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-color ring-4 ring-gray-900">
                 {i + 1}
               </span>
               <Card>

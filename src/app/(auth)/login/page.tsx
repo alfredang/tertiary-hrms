@@ -250,7 +250,7 @@ function LoginForm() {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-2">
       {/* ── Left panel (white): branding, headline, app download badges ───── */}
-      <div className="flex items-center justify-center bg-white px-6 py-12 lg:px-12 lg:py-16">
+      <div className="flex items-center justify-center bg-on-color px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-lg space-y-8 text-center lg:text-left">
           <div className="flex items-center justify-center gap-3 lg:justify-start">
             {branding.logo ? (
@@ -291,7 +291,7 @@ function LoginForm() {
       </div>
 
       {/* ── Right panel (dark): sign-in card ─────────────────────────────── */}
-      <div className="flex items-center justify-center bg-gradient-to-br from-[#0D1638] via-[#1A2F86] to-[#2F5BE6] px-6 py-12 lg:px-12 lg:py-16">
+      <div className="flex items-center justify-center bg-gradient-to-br from-[#F3F6FD] via-[#E6EDFF] to-[#D3E0FF] px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-md space-y-6">
         <div className="space-y-1 text-center lg:text-left">
           <h2 className="text-2xl font-bold text-white">Welcome back</h2>
@@ -578,7 +578,7 @@ function LoginForm() {
 function LoginSkeleton() {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-2">
-      <div className="flex items-center justify-center bg-white px-6 py-12 lg:px-12 lg:py-16">
+      <div className="flex items-center justify-center bg-on-color px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-lg space-y-8">
           <div className="h-12 w-12 bg-gray-200 rounded-xl animate-pulse mx-auto lg:mx-0" />
           <div className="space-y-3">
@@ -591,7 +591,7 @@ function LoginSkeleton() {
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-center bg-gradient-to-br from-[#0D1638] via-[#1A2F86] to-[#2F5BE6] px-6 py-12 lg:px-12 lg:py-16">
+      <div className="flex items-center justify-center bg-gradient-to-br from-[#F3F6FD] via-[#E6EDFF] to-[#D3E0FF] px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-md space-y-6">
           <div className="space-y-2">
             <div className="h-7 bg-gray-800 rounded w-48 animate-pulse" />

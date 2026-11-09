@@ -23,6 +23,8 @@ if (!PASSWORD) {
 }
 const YEAR = new Date().getFullYear();
 
+const WITH_SAMPLES = process.argv.includes("--with-samples");
+
 async function main() {
   const hash = await bcrypt.hash(PASSWORD, 10);
 
@@ -91,6 +93,10 @@ async function main() {
     });
   }
 
+  // Sample records (leave, claim, payslip, timesheet, a second "pending" staff account) are OFF by
+  // default: they showed up in the admin lists as test data (removed 10 Nov 2026). Pass
+  // --with-samples only for a throwaway database.
+  if (WITH_SAMPLES) {
   // A sample approved AL request (skip if one already exists).
   if (al) {
     const exists = await prisma.leaveRequest.findFirst({ where: { employeeId: employee.id, leaveTypeId: al.id } });
@@ -250,6 +256,8 @@ async function main() {
         },
       });
     }
+  }
+
   }
 
   console.log("✅ Demo employee ready");

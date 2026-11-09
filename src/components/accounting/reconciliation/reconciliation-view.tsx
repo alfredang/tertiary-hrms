@@ -380,7 +380,7 @@ export function ReconciliationView({
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${tab === t.id ? "bg-primary text-white" : "bg-gray-900 text-gray-300 hover:bg-gray-800"}`}
+                  className={`px-3 py-1.5 rounded-lg text-sm ${tab === t.id ? "bg-primary text-on-color" : "bg-gray-900 text-gray-300 hover:bg-gray-800"}`}
                 >
                   {t.label} <span className="opacity-70">({counts[t.id] ?? 0})</span>
                 </button>

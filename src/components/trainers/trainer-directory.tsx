@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, X, BadgeCheck, Landmark, FileCheck2, GraduationCap } from "lucide-react";
+import { Search, Plus, X, Mail, Phone, Copy, Check, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -70,12 +70,34 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
     }),
     [pool, trainers.length],
   );
-  // Chips come from the current results, so they narrow as you filter.
-  const certChips = useMemo(() => topTags(results, "certifications", 18), [results]);
-  const skillChips = useMemo(() => topTags(results, "skills", 30), [results]);
+  // Skills + professional certifications with counts, for the search box's suggestion list.
+  const vocab = useMemo(() => {
+    const certs = topTags(pool, "certifications", 400).map((t) => ({ ...t, kind: "Certification" as const }));
+    const skills = topTags(pool, "skills", 600).map((t) => ({ ...t, kind: "Skill" as const }));
+    const seen = new Set<string>();
+    return [...certs, ...skills].filter((t) => {
+      const k = t.tag.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [pool]);
 
-  const toggle = (list: string[], set: (v: string[]) => void, v: string) =>
-    set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  // One "Accreditation" dropdown drives the cert / finance / IBF flags. A multi-flag
+  // combination can only come from an old bookmarked link; it shows as "Custom".
+  const accValue =
+    !certs.length && !finance && !ibfFit ? ""
+    : certs.length === 1 && !finance && !ibfFit ? certs[0]
+    : !certs.length && finance && !ibfFit ? "finance"
+    : !certs.length && !finance && ibfFit ? "ibf"
+    : "custom";
+  const setAcc = (v: string) => {
+    if (v === "custom") return;
+    setCerts(TRAINING_CERTS.some((c) => c.code === v) ? [v] : []);
+    setFinance(v === "finance");
+    setIbfFit(v === "ibf");
+  };
+
   const anyFilter = q || certs.length || tags.length || finance || ibfFit || status !== "trainers";
   const clearAll = () => {
     setQ("");
@@ -85,102 +107,68 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
     setIbfFit(false);
     setStatus("trainers");
   };
+  const selectCls = "h-10 rounded-md border bg-background px-3 text-sm min-w-0";
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">Trainer Management</h1>
           <p className="text-sm text-muted-foreground">
-            ACTA trainers from the LMS/TMS, the ACTA Trainers folder and trainer applications by email.
-            {lastImport && <> Last import {new Date(lastImport).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}.</>}
+            {stats.total} trainers · {stats.applicants} applicants
+            {lastImport && <> · last import {new Date(lastImport).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</>}
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="shrink-0">
           <Link href="/trainers/new">
             <Plus className="h-4 w-4 mr-1" /> Add trainer
           </Link>
         </Button>
       </div>
 
-      {/* Headline counts double as one-click filters */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-        <StatTile label="Trainers" value={stats.total} active={!anyFilter} onClick={clearAll} />
-        {TRAINING_CERTS.map((c) => (
-          <StatTile key={c.code} label={c.label} title={c.full} value={stats.byCert[c.code] ?? 0}
-            active={certs.length === 1 && certs[0] === c.code} onClick={() => setCerts(certs.length === 1 && certs[0] === c.code ? [] : [c.code])} />
-        ))}
-        <StatTile label="Finance background" value={stats.finance} active={finance} onClick={() => setFinance(!finance)} />
-        <StatTile label="IBF Fit declaration" value={stats.ibf} active={ibfFit} onClick={() => setIbfFit(!ibfFit)} />
-        <StatTile label="Applicants" value={stats.applicants} active={status === "applicants"}
-          onClick={() => setStatus(status === "applicants" ? "trainers" : "applicants")} />
-      </div>
-
-      <Card className="p-4 space-y-3">
-        <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search name, skill, certification, course, education… e.g. articulate, PMP, CCAR-F, python finance"
-              className="pl-9"
-              aria-label="Search trainers"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}
-              className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Status">
-              <option value="trainers">Trainers</option>
-              <option value="applicants">Applicants (from email)</option>
-              <option value="all">All</option>
+      <Card className="p-3 space-y-2">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+          <SkillSearch
+            q={q}
+            setQ={setQ}
+            vocab={vocab}
+            selected={tags}
+            onPick={(tag) => { if (!tags.includes(tag)) setTags([...tags, tag]); setQ(""); }}
+          />
+          <div className="grid grid-cols-3 gap-2 lg:contents">
+            <select value={accValue} onChange={(e) => setAcc(e.target.value)} className={selectCls} aria-label="Accreditation">
+              <option value="">All accreditations</option>
+              {TRAINING_CERTS.map((c) => (
+                <option key={c.code} value={c.code} title={c.full}>{c.label} ({stats.byCert[c.code] ?? 0})</option>
+              ))}
+              <option value="finance">Finance background ({stats.finance})</option>
+              <option value="ibf">IBF Fit declaration ({stats.ibf})</option>
+              {accValue === "custom" && <option value="custom">Custom (from link)</option>}
             </select>
-            <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}
-              className="h-10 rounded-md border bg-background px-3 text-sm" aria-label="Sort">
+            <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className={selectCls} aria-label="Status">
+              <option value="trainers">Trainers ({stats.total})</option>
+              <option value="applicants">Applicants ({stats.applicants})</option>
+              <option value="all">All ({trainers.length})</option>
+            </select>
+            <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className={selectCls} aria-label="Sort">
               <option value="recent">Most recent class</option>
               <option value="classes">Most classes</option>
               <option value="name">Name A–Z</option>
             </select>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground w-24 shrink-0">Accreditation</span>
-          {TRAINING_CERTS.map((c) => (
-            <Chip key={c.code} on={certs.includes(c.code)} onClick={() => toggle(certs, setCerts, c.code)} title={c.full} tone="acta">
-              <GraduationCap className="h-3 w-3" /> {c.label}
-            </Chip>
-          ))}
-          <Chip on={finance} onClick={() => setFinance(!finance)} tone="fin"><Landmark className="h-3 w-3" /> Finance background</Chip>
-          <Chip on={ibfFit} onClick={() => setIbfFit(!ibfFit)} tone="ibf"><FileCheck2 className="h-3 w-3" /> IBF Fit declaration</Chip>
-        </div>
-        {certChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground w-24 shrink-0">Certifications</span>
-            {certChips.map((c) => (
-              <Chip key={c.tag} on={tags.includes(c.tag)} onClick={() => toggle(tags, setTags, c.tag)}>
-                <BadgeCheck className="h-3 w-3" /> {c.tag} <span className="opacity-60">{c.count}</span>
-              </Chip>
-            ))}
-          </div>
-        )}
-        {skillChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground w-24 shrink-0">Skills</span>
-            {skillChips.map((c) => (
-              <Chip key={c.tag} on={tags.includes(c.tag)} onClick={() => toggle(tags, setTags, c.tag)} tone="skill">
-                {c.tag} <span className="opacity-60">{c.count}</span>
-              </Chip>
-            ))}
-          </div>
-        )}
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex flex-wrap items-center gap-2 px-1 text-sm">
           <span className="text-muted-foreground">
-            {results.length} of {trainers.length} shown
-            {tags.length > 0 && <> · tags: {tags.join(", ")}</>}
+            {results.length} {results.length === 1 ? "trainer" : "trainers"}
           </span>
+          {tags.map((t) => (
+            <button key={t} type="button" onClick={() => setTags(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`}
+              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:border-primary/60">
+              {t} <X className="h-3 w-3" />
+            </button>
+          ))}
           {anyFilter ? (
-            <button type="button" onClick={clearAll} className="inline-flex items-center gap-1 text-primary hover:underline">
+            <button type="button" onClick={clearAll} className="ml-auto inline-flex items-center gap-1 text-primary hover:underline">
               <X className="h-3.5 w-3.5" /> Clear filters
             </button>
           ) : null}
@@ -189,55 +177,56 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
 
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b">
+          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground border-b whitespace-nowrap">
             <tr>
-              <th className="px-4 py-3">Trainer</th>
-              <th className="px-4 py-3">Accreditation</th>
-              <th className="px-4 py-3">Certifications · skills</th>
-              <th className="px-4 py-3">Contact</th>
-              <th className="px-4 py-3">Last class</th>
-              <th className="px-4 py-3 text-right">Classes</th>
+              <th className="px-4 py-3 font-medium">Trainer</th>
+              <th className="px-4 py-3 font-medium">Accreditation</th>
+              <th className="px-4 py-3 font-medium">Expertise</th>
+              <th className="px-4 py-3 font-medium">Contact</th>
+              <th className="px-4 py-3 font-medium">Last class</th>
+              <th className="px-4 py-3 font-medium text-right">Classes</th>
             </tr>
           </thead>
           <tbody>
-            {results.slice(0, limit).map((t) => (
-              <tr key={t.id} className="border-b last:border-0 hover:bg-muted/40 align-top">
-                <td className="px-4 py-3 min-w-[200px]">
-                  <Link href={`/trainers/${t.id}`} className="font-medium text-primary hover:underline">{t.name}</Link>
-                  {t.nickname && t.nickname !== t.name && <div className="text-xs text-muted-foreground">“{t.nickname}”</div>}
-                  <div className="text-xs text-muted-foreground">
-                    {isApplicant(t) ? `Applicant · ${t.status}` : t.inTms ? `TMS · ${t.trainerType ?? ""}` : "ACTA folder · not in TMS"}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {t.trainingCerts.map((c) => <Tag key={c} tone="acta">{c}</Tag>)}
-                    {t.financeBackground && <Tag tone="fin">Finance</Tag>}
-                    {t.ibfFitDeclaration && <Tag tone="ibf">IBF Fit</Tag>}
-                    {!t.trainingCerts.length && !t.financeBackground && !t.ibfFitDeclaration && <span className="text-muted-foreground">—</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3 max-w-[420px]">
-                  <div className="flex flex-wrap gap-1">
-                    {t.certifications.slice(0, 6).map((c) => <Tag key={c}>{c}</Tag>)}
-                    {t.certifications.length > 6 && <span className="text-xs text-muted-foreground">+{t.certifications.length - 6}</span>}
-                    {t.skills.slice(0, 5).map((s) => <Tag key={s} tone="skill">{s}</Tag>)}
-                    {t.skills.length > 5 && <span className="text-xs text-muted-foreground">+{t.skills.length - 5}</span>}
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-xs">
-                  {t.phone && <div><a href={`tel:${t.phone}`} className="hover:underline">{t.phone}</a></div>}
-                  {t.email && <div><a href={`mailto:${t.email}`} className="hover:underline">{t.email}</a></div>}
-                  {!t.phone && !t.email && <span className="text-muted-foreground">—</span>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-xs">{t.lastClassDate ?? <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{t.classesCount || <span className="text-muted-foreground">0</span>}</td>
-              </tr>
-            ))}
+            {results.slice(0, limit).map((t) => {
+              const expertise = orderByMatch([...t.certifications, ...t.skills], [...tags, q]);
+              return (
+                <tr key={t.id} className="border-b last:border-0 hover:bg-muted/40 whitespace-nowrap">
+                  <td className="px-4 py-2.5 max-w-[260px]">
+                    <Link href={`/trainers/${t.id}`} className="block truncate font-medium text-primary hover:underline" title={t.name}>{t.name}</Link>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {isApplicant(t) ? `Applicant · ${t.status}` : t.inTms ? `TMS${t.trainerType ? ` · ${t.trainerType}` : ""}` : "ACTA folder · not in TMS"}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1">
+                      {t.trainingCerts.map((c) => <Tag key={c} tone="acta">{c}</Tag>)}
+                      {t.financeBackground && <Tag tone="fin">Finance</Tag>}
+                      {t.ibfFitDeclaration && <Tag tone="ibf">IBF Fit</Tag>}
+                      {!t.trainingCerts.length && !t.financeBackground && !t.ibfFitDeclaration && <span className="text-muted-foreground">—</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex max-w-[300px] items-center gap-1" title={expertise.join(", ")}>
+                      {expertise.slice(0, 2).map((e) => (
+                        <span key={e} className="min-w-0 max-w-[140px] truncate"><Tag tone={t.certifications.includes(e) ? "default" : "skill"}>{e}</Tag></span>
+                      ))}
+                      {expertise.length > 2 && <span className="shrink-0 text-xs text-muted-foreground">+{expertise.length - 2}</span>}
+                      {!expertise.length && <span className="text-muted-foreground">—</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    <ContactCell email={t.email} phone={t.phone} />
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">{t.lastClassDate ? formatDay(t.lastClassDate) : <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">{t.classesCount || <span className="text-muted-foreground">0</span>}</td>
+                </tr>
+              );
+            })}
             {results.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                  No trainers match. Try fewer filters, or search a broader term.
+                  No trainers match. Try a broader search or clear the filters.
                 </td>
               </tr>
             )}
@@ -268,24 +257,135 @@ export function Tag({ children, tone = "default" }: { children: React.ReactNode;
   return <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium", TONES[tone])}>{children}</span>;
 }
 
-function Chip({ children, on, onClick, title, tone = "default" }: { children: React.ReactNode; on: boolean; onClick: () => void; title?: string; tone?: Tone }) {
+/** Expertise with the items matching the active search / filters first, so the reason a trainer matched is visible. */
+function orderByMatch(items: string[], needles: string[]): string[] {
+  const ns = needles.map((n) => n.trim().toLowerCase()).filter((n) => n.length > 1);
+  if (!ns.length) return items;
+  const hit = (s: string) => ns.some((n) => s.toLowerCase().includes(n));
+  return [...items.filter(hit), ...items.filter((s) => !hit(s))];
+}
+
+function formatDay(iso: string) {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+type VocabItem = { tag: string; count: number; kind: "Skill" | "Certification" };
+
+/** Search box with a suggestion list of skills and certifications (with trainer counts). Picking one adds it as a filter. */
+function SkillSearch({ q, setQ, vocab, selected, onPick }: {
+  q: string; setQ: (v: string) => void; vocab: VocabItem[]; selected: string[]; onPick: (tag: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const box = useRef<HTMLDivElement>(null);
+  const needle = q.trim().toLowerCase();
+  const items = useMemo(() => {
+    const pool = vocab.filter((v) => !selected.includes(v.tag));
+    if (!needle) return pool.slice(0, 8); // popular picks when the box is empty
+    const starts = pool.filter((v) => v.tag.toLowerCase().startsWith(needle));
+    const contains = pool.filter((v) => !v.tag.toLowerCase().startsWith(needle) && v.tag.toLowerCase().includes(needle));
+    return [...starts, ...contains].slice(0, 8);
+  }, [vocab, selected, needle]);
+
+  useEffect(() => setActive(0), [needle]);
+  useEffect(() => {
+    const close = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
   return (
-    <button type="button" onClick={onClick} title={title} aria-pressed={on}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-        on ? "bg-primary text-primary-foreground border-primary" : cn(TONES[tone], "hover:border-primary/60"),
-      )}>
-      {children}
-    </button>
+    <div className="relative" ref={box}>
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (!open || !items.length) return;
+          if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => (a + 1) % items.length); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => (a - 1 + items.length) % items.length); }
+          else if (e.key === "Enter" && needle) { e.preventDefault(); onPick(items[active].tag); setOpen(false); }
+          else if (e.key === "Escape") setOpen(false);
+        }}
+        placeholder="Search by name, skill, certification or course — e.g. Articulate, PMP, Python"
+        className="pl-9 pr-9"
+        aria-label="Search trainers"
+        role="combobox"
+        aria-expanded={open && items.length > 0}
+        aria-controls="trainer-suggest"
+        autoComplete="off"
+      />
+      {q && (
+        <button type="button" onClick={() => setQ("")} aria-label="Clear search"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      )}
+      {open && items.length > 0 && (
+        <ul id="trainer-suggest" role="listbox"
+          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-80 overflow-auto rounded-md border bg-popover p-1 text-sm shadow-lg">
+          <li className="px-2 pb-1 pt-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+            {needle ? "Filter by skill or certification" : "Popular skills and certifications"}
+          </li>
+          {items.map((v, i) => (
+            <li key={v.tag} role="option" aria-selected={i === active}>
+              <button type="button" onMouseEnter={() => setActive(i)} onClick={() => { onPick(v.tag); setOpen(false); }}
+                className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-left", i === active ? "bg-muted" : "")}>
+                <span className="min-w-0 flex-1 truncate">{v.tag}</span>
+                <span className="text-[11px] text-muted-foreground">{v.kind}</span>
+                <span className="w-8 text-right text-xs tabular-nums text-muted-foreground">{v.count}</span>
+              </button>
+            </li>
+          ))}
+          {needle && (
+            <li className="border-t px-2 pt-1.5 pb-1 text-[11px] text-muted-foreground">Press Enter to filter by the highlighted item, or keep typing to search all text.</li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
 
-function StatTile({ label, value, active, onClick, title }: { label: string; value: number; active: boolean; onClick: () => void; title?: string }) {
+/** Email and phone, each clickable (mail / call / WhatsApp) with a copy button. */
+function ContactCell({ email, phone }: { email: string | null; phone: string | null }) {
+  if (!email && !phone) return <span className="text-muted-foreground">—</span>;
+  const wa = phone ? phone.replace(/[^\d]/g, "") : "";
+  const waNumber = wa.length === 8 ? `65${wa}` : wa; // Singapore numbers are stored without the country code
   return (
-    <button type="button" onClick={onClick} title={title} aria-pressed={active}
-      className={cn("rounded-xl border p-3 text-left transition-colors", active ? "border-primary bg-primary/10" : "bg-card hover:border-primary/50")}>
-      <div className="text-2xl font-bold tabular-nums">{value}</div>
-      <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="space-y-0.5">
+      {email && (
+        <div className="group flex items-center gap-1.5">
+          <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <a href={`mailto:${email}`} className="max-w-[210px] truncate hover:underline" title={email}>{email}</a>
+          <CopyButton value={email} label="email" />
+        </div>
+      )}
+      {phone && (
+        <div className="group flex items-center gap-1.5 text-muted-foreground">
+          <Phone className="h-3.5 w-3.5 shrink-0" />
+          <a href={`tel:${phone}`} className="hover:underline">{phone}</a>
+          {waNumber && (
+            <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener" title="WhatsApp" aria-label="WhatsApp"
+              className="rounded p-0.5 opacity-0 transition-opacity hover:text-emerald-400 group-hover:opacity-100 focus:opacity-100">
+              <MessageCircle className="h-3.5 w-3.5" />
+            </a>
+          )}
+          <CopyButton value={phone} label="phone number" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button type="button" aria-label={`Copy ${label}`} title={`Copy ${label}`}
+      onClick={() => { navigator.clipboard?.writeText(value).then(() => { setDone(true); setTimeout(() => setDone(false), 1200); }); }}
+      className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 focus:opacity-100">
+      {done ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );
 }

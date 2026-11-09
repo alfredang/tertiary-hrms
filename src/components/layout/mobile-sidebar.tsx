@@ -35,7 +35,7 @@ export function MobileSidebar({ fallbackName, fallbackEmail, companyShortName, c
           <span className="sr-only">Open menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0 bg-gradient-to-b from-[#0D1638] via-[#111f52] to-[#162a6e] border-[#1A2F86]/60">
+      <SheetContent side="left" className="p-0 bg-card border-gray-800">
         <div className="flex h-full flex-col overflow-y-auto">
           <Sidebar role={role} companyShortName={companyShortName} companyLogo={companyLogo} />
           <UserNav fallbackName={fallbackName} fallbackEmail={fallbackEmail} />
