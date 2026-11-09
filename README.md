@@ -16,7 +16,7 @@ A comprehensive, AI-powered Human Resource Management System built for **Tertiar
   <a href="https://github.com/alfredang/tertiary-hrms/issues"><strong>Report Bug</strong></a>
 </p>
 
-![HR Portal — payroll processing with CPF submission upload](screenshot.png)
+![TIA HRMS — admin dashboard (light premium-blue theme)](screenshot.png)
 
 ---
 
