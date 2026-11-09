@@ -1,4 +1,4 @@
-# HR Portal - Tertiary Infotech Academy
+# TIA HRMS — Tertiary Infotech Academy
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
@@ -48,6 +48,9 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 ## What's New
 
 Recent additions (November 2026):
+
+- **TIA HRMS rebrand** — the product is now **TIA HRMS** everywhere (web title, login, emails, PWA, desktop and mobile apps) with a premium-blue palette: navy `#0D1638` → `#1A2F86` → royal `#2F5BE6`, gold `#F5B83D` as the single accent. All apps share the iOS app icon. The company name/logo on screens and payslips stays DB-driven (`CompanySettings`).
+- **Mobile Trainer directory** — `GET /api/mobile/trainers` and `/api/mobile/trainers/[id]` (TRAINER_ADMIN only; same handlers as the web API) and `canManageTrainers` on `/api/mobile/summary`, so the native apps can show a Trainers tab.
 
 - **Trainer Management** (`/trainers`, role **Trainer Admin**) — a directory of every ACTA trainer (LMS/TMS trainers, the ACTA Trainers folder on the admin's Mac, and trainer applications found in email) with one profile page per trainer: name, NRIC (masked, click to show), tel, email, education, professional certifications (PMP, CCAR-F, CFA…), skills (Articulate, Python…), work experience, courses taught and recent classes. Filter by **ACLP / ACTA / DACE / DDDLP**, **finance background**, **IBF Fit and Proper declaration on file**, skills and certifications; search across name, skills, courses and education. Trainer names follow the house rule *FULL NAME IN CAPITALS*, `(DR)` for doctorates — the same names as the ACTA Trainers folders. Data is pushed from the Mac (`scripts/trainers/`, or `POST /api/agent/trainers/import` with the agent API key); Trainer Admin edits survive re-imports.
 - **Bank Reconciliation vs QuickBooks** (`/accounting/reconciliation`, admin/accountant) — matches imported DBS bank transactions against QuickBooks expenses, deposits, payments and transfers (exact amount + direction within ±3 days, ranked by payee/reference similarity; amount mismatches flagged), with manual match/unmatch, "reviewed" notes, and a balance summary. Read-only QuickBooks client with token refresh and retries (`src/lib/quickbooks/client.ts`).
@@ -242,9 +245,10 @@ Earlier additions (May 2026):
 - Safe area support for notched devices
 
 ### Mobile Apps
-Native iOS and Android companion apps talk to this web app over its JSON API
-(`/api/mobile/*` + `/api/auth/google-mobile`). Both are published and linked from
-the login page:
+Native iOS and Android companion apps (**TIA HRMS**, following the iOS design system) talk to this
+web app over its JSON API (`/api/mobile/*` + `/api/auth/google-mobile`). Leave submissions return
+machine-readable codes (`AL_EXCEEDS_BALANCE`, `INTERN_MC_NOT_PAID`, `NPL_CAP_EXCEEDED`) so the apps can
+offer "Apply as No Pay Leave". Both are published and linked from the login page:
 
 [![Download on the App Store](https://img.shields.io/badge/App_Store-Download-000000?style=flat-square&logo=apple)](https://apps.apple.com/sg/app/tertiary-hrms/id6759821144)
 [![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_it_on-414141?style=flat-square&logo=google-play)](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)

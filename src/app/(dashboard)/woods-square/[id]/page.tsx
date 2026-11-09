@@ -174,7 +174,7 @@ export default async function StaffInvitesPage({ params }: { params: { id: strin
 
       {/* Hero */}
       <div className="flex flex-wrap items-center gap-4">
-        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500/25 to-indigo-600/5 border border-indigo-500/20 flex items-center justify-center text-indigo-300 text-xl font-bold shrink-0">
+        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/25 to-blue-600/5 border border-blue-500/20 flex items-center justify-center text-blue-300 text-xl font-bold shrink-0">
           {initials(employee.name)}
         </div>
         <div className="min-w-0">
@@ -213,7 +213,7 @@ export default async function StaffInvitesPage({ params }: { params: { id: strin
             <Send className="h-3.5 w-3.5" />
             Invites sent
           </div>
-          <p className="mt-1.5 text-2xl font-bold text-indigo-400 tabular-nums">{sentCount}</p>
+          <p className="mt-1.5 text-2xl font-bold text-blue-400 tabular-nums">{sentCount}</p>
         </Card>
 
         {/* Failed */}
@@ -269,7 +269,7 @@ export default async function StaffInvitesPage({ params }: { params: { id: strin
             <p className="text-sm font-medium text-gray-300">No invites yet</p>
             <p className="text-sm text-gray-500 mt-1 max-w-xs">
               This staff member hasn&rsquo;t been sent a Woods Square invite. Send one from the{" "}
-              <Link href="/woods-square" className="text-indigo-400 hover:underline">
+              <Link href="/woods-square" className="text-blue-400 hover:underline">
                 invite page
               </Link>
               .

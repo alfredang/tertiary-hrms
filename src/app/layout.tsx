@@ -14,15 +14,15 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#6366f1",
+  themeColor: "#1A2F86",
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  let displayName = "HR Portal";
+  let displayName = "TIA HRMS";
   try {
     const branding = await getCompanyBranding();
     const label = branding.shortName || branding.name;
-    if (label) displayName = `HR Portal - ${label}`;
+    if (label) displayName = `TIA HRMS - ${label}`;
   } catch {
     // DB unavailable during build/preview — fall back to generic title
   }
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
-      title: "HR Portal",
+      title: "TIA HRMS",
     },
     icons: {
       icon: "/favicon.ico",

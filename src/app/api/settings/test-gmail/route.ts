@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     const branding = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-    const companyName = branding?.name || "HR Portal";
+    const companyName = branding?.name || "TIA HRMS";
 
     const rawEmail = [
       `From: ${companyName} <${GMAIL_EMAIL_USER}>`,

@@ -16,7 +16,7 @@ export default async function EmailTemplatesIndex() {
       <div>
         <h2 className="text-xl font-semibold text-white">Email Templates</h2>
         <p className="text-sm text-gray-400 mt-1">
-          Customise the emails sent by the HR Portal. Pick a template on the left to edit its subject and body.
+          Customise the emails sent by TIA HRMS. Pick a template on the left to edit its subject and body.
         </p>
       </div>
 

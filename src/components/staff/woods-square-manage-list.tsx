@@ -36,9 +36,9 @@ function initials(name: string): string {
 }
 
 const AVATAR_COLORS = [
-  "bg-indigo-500/20 text-indigo-300",
   "bg-blue-500/20 text-blue-300",
-  "bg-violet-500/20 text-violet-300",
+  "bg-blue-500/20 text-blue-300",
+  "bg-sky-500/20 text-sky-300",
   "bg-sky-500/20 text-sky-300",
   "bg-cyan-500/20 text-cyan-300",
   "bg-fuchsia-500/20 text-fuchsia-300",
@@ -60,8 +60,8 @@ export function Toggle({ on, onClick, label }: { on: boolean; onClick: () => voi
       aria-checked={on}
       aria-label={label}
       onClick={onClick}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
-        on ? "bg-indigo-500" : "bg-gray-700"
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
+        on ? "bg-blue-500" : "bg-gray-700"
       }`}
     >
       <span
@@ -199,7 +199,7 @@ export function WoodsSquareManageList({ staff }: { staff: ManageStaff[] }) {
       key={key}
       onClick={() => setFilter(key)}
       className={`text-xs rounded-full px-2.5 py-1 transition-colors ${
-        filter === key ? "bg-indigo-500/20 text-indigo-300" : "text-gray-400 hover:text-white hover:bg-gray-800"
+        filter === key ? "bg-blue-500/20 text-blue-300" : "text-gray-400 hover:text-white hover:bg-gray-800"
       }`}
     >
       {label}
@@ -212,7 +212,7 @@ export function WoodsSquareManageList({ staff }: { staff: ManageStaff[] }) {
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-gray-800">
         <Users className="h-4 w-4 text-gray-400" />
         <h2 className="text-sm font-semibold text-white">Invite list</h2>
-        <span className="text-xs text-indigo-300 bg-indigo-500/15 rounded-full px-2 py-0.5">
+        <span className="text-xs text-blue-300 bg-blue-500/15 rounded-full px-2 py-0.5">
           {onListCount} on list
         </span>
         <span className="text-xs text-gray-500">· {staff.length} staff</span>

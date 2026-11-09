@@ -60,6 +60,7 @@ export async function GET() {
     name,
     role: ctx.role,
     isAdmin: ctx.isAdmin,
+    canManageTrainers: ctx.canManageTrainers,
     alAvailable,
     mcAvailable,
     otRemaining,

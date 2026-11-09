@@ -49,9 +49,9 @@ function initials(name: string): string {
 }
 
 const AVATAR_COLORS = [
-  "bg-indigo-500/20 text-indigo-300",
   "bg-blue-500/20 text-blue-300",
-  "bg-violet-500/20 text-violet-300",
+  "bg-blue-500/20 text-blue-300",
+  "bg-sky-500/20 text-sky-300",
   "bg-sky-500/20 text-sky-300",
   "bg-cyan-500/20 text-cyan-300",
   "bg-fuchsia-500/20 text-fuchsia-300",
@@ -167,7 +167,7 @@ export function WoodsSquareOverview({
                       <div className="text-[9px] uppercase text-gray-600">{WEEKDAY[d.dow]}</div>
                       <div
                         className={`mx-auto flex h-5 w-5 items-center justify-center rounded-full text-[10px] tabular-nums ${
-                          isToday ? "bg-indigo-500 font-semibold text-white" : "text-gray-400"
+                          isToday ? "bg-blue-500 font-semibold text-white" : "text-gray-400"
                         }`}
                       >
                         {d.day}

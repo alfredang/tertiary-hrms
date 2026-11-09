@@ -43,11 +43,11 @@ export async function emailPayslipToEmployee(payslipId: string): Promise<void> {
     html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p style="margin:0 0 12px;">Hi ${payslip.employee.name},</p>
 <p style="margin:0 0 12px;">Please find your payslip for <strong>${monthLabel}</strong> attached to this email.</p>
-<p style="margin:0 0 12px;">You can also view and download all past payslips by logging in to the HR Portal.</p>
+<p style="margin:0 0 12px;">You can also view and download all past payslips by logging in to TIA HRMS.</p>
 <p style="margin:20px 0;">
   <a href="${siteUrl}/payroll"
      style="display:inline-block;background:#2563eb;color:#ffffff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-family:Arial,sans-serif;">
-    View in HR Portal
+    View in TIA HRMS
   </a>
 </p>
 <p style="color:#6b7280;font-size:12px;margin:0 0 8px;">

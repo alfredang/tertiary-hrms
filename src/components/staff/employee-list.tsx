@@ -41,7 +41,7 @@ const statusLabels: Record<EmployeeStatus, string> = {
 const roleColors: Record<Role, string> = {
   ADMIN:      "bg-purple-100 text-purple-800 border-purple-200",
   HR:         "bg-blue-100 text-blue-800 border-blue-200",
-  MANAGER:    "bg-indigo-100 text-indigo-800 border-indigo-200",
+  MANAGER:    "bg-blue-100 text-blue-800 border-blue-200",
   ACCOUNTANT: "bg-sky-100 text-sky-800 border-sky-200",
   STAFF:      "bg-gray-100 text-gray-800 border-gray-200",
   INTERN:     "bg-amber-100 text-amber-800 border-amber-200",

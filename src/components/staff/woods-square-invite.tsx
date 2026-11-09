@@ -120,7 +120,7 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLE_COLORS: Record<string, string> = {
   ADMIN: "bg-purple-500/15 text-purple-300",
   HR: "bg-blue-500/15 text-blue-300",
-  MANAGER: "bg-indigo-500/15 text-indigo-300",
+  MANAGER: "bg-blue-500/15 text-blue-300",
   ACCOUNTANT: "bg-sky-500/15 text-sky-300",
   STAFF: "bg-slate-500/20 text-slate-300",
   INTERN: "bg-amber-500/15 text-amber-300",
@@ -190,9 +190,9 @@ function initials(name: string): string {
 
 // Deterministic, calm avatar tints (no green — matches the app accent family).
 const AVATAR_COLORS = [
-  "bg-indigo-500/20 text-indigo-300",
   "bg-blue-500/20 text-blue-300",
-  "bg-violet-500/20 text-violet-300",
+  "bg-blue-500/20 text-blue-300",
+  "bg-sky-500/20 text-sky-300",
   "bg-sky-500/20 text-sky-300",
   "bg-cyan-500/20 text-cyan-300",
   "bg-fuchsia-500/20 text-fuchsia-300",
@@ -731,7 +731,7 @@ export function WoodsSquareInvite({
             onClick={() => setTab(id)}
             className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
               tab === id
-                ? "text-white border-b-2 border-indigo-500"
+                ? "text-white border-b-2 border-blue-500"
                 : "text-gray-400 hover:text-white border-b-2 border-transparent"
             }`}
           >
@@ -908,7 +908,7 @@ export function WoodsSquareInvite({
             <button
               onClick={toggleAll}
               disabled={eligible.length === 0}
-              className="text-xs font-medium text-indigo-400 hover:text-indigo-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+              className="text-xs font-medium text-blue-400 hover:text-blue-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
             >
               {allSelected ? "Clear all" : "Select all"}
             </button>
@@ -962,11 +962,11 @@ export function WoodsSquareInvite({
                       toggle(s.id);
                     }
                   }}
-                  className={`group flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 transition-colors last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400 ${
+                  className={`group flex items-center gap-3 px-4 py-2.5 border-b border-gray-900 transition-colors last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 ${
                     !usable
                       ? ""
                       : isSelected
-                        ? "bg-indigo-950/20 cursor-pointer"
+                        ? "bg-blue-950/20 cursor-pointer"
                         : "hover:bg-gray-900 cursor-pointer"
                   }`}
                 >
@@ -977,12 +977,12 @@ export function WoodsSquareInvite({
                     readOnly
                     tabIndex={-1}
                     aria-hidden="true"
-                    className={`pointer-events-none accent-indigo-500 ${!usable ? "opacity-40" : ""}`}
+                    className={`pointer-events-none accent-blue-500 ${!usable ? "opacity-40" : ""}`}
                   />
                   <div
                     className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${avatarColor(
                       s.name,
-                    )} ${isSelected ? "ring-2 ring-indigo-400 ring-offset-2 ring-offset-gray-950" : ""}`}
+                    )} ${isSelected ? "ring-2 ring-blue-400 ring-offset-2 ring-offset-gray-950" : ""}`}
                   >
                     {initials(s.name)}
                   </div>
@@ -1000,7 +1000,7 @@ export function WoodsSquareInvite({
                     <Link
                       href={`/woods-square/${s.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-400 whitespace-nowrap shrink-0 px-2 py-1 rounded-md hover:bg-gray-800 transition-colors"
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-400 whitespace-nowrap shrink-0 px-2 py-1 rounded-md hover:bg-gray-800 transition-colors"
                     >
                       <Eye className="h-3.5 w-3.5" />
                       View invites
@@ -1050,7 +1050,7 @@ export function WoodsSquareInvite({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
                   Selected
-                  <span className="ml-1.5 text-indigo-400 tabular-nums">{selected.length}</span>
+                  <span className="ml-1.5 text-blue-400 tabular-nums">{selected.length}</span>
                 </span>
                 <div className="flex items-center gap-3">
                   {selected.length > 8 && (
@@ -1189,7 +1189,7 @@ export function WoodsSquareInvite({
                 <div className="space-y-1 pt-0.5">
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-800">
                     <div
-                      className="h-full rounded-full bg-indigo-500 transition-all duration-300 ease-out"
+                      className="h-full rounded-full bg-blue-500 transition-all duration-300 ease-out"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -1328,7 +1328,7 @@ export function WoodsSquareInvite({
                     }}
                     className={`text-xs rounded-full px-2.5 py-1 transition-colors ${
                       logFilter === key
-                        ? "bg-indigo-500/20 text-indigo-300"
+                        ? "bg-blue-500/20 text-blue-300"
                         : "text-gray-400 hover:text-white hover:bg-gray-800"
                     }`}
                   >
@@ -1363,7 +1363,7 @@ export function WoodsSquareInvite({
                             {l.employeeId ? (
                               <Link
                                 href={`/woods-square/${l.employeeId}`}
-                                className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
+                                className="font-medium text-blue-400 hover:text-blue-300 hover:underline transition-colors"
                               >
                                 {l.name}
                               </Link>
@@ -1490,7 +1490,7 @@ export function WoodsSquareInvite({
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-xl border border-gray-800 bg-gray-950 p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
             <DialogPrimitive.Title className="flex items-center gap-2 text-base font-semibold">
-              <Send className="h-4 w-4 text-indigo-400" />
+              <Send className="h-4 w-4 text-blue-400" />
               Send building-access invite
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="mt-2 text-sm text-gray-400">
@@ -1531,7 +1531,7 @@ export function WoodsSquareInvite({
           <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 text-white shadow-2xl shadow-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
             {/* Header */}
             <div className="flex items-center gap-3 px-5 pt-5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30">
                 <Send className="h-5 w-5" />
               </div>
               <div className="min-w-0">

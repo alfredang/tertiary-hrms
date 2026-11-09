@@ -269,9 +269,9 @@ export function WoodsSquareSettings({
       {running && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-gray-800 bg-gray-950 p-6 text-center shadow-2xl">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-400" />
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-400" />
             <p className="mt-4 text-base font-semibold text-white">Sending Woods Square invites…</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-indigo-300">{formatElapsed(elapsed)}</p>
+            <p className="mt-1 text-3xl font-bold tabular-nums text-blue-300">{formatElapsed(elapsed)}</p>
             <p className="mt-3 text-xs text-gray-400">
               Logging into Habitap, creating the events and emailing PINs across{" "}
               <b>
@@ -326,7 +326,7 @@ export function WoodsSquareSettings({
           {/* Next automatic run — ALWAYS visible (independent of Test mode) */}
           <div
             className={`rounded-xl border p-4 ${
-              enabled && !testMode ? "border-indigo-500/40 bg-indigo-500/5" : "border-gray-800 bg-gray-900/40"
+              enabled && !testMode ? "border-blue-500/40 bg-blue-500/5" : "border-gray-800 bg-gray-900/40"
             }`}
           >
             <div className="flex items-center justify-between">
@@ -368,7 +368,7 @@ export function WoodsSquareSettings({
               </p>
             ) : enabled ? (
               <>
-                <p className="mt-1 text-sm font-medium text-indigo-300">
+                <p className="mt-1 text-sm font-medium text-blue-300">
                   {daysUntil === 0 ? "Today" : daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`}
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
@@ -406,7 +406,7 @@ export function WoodsSquareSettings({
                             type="checkbox"
                             checked={testRecipientIds.includes(s.id)}
                             onChange={() => toggleTestRecipient(s.id)}
-                            className="h-3.5 w-3.5 rounded border-gray-700 bg-gray-900 text-indigo-500 focus:ring-indigo-400"
+                            className="h-3.5 w-3.5 rounded border-gray-700 bg-gray-900 text-blue-500 focus:ring-blue-400"
                           />
                           <span className="text-sm text-white">{s.name}</span>
                           <span className="truncate text-xs text-gray-500">{s.deliveryEmail || s.email}</span>
@@ -427,7 +427,7 @@ export function WoodsSquareSettings({
                   value={fireAt}
                   min={nowInSingapore()}
                   onChange={(e) => onFireAtChange(e.target.value)}
-                  className="flex-1 rounded-md border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                  className="flex-1 rounded-md border border-gray-800 bg-gray-900 px-2.5 py-1.5 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 />
               </div>
               <p className="text-[11px] text-gray-500">

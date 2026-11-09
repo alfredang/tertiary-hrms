@@ -217,7 +217,7 @@ export function Sidebar({
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-white line-clamp-2 leading-tight">{companyShortName ?? "HR Portal"}</p>
+            <p className="font-semibold text-white line-clamp-2 leading-tight">{companyShortName ?? "TIA HRMS"}</p>
           </div>
         )}
         <button

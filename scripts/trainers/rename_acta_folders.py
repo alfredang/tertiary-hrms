@@ -141,10 +141,14 @@ def apply(rows):
         for r in rs:
             if r["labels"]:
                 labels[new] = sorted(set(labels.get(new, []) + r["labels"]), key=str.lower)
-        first, rest = rs[0], rs[1:]
+        # macOS volumes are case-insensitive: "Freddy Wee" and "FREDDY WEE" are the SAME folder. Rename the
+        # case-twin itself (two steps) and never "merge" a folder into itself (that renamed every file " (2)").
+        twin = next((r for r in rs if r["old"].lower() == new.lower()), None)
+        first = twin or rs[0]
+        rest = [r for r in rs if r is not first]
         if first["old"] != new:
             if os.path.exists(target) and first["old"].lower() != new.lower():
-                rest = [first] + rest                     # target already exists: merge into it
+                rest = [first] + rest                     # a different folder already has the target name: merge into it
             else:
                 tmp = os.path.join(ACTA, "_tmp_rename_" + stamp)
                 os.rename(os.path.join(ACTA, first["old"]), tmp)   # two steps: case-only renames on APFS
@@ -152,6 +156,8 @@ def apply(rows):
                 manifest["renames"].append({"old": first["old"], "new": new})
         for r in rest:
             src = os.path.join(ACTA, r["old"])
+            if os.path.exists(src) and os.path.exists(target) and os.path.samefile(src, target):
+                continue                                   # same folder (case-insensitive): nothing to merge
             moved = []
             for name in os.listdir(src):
                 if name == ".DS_Store":

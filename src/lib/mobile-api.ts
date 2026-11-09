@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
+import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 import { Prisma } from "@prisma/client";
 
 /**
@@ -19,6 +20,8 @@ export interface MobileContext {
   userId: string | undefined;
   email: string | undefined;
   isAdmin: boolean;
+  /** Holds TRAINER_ADMIN: the apps show the Trainers tab (backed by /api/mobile/trainers). */
+  canManageTrainers: boolean;
 }
 
 /** Resolve the signed-in employee, mirroring the dev-auth fallback the pages use. */
@@ -34,6 +37,7 @@ export async function getMobileContext(): Promise<MobileContext | null> {
       userId: adminUser?.id,
       email: adminUser?.email,
       isAdmin: true,
+      canManageTrainers: true,
     };
   }
 
@@ -45,6 +49,7 @@ export async function getMobileContext(): Promise<MobileContext | null> {
     userId: session.user.id,
     email: session.user.email,
     isAdmin: hasAdminAccess(session.user.role),
+    canManageTrainers: hasTrainerAdminAccess(session.user.roles),
   };
 }
 

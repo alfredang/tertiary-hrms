@@ -197,7 +197,7 @@ export function WoodsSquareStaffActions({ employeeId, employeeName, email, curre
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-xl border border-gray-800 bg-gray-950 p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
             <DialogPrimitive.Title className="flex items-center gap-2 text-base font-semibold">
-              <Send className="h-4 w-4 text-indigo-400" />
+              <Send className="h-4 w-4 text-blue-400" />
               Send building-access invite
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="mt-2 text-sm text-gray-400">
@@ -269,7 +269,7 @@ export function WoodsSquareStaffActions({ employeeId, employeeName, email, curre
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-xl border border-gray-800 bg-gray-950 p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
             <DialogPrimitive.Title className="flex items-center gap-2 text-base font-semibold">
-              <Mail className="h-4 w-4 text-indigo-400" />
+              <Mail className="h-4 w-4 text-blue-400" />
               Resend entry PIN
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="mt-2 text-sm text-gray-400">

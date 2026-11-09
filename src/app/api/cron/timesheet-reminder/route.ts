@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-  const companyName = settings?.name || "HR Portal";
+  const companyName = settings?.name || "TIA HRMS";
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "";
   const dayLabel = holiday ? `Public Holiday (${holiday.name})` : "Weekend";
 
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         subject: `Are you working today? Log your hours for Off In Lieu - ${companyName}`,
         html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p>Hi ${emp.name},</p>
-<p>Today (<strong>${todayKey}</strong>) is a <strong>${dayLabel}</strong>. If you are working today, please log your hours in the HR Portal before <strong>11:30 PM SGT</strong> to earn Off In Lieu days.</p>
+<p>Today (<strong>${todayKey}</strong>) is a <strong>${dayLabel}</strong>. If you are working today, please log your hours in TIA HRMS before <strong>11:30 PM SGT</strong> to earn Off In Lieu days.</p>
 <p style="margin:20px 0;">
   <a href="${siteUrl}/timesheet"
      style="display:inline-block;background:#2563eb;color:#ffffff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-family:Arial,sans-serif;">

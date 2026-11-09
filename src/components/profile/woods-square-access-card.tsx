@@ -399,8 +399,8 @@ export function WoodsSquareAccessCard({
         <div className="space-y-5">
           {/* PIN reminder */}
           {primary && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-indigo-900/40 bg-indigo-950/20 px-3.5 py-2.5">
-              <Mail className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-blue-900/40 bg-blue-950/20 px-3.5 py-2.5">
+              <Mail className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
               <p className="text-xs text-gray-300">
                 Your entry <span className="font-medium text-white">PIN is emailed to you</span> for
                 each pass — check your inbox and spam.{" "}
@@ -433,7 +433,7 @@ export function WoodsSquareAccessCard({
                   {label}
                   <span className="ml-1.5 text-xs text-gray-500">{count}</span>
                   {active && (
-                    <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-violet-500" />
+                    <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-sky-500" />
                   )}
                 </button>
               );

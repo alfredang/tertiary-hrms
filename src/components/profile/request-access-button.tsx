@@ -88,7 +88,7 @@ export function RequestAccessButton({ pendingCount = 0 }: { pendingCount?: numbe
             size="sm"
             disabled={atLimit}
             title={atLimit ? `You already have ${MAX_PENDING_REQUESTS} pending requests` : undefined}
-            className="bg-indigo-600 text-white hover:bg-indigo-700"
+            className="bg-blue-600 text-white hover:bg-blue-700"
           >
             <Send className="h-3.5 w-3.5 mr-1.5" />
             Request access
@@ -105,7 +105,7 @@ export function RequestAccessButton({ pendingCount = 0 }: { pendingCount?: numbe
         <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] w-full max-w-md bg-gray-950 border border-gray-800 rounded-xl p-6 text-white shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
           <div className="flex items-center justify-between mb-4">
             <DialogPrimitive.Title className="text-base font-semibold flex items-center gap-2">
-              <Send className="h-4 w-4 text-indigo-400" />
+              <Send className="h-4 w-4 text-blue-400" />
               Request Woods Square Access
             </DialogPrimitive.Title>
             <DialogPrimitive.Close className="text-gray-400 hover:text-white transition-colors">
@@ -118,8 +118,8 @@ export function RequestAccessButton({ pendingCount = 0 }: { pendingCount?: numbe
             them blank and the admin will decide.
           </p>
 
-          <div className="flex items-start gap-2 rounded-lg border border-violet-900/40 bg-violet-950/20 px-3 py-2 mb-4">
-            <CalendarRange className="h-3.5 w-3.5 text-violet-400 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2 rounded-lg border border-sky-900/40 bg-sky-950/20 px-3 py-2 mb-4">
+            <CalendarRange className="h-3.5 w-3.5 text-sky-400 mt-0.5 shrink-0" />
             <p className="text-xs text-gray-300">
               Each access window can be up to{" "}
               <span className="font-medium text-white">1 week ({MAX_WINDOW_DAYS} days)</span> — for a

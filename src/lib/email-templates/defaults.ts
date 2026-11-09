@@ -31,7 +31,7 @@ export interface TemplateDef {
 const COMMON_VARS = [
   { name: "COMPANY_NAME", description: "Full company name from Company Settings" },
   { name: "COMPANY_SHORT_NAME", description: "Short company name from Company Settings" },
-  { name: "SITE_URL", description: "HR Portal site URL" },
+  { name: "SITE_URL", description: "TIA HRMS site URL" },
   { name: "USER_EMAIL", description: "The recipient's email address" },
 ];
 
@@ -45,12 +45,12 @@ export const TEMPLATES: Record<TemplateKey, TemplateDef> = {
       { name: "EXPIRY_MINUTES", description: "OTP expiry time in minutes" },
       ...COMMON_VARS,
     ],
-    defaultSubject: "OTP to login to {COMPANY_SHORT_NAME} HR Portal",
+    defaultSubject: "OTP to login to TIA HRMS",
     defaultBody: `Hi,
 
 Your OTP is {OTP}.
 
-Please use this to log in to the {COMPANY_NAME} HR Portal at {SITE_URL} within {EXPIRY_MINUTES} minutes.
+Please use this to log in to the TIA HRMS at {SITE_URL} within {EXPIRY_MINUTES} minutes.
 
 If you did not request this OTP, please ignore this email. Do not share this OTP with anyone.
 
@@ -87,7 +87,7 @@ Please review and respond:
 
 {ACTION_BUTTONS}
 
-Or open the HR Portal: {SITE_URL}
+Or open TIA HRMS: {SITE_URL}
 
 - {COMPANY_NAME}`,
   },
@@ -166,7 +166,7 @@ Please review and respond:
 
 {ACTION_BUTTONS}
 
-Or open the HR Portal: {SITE_URL}
+Or open TIA HRMS: {SITE_URL}
 
 - {COMPANY_NAME}`,
   },
@@ -236,7 +236,7 @@ Please contact your manager if you have questions.
   Time:    {START_TIME} to {END_TIME} ({HOURS}h)
   Reason:  {REASON}
 
-Please review in the HR Portal: {SITE_URL}
+Please review in TIA HRMS: {SITE_URL}
 
 - {COMPANY_NAME}`,
   },
@@ -293,7 +293,7 @@ Please contact your manager if you have questions.
       { name: "EXPIRY_MINUTES", description: "How long the link is valid for" },
       ...COMMON_VARS,
     ],
-    defaultSubject: "Reset your {COMPANY_SHORT_NAME} HR Portal password",
+    defaultSubject: "Reset your TIA HRMS password",
     defaultBody: `Hi,
 
 We received a request to reset your password.

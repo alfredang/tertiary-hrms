@@ -44,7 +44,7 @@ async function runReminder() {
   const missed = await getMissedPunches(interns, today, addDays(today, 1));
   const byId = new Map(interns.map((i) => [i.id, i]));
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" }, select: { name: true } });
-  const company = settings?.name || "HR Portal";
+  const company = settings?.name || "TIA HRMS";
 
   let notified = 0;
   let emailed = 0;

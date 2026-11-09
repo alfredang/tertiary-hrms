@@ -146,7 +146,7 @@ ${buttonsHtml}
 <div style="height:1px;background:#E5E9F0;margin:24px 0 0;"></div>
 </div>
 <div style="padding:0 32px 28px;">
-<p style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin:0;">Or review this request directly in the <a href="${siteUrl}" style="color:#2563EB;text-decoration:none;">HR Portal &#x2192;</a></p>
+<p style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin:0;">Or review this request directly in the <a href="${siteUrl}" style="color:#2563EB;text-decoration:none;">TIA HRMS &#x2192;</a></p>
 <p style="font-size:12.5px;color:#9CA3AF;line-height:1.6;margin:6px 0 0;">This is an automated notification from ${esc(companyName)} HRMS. Do not reply to this email.</p>
 </div>
 </div>

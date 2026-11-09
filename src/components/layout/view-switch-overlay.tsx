@@ -24,7 +24,7 @@ export function ViewSwitchOverlay() {
   return (
     <div className="fixed inset-x-0 bottom-0 top-16 z-30 flex items-center justify-center bg-gray-900/70 backdrop-blur-[1px] lg:pl-[var(--sidebar-w,18rem)]">
       <div className="flex flex-col items-center gap-3 text-gray-300">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
         <p className="text-sm font-medium">Switching to {role}…</p>
       </div>
     </div>

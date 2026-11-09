@@ -1,11 +1,11 @@
 {
-  "name": "HR Portal - Tertiary Infotech",
-  "short_name": "HR Portal",
-  "description": "Human Resources Management System for Tertiary Infotech Academy",
+  "name": "TIA HRMS",
+  "short_name": "TIA HRMS",
+  "description": "TIA HRMS \u2014 HR, payroll, leave, trainers and accounting for Tertiary Infotech Academy",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#6366f1",
+  "background_color": "#0D1638",
+  "theme_color": "#1A2F86",
   "orientation": "portrait-primary",
   "icons": [
     {

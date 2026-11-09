@@ -99,7 +99,7 @@ export async function sendEmail({
   attachments?: EmailAttachment[];
 }) {
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-  const companyName = settings?.name || "HR Portal";
+  const companyName = settings?.name || "TIA HRMS";
   const ccList = Array.isArray(cc) ? cc : cc ? [cc] : [];
 
   // ── Try SMTP first (if configured); fall back to Gmail OAuth on failure ──

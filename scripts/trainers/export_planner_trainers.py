@@ -202,7 +202,9 @@ def finalize(row):
     training, pro, files, fit_files = enrich(row, n)
     evidence = [x for x in row["skills"] + row["quals"] + row["folderLabels"] + [row["education"]] + row["experience"] if td.FIN.search(x or "")]
     acta_trainer = row["type"] in ("ACLP", "DACE") or bool(row["folder"]) or bool(training)
-    last = max([c["last"] for c in row["courses"] if c["last"]] + [g["date"] for g in row["calendarClasses"] if g.get("date")] or [""])
+    today = datetime.now().strftime("%Y-%m-%d")      # "last class" = most recent class already taught, not a scheduled one
+    last = max([d for d in [r["start"] for r in row["recentClasses"]] + [c["first"] for c in row["courses"] if c["first"]]
+                + [g["date"] for g in row["calendarClasses"] if g.get("date")] if d and d <= today] or [""])
     return {
         "sourceKey": row["sourceKey"], "tmsId": row["tmsId"], "name": row["name"], "nickname": row["nickname"] or None,
         "nric": row["nric"] or None, "phone": row["phone"] or None, "email": (row["email"] or "").lower() or None,
@@ -240,7 +242,9 @@ def main():
         extra = json.load(open(os.path.join(td.ACTA_DIR, "_trainer-labels.json")))
     except (OSError, ValueError):
         extra = {}
-    folders = {f: (toks, sorted(set(labels + extra.get(f, [])), key=str.lower)) for f, (toks, labels) in folders.items()}
+    # "(DR)" in a house-rule folder name is the doctorate marker, not a topic label.
+    folders = {f: (toks, sorted(set(l for l in labels + extra.get(f, []) if l.strip().upper() != "DR"), key=str.lower))
+               for f, (toks, labels) in folders.items()}
     rows, used = tms_rows(snap, notes, cal_classes, folders)
     rows += folder_rows(rows, used, notes, cal_classes, folders)
     trainers = [finalize(r) for r in rows if r["name"]]

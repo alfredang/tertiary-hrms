@@ -48,7 +48,7 @@ async function sendViaSmtp(to: string, code: string) {
   });
 
   const branding = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-  const companyName = branding?.name || "HR Portal";
+  const companyName = branding?.name || "TIA HRMS";
   const { subject, htmlBody } = await buildOtpHtml(code, to);
 
   await transport.sendMail({ from: `${companyName} <${from || user}>`, to, subject, html: htmlBody });
@@ -101,7 +101,7 @@ async function sendViaGmailOAuth(
   }
 
   const branding = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
-  const companyName = branding?.name || "HR Portal";
+  const companyName = branding?.name || "TIA HRMS";
   const { subject, htmlBody } = await buildOtpHtml(code, to);
 
   const raw = [

@@ -11,7 +11,7 @@ export interface CompanyBranding {
   logo: string | null;
 }
 
-const FALLBACK_NAME = "HR Portal";
+const FALLBACK_NAME = "TIA HRMS";
 
 export async function getCompanyBranding(): Promise<CompanyBranding> {
   const settings = await prisma.companySettings.findUnique({

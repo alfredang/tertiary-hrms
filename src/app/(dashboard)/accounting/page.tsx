@@ -112,8 +112,8 @@ export default async function AccountingPage() {
         className="group flex items-center justify-between bg-gray-950 border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-violet-900/30">
-            <Scale className="h-6 w-6 text-violet-300" />
+          <div className="p-3 rounded-xl bg-sky-900/30">
+            <Scale className="h-6 w-6 text-sky-300" />
           </div>
           <div>
             <p className="text-sm text-gray-400">Bank Reconciliation</p>
