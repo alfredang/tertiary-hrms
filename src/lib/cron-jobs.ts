@@ -11,6 +11,8 @@ export interface BuiltInCronJob {
   method: "GET" | "POST";
   path: string;
   status: "active" | "planned";
+  /** Job records each run in CronJobRun (src/lib/cron-run-log.ts); the panel then shows its last run. */
+  logsRuns?: boolean;
 }
 
 export const BUILT_IN_CRON_JOBS: BuiltInCronJob[] = [
@@ -46,5 +48,30 @@ export const BUILT_IN_CRON_JOBS: BuiltInCronJob[] = [
     method: "GET",
     path: "/api/cron/deactivate-expired-interns",
     status: "active",
+  },
+  // ── Finance agents (log every run to CronJobRun; see src/lib/cron-run-log.ts) ──
+  {
+    id: "quickbooks-health",
+    name: "QuickBooks Liveness Monitor",
+    description:
+      "Read-only health check of the QuickBooks connection: refreshes the OAuth token, makes a CompanyInfo call, records latency and the refresh-token expiry horizon. Alerts Alfred Ang and Tan Soik Ching (in-app + email) when it fails or the refresh token has 14 days or less left.",
+    schedule: "Daily at 07:00 SGT",
+    cron: "0 23 * * *",
+    method: "GET",
+    path: "/api/cron/quickbooks-health",
+    status: "active",
+    logsRuns: true,
+  },
+  {
+    id: "weekly-bank-reconciliation",
+    name: "Weekly Bank Reconciliation",
+    description:
+      "Matches the latest period of imported DBS statement rows against QuickBooks bank activity (read-only), stores the run under Accounting → Bank Reconciliation and emails the finance admins the match rate, unmatched items and differences. Append ?month=YYYY-MM to reconcile a whole month.",
+    schedule: "Mondays at 08:00 SGT",
+    cron: "0 0 * * 1",
+    method: "GET",
+    path: "/api/cron/bank-reconciliation",
+    status: "active",
+    logsRuns: true,
   },
 ];

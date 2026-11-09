@@ -37,6 +37,7 @@ import {
   ShieldCheck,
   Timer,
   AlarmClock,
+  Scale,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -105,6 +106,7 @@ const navigation: NavItem[] = [
     children: [
       { name: "Expense Tracking", href: "/accounting/expense-tracking", icon: TrendingDown },
       { name: "Income Tracking",  href: "/accounting/income-tracking",  icon: TrendingUp   },
+      { name: "Bank Reconciliation", href: "/accounting/reconciliation", icon: Scale },
       {
         name: "Bank Statements",
         href: "https://drive.google.com/drive/u/1/folders/1U6MCWuKZQ4wWZqn36AVHUeOD7a-URAaY",
