@@ -67,7 +67,7 @@ Earlier additions (August 2026):
 Earlier additions (July 2026):
 
 - **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer plus a **monthly daily history** (date, check-in, check-out, hours) with month navigation, total hours and days worked. A punch with no clock-out shows the **hours so far** when it is today, or **"No clock-out"** for an earlier day (a missed clock-out, so it adds no hours). Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
-- **Timesheet** (`/timesheet/overview`, admin; the old Intern Attendance page `/attendance/overview` redirects here) — one page for interns: missing-punch approvals, Off In Lieu approvals (shown only when there are any), and every active intern (`employmentType = INTERN`, so zero-check-in interns are visible) plus anyone else who punched that month, with days worked, total hours, last check-in and a live "Working" badge; select a row to open that intern's daily check-in / check-out history. Served by `/api/attendance/summary` (admin only) and `/api/attendance/history?month=YYYY-MM[&employeeId=]`, mirrored 1:1 at `/api/mobile/attendance/{summary,history}` for the native apps.
+- **Timesheet** (`/timesheet/overview`, admin; the old Intern Attendance page `/attendance/overview` redirects here) — one page for interns: missing-punch approvals, Off In Lieu approvals (shown only when there are any), and every intern (`employmentType = INTERN`: all active interns, so zero-check-in interns are visible, plus interns who left but punched that month; staff are not listed), with days worked, total hours, last check-in and a live "Working" badge; select a row to open that intern's daily check-in / check-out history. Served by `/api/attendance/summary` (admin only) and `/api/attendance/history?month=YYYY-MM[&employeeId=]`, mirrored 1:1 at `/api/mobile/attendance/{summary,history}` for the native apps.
 - **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, others) measured in hours on a single date; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.
 - **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
   - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
@@ -413,8 +413,8 @@ npx playwright test e2e/01-auth.spec.ts
 # Verify database state (read-only, safe for production)
 npx dotenv-cli -e .env.local -- npx tsx scripts/verify-db.ts
 
-# Create salary info for test accounts (safe, only touches test employees)
-npx dotenv-cli -e .env.local -- npx tsx scripts/setup-test-salary.ts
+# App Review demo login for the native apps (no sample records unless --with-samples)
+npx tsx scripts/create-demo-employee.ts
 ```
 
 > **Note:** Prisma doesn't auto-load `.env.local` on Windows — use the `dotenv-cli -e .env.local --` prefix for scripts.
@@ -442,9 +442,12 @@ tertiary-hrms/
 │   └── 10-settings.spec.ts        # Company settings + RBAC
 ├── scripts/
 │   ├── trainers/                  # Trainer export (Mac) / import / ACTA folder rename tools
-│   ├── import-staff.ts            # Import staff from Excel + create test accounts
+│   ├── create-demo-employee.ts    # App Review demo login for the native apps
+│   ├── create-drive-folders.ts    # One-time Google Drive folder setup (+ share-drive-folders.ts)
+│   ├── import-staff.ts            # Import staff from Excel
+│   ├── seed-company-settings.ts   # Seed the CompanySettings row
 │   ├── verify-db.ts               # Read-only database verification
-│   └── setup-test-salary.ts       # Create salary info for test accounts
+│   └── year-end-rollover.ts       # Year-end leave rollover
 ├── src/
 │   ├── app/
 │   │   ├── (auth)/                # Login page

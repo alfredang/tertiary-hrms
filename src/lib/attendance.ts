@@ -160,8 +160,8 @@ export interface AttendanceSummaryDto {
 }
 
 /**
- * Admin roll-up for a month: every active intern (even with zero punches, so
- * no-shows are visible) plus anyone else who punched in that month.
+ * Admin roll-up for a month: interns only (timesheets are for interns). Every active intern, even
+ * with zero punches so no-shows are visible, plus interns who left but punched in that month.
  */
 export async function getAttendanceSummary(month: string | null | undefined): Promise<AttendanceSummaryDto> {
   const range = monthRange(month);
@@ -188,7 +188,7 @@ export async function getAttendanceSummary(month: string | null | undefined): Pr
   const ids = Array.from(new Set([...Array.from(internIds), ...punches.map((p) => p.employeeId)]));
 
   const employees = await prisma.employee.findMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, employmentType: "INTERN" },
     select: { id: true, name: true, employeeId: true },
   });
 

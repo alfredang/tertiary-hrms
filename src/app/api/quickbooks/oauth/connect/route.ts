@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic"; // reads credentials per request; never prerender
+
 const QBO_AUTH_URL = "https://appcenter.intuit.com/connect/oauth2";
 const SCOPES = "com.intuit.quickbooks.accounting";
 
