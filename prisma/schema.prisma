@@ -836,3 +836,30 @@ model Trainer {
   @@index([name])
   @@index([status])
 }
+
+/// Company Standard Operating Procedures shown under /sop (open to every signed-in user).
+/// Seeded from the TPQA Policy & Operations Manual by scripts/seed-sops.ts (upsert by slug);
+/// src/lib/sops.ts falls back to the static list in src/lib/sop-data.ts while this table is empty.
+model Sop {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  /// One of SOP_CATEGORIES in src/lib/sop-data.ts (Operations, Finance, …)
+  category   String
+  summary    String
+  purpose    String?
+  scope      String?
+  /// Role or department that owns the procedure, e.g. "Training Executive"
+  owner      String?
+  triggers   Json? // string[]: when to use this SOP
+  steps      Json // ordered [{title, detail, items?, owner?, timing?, note?, links?}]
+  references Json? // [{label, value, href?}]
+  /// Where the procedure comes from, e.g. "TPQA POM v4.0 (May 2025), section 1.3.1a"
+  source     String?
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([category, sortOrder])
+}

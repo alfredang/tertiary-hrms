@@ -1,106 +1,102 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  ExternalLink,
-  Flag,
-  Link2,
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, Clock, ExternalLink, FileText, Link2, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSop } from "@/lib/sop-data";
+import { getSopBySlug } from "@/lib/sops";
 
 export const dynamic = "force-dynamic";
 
-// SOP detail — a visual process view: a horizontal flow overview of all
-// steps, then a numbered vertical timeline with the full instructions.
-// Open to all authenticated users (staff and interns).
-export default function SopDetailPage({ params }: { params: { slug: string } }) {
-  const sop = getSop(params.slug);
+// SOP detail: purpose / scope / owner, then the numbered steps with who and when, then references
+// and the source section of the manual. Open to all authenticated users (staff and interns).
+export default async function SopDetailPage({ params }: { params: { slug: string } }) {
+  const sop = await getSopBySlug(params.slug);
   if (!sop) notFound();
 
+  const meta = [
+    { label: "Purpose", value: sop.purpose },
+    { label: "Scope", value: sop.scope },
+    { label: "Owner", value: sop.owner },
+  ].filter((m): m is { label: string; value: string } => Boolean(m.value));
+  const updated = sop.updatedAt
+    ? new Date(sop.updatedAt).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })
+    : null;
+
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="max-w-4xl space-y-6">
       <div>
         <Link
           href="/sop"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" /> All SOPs
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">{sop.title}</h1>
-          <span className="rounded-full border border-gray-700 px-2.5 py-0.5 text-xs text-gray-400">
-            {sop.category}
-          </span>
+          <h1 className="text-2xl font-bold text-white sm:text-3xl">{sop.title}</h1>
+          <span className="rounded-full border border-gray-700 px-2.5 py-0.5 text-xs text-gray-400">{sop.category}</span>
         </div>
-        <p className="mt-2 text-sm sm:text-base text-gray-400">{sop.description}</p>
-        <p className="mt-1 text-xs text-gray-500">Last updated: {sop.updated}</p>
+        <p className="mt-2 text-sm text-gray-400 sm:text-base">{sop.summary}</p>
       </div>
 
-      {/* When this SOP applies */}
-      {sop.triggers && sop.triggers.length > 0 && (
+      {(meta.length > 0 || (sop.triggers && sop.triggers.length > 0)) && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Flag className="h-4 w-4 text-primary" /> When to use this SOP
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <ul className="space-y-1.5">
-              {sop.triggers.map((t) => (
-                <li key={t} className="flex items-start gap-2 text-sm text-gray-300">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  {t}
-                </li>
+          <CardContent className="p-5">
+            <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[8rem_1fr]">
+              {meta.map((m) => (
+                <div key={m.label} className="contents">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 sm:pt-0.5">{m.label}</dt>
+                  <dd className="text-sm text-gray-200">{m.value}</dd>
+                </div>
               ))}
-            </ul>
+              {sop.triggers && sop.triggers.length > 0 && (
+                <div className="contents">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-500 sm:pt-0.5">When to use</dt>
+                  <dd>
+                    <ul className="space-y-1">
+                      {sop.triggers.map((t) => (
+                        <li key={t} className="flex items-start gap-2 text-sm text-gray-200">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </dd>
+                </div>
+              )}
+            </dl>
           </CardContent>
         </Card>
       )}
 
-      {/* Process flow overview */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Process at a glance</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="flex flex-wrap items-center gap-y-3">
-            {sop.steps.map((step, i) => (
-              <div key={step.title} className="flex items-center">
-                <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-on-color">
-                    {i + 1}
-                  </span>
-                  <span className="text-xs font-medium text-gray-200">{step.title}</span>
-                </div>
-                {i < sop.steps.length - 1 && (
-                  <ArrowRight className="mx-1.5 h-4 w-4 shrink-0 text-gray-600" />
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Step-by-step timeline */}
       <div>
-        <h2 className="mb-4 text-lg font-semibold text-white">Step-by-step</h2>
-        <ol className="relative space-y-6 border-l border-gray-700 pl-8 ml-4">
+        <h2 className="mb-4 text-lg font-semibold text-white">Steps</h2>
+        <ol className="relative ml-4 space-y-4 border-l border-gray-700 pl-8">
           {sop.steps.map((step, i) => (
-            <li key={step.title} className="relative">
+            <li key={`${i}-${step.title}`} className="relative">
               <span className="absolute -left-[3.25rem] flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-color ring-4 ring-gray-900">
                 {i + 1}
               </span>
               <Card>
-                <CardContent className="p-5">
+                <CardContent className="p-4 sm:p-5">
                   <h3 className="font-semibold text-white">{step.title}</h3>
-                  <p className="mt-1.5 text-sm text-gray-300">{step.summary}</p>
+                  {(step.owner || step.timing) && (
+                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                      {step.owner && (
+                        <span className="inline-flex items-center gap-1">
+                          <UserRound className="h-3.5 w-3.5 text-primary" /> {step.owner}
+                        </span>
+                      )}
+                      {step.timing && (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-primary" /> {step.timing}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {step.detail && <p className="mt-2 text-sm text-gray-300">{step.detail}</p>}
 
-                  {step.details && step.details.length > 0 && (
-                    <ul className="mt-3 space-y-1.5">
-                      {step.details.map((d) => (
+                  {step.items && step.items.length > 0 && (
+                    <ul className="mt-2.5 space-y-1.5">
+                      {step.items.map((d) => (
                         <li key={d} className="flex items-start gap-2 text-sm text-gray-400">
                           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-500" />
                           {d}
@@ -124,7 +120,7 @@ export default function SopDetailPage({ params }: { params: { slug: string } }) 
                           href={l.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-md border border-gray-700 px-2.5 py-1 text-xs text-primary hover:bg-gray-800 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-gray-700 px-2.5 py-1 text-xs text-primary transition-colors hover:bg-gray-800"
                         >
                           <ExternalLink className="h-3 w-3" /> {l.label}
                         </a>
@@ -138,32 +134,21 @@ export default function SopDetailPage({ params }: { params: { slug: string } }) 
         </ol>
       </div>
 
-      {/* Reference table */}
       {sop.references && sop.references.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Link2 className="h-4 w-4 text-primary" /> Quick reference
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <dl className="divide-y divide-gray-800">
               {sop.references.map((r) => (
-                <div
-                  key={r.label}
-                  className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-center sm:gap-4"
-                >
-                  <dt className="w-full text-xs font-medium uppercase tracking-wide text-gray-500 sm:w-48 shrink-0">
-                    {r.label}
-                  </dt>
-                  <dd className="text-sm text-gray-300 break-all">
+                <div key={r.label} className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-center sm:gap-4">
+                  <dt className="w-full shrink-0 text-xs font-medium uppercase tracking-wide text-gray-500 sm:w-48">{r.label}</dt>
+                  <dd className="break-words text-sm text-gray-300">
                     {r.href ? (
-                      <a
-                        href={r.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
+                      <a href={r.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                         {r.value}
                       </a>
                     ) : (
@@ -175,6 +160,17 @@ export default function SopDetailPage({ params }: { params: { slug: string } }) 
             </dl>
           </CardContent>
         </Card>
+      )}
+
+      {(sop.source || updated) && (
+        <p className="flex items-start gap-2 border-t border-gray-800 pt-4 text-xs text-gray-500">
+          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            {sop.source && <>Source: {sop.source}</>}
+            {sop.source && updated && " · "}
+            {updated && <>Last updated {updated}</>}
+          </span>
+        </p>
       )}
     </div>
   );
