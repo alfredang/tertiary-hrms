@@ -47,7 +47,15 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
-Recent additions (August 2026):
+Recent additions (November 2026):
+
+- **Trainer Management** (`/trainers`, role **Trainer Admin**) — a directory of every ACTA trainer (LMS/TMS trainers, the ACTA Trainers folder on the admin's Mac, and trainer applications found in email) with one profile page per trainer: name, NRIC (masked, click to show), tel, email, education, professional certifications (PMP, CCAR-F, CFA…), skills (Articulate, Python…), work experience, courses taught and recent classes. Filter by **ACLP / ACTA / DACE / DDDLP**, **finance background**, **IBF Fit and Proper declaration on file**, skills and certifications; search across name, skills, courses and education. Trainer names follow the house rule *FULL NAME IN CAPITALS*, `(DR)` for doctorates — the same names as the ACTA Trainers folders. Data is pushed from the Mac (`scripts/trainers/`, or `POST /api/agent/trainers/import` with the agent API key); Trainer Admin edits survive re-imports.
+- **Bank Reconciliation vs QuickBooks** (`/accounting/reconciliation`, admin/accountant) — matches imported DBS bank transactions against QuickBooks expenses, deposits, payments and transfers (exact amount + direction within ±3 days, ranked by payee/reference similarity; amount mismatches flagged), with manual match/unmatch, "reviewed" notes, and a balance summary. Read-only QuickBooks client with token refresh and retries (`src/lib/quickbooks/client.ts`).
+- **Scheduled agents** (Settings → Cron Jobs, each with last run / status / Run Now; called by Coolify cron with `Authorization: Bearer <CRON_SECRET>`): QuickBooks liveness monitor (daily 07:00 SGT), weekly bank reconciliation (Mon 08:00 SGT), intern missed clock-out reminder (daily 21:00 SGT) and admin roll-up (daily 08:30 SGT), HR compliance agent (Mon 08:30 SGT). Alerts go to Alfred Ang and Tan Soik Ching by notification and email.
+- **Leave policy and intern attendance** — strict monthly proration of AL/MC and the 21-day NPL cap, AL beyond balance redirected to No Pay Leave, no paid MC for interns, mandatory intern clock in/out with missing-punch corrections, and an admin HR overview on the dashboard (see Leave Management below).
+- **Claude Code guardrails** (`.claude/settings.json`, `.claude/hooks/hrms_guard.py`, `.claude/rules/`) — block destructive Prisma commands against the production database (every `db push` is previewed and must be additive), block committing PII paths, run the related business-logic tests after edits, and gate pushes on `tsc` + `vitest`.
+
+Earlier additions (August 2026):
 
 - **AI agent leave & MC summary API** (`GET /api/agent/leave-summary?month=YYYY-MM[&format=json|markdown]`) — read-only monthly report of every active staff member and intern (plus anyone who left during the month) for an external AI agent to pull on a schedule. Returns approved vs pending days per leave type (AL, MC, CL, NPL, AL_OT) counted as working days inside the month — leaves crossing a month boundary are split and half days respected — intern hourly time-off, year balances, and company totals; `format=markdown` returns a ready-to-send report. Authenticated with `Authorization: Bearer <AGENT_API_KEY>`, the key stored in `CompanyCredential` and managed (generate / rotate) under **Settings → Credentials → AI Agent API Key**; `month` defaults to the previous month in SGT. Admins see the same report in the native apps via `/api/mobile/leave-summary?month=YYYY-MM` (session auth, defaults to the current month).
 - **Google Drive connection hardening** (Settings → Credentials → Google OAuth) — the stored Google OAuth refresh token drives both outbound email **and** Drive uploads (CPF statement archiving, payslip PDFs), so it must be minted with **both** scopes: `https://mail.google.com/` and `https://www.googleapis.com/auth/drive`. The credentials card now says so, and a new **Test Drive** button (`/api/settings/test-drive`) verifies token refresh *and* write access to the shared CPF Drive folder in one click. An expired/revoked token now surfaces an actionable message on the CPF upload page instead of a raw `invalid_grant`. Pasted credentials are sanitised (quotes/whitespace) and fall back to `GMAIL_*` env vars.
@@ -114,6 +122,7 @@ Earlier additions (May 2026):
 - **Admin view**: full access to all employees, leave requests, expenses, payroll, and settings
 - **Staff view**: can only see own leave, expenses, payslips, and personal profile
 - View toggle lets admins preview the staff experience
+- **Trainer Admin** (`TRAINER_ADMIN`) is a separate role held alongside a person's normal role; only it opens Trainer Management (trainer records hold NRIC). It never becomes the primary role, so it does not change anyone's dashboard or view
 - Settings page restricted to admin view only
 - Employee list filters and edit buttons hidden in staff view
 - All API routes enforce role-based permissions
@@ -202,6 +211,15 @@ Earlier additions (May 2026):
 - Add/edit/delete events with ownership enforcement
 - Event type legend with color indicators
 - Month navigation (prev/next) and Today button
+
+### Trainer Management (Trainer Admin only)
+- Directory with headline counts (trainers, ACLP, ACTA, DACE, DDDLP, finance background, IBF Fit declaration, applicants) that double as one-click filters; filters live in the URL so searches can be bookmarked
+- Profile page per trainer: identity and contact, accreditation flags, certifications, education, skills, work experience, courses taught, recent TMS classes, Google Calendar classes, evidence files on record, admin notes; **Edit** and **Add trainer**
+- Import pipeline: `python3 scripts/trainers/export_planner_trainers.py` → `npx tsx scripts/trainers/import-trainers.ts [--dry-run]`; ACTA folder renames to the naming rule with `python3 scripts/trainers/rename_acta_folders.py [--apply | --undo <manifest>]`. Exports land in the git-ignored `.trainers/` (PII)
+
+### Bank Reconciliation (Admin / Accountant)
+- `/accounting/reconciliation`: matched, amount mismatch, unmatched-in-bank and unmatched-in-QuickBooks tabs, period and account pickers, QuickBooks health badge with "Check now"
+- Runs and matches are stored (`BankReconciliation`, `BankReconciliationItem`); manual matches carry into later runs
 
 ### Settings (Admin Only)
 - Company information management (name, UEN, address, phone, email, website)
@@ -415,6 +433,7 @@ tertiary-hrms/
 │   ├── 09-employees.spec.ts       # Employee directory + profile
 │   └── 10-settings.spec.ts        # Company settings + RBAC
 ├── scripts/
+│   ├── trainers/                  # Trainer export (Mac) / import / ACTA folder rename tools
 │   ├── import-staff.ts            # Import staff from Excel + create test accounts
 │   ├── verify-db.ts               # Read-only database verification
 │   └── setup-test-salary.ts       # Create salary info for test accounts
