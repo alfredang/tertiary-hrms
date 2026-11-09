@@ -46,7 +46,7 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string; className: string 
   { value: "ACTIVE",     label: "Active",     className: "bg-green-900 text-green-200 border-green-800" },
   { value: "ON_LEAVE",   label: "On Leave",   className: "bg-amber-900 text-amber-200 border-amber-800" },
   { value: "TERMINATED", label: "Terminated", className: "bg-red-900 text-red-200 border-red-800" },
-  { value: "RESIGNED",   label: "Resigned",   className: "bg-gray-100 text-gray-800 border-gray-200" },
+  { value: "RESIGNED",   label: "Resigned",   className: "bg-gray-900 text-gray-300 border-gray-800" },
   { value: "INACTIVE",   label: "Inactive",   className: "bg-slate-900 text-slate-200 border-slate-800" },
 ];
 

@@ -191,19 +191,19 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
             <table className="allow-wrap w-full text-sm mb-6">
               <tbody>
                 <tr>
-                  <td className="py-1 font-semibold text-gray-700 w-40">Employee Name</td>
+                  <td className="py-1 font-semibold text-[#334155] w-40">Employee Name</td>
                   <td className="py-1">{SAMPLE.employeeName}</td>
-                  <td className="py-1 font-semibold text-gray-700 w-40">Employee ID</td>
+                  <td className="py-1 font-semibold text-[#334155] w-40">Employee ID</td>
                   <td className="py-1">{SAMPLE.employeeId}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 font-semibold text-gray-700">NRIC</td>
+                  <td className="py-1 font-semibold text-[#334155]">NRIC</td>
                   <td className="py-1">{SAMPLE.nric}</td>
-                  <td className="py-1 font-semibold text-gray-700">Payment Date</td>
+                  <td className="py-1 font-semibold text-[#334155]">Payment Date</td>
                   <td className="py-1">{SAMPLE.paymentDate}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 font-semibold text-gray-700">Month of Payment</td>
+                  <td className="py-1 font-semibold text-[#334155]">Month of Payment</td>
                   <td className="py-1" colSpan={3}>{SAMPLE.month}</td>
                 </tr>
               </tbody>
@@ -248,7 +248,7 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
             {/* Editable footer/remarks */}
             <div className="border-t border-gray-300 pt-4 mt-6">
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Remarks</p>
-              <pre className="whitespace-pre-wrap font-sans text-xs text-gray-700 leading-relaxed">
+              <pre className="whitespace-pre-wrap font-sans text-xs text-[#334155] leading-relaxed">
                 {renderPreview(body) || <span className="text-gray-400 italic">Footer is empty.</span>}
               </pre>
             </div>

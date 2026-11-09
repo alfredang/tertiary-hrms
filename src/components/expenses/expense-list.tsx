@@ -48,7 +48,7 @@ const statusColors: Record<string, string> = {
   PENDING: "bg-amber-900 text-amber-200 border-amber-800",
   APPROVED: "bg-green-900 text-green-200 border-green-800",
   REJECTED: "bg-red-900 text-red-200 border-red-800",
-  CANCELLED: "bg-gray-100 text-gray-800 border-gray-200",
+  CANCELLED: "bg-gray-900 text-gray-300 border-gray-800",
 };
 
 const categoryIcons: Record<string, string> = {

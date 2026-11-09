@@ -46,7 +46,7 @@ interface PayrollListProps {
 }
 
 const statusColors: Record<PayslipStatus, string> = {
-  DRAFT: "bg-gray-100 text-gray-800 border-gray-200",
+  DRAFT: "bg-gray-900 text-gray-300 border-gray-800",
   GENERATED: "bg-blue-900 text-blue-200 border-blue-800",
   PAID: "bg-green-900 text-green-200 border-green-800",
 };

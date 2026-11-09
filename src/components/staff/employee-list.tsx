@@ -26,7 +26,7 @@ const statusColors: Record<EmployeeStatus, string> = {
   ACTIVE: "bg-green-900 text-green-200 border-green-800",
   ON_LEAVE: "bg-amber-900 text-amber-200 border-amber-800",
   TERMINATED: "bg-red-900 text-red-200 border-red-800",
-  RESIGNED: "bg-gray-100 text-gray-800 border-gray-200",
+  RESIGNED: "bg-gray-900 text-gray-300 border-gray-800",
   INACTIVE: "bg-slate-900 text-slate-200 border-slate-800",
 };
 
@@ -43,7 +43,7 @@ const roleColors: Record<Role, string> = {
   HR:         "bg-blue-900 text-blue-200 border-blue-800",
   MANAGER:    "bg-blue-900 text-blue-200 border-blue-800",
   ACCOUNTANT: "bg-sky-900 text-sky-200 border-sky-800",
-  STAFF:      "bg-gray-100 text-gray-800 border-gray-200",
+  STAFF:      "bg-gray-900 text-gray-300 border-gray-800",
   INTERN:     "bg-amber-900 text-amber-200 border-amber-800",
   TRAINER_ADMIN: "bg-teal-900 text-teal-200 border-teal-800",
 };

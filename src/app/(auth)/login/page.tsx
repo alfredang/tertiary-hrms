@@ -249,8 +249,8 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-2">
-      {/* ── Left panel (white): branding, headline, app download badges ───── */}
-      <div className="flex items-center justify-center bg-on-color px-6 py-12 lg:px-12 lg:py-16">
+      {/* ── Left panel (premium blue): branding, headline, app download badges ── */}
+      <div className="flex items-center justify-center bg-gradient-to-br from-[#0D1638] via-[#1A2F86] to-[#2F5BE6] px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-lg space-y-8 text-center lg:text-left">
           <div className="flex items-center justify-center gap-3 lg:justify-start">
             {branding.logo ? (
@@ -262,18 +262,18 @@ function LoginForm() {
               />
             ) : (
               <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-                <span className="text-xl font-bold text-white">{logoInitials}</span>
+                <span className="text-xl font-bold text-on-color">{logoInitials}</span>
               </div>
             )}
-            <span className="text-lg font-semibold text-gray-900">{displayName}</span>
+            <span className="text-lg font-semibold text-on-color">{displayName}</span>
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+            <h1 className="text-4xl font-bold tracking-tight text-on-color sm:text-5xl">
               Your HR portal,
               <br className="hidden sm:block" /> in one place.
             </h1>
-            <p className="mx-auto max-w-lg text-lg text-gray-600 lg:mx-0">
+            <p className="mx-auto max-w-lg text-lg text-[#C9D8FF] lg:mx-0">
               Leave, payslips, expense claims, timesheets and the team calendar — for
               everyone at {footerName}, on the web and on your phone.
             </p>
@@ -281,7 +281,7 @@ function LoginForm() {
 
           {/* App download badges */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-500">Get the mobile app</p>
+            <p className="text-sm font-medium text-[#C9D8FF]">Get the mobile app</p>
             <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
               <AppStoreBadge />
               <GooglePlayBadge />
@@ -578,16 +578,16 @@ function LoginForm() {
 function LoginSkeleton() {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-2">
-      <div className="flex items-center justify-center bg-on-color px-6 py-12 lg:px-12 lg:py-16">
+      <div className="flex items-center justify-center bg-gradient-to-br from-[#0D1638] via-[#1A2F86] to-[#2F5BE6] px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-lg space-y-8">
-          <div className="h-12 w-12 bg-gray-200 rounded-xl animate-pulse mx-auto lg:mx-0" />
+          <div className="h-12 w-12 bg-on-color/15 rounded-xl animate-pulse mx-auto lg:mx-0" />
           <div className="space-y-3">
-            <div className="h-12 bg-gray-200 rounded w-full max-w-md animate-pulse" />
-            <div className="h-5 bg-gray-200 rounded w-full animate-pulse" />
+            <div className="h-12 bg-on-color/15 rounded w-full max-w-md animate-pulse" />
+            <div className="h-5 bg-on-color/15 rounded w-full animate-pulse" />
           </div>
           <div className="flex gap-3 justify-center lg:justify-start">
-            <div className="h-14 w-44 bg-gray-200 rounded-xl animate-pulse" />
-            <div className="h-14 w-44 bg-gray-200 rounded-xl animate-pulse" />
+            <div className="h-14 w-44 bg-on-color/15 rounded-xl animate-pulse" />
+            <div className="h-14 w-44 bg-on-color/15 rounded-xl animate-pulse" />
           </div>
         </div>
       </div>
