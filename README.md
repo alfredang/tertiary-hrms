@@ -76,7 +76,7 @@ Earlier additions (July 2026):
   - Parsing runs on the **Claude Agent SDK under the company's Claude subscription** (OAuth token from `claude setup-token`, stored as `CLAUDE_API_KEY` in Settings → Credentials) — no pay-as-you-go API keys.
   - Claude auth failures are classified instead of masked: a token whose Claude organization has **disabled subscription access for Claude Code** (403 `oauth_not_allowed_for_organization`) is reported as such — re-issuing from the same org won't help, so generate the token from an account whose org allows Claude Code (e.g. a personal Pro/Max plan). Only a genuinely invalid/expired token gets the "expired" message; other SDK errors surface verbatim.
 - **Payroll Management sidebar dropdown** — expands into **Payroll** and **Upload CPF** (the latter admin-only).
-- **SOP section** — browsable standard-operating-procedure pages at `/sop`.
+- **SOP library** (`/sop`) — the 46 standard operating procedures from Tertiary's TPQA Policy & Operations Manual (v4.0), stored in the `Sop` table and grouped by function (Operations, Learner Services, Assessment, Course Development & Quality, Trainers, Marketing, Finance, Funding & Grants, Governance & Compliance) with search; each SOP has numbered steps with owner and deadline and its source section. Seed: `npx tsx scripts/seed-sops.ts [--apply]` (source `src/lib/sop-data.ts`).
 
 Earlier additions (May 2026):
 
@@ -446,6 +446,7 @@ tertiary-hrms/
 │   ├── create-drive-folders.ts    # One-time Google Drive folder setup (+ share-drive-folders.ts)
 │   ├── import-staff.ts            # Import staff from Excel
 │   ├── seed-company-settings.ts   # Seed the CompanySettings row
+│   ├── seed-sops.ts               # Load the TPQA SOPs into the Sop table
 │   ├── verify-db.ts               # Read-only database verification
 │   └── year-end-rollover.ts       # Year-end leave rollover
 ├── src/
