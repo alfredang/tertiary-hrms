@@ -94,26 +94,25 @@ describe("roundToHalf — floor to nearest 0.5", () => {
 });
 
 // ---- prorateLeave — deterministic with fake timers ----
+// Policy (Nov 2026): entitlement × COMPLETED months served this year / 12,
+// rounded down to 0.5. A month counts once complete, measured from the join
+// date (1 Jan for earlier joiners); the month in progress counts as 0.
 
 describe("prorateLeave — March 15, 2026", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  // Pin: March 15, 2026 (currentMonth=2, i.e. March)
-  // Join month is INCLUSIVE for all employees.
-  // elapsed = currentMonth - startMonth + 1
-
-  it("should give existing employee 14 AL → 14 * 3/12 = 3.5", () => {
+  it("should give existing employee 14 → Jan + Feb completed → 14 * 2/12 = 2.33 → 2", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(3.5);
+    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(2);
   });
 
-  it("should give existing employee 7 MC → 7 * 3/12 = 1.75 → 1.5", () => {
+  it("should give existing employee 7 MC → 7 * 2/12 = 1.17 → 1", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    expect(prorateLeave(7, new Date("2020-06-15"))).toBe(1.5);
+    expect(prorateLeave(7, new Date("2020-06-15"))).toBe(1);
   });
 
   it("should give existing employee 0 NPL → 0", () => {
@@ -122,38 +121,34 @@ describe("prorateLeave — March 15, 2026", () => {
     expect(prorateLeave(0, new Date("2020-06-15"))).toBe(0);
   });
 
-  it("should give new hire (Feb 1) → 2 months inclusive → 14 * 2/12 = 2.33 → 2.0", () => {
+  it("should give new hire (Feb 1) → Feb completed, Mar in progress → 14 * 1/12 = 1.17 → 1", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    // Feb + Mar = 2 months
-    expect(prorateLeave(14, new Date(2026, 1, 1))).toBe(2);
+    expect(prorateLeave(14, new Date(2026, 1, 1))).toBe(1);
   });
 
-  it("should give new hire (Mar 1) → 1 month inclusive → 14 * 1/12 = 1.17 → 1.0", () => {
+  it("should give new hire (Mar 1) → no completed month yet → 0", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    expect(prorateLeave(14, new Date(2026, 2, 1))).toBe(1);
+    expect(prorateLeave(14, new Date(2026, 2, 1))).toBe(0);
   });
 
-  it("should give new hire (Mar 15 = today) → 1 month inclusive → 14 * 1/12 = 1.17 → 1.0", () => {
+  it("should give new hire (Mar 15 = today) → 0", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    expect(prorateLeave(14, new Date(2026, 2, 15))).toBe(1);
+    expect(prorateLeave(14, new Date(2026, 2, 15))).toBe(0);
   });
 
-  it("should give new hire (Jan 2) → 3 months inclusive → 14 * 3/12 = 3.5", () => {
+  it("should give new hire (Jan 2) → Jan 2–Feb 1 and Feb 2–Mar 1 completed → 14 * 2/12 → 2", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    // Jan 2 > yearStart(Jan 1), so startedThisYear = true
-    // elapsed = currentMonth(2) - startMonth(0) + 1 = 3
-    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(3.5);
+    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(2);
   });
 
   it("should treat no start date as existing employee", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    // No start date → effectiveStart = yearStart → elapsed = 3
-    expect(prorateLeave(14)).toBe(3.5);
+    expect(prorateLeave(14)).toBe(2);
   });
 
   it("should return 0 for future start date", () => {
@@ -165,8 +160,7 @@ describe("prorateLeave — March 15, 2026", () => {
   it("should parse string date input correctly", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 15));
-    // "2020-06-15" → existing employee → 3.5
-    expect(prorateLeave(14, "2020-06-15")).toBe(3.5);
+    expect(prorateLeave(14, "2020-06-15")).toBe(2);
   });
 });
 
@@ -175,17 +169,21 @@ describe("prorateLeave — December 15, 2026 (end of year)", () => {
     vi.useRealTimers();
   });
 
-  it("should give existing employee full year → 14 * 12/12 = 14.0", () => {
+  it("should give existing employee Jan–Nov completed → 14 * 11/12 = 12.83 → 12.5", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 11, 15));
-    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(14);
+    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(12.5);
   });
 
-  it("should give new hire Jan 2 → 12 months inclusive → 14 * 12/12 = 14.0", () => {
+  it("should give new hire Jan 2 → 11 completed months → 12.5", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 11, 15));
-    // Jan–Dec = 12 months (join month included)
-    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(14);
+    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(12.5);
+  });
+
+  it("earned-to-date peaks at 11/12 within the year: December only completes on 1 Jan, when the new year starts at 0", () => {
+    expect(prorateLeave(14, new Date("2020-06-15"), null, false, new Date(2026, 11, 31))).toBe(12.5);
+    expect(prorateLeave(14, new Date("2020-06-15"), null, false, new Date(2027, 0, 1))).toBe(0);
   });
 });
 
@@ -194,16 +192,21 @@ describe("prorateLeave — January 15, 2026 (start of year)", () => {
     vi.useRealTimers();
   });
 
-  it("should give existing employee → 14 * 1/12 = 1.17 → 1.0", () => {
+  it("should give existing employee → January not complete yet → 0", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 15));
-    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(1);
+    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(0);
   });
 
-  it("should give new hire Jan 2 → 1 month inclusive → 14 * 1/12 = 1.17 → 1.0", () => {
+  it("should give new hire Jan 2 → 0", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 0, 15));
-    // Jan 2 > yearStart → startedThisYear = true; elapsed = 0 - 0 + 1 = 1
-    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(1);
+    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(0);
+  });
+
+  it("should give existing employee 1 month on Feb 1 → 14 * 1/12 → 1", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 1, 1));
+    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(1);
   });
 });

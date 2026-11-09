@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasAdminAccess } from "@/lib/utils";
+import { hasAdminAccess, prorateLeave } from "@/lib/utils";
+import { getLeaveProfile, type LeaveProfile } from "@/lib/leave-allowance";
+import { mcAnnualEntitlement } from "@/lib/leave-policy";
 import { LeaveList } from "@/components/leave/leave-list";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
@@ -22,19 +24,21 @@ async function getMcLeaveType() {
   return row;
 }
 
-async function getMcBalance(employeeId: string, mcTypeId: string) {
+async function getMcBalance(employeeId: string, mcTypeId: string, profile: LeaveProfile | null) {
   const currentYear = new Date().getFullYear();
   const balance = await prisma.leaveBalance.findUnique({
     where: {
       employeeId_leaveTypeId_year: { employeeId, leaveTypeId: mcTypeId, year: currentYear },
     },
   });
-  if (!balance) return { entitlement: 0, used: 0, pending: 0, remaining: 0 };
+  if (!balance) return { entitlement: 0, earned: 0, used: 0, pending: 0, remaining: 0 };
 
-  const entitlement = Number(balance.entitlement);
+  // Yearly MC (0 for interns), earned strictly by completed months served this year.
+  const entitlement = mcAnnualEntitlement(Number(balance.entitlement), !!profile?.isIntern);
+  const earned = prorateLeave(entitlement, profile?.startDate, null, false, new Date(), profile?.endDate);
   const used = Math.max(0, Number(balance.used));
   const pending = Math.max(0, Number(balance.pending));
-  return { entitlement, used, pending, remaining: entitlement - used - pending };
+  return { entitlement, earned, used, pending, remaining: earned + Number(balance.carriedOver) - used - pending };
 }
 
 async function getMcRequests(mcTypeId: string, employeeId?: string) {
@@ -57,28 +61,21 @@ export default async function MedicalLeavePage() {
 
   let role = "STAFF";
   let currentEmployeeId: string | undefined;
-  let employmentType: string | null = null;
 
   if (isDevAuthSkipped()) {
     role = "ADMIN";
     const adminUser = await prisma.user.findUnique({
       where: { email: "admin@tertiaryinfotech.com" },
-      include: { employee: { select: { id: true, employmentType: true } } },
+      include: { employee: { select: { id: true } } },
     });
     currentEmployeeId = adminUser?.employee?.id;
-    employmentType = adminUser?.employee?.employmentType ?? null;
   } else {
     if (!session?.user) return null;
     role = session.user.role;
     currentEmployeeId = session.user.employeeId;
-    if (currentEmployeeId) {
-      const e = await prisma.employee.findUnique({
-        where: { id: currentEmployeeId },
-        select: { employmentType: true },
-      });
-      employmentType = e?.employmentType ?? null;
-    }
   }
+  // Intern = roles exactly ["INTERN"] (admins hold INTERN too, to switch views).
+  const profile = currentEmployeeId ? await getLeaveProfile(currentEmployeeId) : null;
 
   const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
@@ -96,7 +93,7 @@ export default async function MedicalLeavePage() {
   }
 
   const mcType = await getMcLeaveType();
-  const isIntern = employmentType === "INTERN";
+  const isIntern = !!profile?.isIntern;
   // paidDays: 0 = fully paid; N > 0 = only N days are paid, rest are unpaid
   const rawPaidDays = mcType?.paidDays ?? 0;
   const totalDays = mcType?.defaultDays ?? 14;
@@ -106,8 +103,8 @@ export default async function MedicalLeavePage() {
 
   const [balance, requests] = await Promise.all([
     mcType && currentEmployeeId
-      ? getMcBalance(currentEmployeeId, mcType.id)
-      : Promise.resolve({ entitlement: 0, used: 0, pending: 0, remaining: 0 }),
+      ? getMcBalance(currentEmployeeId, mcType.id, profile)
+      : Promise.resolve({ entitlement: 0, earned: 0, used: 0, pending: 0, remaining: 0 }),
     mcType
       ? getMcRequests(mcType.id, filterByEmployeeId)
       : Promise.resolve([]),
@@ -125,7 +122,7 @@ export default async function MedicalLeavePage() {
             {viewAs === "admin"
               ? "Manage all employee medical leave requests"
               : isIntern
-                ? `Unpaid medical leave — up to ${totalDays} days per year`
+                ? "Interns have no paid medical leave — sick leave is taken as No Pay Leave"
                 : isPartiallyPaid
                   ? `Medical leave — ${totalDays} days/year (${paidMcDays} paid + ${unpaidMcDays} unpaid)`
                   : `Paid medical leave — ${totalDays} days per year`}
@@ -149,7 +146,9 @@ export default async function MedicalLeavePage() {
               <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/50 border border-amber-800 text-amber-300">
                 Unpaid Leave
               </span>
-              <span className="text-xs text-gray-500">Interns do not accrue paid medical leave.</span>
+              <span className="text-xs text-gray-500">
+                Interns do not have paid medical leave. Request MC as usual — it is submitted as No Pay Leave with your certificate.
+              </span>
             </>
           ) : isPartiallyPaid ? (
             <>
@@ -172,11 +171,12 @@ export default async function MedicalLeavePage() {
       {viewAs !== "admin" && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Yearly Entitlement</p>
-            <p className="text-2xl sm:text-3xl font-bold text-blue-400">{balance.entitlement}</p>
-            {isPartiallyPaid && (
-              <p className="text-xs text-gray-600 mt-1">{paidMcDays} paid · {unpaidMcDays} unpaid</p>
-            )}
+            <p className="text-xs sm:text-sm text-gray-400 mb-1">Earned to Date</p>
+            <p className="text-2xl sm:text-3xl font-bold text-blue-400">{balance.earned}</p>
+            <p className="text-xs text-gray-600 mt-1">
+              of {balance.entitlement} days/year, prorated by completed months served
+              {isPartiallyPaid ? ` · ${paidMcDays} paid · ${unpaidMcDays} unpaid` : ""}
+            </p>
           </div>
           <BalanceCard label="MC Taken" value={balance.used} color="text-amber-400" />
           <BalanceCard label="Pending" value={balance.pending} color="text-purple-400" />

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, Info } from "lucide-react";
+import { prorateByMonths } from "@/lib/leave-policy";
 
 interface LeaveBalance {
   proRated: number;
@@ -29,8 +30,8 @@ interface MonthRow {
 
 /**
  * Builds the monthly accrual breakdown table.
- * Uses ceil(monthsElapsed * yearly / 12) at each period boundary so the
- * running total matches the prorateLeave() result exactly.
+ * Each completed month adds to floor-to-half(yearly × months / 12); the month in
+ * progress adds nothing, so the running total matches prorateLeave() exactly.
  */
 function buildBreakdown(
   annualEntitlement: number,
@@ -80,23 +81,17 @@ function buildBreakdown(
     let cumulative = 0;
 
     if (!isFuture) {
-      const prevCum = Math.min(Math.ceil((i * yearly) / 12), cap);
-
-      if (isPartial) {
-        // Current (partial) month: compute fractional months elapsed within period
-        const daysInPeriod = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
-        const daysElapsed = Math.min(
-          Math.round((now.getTime() - start.getTime()) / 86400000) + 1,
-          daysInPeriod,
-        );
-        const fraction = daysElapsed / daysInPeriod;
-        const totalMonths = i + fraction;
-        const thisCum = Math.min(Math.ceil((totalMonths * yearly) / 12), cap);
-        accrued = thisCum - prevCum;
-        cumulative = thisCum;
+      // Strict proration: a month accrues only once it is complete; the month in
+      // progress adds nothing yet. Same rule as prorateLeave() (src/lib/leave-policy.ts).
+      const prevCum = Math.min(prorateByMonths(yearly, i), cap);
+      // A period cut short by the contract end never completes, so it accrues nothing.
+      const naturalEnd = new Date(start.getFullYear(), start.getMonth() + 1, start.getDate() - 1);
+      const cutShort = end < naturalEnd;
+      if (isPartial || cutShort) {
+        accrued = 0;
+        cumulative = prevCum;
       } else {
-        // Full completed month
-        const thisCum = Math.min(Math.ceil(((i + 1) * yearly) / 12), cap);
+        const thisCum = Math.min(prorateByMonths(yearly, i + 1), cap);
         accrued = thisCum - prevCum;
         cumulative = thisCum;
       }
@@ -241,7 +236,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               </div>
 
               <p className="text-xs text-gray-600">
-                {`Accrues as ceil(${yearlyEntitlement} days ÷ 12 × months worked). Rate: ${yearlyEntitlement} days/year.`}
+                {`Accrues as ${yearlyEntitlement} days × completed months served ÷ 12, rounded down to the half day. A month counts once it is complete. Leave beyond your balance must be taken as No Pay Leave.`}
               </p>
               {advanceAl && (
                 <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-300">

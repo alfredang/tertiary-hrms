@@ -10,6 +10,17 @@ import { Readable } from "stream";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
 import { sendLeaveApprovalEmail } from "@/lib/approval-email";
+import {
+  alExcessMessage,
+  evaluateAlRequest,
+  evaluateNplRequest,
+  INTERN_MC_MESSAGE,
+  isMedicalLeaveCode,
+  mcAnnualEntitlement,
+  nplCapMessage,
+  NPL_CODE,
+} from "@/lib/leave-policy";
+import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
 
 const leaveRequestSchema = z.object({
   leaveTypeId: z.string().min(1, "Leave type is required"),
@@ -102,13 +113,20 @@ export async function POST(req: NextRequest) {
     }
 
     const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
-    const employee = await prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: { startDate: true, endDate: true, monthlyLeaveRate: true },
-    });
+    const employee = await getLeaveProfile(employeeId);
 
     const isAL = leaveType?.code === "AL";
     const isOT = leaveType?.code === "AL_OT";
+    const isMedical = isMedicalLeaveCode(leaveType?.code);
+    const isNPL = leaveType?.code === NPL_CODE;
+
+    // Interns have no paid MC — their sick leave is No Pay Leave.
+    if (isMedical && employee?.isIntern) {
+      return NextResponse.json(
+        { error: INTERN_MC_MESSAGE, code: "INTERN_MC_NOT_PAID", suggestedLeaveTypeCode: NPL_CODE },
+        { status: 400 }
+      );
+    }
 
     const effectiveDayType = isAL ? (isSingleDay ? dayType : "FULL_DAY") : "FULL_DAY";
     const effectiveHalfDayPosition = isAL ? (isSingleDay ? null : (halfDayPosition ?? null)) : null;
@@ -197,63 +215,90 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate available balance
+    // AL and MC are prorated strictly by completed months served this year
+    // (src/lib/leave-policy.ts); interns have no paid MC.
     let available: number;
+    const monthlyLeaveRate = employee?.monthlyLeaveRate ?? null;
 
     if (isOT) {
       available = Number(balance.earned) - Number(balance.used) - Number(balance.autoDeducted) - Number(balance.pending);
     } else {
       let effectiveEntitlement = Number(balance.entitlement);
-      if (isAL && employee?.startDate) {
+      if (isAL) {
+        effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee?.startDate, monthlyLeaveRate, true, new Date(), employee?.endDate);
+      } else if (isMedical) {
         effectiveEntitlement = prorateLeave(
-          Number(balance.entitlement),
-          employee.startDate,
-          employee.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null,
-          true,
-        );
-      } else if (leaveType?.code === "MC" && employee?.startDate) {
-        effectiveEntitlement = prorateLeave(
-          Number(balance.entitlement),
-          employee.startDate,
-          employee.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null,
+          mcAnnualEntitlement(Number(balance.entitlement), !!employee?.isIntern),
+          employee?.startDate,
+          null,
+          false,
+          new Date(),
+          employee?.endDate,
         );
       }
       available = effectiveEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
     }
 
-    // For non-AL leave types: hard block if insufficient balance
-    if (!isAL && days > available) {
+    // No Pay Leave: capped at 21 days/year prorated by months served (not the LeaveBalance row).
+    if (isNPL) {
+      const npl = await getNplStatus(employeeId, employee);
+      if (!evaluateNplRequest(days, npl).ok) {
+        return NextResponse.json(
+          { error: nplCapMessage(days, npl), code: "NPL_CAP_EXCEEDED", npl, requested: days },
+          { status: 400 }
+        );
+      }
+    } else if (!isAL && days > available) {
+      // Other non-AL leave types: hard block if insufficient balance
       return NextResponse.json(
         { error: "Insufficient leave balance", available, requested: days },
         { status: 400 }
       );
     }
 
-    // For AL: allow deficit. Validate OT usage if provided.
+    // AL is covered by the earned balance, Off In Lieu and (opt-in) advance AL. Anything
+    // beyond that must be taken as No Pay Leave — reject with guidance, no deficit.
     let resolvedOtDaysUsed = 0;
-    let deficitDays = 0;
+    const deficitDays = 0;
 
     if (isAL) {
-      // Clamp otDaysUsed to what's actually available in OT balance
+      let otAvailable = 0;
       if (otDaysUsed > 0) {
         const alOtType = await prisma.leaveType.findUnique({ where: { code: "AL_OT" } });
         if (alOtType) {
           const otBalance = await prisma.leaveBalance.findUnique({
             where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
           });
-          const otAvailable = otBalance
+          otAvailable = otBalance
             ? Math.max(0, Number(otBalance.earned) - Number(otBalance.used) - Number(otBalance.autoDeducted) - Number(otBalance.pending))
             : 0;
-          resolvedOtDaysUsed = Math.min(otDaysUsed, otAvailable);
         }
       }
-      // With advance on: deficit = days beyond the FULL year entitlement (not prorated to today);
-      // within-entitlement days ahead of accrual are advance AL. With advance off: anything
-      // beyond the balance earned to date is deficit.
-      const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
       const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, Number(balance.entitlement), employee?.endDate);
       const fullAvailable = fullEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
-      const coveredByAl = Math.max(0, useAdvance ? Math.max(fullAvailable, available) : available);
-      deficitDays = Math.min(days, Math.max(0, days - coveredByAl - resolvedOtDaysUsed));
+      const alCheck = evaluateAlRequest({
+        days,
+        earnedAvailable: available,
+        fullAvailable,
+        otAvailable,
+        otRequested: otDaysUsed,
+        useAdvance,
+      });
+      if (!alCheck.ok) {
+        const npl = await getNplStatus(employeeId, employee);
+        return NextResponse.json(
+          {
+            error: alExcessMessage(alCheck, days, npl.remaining),
+            code: "AL_EXCEEDS_BALANCE",
+            alAvailable: alCheck.coverable,
+            excessDays: alCheck.excessDays,
+            npl,
+            suggestedLeaveTypeCode: NPL_CODE,
+          },
+          { status: 400 }
+        );
+      }
+      resolvedOtDaysUsed = alCheck.otDaysUsed;
     }
 
     // Create leave request
