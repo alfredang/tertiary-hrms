@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -16,9 +17,22 @@ interface CronJobView {
   path: string;
   fullUrl: string;
   status: "active" | "planned";
-  /** Latest recorded run (jobs that log to CronRun); null = never run / not tracked. */
-  lastRun?: { startedAt: string; finishedAt: string | null; ok: boolean | null; error: string | null } | null;
+  lastRun?: {
+    status: string;
+    trigger: string;
+    startedAt: string;
+    durationMs: number | null;
+    summary: string | null;
+    error: string | null;
+  } | null;
 }
+
+const RUN_STATUS_STYLE: Record<string, string> = {
+  SUCCESS: "bg-green-900/40 text-green-400",
+  FAILED: "bg-red-900/40 text-red-400",
+  SKIPPED: "bg-gray-800 text-gray-400",
+  RUNNING: "bg-blue-900/40 text-blue-300",
+};
 
 export function CronJobsPanel({
   jobs,
@@ -28,6 +42,7 @@ export function CronJobsPanel({
   autoDeactivateInterns?: boolean;
 }) {
   const { toast } = useToast();
+  const router = useRouter();
   const [running, setRunning] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -105,6 +120,7 @@ export function CronJobsPanel({
       });
     } finally {
       setRunning(null);
+      router.refresh(); // pick up the new last-run status
     }
   };
 
@@ -184,21 +200,6 @@ export function CronJobsPanel({
                   </span>
                 </div>
                 <p className="text-sm text-gray-400 mt-1.5">{j.description}</p>
-                {j.lastRun !== undefined && (
-                  <p className="text-xs mt-1.5 text-gray-500">
-                    Last run:{" "}
-                    {j.lastRun ? (
-                      <>
-                        {new Date(j.lastRun.startedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore", dateStyle: "medium", timeStyle: "short" })}{" "}
-                        <span className={j.lastRun.ok === false ? "text-red-400" : j.lastRun.ok ? "text-green-400" : "text-amber-400"}>
-                          {j.lastRun.ok === false ? `failed${j.lastRun.error ? ` — ${j.lastRun.error}` : ""}` : j.lastRun.ok ? "succeeded" : "running"}
-                        </span>
-                      </>
-                    ) : (
-                      "never"
-                    )}
-                  </p>
-                )}
               </div>
               <Button
                 size="sm"
@@ -221,6 +222,29 @@ export function CronJobsPanel({
                 <p className="text-amber-300 font-mono mt-0.5">{j.cron}</p>
               </div>
             </div>
+
+            {j.lastRun !== undefined && (
+              <div className="text-xs bg-gray-900 border border-gray-800 rounded px-2 py-1.5">
+                <span className="text-gray-500">Last run</span>
+                {j.lastRun ? (
+                  <p className="text-gray-300 mt-0.5 flex items-center gap-2 flex-wrap">
+                    <span className={`px-1.5 py-0.5 rounded font-medium ${RUN_STATUS_STYLE[j.lastRun.status] ?? "bg-gray-800 text-gray-400"}`}>
+                      {j.lastRun.status}
+                    </span>
+                    <span>
+                      {new Date(j.lastRun.startedAt).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })} SGT
+                      {j.lastRun.trigger === "MANUAL" ? " · manual" : ""}
+                      {j.lastRun.durationMs !== null ? ` · ${(j.lastRun.durationMs / 1000).toFixed(1)}s` : ""}
+                    </span>
+                    {(j.lastRun.error || j.lastRun.summary) && (
+                      <span className="text-gray-400 basis-full">{j.lastRun.error || j.lastRun.summary}</span>
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-gray-500 mt-0.5">No runs recorded yet</p>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <code className="flex-1 text-xs font-mono text-gray-300 bg-gray-900 border border-gray-800 rounded px-2 py-2 break-all">

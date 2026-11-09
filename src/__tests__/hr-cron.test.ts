@@ -6,7 +6,7 @@ const { mockPrisma, mockSendEmail, insights } = vi.hoisted(() => ({
     companySettings: { findUnique: vi.fn().mockResolvedValue({ name: "Tertiary" }) },
     notification: { create: vi.fn().mockResolvedValue({}), createMany: vi.fn().mockResolvedValue({ count: 2 }) },
     user: { findMany: vi.fn().mockResolvedValue([{ id: "admin1" }, { id: "admin2" }]) },
-    cronRun: { create: vi.fn().mockResolvedValue({ id: "run1" }), update: vi.fn().mockResolvedValue({}) },
+    cronJobRun: { create: vi.fn().mockResolvedValue({ id: "run1" }), update: vi.fn().mockResolvedValue({}) },
   },
   mockSendEmail: vi.fn().mockResolvedValue(undefined),
   insights: {
@@ -36,7 +36,7 @@ beforeEach(() => {
   delete process.env.HR_ALERT_EMAILS;
   mockPrisma.user.findMany.mockResolvedValue([{ id: "admin1" }, { id: "admin2" }]);
   mockPrisma.notification.createMany.mockResolvedValue({ count: 2 });
-  mockPrisma.cronRun.create.mockResolvedValue({ id: "run1" });
+  mockPrisma.cronJobRun.create.mockResolvedValue({ id: "run1" });
   insights.getActiveInterns.mockResolvedValue([intern]);
 });
 
@@ -55,8 +55,8 @@ describe("Rule 5 — /api/cron/missed-clock-out", () => {
       data: expect.objectContaining({ userId: "u1", type: "ATTENDANCE_MISSED", link: "/attendance" }),
     });
     expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "ivy@x.com" }));
-    expect(mockPrisma.cronRun.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ ok: true }) }),
+    expect(mockPrisma.cronJobRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "SUCCESS" }) }),
     );
   });
 

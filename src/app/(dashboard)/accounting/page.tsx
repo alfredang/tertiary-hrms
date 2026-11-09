@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrendingDown, TrendingUp, ChevronRight, FolderOpen, ExternalLink } from "lucide-react";
+import { TrendingDown, TrendingUp, ChevronRight, FolderOpen, ExternalLink, Scale } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -106,6 +106,23 @@ export default async function AccountingPage() {
           </div>
         </Link>
       </div>
+
+      <Link
+        href="/accounting/reconciliation"
+        className="group flex items-center justify-between bg-gray-950 border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-violet-900/30">
+            <Scale className="h-6 w-6 text-violet-300" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-400">Bank Reconciliation</p>
+            <p className="text-base font-semibold text-white mt-0.5">Statement vs QuickBooks</p>
+            <p className="text-xs text-gray-500 mt-1">Matched, unmatched and differences by period</p>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-gray-500 group-hover:text-gray-300" />
+      </Link>
 
       <a
         href="https://drive.google.com/drive/u/1/folders/1U6MCWuKZQ4wWZqn36AVHUeOD7a-URAaY"

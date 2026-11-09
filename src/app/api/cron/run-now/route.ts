@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
   try {
     res = await fetch(url, {
       method,
-      headers: { Authorization: `Bearer ${secret}` },
+      // x-cron-trigger lets logged jobs record this run as MANUAL (src/lib/cron-run-log.ts).
+      headers: { Authorization: `Bearer ${secret}`, "x-cron-trigger": "manual" },
     });
   } catch (err: any) {
     return NextResponse.json({ error: `Failed to reach cron endpoint: ${err?.message ?? err}`, url }, { status: 502 });

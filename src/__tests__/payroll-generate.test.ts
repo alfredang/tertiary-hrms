@@ -238,9 +238,10 @@ describe("POST /api/payroll/generate — Generation", () => {
     const emp2 = { ...EMPLOYEE_WITH_SALARY, id: "emp_003" };
     mockPrisma.employee.findMany.mockResolvedValue([EMPLOYEE_WITH_SALARY, emp2]);
     // First: no existing, Second: already has payslip
-    mockPrisma.payslip.findUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "existing_ps" });
+    // Keyed on the employee, not call order: payslip email delivery also calls findUnique after create.
+    mockPrisma.payslip.findUnique.mockImplementation(async (args: { where?: { employeeId_payPeriodStart_payPeriodEnd?: { employeeId: string } } }) =>
+      args?.where?.employeeId_payPeriodStart_payPeriodEnd?.employeeId === "emp_003" ? { id: "existing_ps" } : null,
+    );
     mockPrisma.payslip.create.mockResolvedValue({});
 
     const req = makeRequest({ month: 6, year: 2026 });

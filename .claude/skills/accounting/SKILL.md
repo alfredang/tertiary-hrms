@@ -180,6 +180,17 @@ Implications:
 - Bulk-truncating `BankTransaction` from a UI button. Per-row delete only, audited.
 - Adding a second currency without also adding `currency` to the dedupe key.
 
+## Bank reconciliation (statement vs QuickBooks)
+
+`/accounting/reconciliation` matches `BankTransaction` rows against QBO bank activity for one QBO bank account. QuickBooks is **read-only** on this path.
+
+- QBO client: [src/lib/quickbooks/client.ts](src/lib/quickbooks/client.ts) (GET only, SELECT-only queries, token refresh + retry, proxy mode). Never add write methods to it; the write paths (generate-expense, receive-payment) stay in `qb-api.ts`.
+- Bank-side normalisation: [src/lib/quickbooks/bank-activity.ts](src/lib/quickbooks/bank-activity.ts). Direction follows `BankTransaction`: DEBIT = money out, CREDIT = money in. A Payment parked in Undeposited Funds is skipped; its Deposit carries it.
+- Matcher: [src/lib/reconciliation/matcher.ts](src/lib/reconciliation/matcher.ts). Order: manual pairs, then `qbExpenseId` links (Purchase id for DEBIT; Payment id, or the Invoice it settles, for CREDIT), then exact amount within ±N days ranked by description/reference similarity, then same-transaction-different-amount (AMOUNT_MISMATCH). Amounts are decimal.js only.
+- Summary maths: [src/lib/reconciliation/summary.ts](src/lib/reconciliation/summary.ts) (adjusted bank vs adjusted QuickBooks balance, unexplained difference).
+- Manual match/unmatch/review decisions carry into later runs that cover the same rows. Un-matched pairs are never auto-paired again.
+- Agents: `/api/cron/quickbooks-health` (daily) and `/api/cron/bank-reconciliation` (weekly), listed in `src/lib/cron-jobs.ts` with `logsRuns: true` and logged via `runLoggedCronJob` in [src/lib/cron-run-log.ts](src/lib/cron-run-log.ts).
+
 ## Quick references
 
 - Upload route: [src/app/api/accounting/parse-statement/route.ts](src/app/api/accounting/parse-statement/route.ts)

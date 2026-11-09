@@ -520,6 +520,128 @@ model BankTransaction {
   @@index([type])
 }
 
+/// One bank reconciliation run: BankTransaction rows (DBS import) for a period
+/// matched against the QuickBooks transactions that hit one QBO bank account.
+/// Read-only against QuickBooks. Money columns are Decimal; never floats.
+model BankReconciliation {
+  id                 String                   @id @default(cuid())
+  periodStart        DateTime                 @db.Date
+  periodEnd          DateTime                 @db.Date
+  bankAccountLabel   String                   @default("DBS Business Account (SGD)")
+  qbAccountId        String?
+  qbAccountName      String?
+  /// RUNNING | COMPLETED | FAILED
+  status             String                   @default("RUNNING")
+  /// MANUAL | SCHEDULED
+  trigger            String                   @default("MANUAL")
+  dateWindowDays     Int                      @default(3)
+  bankClosingBalance Decimal?                 @db.Decimal(14, 2)
+  qbClosingBalance   Decimal?                 @db.Decimal(14, 2)
+  /// How qbClosingBalance was obtained: DERIVED (CurrentBalance minus later activity) | CURRENT
+  qbBalanceBasis     String?
+  bankInflow         Decimal                  @default(0) @db.Decimal(14, 2)
+  bankOutflow        Decimal                  @default(0) @db.Decimal(14, 2)
+  qbInflow           Decimal                  @default(0) @db.Decimal(14, 2)
+  qbOutflow          Decimal                  @default(0) @db.Decimal(14, 2)
+  bankCount          Int                      @default(0)
+  qbCount            Int                      @default(0)
+  matchedCount       Int                      @default(0)
+  mismatchCount      Int                      @default(0)
+  unmatchedBankCount Int                      @default(0)
+  unmatchedQbCount   Int                      @default(0)
+  reviewedCount      Int                      @default(0)
+  warnings           String[]                 @default([])
+  error              String?
+  createdById        String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  items              BankReconciliationItem[]
+
+  @@index([periodStart, periodEnd])
+  @@index([createdAt])
+}
+
+/// One line of a reconciliation: a matched pair, an amount mismatch, or an
+/// unmatched row on either side. Bank/QB fields are snapshots taken at run time.
+model BankReconciliationItem {
+  id                String             @id @default(cuid())
+  reconciliationId  String
+  reconciliation    BankReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  /// MATCHED | AMOUNT_MISMATCH | UNMATCHED_BANK | UNMATCHED_QB
+  status            String
+  /// LINKED | AUTO | MANUAL (null for unmatched rows)
+  matchMethod       String?
+  confidence        Int?
+  bankTransactionId String?
+  bankDate          DateTime?          @db.Date
+  bankAmount        Decimal?           @db.Decimal(12, 2)
+  bankDirection     String?
+  bankDescription   String?
+  qbTxnType         String?
+  qbTxnId           String?
+  qbDate            DateTime?          @db.Date
+  qbAmount          Decimal?           @db.Decimal(12, 2)
+  qbDirection       String?
+  qbDocNumber       String?
+  qbPayee           String?
+  qbMemo            String?
+  amountDifference  Decimal?           @db.Decimal(12, 2)
+  dayDifference     Int?
+  /// Set when a user un-matched a pair: "bankTxnId|QbType:QbId". Stops re-runs auto-pairing it again.
+  unmatchedPairKey  String?
+  reviewed          Boolean            @default(false)
+  reviewNote        String?
+  reviewedById      String?
+  reviewedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([reconciliationId, status])
+  @@index([bankTransactionId])
+  @@index([qbTxnType, qbTxnId])
+}
+
+/// QuickBooks liveness history (daily cron + on demand).
+model QuickBooksHealthCheck {
+  id                    String    @id @default(cuid())
+  checkedAt             DateTime  @default(now())
+  /// OK | WARN | FAIL
+  status                String
+  /// DIRECT | PROXY | UNCONFIGURED
+  mode                  String
+  /// SCHEDULED | MANUAL
+  trigger               String    @default("SCHEDULED")
+  tokenOk               Boolean   @default(false)
+  apiOk                 Boolean   @default(false)
+  latencyMs             Int?
+  companyName           String?
+  refreshTokenExpiresAt DateTime?
+  daysToRefreshExpiry   Int?
+  message               String?
+  alerted               Boolean   @default(false)
+
+  @@index([checkedAt])
+}
+
+/// Generic run log for the built-in scheduled jobs (Settings > Cron Jobs shows the latest per job).
+model CronJobRun {
+  id         String    @id @default(cuid())
+  /// Matches BuiltInCronJob.id in src/lib/cron-jobs.ts
+  jobId      String
+  /// RUNNING | SUCCESS | FAILED | SKIPPED
+  status     String    @default("RUNNING")
+  /// SCHEDULED | MANUAL
+  trigger    String    @default("SCHEDULED")
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+  summary    String?
+  details    Json?
+  error      String?
+
+  @@index([jobId, startedAt])
+}
+
 model TimesheetEntry {
   id                String   @id @default(cuid())
   employeeId        String
@@ -575,17 +697,6 @@ model AttendanceCorrection {
 }
 
 /// One execution of a scheduled job (Settings → Cron Jobs shows the latest per job).
-model CronRun {
-  id         String    @id @default(cuid())
-  jobId      String
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-  ok         Boolean?
-  summary    Json?
-  error      String?
-
-  @@index([jobId, startedAt])
-}
 
 model OtWorkLog {
   id         String   @id @default(cuid())
