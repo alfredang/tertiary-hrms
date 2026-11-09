@@ -8,7 +8,10 @@ import { authConfig } from "./auth.config";
 
 const ROLE_PRIORITY: Role[] = ["ADMIN", "HR", "MANAGER", "ACCOUNTANT", "STAFF", "INTERN"];
 
-const DEFAULT_PASSWORD = process.env.DEFAULT_EMPLOYEE_PASSWORD || "Password123";
+/** How often a signed-in session re-reads its roles from the database. */
+const ROLE_REFRESH_MS = 5 * 60 * 1000;
+
+const DEFAULT_PASSWORD =process.env.DEFAULT_EMPLOYEE_PASSWORD || "Password123";
 
 function getPrimaryRole(roles: Role[]): Role {
   for (const r of ROLE_PRIORITY) {
@@ -218,10 +221,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
 
-      // Only re-fetch from DB on explicit update (e.g., role change) or if
-      // the token is missing role data. Querying every request races with
-      // RSC navigation and can throw, which would clear the session cookie.
-      const needsRefresh = trigger === "update" || !(token as any).role;
+      // Re-fetch from DB on explicit update, when the token lacks role data, or at most every
+      // ROLE_REFRESH_MS so role changes made by an admin (e.g. granting TRAINER_ADMIN) reach
+      // signed-in users without a sign-out. Not on every request: that raced with RSC navigation
+      // and could throw, clearing the session cookie. A failed lookup keeps the existing token.
+      const checkedAt = Number((token as any).rolesCheckedAt ?? 0);
+      const needsRefresh = trigger === "update" || !(token as any).role || Date.now() - checkedAt > ROLE_REFRESH_MS;
       if (needsRefresh && token.email) {
         try {
           const dbUser = await prisma.user.findUnique({
@@ -235,6 +240,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             (token as any).employeeId = dbUser.employee?.id;
             (token as any).needsSetup = !dbUser.employee?.id;
           }
+          (token as any).rolesCheckedAt = Date.now();
         } catch (err) {
           console.error("[auth] jwt DB lookup failed, keeping existing token:", err);
         }

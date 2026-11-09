@@ -125,7 +125,7 @@ Earlier additions (May 2026):
 - **Admin view**: full access to all employees, leave requests, expenses, payroll, and settings
 - **Staff view**: can only see own leave, expenses, payslips, and personal profile
 - View toggle lets admins preview the staff experience
-- **Trainer Admin** (`TRAINER_ADMIN`) is a separate role held alongside a person's normal role; only it opens Trainer Management (trainer records hold NRIC). It never becomes the primary role, so it does not change anyone's dashboard or view
+- **Trainer Admin** (`TRAINER_ADMIN`) is a separate role held alongside a person's normal role; only it opens Trainer Management (trainer records hold NRIC). It never becomes the primary role, so it does not change anyone's dashboard or view. It is also linked from the **View As** menu. Signed-in sessions re-read their roles from the database every 5 minutes, so a newly granted role appears without signing out
 - Settings page restricted to admin view only
 - Employee list filters and edit buttons hidden in staff view
 - All API routes enforce role-based permissions

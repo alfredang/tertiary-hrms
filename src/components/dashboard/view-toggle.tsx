@@ -9,7 +9,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Eye, ChevronDown, Check, ShieldCheck, Calculator, User, GraduationCap } from "lucide-react";
+import Link from "next/link";
+import { Eye, ChevronDown, Check, ShieldCheck, Calculator, User, GraduationCap, BookUser } from "lucide-react";
+import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 import { useViewMode, type ViewMode } from "@/components/layout/view-mode-context";
 
 const ALL_ROLES = [
@@ -55,7 +57,7 @@ export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
           <ChevronDown className="h-3 w-3 text-gray-500" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuLabel className="text-xs text-gray-400 uppercase tracking-wide">
           Switch Role View
         </DropdownMenuLabel>
@@ -71,6 +73,18 @@ export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
             {currentView === value && <Check className="h-3.5 w-3.5 text-primary" />}
           </DropdownMenuItem>
         ))}
+        {hasTrainerAdminAccess(userRoles) && (
+          <>
+            <DropdownMenuSeparator />
+            {/* Trainer Admin is a separate role, not a view: it opens its own section */}
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link href="/trainers" className="flex items-center gap-2">
+                <BookUser className="h-4 w-4 text-gray-400" />
+                <span className="flex-1">Trainer Management</span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
