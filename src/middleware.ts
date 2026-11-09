@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { canonicalRedirect } from "@/lib/canonical-host";
 
 // Middleware only checks for the *presence* of a session cookie, not its
 // validity. Validating the JWT in middleware required a second NextAuth
@@ -25,6 +26,9 @@ function hasSessionCookie(req: NextRequest): boolean {
 
 export function middleware(req: NextRequest) {
   if (isDevAuthSkipped()) return NextResponse.next();
+
+  const moved = canonicalRedirect(req);
+  if (moved) return moved;
 
   const { pathname } = req.nextUrl;
 
