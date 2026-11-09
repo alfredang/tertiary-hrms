@@ -275,3 +275,56 @@ export async function getPendingApprovals(): Promise<PendingApprovals> {
   ]);
   return { leave, mc, timeOff, corrections, expenses };
 }
+
+// ── Dashboard KPIs ──────────────────────────────────────────────────────────
+
+export interface MonthlyLeavePoint {
+  month: string; // "Jan"
+  staff: Record<LeaveCategory, number>;
+  interns: Record<LeaveCategory, number>;
+}
+
+/** Approved leave days per month (by start month) this year, split staff / interns, for the dashboard chart. */
+export async function getMonthlyLeaveSeries(now: Date = new Date()): Promise<MonthlyLeavePoint[]> {
+  const year = now.getFullYear();
+  const rows = await prisma.leaveRequest.findMany({
+    where: { status: "APPROVED", startDate: { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) } },
+    select: { startDate: true, days: true, leaveType: { select: { code: true } }, employee: { select: { user: { select: { roles: true } } } } },
+  });
+  const points: MonthlyLeavePoint[] = Array.from({ length: now.getMonth() + 1 }, (_, m) => ({
+    month: new Date(Date.UTC(year, m, 1)).toLocaleDateString("en-SG", { month: "short", timeZone: "UTC" }),
+    staff: zero(),
+    interns: zero(),
+  }));
+  for (const r of rows) {
+    const m = r.startDate.getUTCMonth();
+    if (!points[m]) continue;
+    const bucket = isInternRoles(r.employee?.user?.roles) ? points[m].interns : points[m].staff;
+    bucket[leaveCategory(r.leaveType.code)] += Number(r.days);
+  }
+  return points;
+}
+
+export interface WorkforceSnapshot {
+  staff: number;
+  interns: number;
+  onLeaveToday: { name: string; employeeCode: string; category: LeaveCategory }[];
+}
+
+/** Active headcount and who is on approved leave today (SGT). */
+export async function getWorkforceSnapshot(): Promise<WorkforceSnapshot> {
+  const today = sgtToday();
+  const [employees, leaves] = await Promise.all([
+    prisma.employee.findMany({ where: { status: "ACTIVE" }, select: { user: { select: { roles: true } } } }),
+    prisma.leaveRequest.findMany({
+      where: { status: "APPROVED", startDate: { lte: today }, endDate: { gte: today } },
+      select: { leaveType: { select: { code: true } }, employee: { select: { name: true, employeeId: true } } },
+    }),
+  ]);
+  const interns = employees.filter((e) => isInternRoles(e.user?.roles)).length;
+  return {
+    staff: employees.length - interns,
+    interns,
+    onLeaveToday: leaves.map((l) => ({ name: l.employee.name, employeeCode: l.employee.employeeId, category: leaveCategory(l.leaveType.code) })),
+  };
+}

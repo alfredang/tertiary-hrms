@@ -9,25 +9,43 @@ import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getLeaveProfile } from "@/lib/leave-allowance";
 import { mcAnnualEntitlement } from "@/lib/leave-policy";
-import { getInternAttendance, getLeaveOverview, getPendingApprovals } from "@/lib/hr-insights";
+import { getInternAttendance, getLeaveOverview, getMonthlyLeaveSeries, getPendingApprovals, getWorkforceSnapshot } from "@/lib/hr-insights";
 import { buildFindings } from "@/lib/hr-compliance";
-import { AdminHrOverview } from "@/components/dashboard/admin-hr-overview";
+import { AdminKpis } from "@/components/dashboard/admin-kpis";
+import { NeedsAttention } from "@/components/dashboard/needs-attention";
+import { LeaveTrendChart } from "@/components/dashboard/leave-trend-chart";
 
-/** Admin HR overview: leave by staff/interns, intern hours, alerts. Null on failure so the dashboard still renders. */
-async function getAdminHrOverview() {
+/**
+ * Admin dashboard data: KPI tiles, the grouped "needs attention" summary and the monthly leave chart.
+ * Details live on /dashboard/insights. Null on failure so the dashboard still renders.
+ */
+async function getAdminDashboard() {
   try {
     const now = new Date();
-    const [people, interns, pending] = await Promise.all([getLeaveOverview(now), getInternAttendance(14, now), getPendingApprovals()]);
+    const [people, interns, pending, series, workforce] = await Promise.all([
+      getLeaveOverview(now), getInternAttendance(14, now), getPendingApprovals(), getMonthlyLeaveSeries(now), getWorkforceSnapshot(),
+    ]);
+    const findings = buildFindings(people, interns);
+    // Tiles and chart use the same series (approved days by start month) so their numbers always agree.
+    const ytd = (cat: "LEAVE" | "MC" | "NPL") => series.reduce((t, m) => t + m.staff[cat] + m.interns[cat], 0);
+    const thisMonth = (cat: "LEAVE" | "MC" | "NPL") => { const m = series[now.getMonth()]; return m ? m.staff[cat] + m.interns[cat] : 0; };
+    const monthLabel = now.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" });
     return {
-      people,
-      interns,
-      pending,
-      findings: buildFindings(people, interns),
-      monthLabel: now.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" }),
-      year: now.getFullYear(),
+      kpis: {
+        staff: workforce.staff, interns: workforce.interns, onLeaveToday: workforce.onLeaveToday,
+        pendingTotal: pending.leave + pending.mc + pending.timeOff + pending.corrections + pending.expenses,
+        alertsTotal: new Set(findings.map((f) => `${f.employeeId}:${f.category}`)).size,
+        alertsHigh: findings.filter((f) => f.severity === "high").length,
+        leaveYtd: ytd("LEAVE"), mcYtd: ytd("MC"), nplYtd: ytd("NPL"),
+        leaveMonth: thisMonth("LEAVE"), mcMonth: thisMonth("MC"), nplMonth: thisMonth("NPL"),
+        internHoursWeek: interns.reduce((t, i) => t + i.weekHours, 0),
+        missingClockOuts: interns.reduce((t, i) => t + i.missingClockOuts.length, 0),
+        monthLabel,
+      },
+      findings, pending, series, year: now.getFullYear(),
     };
   } catch (err) {
-    console.error("[dashboard] admin HR overview failed:", err);
+    console.error("[dashboard] admin dashboard data failed:", err);
     return null;
   }
 }
@@ -207,7 +225,7 @@ export default async function DashboardPage() {
   // For admin users, fetch both stats so they can toggle views
   const adminStats = isAdmin ? await getAdminStats() : null;
   const staffStats = currentEmployeeId ? await getStaffStats(currentEmployeeId) : null;
-  const hrOverview = isAdmin && !isStaffView ? await getAdminHrOverview() : null;
+  const adminDash = isAdmin && !isStaffView ? await getAdminDashboard() : null;
 
   return (
     <div className="space-y-8">
@@ -221,14 +239,22 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <StatsCards
-        adminStats={isStaffView ? null : adminStats}
-        staffStats={isStaffView ? staffStats : null}
-      />
-
-      {/* Admin HR overview: MC / leave / NPL, intern hours, alerts */}
-      {hrOverview && <AdminHrOverview {...hrOverview} />}
+      {adminDash ? (
+        <>
+          {/* KPI tiles — each opens its detail */}
+          <AdminKpis {...adminDash.kpis} />
+          {/* Grouped alerts + the one chart */}
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+            <div className="xl:col-span-2"><NeedsAttention findings={adminDash.findings} pending={adminDash.pending} /></div>
+            <div className="xl:col-span-3"><LeaveTrendChart data={adminDash.series} year={adminDash.year} /></div>
+          </div>
+        </>
+      ) : (
+        <StatsCards
+          adminStats={isStaffView ? null : adminStats}
+          staffStats={isStaffView ? staffStats : null}
+        />
+      )}
 
       {/* Quick Actions and Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

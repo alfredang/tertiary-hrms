@@ -11,6 +11,8 @@ interface Props {
   findings: Finding[];
   monthLabel: string;
   year: number;
+  /** Shown in the alerts heading when the list is filtered to one category. */
+  focusLabel?: string;
 }
 
 const CATS: Array<{ key: LeaveCategory; label: string }> = [
@@ -33,9 +35,9 @@ function sumBy(rows: PersonOverviewRow[], period: "year" | "month", cat: LeaveCa
   return rows.reduce((s, r) => s + r.taken[period][cat], 0);
 }
 
-function Section({ title, icon: Icon, children, right }: { title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode; right?: React.ReactNode }) {
+function Section({ id, title, icon: Icon, children, right }: { id?: string; title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-gray-800 bg-gray-950 p-4 sm:p-5 space-y-3">
+    <section id={id} className="scroll-mt-24 rounded-xl border border-gray-800 bg-gray-950 p-4 sm:p-5 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-white font-semibold"><Icon className="h-4 w-4 text-primary" />{title}</h2>
         {right}
@@ -45,7 +47,7 @@ function Section({ title, icon: Icon, children, right }: { title: string; icon: 
   );
 }
 
-export function AdminHrOverview({ people, interns, pending, findings, monthLabel, year }: Props) {
+export function AdminHrOverview({ people, interns, pending, findings, monthLabel, year, focusLabel }: Props) {
   const staff = people.filter((p) => !p.isIntern);
   const internPeople = people.filter((p) => p.isIntern);
   const totalPending = pending.leave + pending.mc + pending.timeOff + pending.corrections + pending.expenses;
@@ -63,11 +65,12 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
     <div className="space-y-6">
       {/* Alerts for the admins */}
       <Section
-        title="Admin alerts"
+        id="alerts"
+        title={focusLabel ? `Alerts — ${focusLabel}` : "Admin alerts"}
         icon={BellRing}
         right={<span className="text-xs text-gray-500">Emailed to Alfred Ang &amp; Tan Soik Ching by the HR cron jobs</span>}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div id="approvals" className="scroll-mt-24 grid grid-cols-2 sm:grid-cols-5 gap-2">
           {pendingItems.map((p) => (
             <Link key={p.label} href={p.href} className={`rounded-lg border px-3 py-2 hover:bg-gray-900 ${p.value > 0 ? "border-amber-800/60" : "border-gray-800"}`}>
               <p className="text-xs text-gray-400">Pending {p.label.toLowerCase()}</p>
@@ -96,7 +99,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
       </Section>
 
       {/* MC / Leave / NPL taken — staff vs interns */}
-      <Section title={`MC, leave and No Pay Leave taken — ${year}`} icon={Stethoscope}>
+      <Section id="leave" title={`MC, leave and No Pay Leave taken — ${year}`} icon={Stethoscope}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -183,6 +186,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
 
       {/* Intern hours */}
       <Section
+        id="interns"
         title="Intern hours"
         icon={Clock}
         right={<Link href="/attendance/overview" className="text-xs text-primary hover:underline">Attendance details</Link>}
