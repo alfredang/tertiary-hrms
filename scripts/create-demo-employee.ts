@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 /**
  * Creates (or refreshes) a clearly-labelled demo employee for App Store review of
  * the native iOS app. Seeds leave balances, a sample leave request, and an expense
@@ -13,6 +14,9 @@ const prisma = new PrismaClient();
 
 const EMAIL = "appreview@tertiaryinfotech.com";
 const PASSWORD = process.env.DEMO_PASSWORD ?? "";
+// STAFF-only by default (Alfred, 9 Nov 2026): Apple's reviewers must not see real employees' salaries/NRICs.
+// Set DEMO_ROLES=ADMIN,HR,MANAGER,STAFF only if a review genuinely needs the admin screens.
+const ROLES = (process.env.DEMO_ROLES ?? "STAFF").split(",").map((r) => r.trim()).filter(Boolean) as Role[];
 if (!PASSWORD) {
   console.error("DEMO_PASSWORD env var is required (the demo account's login password).");
   process.exit(1);
@@ -24,8 +28,8 @@ async function main() {
 
   const user = await prisma.user.upsert({
     where: { email: EMAIL },
-    update: { password: hash, roles: ["ADMIN", "HR", "MANAGER", "STAFF"] },
-    create: { email: EMAIL, password: hash, roles: ["ADMIN", "HR", "MANAGER", "STAFF"] },
+    update: { password: hash, roles: ROLES },
+    create: { email: EMAIL, password: hash, roles: ROLES },
   });
 
   const employee = await prisma.employee.upsert({
@@ -250,9 +254,9 @@ async function main() {
 
   console.log("✅ Demo employee ready");
   console.log("   email:   ", EMAIL);
-  console.log("   password:", PASSWORD);
+  console.log("   password: (DEMO_PASSWORD — the one in App Store Connect review details)");
   console.log("   employee:", employee.employeeId, employee.name);
-  console.log("   role:    ADMIN / HR / MANAGER / STAFF");
+  console.log("   role:   ", ROLES.join(" / "));
 }
 
 function getMondayUTC(d: Date): Date {
