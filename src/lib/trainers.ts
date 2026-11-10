@@ -139,11 +139,32 @@ export function cleanList(values: readonly string[] | null | undefined): string[
 
 const KNOWN_TRAINING = [...TRAINING_CERTS.map((c) => c.code), ...OTHER_TRAINING_CERTS] as string[];
 
-/** "aclp" -> "ACLP", "DDDPL" -> "DDDLP", "ae registry" -> "AE Registry"; unknown values kept as typed. */
+/** Full programme titles that mean one of the four IAL training certs. */
+const TRAINING_CERT_TITLES: Array<[RegExp, string]> = [
+  [/advanced certificate in learning and performance/i, "ACLP"],
+  [/advanced certificate in training and assessment/i, "ACTA"],
+  [/diploma in adult and continuing education/i, "DACE"],
+  [/diploma in design(ing)? and development of learning/i, "DDDLP"],
+];
+
+/**
+ * "aclp" -> "ACLP", "DDDPL" -> "DDDLP", "ae registry" -> "AE Registry", and a long form such as
+ * "Advanced Certificate in Learning and Performance (ACLP, 2023)" -> "ACLP" (long strings broke the
+ * app list rows, 11 Nov 2026). Unknown values are kept as typed.
+ */
 export function canonicalTrainingCert(v: string): string {
   const s = v.trim();
   const key = s.toUpperCase() === "DDDPL" ? "DDDLP" : s.toUpperCase() === "ALCP" ? "ACLP" : s;
-  return KNOWN_TRAINING.find((k) => k.toLowerCase() === key.toLowerCase()) ?? s;
+  const exact = KNOWN_TRAINING.find((k) => k.toLowerCase() === key.toLowerCase());
+  if (exact) return exact;
+  const code = s.toUpperCase().match(/\b(ACLP|ACTA|DACE|DDDLP|DDDPL|ALCP)\b/)?.[1];
+  if (code) return code === "DDDPL" ? "DDDLP" : code === "ALCP" ? "ACLP" : code;
+  return TRAINING_CERT_TITLES.find(([re]) => re.test(s))?.[1] ?? s;
+}
+
+/** Canonical, de-duplicated training certs for display and filtering. */
+export function canonicalTrainingCerts(values: readonly string[] | null | undefined): string[] {
+  return cleanList((values ?? []).map(canonicalTrainingCert));
 }
 
 const DOCTORATE = /\b(ph\.?\s?d|d\.?phil|doctor of|doctorate|doctoral|dba\b|ed\.?d\b|d\.?eng)/i;

@@ -84,6 +84,25 @@ export async function notifyAdmins(args: {
   return { notified, emailed, errors };
 }
 
+/**
+ * In-app notification (and so a phone push) to the HRMS admins when a staff member submits
+ * something that needs approval: leave of any type incl. MC / NPL, time off, expense claims.
+ * Admins = users holding the ADMIN role (Alfred Ang, Tan Soik Ching). Best effort, never throws.
+ */
+export async function notifyApprovers(args: { title: string; message: string; type: string; link: string }): Promise<number> {
+  try {
+    const admins = await prisma.user.findMany({ where: { roles: { has: "ADMIN" } }, select: { id: true } });
+    if (admins.length === 0) return 0;
+    const r = await prisma.notification.createMany({
+      data: admins.map((u) => ({ userId: u.id, title: args.title, message: args.message, type: args.type, link: args.link })),
+    });
+    return r.count;
+  } catch (err) {
+    console.error("[notifyApprovers]", err instanceof Error ? err.message : err);
+    return 0;
+  }
+}
+
 /** Cron bearer check shared by the HR cron routes. Returns a response on failure. */
 export function cronAuthError(req: Request): { status: number; error: string } | null {
   const secret = process.env.CRON_SECRET;

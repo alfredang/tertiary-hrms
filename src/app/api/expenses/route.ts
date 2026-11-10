@@ -8,6 +8,8 @@ import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
 import { Readable } from "stream";
 import { sendExpenseApprovalEmail } from "@/lib/approval-email";
+import { notifyApprovers } from "@/lib/admin-alerts";
+import { isDemoEmployee } from "@/lib/demo-guard";
 
 const expenseSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
@@ -115,6 +117,16 @@ export async function POST(req: NextRequest) {
           }
         })
         .catch((err) => console.error(`Drive mirror failed for expense ${claimId}:`, err));
+    }
+
+    // Notify the admins (in-app + phone push). Demo / App Review accounts never notify real approvers.
+    if (!(await isDemoEmployee(expenseClaim.employeeId))) {
+      await notifyApprovers({
+        title: "New expense claim",
+        message: `${expenseClaim.employee.name} claimed $${Number(expenseClaim.amount).toFixed(2)} for ${expenseClaim.category.name}.`,
+        type: "EXPENSE_SUBMITTED",
+        link: "/expenses",
+      });
     }
 
     sendExpenseApprovalEmail({

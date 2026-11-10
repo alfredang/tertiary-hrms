@@ -10,6 +10,7 @@ import { Readable } from "stream";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
 import { sendLeaveApprovalEmail } from "@/lib/approval-email";
+import { notifyApprovers } from "@/lib/admin-alerts";
 import {
   alExcessMessage,
   evaluateAlRequest,
@@ -369,25 +370,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Notify admins/HR/managers
+    // Notify the admins (in-app + phone push). Demo / App Review accounts never notify real approvers.
     try {
-      // Demo / App Review accounts never notify real approvers.
-      const approvers = (await isDemoEmployee(leaveRequest.employeeId)) ? [] : await prisma.user.findMany({
-        where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } },
-        select: { id: true },
-      });
-      let msg = `${leaveRequest.employee.name} submitted a ${leaveRequest.leaveType.name} request for ${Number(leaveRequest.days)} day(s).`;
-      if (deficitDays > 0) msg += ` ⚠ ${deficitDays} day(s) deficit.`;
-      await prisma.notification.createMany({
-        data: approvers.map((u) => ({
-          userId: u.id,
-          title: "New Leave Request",
-          message: msg,
-          type: "LEAVE_SUBMITTED",
-          link: "/leave",
-        })),
-        skipDuplicates: true,
-      });
+      if (!(await isDemoEmployee(leaveRequest.employeeId))) {
+        const typeName = leaveRequest.leaveType?.name ?? "leave";
+        let msg = `${leaveRequest.employee?.name ?? "A staff member"} submitted a ${typeName} request for ${Number(leaveRequest.days)} day(s).`;
+        if (deficitDays > 0) msg += ` ⚠ ${deficitDays} day(s) deficit.`;
+        await notifyApprovers({ title: `New ${typeName} request`, message: msg, type: "LEAVE_SUBMITTED", link: "/leave" });
+      }
     } catch {
       // Non-critical
     }

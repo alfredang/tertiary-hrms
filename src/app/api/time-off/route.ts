@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hasAdminAccess } from "@/lib/utils";
 import { computeTimeOffHours, timeOffReasonLabel } from "@/lib/time-off";
 import { sendTimeOffApprovalEmail } from "@/lib/approval-email";
+import { notifyApprovers } from "@/lib/admin-alerts";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import type { TimeOffReason } from "@prisma/client";
 import { isDemoEmployee } from "@/lib/demo-guard";
@@ -124,26 +125,15 @@ export async function POST(req: Request) {
       include: { employee: { select: { name: true } } },
     });
 
-    // Notify approvers (best effort — never block the submission).
-    try {
-      // Demo / App Review accounts never notify real approvers.
-      const approvers = (await isDemoEmployee(actor.employeeId)) ? [] : await prisma.user.findMany({
-        where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } },
-        select: { id: true },
-      });
+    // Notify the admins (in-app + phone push). Demo / App Review accounts never notify real approvers.
+    if (!(await isDemoEmployee(actor.employeeId))) {
       const detail = reasonDetail ? ` — ${reasonDetail}` : "";
-      await prisma.notification.createMany({
-        data: approvers.map((u) => ({
-          userId: u.id,
-          title: "New Time Off Request",
-          message: `${created.employee.name} requested ${hours}h time off on ${String(date).slice(0, 10)} (${timeOffReasonLabel(reason)})${detail}.`,
-          type: "TIME_OFF_SUBMITTED",
-          link: "/time-off",
-        })),
-        skipDuplicates: true,
+      await notifyApprovers({
+        title: "New Time Off request",
+        message: `${created.employee.name} requested ${hours}h time off on ${String(date).slice(0, 10)} (${timeOffReasonLabel(reason)})${detail}.`,
+        type: "TIME_OFF_SUBMITTED",
+        link: "/time-off",
       });
-    } catch {
-      // Non-critical
     }
 
     // Send email to approvers (best effort).

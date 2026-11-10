@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, num, iso } from "@/lib/mobile-api";
 import { getOrCreateEmployeeSubfolderId, getDriveClient } from "@/lib/drive";
 import { sendExpenseApprovalEmail } from "@/lib/approval-email";
+import { notifyApprovers } from "@/lib/admin-alerts";
+import { isDemoEmployee } from "@/lib/demo-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -166,6 +168,16 @@ export async function POST(req: NextRequest) {
           }
         })
         .catch((err) => console.error(`Drive mirror failed for mobile claim ${claim.id}:`, err));
+    }
+
+    // Notify the admins (in-app + phone push). Demo / App Review accounts never notify real approvers.
+    if (!(await isDemoEmployee(claim.employeeId))) {
+      await notifyApprovers({
+        title: "New expense claim",
+        message: `${claim.employee.name} claimed $${Number(claim.amount).toFixed(2)} for ${claim.category.name}.`,
+        type: "EXPENSE_SUBMITTED",
+        link: "/expenses",
+      });
     }
 
     sendExpenseApprovalEmail({

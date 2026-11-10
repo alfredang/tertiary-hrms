@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       id: true,
       name: true,
       email: true,
-      user: { select: { email: true } },
+      user: { select: { id: true, email: true } },
       leaveRequests: {
         where: {
           status: "APPROVED",
@@ -82,6 +82,21 @@ export async function GET(req: NextRequest) {
 
     const toEmail = emp.email || emp.user?.email;
     if (!toEmail) { noEmail++; continue; }
+
+    // In-app notification + phone push (best effort).
+    if (emp.user?.id) {
+      await prisma.notification
+        .create({
+          data: {
+            userId: emp.user.id,
+            title: "Working today? Log your hours",
+            message: `Today (${todayKey}) is a ${dayLabel}. If you are working, log your hours before 11:30 PM to earn Off In Lieu.`,
+            type: "TIMESHEET_REMINDER",
+            link: "/timesheet",
+          },
+        })
+        .catch((err) => console.error(`[timesheet-reminder] notify ${emp.name}:`, err));
+    }
 
     try {
       await sendEmail({

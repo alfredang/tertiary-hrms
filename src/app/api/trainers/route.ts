@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrainerAccess } from "@/lib/trainer-access";
-import { trainerInputSchema, filterTrainers, lastClassTitleOf, type TrainerListItem } from "@/lib/trainers";
+import { trainerInputSchema, filterTrainers, lastClassTitleOf, canonicalTrainingCerts, type TrainerListItem } from "@/lib/trainers";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const rows = await prisma.trainer.findMany({ select: LIST_SELECT, orderBy: { name: "asc" } });
   const list: TrainerListItem[] = rows.map(({ courses, recentClasses, ...t }) => ({
     ...t,
+    trainingCerts: canonicalTrainingCerts(t.trainingCerts),
     lastClassTitle: lastClassTitleOf(recentClasses, t.lastClassDate),
     courseTitles: courseTitles(courses),
   }));

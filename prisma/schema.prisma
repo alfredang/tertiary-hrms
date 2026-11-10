@@ -68,54 +68,54 @@ model Department {
 }
 
 model Employee {
-  id               String           @id @default(cuid())
-  userId           String           @unique
-  employeeId       String           @unique
-  email            String           @unique
-  phone            String?
-  dateOfBirth      DateTime?
-  gender           Gender           @default(MALE)
-  nationality      String           @default("Singaporean")
-  nric             String?          @unique
-  address          String?
-  departmentId     String?
-  position         String?
-  employmentType   EmploymentType   @default(FULL_TIME)
-  startDate        DateTime?
-  endDate          DateTime?
-  status           EmployeeStatus   @default(ACTIVE)
-  managerId        String?
-  avatarUrl        String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  educationLevel   EducationLevel   @default(DIPLOMA)
-  name             String
-  monthlyLeaveRate Decimal?         @db.Decimal(5, 2)
-  workdays         Int[]            @default([1, 2, 3, 4, 5])
-  driveFolderId    String?
-  school           String?
-  managerIds       String[]         @default([])
-  habitapInviteAt  DateTime?
-  habitapEventId   String?
-  woodsSquareInvite Boolean         @default(false)
+  id                String            @id @default(cuid())
+  userId            String            @unique
+  employeeId        String            @unique
+  email             String            @unique
+  phone             String?
+  dateOfBirth       DateTime?
+  gender            Gender            @default(MALE)
+  nationality       String            @default("Singaporean")
+  nric              String?           @unique
+  address           String?
+  departmentId      String?
+  position          String?
+  employmentType    EmploymentType    @default(FULL_TIME)
+  startDate         DateTime?
+  endDate           DateTime?
+  status            EmployeeStatus    @default(ACTIVE)
+  managerId         String?
+  avatarUrl         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  educationLevel    EducationLevel    @default(DIPLOMA)
+  name              String
+  monthlyLeaveRate  Decimal?          @db.Decimal(5, 2)
+  workdays          Int[]             @default([1, 2, 3, 4, 5])
+  driveFolderId     String?
+  school            String?
+  managerIds        String[]          @default([])
+  habitapInviteAt   DateTime?
+  habitapEventId    String?
+  woodsSquareInvite Boolean           @default(false)
   woodsSquareEmail  String?
-  department       Department?      @relation(fields: [departmentId], references: [id])
-  manager          Employee?        @relation("EmployeeToEmployee", fields: [managerId], references: [id])
-  subordinates     Employee[]       @relation("EmployeeToEmployee")
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  approvedExpenses ExpenseClaim[]   @relation("ExpenseClaim_approverIdToEmployee")
-  expenseClaims    ExpenseClaim[]   @relation("ExpenseClaim_employeeIdToEmployee")
-  leaveBalances    LeaveBalance[]
-  approvedLeaves   LeaveRequest[]   @relation("LeaveRequest_approverIdToEmployee")
-  leaveRequests    LeaveRequest[]   @relation("LeaveRequest_employeeIdToEmployee")
-  otWorkLogs       OtWorkLog[]
-  payslips         Payslip[]
-  salaryInfo       SalaryInfo?
+  department        Department?       @relation(fields: [departmentId], references: [id])
+  manager           Employee?         @relation("EmployeeToEmployee", fields: [managerId], references: [id])
+  subordinates      Employee[]        @relation("EmployeeToEmployee")
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedExpenses  ExpenseClaim[]    @relation("ExpenseClaim_approverIdToEmployee")
+  expenseClaims     ExpenseClaim[]    @relation("ExpenseClaim_employeeIdToEmployee")
+  leaveBalances     LeaveBalance[]
+  approvedLeaves    LeaveRequest[]    @relation("LeaveRequest_approverIdToEmployee")
+  leaveRequests     LeaveRequest[]    @relation("LeaveRequest_employeeIdToEmployee")
+  otWorkLogs        OtWorkLog[]
+  payslips          Payslip[]
+  salaryInfo        SalaryInfo?
   timesheetEntries  TimesheetEntry[]
   attendancePunches AttendancePunch[]
-  accessRequests   AccessRequest[]
-  timeOffRequests  TimeOffRequest[] @relation("TimeOffRequest_employeeIdToEmployee")
-  approvedTimeOffs TimeOffRequest[] @relation("TimeOffRequest_approverIdToEmployee")
+  accessRequests    AccessRequest[]
+  timeOffRequests   TimeOffRequest[]  @relation("TimeOffRequest_employeeIdToEmployee")
+  approvedTimeOffs  TimeOffRequest[]  @relation("TimeOffRequest_approverIdToEmployee")
 }
 
 model ExpenseCategory {
@@ -208,24 +208,24 @@ model LeaveRequest {
 /// emergency). Unlike LeaveRequest this is measured in hours on a single date
 /// and never touches LeaveBalance — it only needs manager sign-off.
 model TimeOffRequest {
-  id              String          @id @default(cuid())
+  id              String        @id @default(cuid())
   employeeId      String
-  date            DateTime        @db.Date
+  date            DateTime      @db.Date
   startTime       String // "HH:mm", 24h local (Asia/Singapore)
   endTime         String // "HH:mm", 24h local (Asia/Singapore)
-  hours           Decimal         @db.Decimal(5, 2)
+  hours           Decimal       @db.Decimal(5, 2)
   reason          TimeOffReason
   reasonDetail    String? // required when reason = OTHERS
-  status          LeaveStatus     @default(PENDING)
+  status          LeaveStatus   @default(PENDING)
   approverId      String?
   approvedAt      DateTime?
   approvalComment String?
   rejectedAt      DateTime?
   rejectionReason String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  employee        Employee        @relation("TimeOffRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
-  approver        Employee?       @relation("TimeOffRequest_approverIdToEmployee", fields: [approverId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  employee        Employee      @relation("TimeOffRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
+  approver        Employee?     @relation("TimeOffRequest_approverIdToEmployee", fields: [approverId], references: [id])
 
   @@index([employeeId, date])
   @@index([status])
@@ -319,6 +319,7 @@ model User {
   employee      Employee?
   notifications Notification[]
   sessions      Session[]
+  deviceTokens  DeviceToken[]
 }
 
 model VerificationToken {
@@ -473,6 +474,23 @@ model PublicHoliday {
 
   @@unique([date, countryCode])
   @@index([year, countryCode])
+}
+
+/// A phone registered for push notifications (native iOS = APNs token, Android = FCM token).
+/// Every in-app Notification row is also pushed to the user's devices (src/lib/push.ts).
+model DeviceToken {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique
+  /// "ios" | "android"
+  platform    String
+  /// APNs environment for iOS tokens: "production" | "sandbox"
+  environment String   @default("production")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Notification {

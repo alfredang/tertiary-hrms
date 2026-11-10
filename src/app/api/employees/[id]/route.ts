@@ -14,6 +14,9 @@ export async function PATCH(
 
     // 1. Authentication + authorization
     // Development mode: Skip authentication if SKIP_AUTH is enabled
+    // A non-privileged user editing their own record may change personal details only —
+    // never their roles, salary or employment terms (privilege escalation otherwise).
+    let selfEditOnly = false;
     if (!isDevAuthSkipped()) {
       const session = await auth();
       if (!session?.user) {
@@ -28,6 +31,7 @@ export async function PATCH(
           { status: 403 }
         );
       }
+      selfEditOnly = !isPrivileged;
     }
     const body = await req.json();
 
@@ -44,6 +48,12 @@ export async function PATCH(
     }
 
     const { personalInfo, employmentInfo, salaryInfo, roles } = validation.data;
+    if (selfEditOnly && (employmentInfo || salaryInfo || roles)) {
+      return NextResponse.json(
+        { error: "You can only edit your personal details" },
+        { status: 403 }
+      );
+    }
 
     // 4. Check employee exists
     const employee = await prisma.employee.findUnique({

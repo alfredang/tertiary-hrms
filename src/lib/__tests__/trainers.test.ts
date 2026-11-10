@@ -79,6 +79,9 @@ describe("trainer helpers", () => {
     expect(canonicalTrainingCert("dddpl")).toBe("DDDLP");
     expect(canonicalTrainingCert("ALCP")).toBe("ACLP");
     expect(canonicalTrainingCert("ae registry")).toBe("AE Registry");
+    expect(canonicalTrainingCert("Advanced Certificate in Learning and Performance (ACLP, 2023)")).toBe("ACLP");
+    expect(canonicalTrainingCert("Advanced Certificate in Training and Assessment")).toBe("ACTA");
+    expect(canonicalTrainingCert("Graduate Certificate in Workplace Learning (GCWLP)")).toBe("Graduate Certificate in Workplace Learning (GCWLP)");
   });
   it("masks NRIC to first letter + last 4", () => {
     expect(maskNric("S1234567A")).toBe("S****567A");
