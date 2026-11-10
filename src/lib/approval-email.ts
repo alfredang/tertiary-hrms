@@ -38,6 +38,8 @@ async function attachmentFromLocalUrl(
   }
 }
 
+import { isDemoEmail, isDemoEmployee } from "./demo-guard";
+
 const APPROVAL_TOKEN_TTL_DAYS = 14;
 
 const FALLBACK_APPROVERS = ["tansc@tertiaryinfotech.com"];
@@ -193,6 +195,7 @@ export async function sendLeaveApprovalEmail(args: {
   documentUrl?: string | null;
   documentFileName?: string | null;
 }): Promise<void> {
+  if (await isDemoEmployee(args.employeeId)) return; // demo / App Review: never email real approvers
   const token = await issueToken("LEAVE", args.leaveRequestId);
   const base = getBaseUrl();
   const approveUrl = `${base}/api/public/leave-approval/respond?token=${token}&action=accept`;
@@ -238,6 +241,7 @@ export async function sendExpenseApprovalEmail(args: {
   receiptUrl?: string | null;
   receiptFileName?: string | null;
 }): Promise<void> {
+  if (await isDemoEmployee(args.employeeId)) return; // demo / App Review: never email real approvers
   const token = await issueToken("EXPENSE", args.expenseClaimId);
   const base = getBaseUrl();
   const approveUrl = `${base}/api/public/expense-approval/respond?token=${token}&action=accept`;
@@ -287,6 +291,7 @@ export async function sendTimeOffApprovalEmail(args: {
   reason: string;
   reasonDetail?: string | null;
 }): Promise<void> {
+  if (await isDemoEmployee(args.employeeId)) return; // demo / App Review: never email real approvers
   const token = await issueToken("TIME_OFF", args.timeOffRequestId);
   const base = getBaseUrl();
   const approveUrl = `${base}/api/public/time-off-approval/respond?token=${token}&action=accept`;
@@ -327,6 +332,7 @@ export async function sendDecisionEmailToStaff(args: {
   staffEmail: string;
   vars: Record<string, string | number | undefined | null>;
 }): Promise<void> {
+  if (isDemoEmail(args.staffEmail)) return;
   const { subject, body } = await renderEmail(args.templateKey, args.vars);
   const html = textToHtml(body, "");
   await sendEmail({ to: args.staffEmail, subject, html });

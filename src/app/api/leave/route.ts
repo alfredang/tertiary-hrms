@@ -21,6 +21,7 @@ import {
   NPL_CODE,
 } from "@/lib/leave-policy";
 import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
+import { isDemoEmployee } from "@/lib/demo-guard";
 
 const leaveRequestSchema = z.object({
   leaveTypeId: z.string().min(1, "Leave type is required"),
@@ -370,7 +371,8 @@ export async function POST(req: NextRequest) {
 
     // Notify admins/HR/managers
     try {
-      const approvers = await prisma.user.findMany({
+      // Demo / App Review accounts never notify real approvers.
+      const approvers = (await isDemoEmployee(leaveRequest.employeeId)) ? [] : await prisma.user.findMany({
         where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } },
         select: { id: true },
       });

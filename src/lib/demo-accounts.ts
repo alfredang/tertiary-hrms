@@ -20,3 +20,14 @@ export function withoutDemoEmployees<W extends Where>(where: W): W {
   const notDemo = { employeeId: { notIn: DEMO_EMPLOYEE_CODES } };
   return (where ? { AND: [where, notDemo] } : notDemo) as unknown as W;
 }
+
+/**
+ * Add "not filed by a demo account" to a request-type filter (leave, claims, time off, timesheet,
+ * OT, payslips, punches) unless it already targets one employee or one record — so admins never
+ * see App Review activity, while the demo user still sees their own.
+ */
+export function withoutDemoRequests<W extends Where>(where: W): W {
+  if (where && (typeof where.employeeId === "string" || typeof where.id === "string")) return where;
+  const notDemo = { employee: { employeeId: { notIn: DEMO_EMPLOYEE_CODES } } };
+  return (where ? { AND: [where, notDemo] } : notDemo) as unknown as W;
+}

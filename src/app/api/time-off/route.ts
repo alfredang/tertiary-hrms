@@ -6,6 +6,7 @@ import { computeTimeOffHours, timeOffReasonLabel } from "@/lib/time-off";
 import { sendTimeOffApprovalEmail } from "@/lib/approval-email";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import type { TimeOffReason } from "@prisma/client";
+import { isDemoEmployee } from "@/lib/demo-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -125,7 +126,8 @@ export async function POST(req: Request) {
 
     // Notify approvers (best effort — never block the submission).
     try {
-      const approvers = await prisma.user.findMany({
+      // Demo / App Review accounts never notify real approvers.
+      const approvers = (await isDemoEmployee(actor.employeeId)) ? [] : await prisma.user.findMany({
         where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } },
         select: { id: true },
       });

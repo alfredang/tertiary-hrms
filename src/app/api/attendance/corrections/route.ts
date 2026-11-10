@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized } from "@/lib/mobile-api";
 import { todaySgt } from "@/lib/attendance";
 import { validateCorrection } from "@/lib/attendance-policy";
+import { isDemoEmployee } from "@/lib/demo-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -120,7 +121,10 @@ export async function POST(req: Request) {
   try {
     const [emp, approvers] = await Promise.all([
       prisma.employee.findUnique({ where: { id: ctx.employeeId }, select: { name: true } }),
-      prisma.user.findMany({ where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } }, select: { id: true } }),
+      // Demo / App Review accounts never notify real approvers.
+      isDemoEmployee(ctx.employeeId).then((demo) =>
+        demo ? [] : prisma.user.findMany({ where: { roles: { hasSome: ["ADMIN", "HR", "MANAGER"] } }, select: { id: true } }),
+      ),
     ]);
     const what = v.kind === "BOTH" ? "clock-in and clock-out" : v.kind === "CLOCK_IN" ? "clock-in" : "clock-out";
     await prisma.notification.createMany({
