@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { skillMatches } from "@/lib/trainer-skills";
 
 /** Training / adult-education accreditations shown as flags on every trainer. */
 export const TRAINING_CERTS = [
@@ -84,10 +85,9 @@ export function matchesQuery(hay: string, q: string | undefined): boolean {
     .every((term) => hay.includes(ALIASES[term] ?? term));
 }
 
-const hasTag = (t: TrainerListItem, tag: string) => {
-  const n = norm(tag);
-  return [...t.skills, ...t.certifications, ...t.trainingCerts].some((x) => norm(x) === n);
-};
+/** Skill / cert tag filter: exact value, a synonym ("Articulate 360" ↔ "Articulate Storyline") or a course taught. */
+const hasTag = (t: TrainerListItem, tag: string) =>
+  skillMatches(tag, [...t.skills, ...t.certifications, ...t.trainingCerts], t.courseTitles);
 
 export function isApplicant(t: Pick<TrainerListItem, "status">): boolean {
   return t.status === "Applicant" || t.status === "Contacted";

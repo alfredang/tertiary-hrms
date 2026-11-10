@@ -9,6 +9,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { canonicalTrainerName, canonicalTrainingCert, cleanList, hasDoctorate } from "@/lib/trainers";
+import { mergeCalendarClasses, skillsFromTitles, titlesTaughtSince, twoYearsAgo, unionSkills } from "@/lib/trainer-skills";
 
 export type TrainerRecord = {
   sourceKey: string; tmsId: string | null; name: string; nickname: string | null; nric: string | null; phone: string | null;
@@ -196,14 +197,24 @@ export async function upsertTrainers(
     if (!cur) await prisma.trainer.update({ where: { id: old.id }, data: { sourceKey: to } });
     else if (!old.editedAt) await prisma.trainer.delete({ where: { id: old.id } }); // merged folder: the target record survives
   }
-  const existing = new Map((await prisma.trainer.findMany({ select: { id: true, sourceKey: true, editedAt: true } })).map((t) => [t.sourceKey, t]));
+  const existing = new Map(
+    (await prisma.trainer.findMany({ select: { id: true, sourceKey: true, editedAt: true, skills: true, calendarClasses: true } })).map((t) => [t.sourceKey, t]),
+  );
+  const since = twoYearsAgo();
   let created = 0, updated = 0, keptEdits = 0;
   const now = new Date();
   for (const r of recs) {
+    const cur = existing.get(r.sourceKey);
+    // Keep classes found in sales@ invitations (scanned outside this export) across re-imports.
+    const calendarClasses = mergeCalendarClasses(r.calendarClasses, cur?.calendarClasses);
+    // Skills = the source's skills + any already on record + skills implied by classes taught in the
+    // last 2 years (union only, never removed or renamed).
+    const derived = skillsFromTitles(titlesTaughtSince({ courses: r.courses, recentClasses: r.recentClasses, calendarClasses }, since));
+    r.skills = unionSkills(unionSkills(r.skills, cur?.skills ?? []), derived);
     const activity = {
       trainerType: r.trainerType, inTms: r.inTms, tmsId: r.tmsId, actaFolder: r.actaFolder, moreFolders: r.moreFolders,
       evidenceFiles: r.evidenceFiles, ibfFitFiles: r.ibfFitFiles, courses: (r.courses ?? []) as Prisma.InputJsonValue,
-      recentClasses: (r.recentClasses ?? []) as Prisma.InputJsonValue, calendarClasses: (r.calendarClasses ?? []) as Prisma.InputJsonValue,
+      recentClasses: (r.recentClasses ?? []) as Prisma.InputJsonValue, calendarClasses: calendarClasses as unknown as Prisma.InputJsonValue,
       classesCount: r.classesCount, lastClassDate: r.lastClassDate, importedAt: now,
     };
     const profile = {
@@ -213,7 +224,6 @@ export async function upsertTrainers(
       education: r.education, experience: r.experience, summary: r.summary, financeBackground: r.financeBackground,
       financeEvidence: r.financeEvidence, ibfFitDeclaration: r.ibfFitDeclaration || r.ibfFitFiles.length > 0, profileSource: r.profileSource,
     };
-    const cur = existing.get(r.sourceKey);
     if (opts.dryRun) {
       if (!cur) created++;
       else if (cur.editedAt) keptEdits++;
@@ -224,8 +234,8 @@ export async function upsertTrainers(
       await prisma.trainer.create({ data: { sourceKey: r.sourceKey, ...profile, ...activity } });
       created++;
     } else if (cur.editedAt) {
-      // Keep the Trainer Admin's profile edits; still union in newly found accreditation evidence.
-      await prisma.trainer.update({ where: { id: cur.id }, data: activity });
+      // Keep the Trainer Admin's profile edits; still union in skills implied by classes taught.
+      await prisma.trainer.update({ where: { id: cur.id }, data: { ...activity, skills: unionSkills(cur.skills, derived) } });
       keptEdits++;
     } else {
       await prisma.trainer.update({ where: { id: cur.id }, data: { ...profile, ...activity } });

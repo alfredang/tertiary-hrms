@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const LIST_SELECT = {
   id: true, name: true, nickname: true, phone: true, email: true, trainerType: true, status: true, inTms: true,
   trainingCerts: true, certifications: true, skills: true, education: true, summary: true, financeBackground: true,
-  ibfFitDeclaration: true, classesCount: true, lastClassDate: true, courses: true, recentClasses: true,
+  ibfFitDeclaration: true, classesCount: true, lastClassDate: true, courses: true, recentClasses: true, calendarClasses: true,
 } as const;
 
 /** GET /api/trainers?q=&cert=ACLP&cert=ACTA&tag=PMP&finance=1&ibfFit=1&status=trainers — Trainer Admin only. No NRIC. */
@@ -18,11 +18,13 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const rows = await prisma.trainer.findMany({ select: LIST_SELECT, orderBy: { name: "asc" } });
-  const list: TrainerListItem[] = rows.map(({ courses, recentClasses, ...t }) => ({
+  const list: TrainerListItem[] = rows.map(({ courses, recentClasses, calendarClasses, ...t }) => ({
     ...t,
     trainingCerts: canonicalTrainingCerts(t.trainingCerts),
     lastClassTitle: lastClassTitleOf(recentClasses, t.lastClassDate),
-    courseTitles: courseTitles(courses),
+    // TMS courses + classes found in Google Calendar / sales@ invitations, so a skill search finds
+    // everyone who has taught it.
+    courseTitles: Array.from(new Set([...courseTitles(courses), ...courseTitles(calendarClasses)])),
   }));
   const status = sp.get("status");
   const trainers = filterTrainers(list, {
