@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   const from = new Date(Date.UTC(year - 1, 11, 1));
   const to = new Date(Date.UTC(year + 1, 1, 1));
 
-  const [leave, holidays] = await Promise.all([
+  const [leave, holidays, publicHolidays] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: { status: "APPROVED", startDate: { lt: to }, endDate: { gte: from } },
       select: {
@@ -49,7 +49,22 @@ export async function GET(req: Request) {
       where: { type: "HOLIDAY", startDate: { lt: to, gte: from } },
       orderBy: { startDate: "asc" },
     }),
+    // Every Singapore public holiday (seeded each year by startup-setup), not only the ones an
+    // admin added as calendar events (Alfred, 11 Nov 2026: "show all the public holidays").
+    prisma.publicHoliday.findMany({
+      where: { countryCode: "SG", date: { lt: to, gte: from } },
+      orderBy: { date: "asc" },
+    }),
   ]);
+
+  const dayKey = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
+  const eventDays = new Set(holidays.map((h) => dayKey(h.startDate)));
+  const allHolidays = [
+    ...holidays.map((h) => ({ id: h.id, title: h.title, startDate: iso(h.startDate), endDate: iso(h.endDate) })),
+    ...publicHolidays
+      .filter((ph) => !eventDays.has(dayKey(ph.date)))
+      .map((ph) => ({ id: ph.id, title: ph.name, startDate: iso(ph.date), endDate: iso(ph.date) })),
+  ].sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
 
   const entries = leave.map((l) => {
     const isSelf = !!ctx.employeeId && l.employeeId === ctx.employeeId;
@@ -72,11 +87,6 @@ export async function GET(req: Request) {
     year,
     canSeeTypes: ctx.isAdmin,
     entries,
-    holidays: holidays.map((h) => ({
-      id: h.id,
-      title: h.title,
-      startDate: iso(h.startDate),
-      endDate: iso(h.endDate),
-    })),
+    holidays: allHolidays,
   });
 }

@@ -144,9 +144,17 @@ export default async function CalendarDayPage({
   const staffFilter = viewAs !== "admin" ? currentEmployeeId : undefined;
 
   // Fetch data in parallel
-  const [leaveRequests, rawEvents] = await Promise.all([
+  const [leaveRequests, rawEvents, holidays] = await Promise.all([
     getLeaveForDate(date, staffFilter),
     getEventsForDate(date, currentUserId),
+    // Public holidays on this day: the seeded SG list plus any admin-added holiday events.
+    Promise.all([
+      prisma.publicHoliday.findMany({ where: { countryCode: "SG", date: new Date(`${date}T00:00:00.000Z`) }, select: { name: true } }),
+      prisma.calendarEvent.findMany({
+        where: { type: "HOLIDAY", startDate: { lte: new Date(`${date}T23:59:59.999Z`) }, endDate: { gte: new Date(`${date}T00:00:00.000Z`) } },
+        select: { title: true },
+      }),
+    ]).then(([ph, ev]) => Array.from(new Set([...ph.map((h) => h.name), ...ev.map((e) => e.title)]))),
   ]);
 
   // Sort meetings first, then by start date
@@ -188,6 +196,12 @@ export default async function CalendarDayPage({
           </Button>
         </Link>
       </div>
+
+      {holidays.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-[#ECEFF4] px-4 py-3 text-sm font-medium text-red-700">
+          Public holiday: {holidays.join(", ")}
+        </div>
+      )}
 
       {/* Events */}
       <Card className="bg-gray-950 border-gray-800">

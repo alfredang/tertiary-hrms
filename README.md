@@ -213,7 +213,8 @@ Earlier additions (May 2026):
 
 ### Calendar
 - **Personal planner** — each user's events are fully private (admins cannot see other employees' events)
-- Full calendar month view with color-coded event types (Holiday, Meeting, Training, Company Event, Leave)
+- Full calendar month view, weeks starting Monday, with color-coded event types (Holiday, Meeting, Training, Company Event, Leave)
+- **Every Singapore public holiday** shown (the seeded `PublicHoliday` list plus admin-added holiday events), each holiday cell on a light grey background; the day page shows a public-holiday banner. The native apps get the same list from `/api/mobile/team-calendar`.
 - Approved leave/MC automatically synced as calendar events
 - **Leave visibility**: admin view shows all employees' leave; "Show as Staff" mode and staff role see only own leave
 - Day detail view with event cards showing title, type, and time

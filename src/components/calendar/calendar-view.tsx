@@ -41,7 +41,8 @@ export function CalendarView({ events }: CalendarViewProps) {
 
     return {
       daysInMonth: lastDay.getDate(),
-      firstDayOfMonth: firstDay.getDay(),
+      // Weeks start on Monday (Alfred, 11 Nov 2026): Mon = 0 … Sun = 6.
+      firstDayOfMonth: (firstDay.getDay() + 6) % 7,
       monthName: firstDay.toLocaleString("default", { month: "long" }),
       year,
     };
@@ -87,9 +88,11 @@ export function CalendarView({ events }: CalendarViewProps) {
     );
   };
 
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const blanks = Array(firstDayOfMonth).fill(null);
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  // Pad the last week so the grid ends on a full row (no dark gap after the last day).
+  const trailing = Array((7 - ((firstDayOfMonth + daysInMonth) % 7)) % 7).fill(null);
 
   return (
     <div className="space-y-6">
@@ -155,6 +158,7 @@ export function CalendarView({ events }: CalendarViewProps) {
             {daysArray.map((day) => {
               const dayEvents = getEventsForDay(day);
               const isCurrentDay = isToday(day);
+              const isHoliday = dayEvents.some((e) => e.type === "HOLIDAY");
 
               return (
                 <Link
@@ -162,8 +166,13 @@ export function CalendarView({ events }: CalendarViewProps) {
                   href={getDayHref(day)}
                   className={cn(
                     "block bg-gray-950 h-[72px] sm:h-[118px] p-1 sm:p-2 cursor-pointer transition-colors overflow-hidden",
-                    isCurrentDay ? "bg-blue-950/50 hover:bg-blue-950/70" : "hover:bg-gray-900"
+                    isCurrentDay
+                      ? "bg-blue-950/50 hover:bg-blue-950/70"
+                      : isHoliday
+                        ? "bg-[#ECEFF4] hover:bg-[#E2E6EE]"
+                        : "hover:bg-gray-900"
                   )}
+                  title={isHoliday ? dayEvents.filter((e) => e.type === "HOLIDAY").map((e) => e.title).join(", ") : undefined}
                 >
                   <div
                     className={cn(
@@ -195,6 +204,10 @@ export function CalendarView({ events }: CalendarViewProps) {
                 </Link>
               );
             })}
+
+            {trailing.map((_, index) => (
+              <div key={`trail-${index}`} className="bg-gray-900 h-[72px] sm:h-[118px] p-1 sm:p-2" />
+            ))}
           </div>
         </CardContent>
       </Card>

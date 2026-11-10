@@ -57,16 +57,36 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
     eventMap.set(event.id, event);
   }
 
-  return Array.from(eventMap.values()).map((event) => ({
-    id: event.id,
-    title: event.title,
-    start: event.startDate,
-    end: event.endDate,
-    allDay: event.allDay,
-    type: event.type,
-    color: event.color || getDefaultColor(event.type),
-    description: event.description,
-  }));
+  // 3. Every Singapore public holiday (seeded each year at startup), not only the ones an admin
+  //    added as calendar events (Alfred, 11 Nov 2026). Skipped where a holiday event already exists.
+  const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+  const holidayDays = new Set(holidayEvents.map((e) => dayKey(e.startDate)));
+  const publicHolidays = (await prisma.publicHoliday.findMany({ where: { countryCode: "SG" }, orderBy: { date: "asc" } }))
+    .filter((ph) => !holidayDays.has(dayKey(ph.date)));
+
+  return [
+    ...Array.from(eventMap.values()).map((event) => ({
+      id: event.id,
+      title: event.title,
+      start: event.startDate,
+      end: event.endDate,
+      allDay: event.allDay,
+      type: event.type,
+      color: event.color || getDefaultColor(event.type),
+      description: event.description,
+    })),
+    ...publicHolidays.map((ph) => ({
+      id: `ph-${ph.id}`,
+      title: ph.name,
+      // @db.Date is UTC midnight; anchor at SGT noon so the browser places it on the right day.
+      start: new Date(`${dayKey(ph.date)}T12:00:00+08:00`),
+      end: new Date(`${dayKey(ph.date)}T12:00:00+08:00`),
+      allDay: true,
+      type: "HOLIDAY",
+      color: getDefaultColor("HOLIDAY"),
+      description: "Public holiday",
+    })),
+  ];
 }
 
 function getDefaultColor(type: string): string {

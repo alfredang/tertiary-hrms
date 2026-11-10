@@ -10,11 +10,16 @@ export async function register() {
     console.log("[instrumentation] register() running");
 
     // Start the Woods Square scheduler timer first, so a slow seed can't block it.
-    try {
-      const { startScheduleTimer } = await import("./lib/woods-square-scheduler");
-      startScheduleTimer();
-    } catch (err) {
-      console.error("[woods-square-scheduler] Failed to start timer:", err);
+    // Production only: the local DATABASE_URL points at the PRODUCTION database, so a `next dev`
+    // on a Mac would otherwise fire real building-access sends alongside the live server.
+    // Set WOODS_SQUARE_TIMER=on to run it locally on purpose.
+    if (process.env.NODE_ENV === "production" || process.env.WOODS_SQUARE_TIMER === "on") {
+      try {
+        const { startScheduleTimer } = await import("./lib/woods-square-scheduler");
+        startScheduleTimer();
+      } catch (err) {
+        console.error("[woods-square-scheduler] Failed to start timer:", err);
+      }
     }
 
     // Auto-apply seed data (idempotent).
