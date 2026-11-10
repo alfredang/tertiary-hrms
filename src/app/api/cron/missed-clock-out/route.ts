@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
-import { cronAuthError, escapeHtml, notifyAdmins, sgtToday } from "@/lib/admin-alerts";
+import { cronAuthError, escapeHtml, notifyAdmins, sgtToday, staffAlertCc } from "@/lib/admin-alerts";
 import { withCronRun } from "@/lib/cron-runs";
 import { getActiveInterns, getMissedPunches } from "@/lib/hr-insights";
 import { addDays } from "@/lib/attendance-policy";
@@ -69,6 +69,7 @@ async function runReminder() {
     try {
       await sendEmail({
         to: intern.email,
+        cc: staffAlertCc(intern.email),
         subject: `${title} (${date}) - ${company}`,
         html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p>Hi ${escapeHtml(intern.name)},</p>

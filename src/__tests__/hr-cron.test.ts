@@ -54,7 +54,9 @@ describe("Rule 5 — /api/cron/missed-clock-out", () => {
     expect(mockPrisma.notification.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ userId: "u1", type: "ATTENDANCE_MISSED", link: "/attendance" }),
     });
-    expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "ivy@x.com" }));
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "ivy@x.com", cc: ["tansc@tertiaryinfotech.com", "angch@tertiaryinfotech.com"] }),
+    );
     expect(mockPrisma.cronJobRun.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "SUCCESS" }) }),
     );
@@ -68,7 +70,10 @@ describe("Rule 5 — /api/cron/missed-clock-out", () => {
     const res = await missedClockOut(cronReq("/api/cron/missed-clock-out?mode=rollup"));
     const body = await res.json();
     expect(body).toMatchObject({ ok: true, mode: "rollup", noClockOut: 1, noClockIn: 1, notified: 2, emailed: 2 });
-    expect(mockSendEmail.mock.calls.map((c) => c[0].to)).toEqual(["angch@tertiaryinfotech.com", "tansc@tertiaryinfotech.com"]);
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "tansc@tertiaryinfotech.com", cc: ["angch@tertiaryinfotech.com"] }),
+    );
   });
 
   it("rollup is silent when nothing was missed", async () => {

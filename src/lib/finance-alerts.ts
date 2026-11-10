@@ -6,8 +6,8 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
 
-/** Default recipients (Alfred Ang, Tan Soik Ching). Override with FINANCE_ALERT_EMAILS (comma-separated). */
-export const DEFAULT_FINANCE_ALERT_EMAILS = ["angch@tertiaryinfotech.com", "tansc@tertiaryinfotech.com"];
+/** Default recipients: To Tan Soik Ching, Cc Alfred Ang. Override with FINANCE_ALERT_EMAILS (comma-separated, first = To). */
+export const DEFAULT_FINANCE_ALERT_EMAILS = ["tansc@tertiaryinfotech.com", "angch@tertiaryinfotech.com"];
 
 export function financeAlertRecipients(): string[] {
   const env = process.env.FINANCE_ALERT_EMAILS;

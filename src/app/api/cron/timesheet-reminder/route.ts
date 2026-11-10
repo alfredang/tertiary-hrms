@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
+import { staffAlertCc } from "@/lib/admin-alerts";
 
 // Runs at 09:30 UTC = 5:30 PM SGT, every day
 // Schedule in Coolify: 30 9 * * *
@@ -85,6 +86,7 @@ export async function GET(req: NextRequest) {
     try {
       await sendEmail({
         to: toEmail,
+        cc: staffAlertCc(toEmail),
         subject: `Are you working today? Log your hours for Off In Lieu - ${companyName}`,
         html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">
 <p>Hi ${emp.name},</p>

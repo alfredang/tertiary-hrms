@@ -39,56 +39,24 @@ async function attachmentFromLocalUrl(
 }
 
 import { isDemoEmail, isDemoEmployee } from "./demo-guard";
+import { ADMIN_EMAIL_CC, ADMIN_EMAIL_TO } from "./admin-alerts";
 
 const APPROVAL_TOKEN_TTL_DAYS = 14;
 
-const FALLBACK_APPROVERS = ["tansc@tertiaryinfotech.com"];
-const ALWAYS_CC = ["angch@tertiaryinfotech.com"];
-
-async function getApproverEmails(employeeId?: string): Promise<{ to: string[]; cc: string[] }> {
-  const recipients = new Set<string>();
-
-  // Always include users with ADMIN or HR role
-  const adminUsers = await prisma.user.findMany({
-    where: { roles: { hasSome: ["ADMIN", "HR"] } },
-    select: { email: true },
-  });
-  for (const u of adminUsers) {
-    if (u.email) recipients.add(u.email.toLowerCase());
-  }
-
-  // Also include the employee's direct manager if set
-  if (employeeId) {
-    const emp = await prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: { managerId: true },
-    });
-    if (emp?.managerId) {
-      const manager = await prisma.employee.findUnique({
-        where: { id: emp.managerId },
-        select: { email: true },
-      });
-      if (manager?.email) recipients.add(manager.email.toLowerCase());
-    }
-  }
-
-  // Also include CompanySettings.approvalEmails
+/**
+ * Leave (AL, MC, NPL, every type), expense and time-off approval requests go TO Tan Soik
+ * Ching and CC Alfred Ang, the two HRMS admins (Alfred, 11 Nov 2026). Addresses added in
+ * Settings → Company → Approval emails are CC'd as well.
+ */
+async function getApproverEmails(): Promise<{ to: string[]; cc: string[] }> {
   const settings = await prisma.companySettings.findUnique({
     where: { id: "company_settings" },
     select: { approvalEmails: true },
   });
-  for (const email of settings?.approvalEmails ?? []) {
-    if (email) recipients.add(email.toLowerCase());
-  }
-
-  // Fall back to hard-coded defaults if nothing found
-  if (recipients.size === 0) {
-    for (const email of FALLBACK_APPROVERS) recipients.add(email);
-  }
-
-  const toList = Array.from(recipients);
-  const ccList = ALWAYS_CC.filter((c) => !recipients.has(c.toLowerCase()));
-  return { to: toList, cc: ccList };
+  const cc = [ADMIN_EMAIL_CC, ...(settings?.approvalEmails ?? [])]
+    .map((e) => e.trim().toLowerCase())
+    .filter((e, i, all) => e && e !== ADMIN_EMAIL_TO && all.indexOf(e) === i);
+  return { to: [ADMIN_EMAIL_TO], cc };
 }
 
 function esc(s: string): string {
@@ -224,7 +192,7 @@ export async function sendLeaveApprovalEmail(args: {
     siteUrl: base,
   });
 
-  const { to, cc } = await getApproverEmails(args.employeeId);
+  const { to, cc } = await getApproverEmails();
   const attachment = await attachmentFromLocalUrl(args.documentUrl, args.documentFileName);
   const attachments = attachment ? [attachment] : undefined;
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc, attachments })));
@@ -269,7 +237,7 @@ export async function sendExpenseApprovalEmail(args: {
     siteUrl: base,
   });
 
-  const { to, cc } = await getApproverEmails(args.employeeId);
+  const { to, cc } = await getApproverEmails();
   const attachment = await attachmentFromLocalUrl(args.receiptUrl, args.receiptFileName);
   const attachments = attachment ? [attachment] : undefined;
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc, attachments })));
@@ -323,7 +291,7 @@ export async function sendTimeOffApprovalEmail(args: {
     siteUrl: base,
   });
 
-  const { to, cc } = await getApproverEmails(args.employeeId);
+  const { to, cc } = await getApproverEmails();
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc })));
 }
 
