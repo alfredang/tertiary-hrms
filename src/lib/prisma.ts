@@ -14,7 +14,7 @@ const hideDemoRows = {
   },
 };
 
-type NoteRow = { userId?: string; title?: string; message?: string; link?: string | null };
+type NoteRow = { userId?: string; title?: string; message?: string; link?: string | null; type?: string };
 
 /**
  * Every Notification row is also pushed to the recipient's phones (src/lib/push.ts). Fire and
@@ -23,7 +23,7 @@ type NoteRow = { userId?: string; title?: string; message?: string; link?: strin
 function queuePush(rows: NoteRow[]) {
   const items = rows
     .filter((r) => r.userId && r.title)
-    .map((r) => ({ userId: r.userId as string, title: r.title as string, body: r.message ?? "", link: r.link ?? null }));
+    .map((r) => ({ userId: r.userId as string, title: r.title as string, body: r.message ?? "", link: r.link ?? null, type: r.type }));
   if (items.length === 0 || process.env.NODE_ENV === "test") return;
   import("./push")
     .then((m) => m.sendPush(items))

@@ -18,7 +18,13 @@ export interface PushItem {
   title: string;
   body: string;
   link?: string | null;
+  /** Notification.type — approval requests open the apps' Approvals screen. */
+  type?: string;
 }
+
+/** Admin approval requests: the web link is the list page, but the apps open Approvals. */
+const APPROVAL_TYPES = new Set(["LEAVE_SUBMITTED", "TIME_OFF_SUBMITTED", "EXPENSE_SUBMITTED"]);
+const appLink = (item: PushItem) => (item.type && APPROVAL_TYPES.has(item.type) ? "/approvals" : item.link ?? "");
 
 const CRED_KEYS = ["APNS_KEY_P8", "APNS_KEY_ID", "APNS_TEAM_ID", "APNS_BUNDLE_ID", "FCM_SERVICE_ACCOUNT_JSON"] as const;
 type CredKey = (typeof CRED_KEYS)[number];
@@ -159,7 +165,7 @@ export async function sendPush(items: PushItem[]): Promise<{ sent: number; faile
             const host = d.environment === "sandbox" ? "api.sandbox.push.apple.com" : "api.push.apple.com";
             const payload = JSON.stringify({
               aps: { alert: { title: item.title, body: item.body }, sound: "default", badge: unread.get(item.userId) ?? 0 },
-              link: item.link ?? "",
+              link: appLink(item),
             });
             ({ status, reason } = await apnsSend(
               host,
@@ -181,7 +187,7 @@ export async function sendPush(items: PushItem[]): Promise<{ sent: number; faile
                 message: {
                   token: d.token,
                   notification: { title: item.title, body: item.body },
-                  data: { link: item.link ?? "" },
+                  data: { link: appLink(item) },
                   android: { priority: "HIGH", notification: { channel_id: "hrms_alerts", sound: "default" } },
                 },
               }),
