@@ -14,6 +14,7 @@ const { mockPrisma, mockAuth } = vi.hoisted(() => ({
       update: vi.fn(),
     },
     leaveBalance: {
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
     },
@@ -363,6 +364,25 @@ describe("Leave Approval (POST /api/leave/[id]/approve)", () => {
         type: "LEAVE",
         allDay: true,
       }),
+    });
+  });
+
+  it("charges only the reserved AL portion to the original contract ledger after New Year", async () => {
+    const pendingRequest = {
+      id: LEAVE_REQUEST_ID, employeeId: EMPLOYEE_ID, leaveTypeId: LEAVE_TYPE_ID,
+      startDate: new Date("2027-01-04"), endDate: new Date("2027-01-12"), createdAt: new Date("2026-12-01"),
+      days: 7, balanceDays: 5, balanceYear: 2026, otDaysUsed: 0, deficitDays: 0, status: "PENDING",
+      employee: { name: "Contract Intern" }, leaveType: { name: "Annual Leave" },
+    };
+    mockPrisma.leaveRequest.findUnique.mockResolvedValue(pendingRequest);
+    mockPrisma.leaveRequest.update.mockResolvedValue({ ...pendingRequest, status: "APPROVED" });
+    mockPrisma.leaveBalance.update.mockResolvedValue({});
+    mockPrisma.calendarEvent.create.mockResolvedValue({});
+    const res = await approveLeave(makeEmptyRequest(), { params: Promise.resolve({ id: LEAVE_REQUEST_ID }) });
+    expect(res.status).toBe(200);
+    expect(mockPrisma.leaveBalance.update).toHaveBeenCalledWith({
+      where: { employeeId_leaveTypeId_year: { employeeId: EMPLOYEE_ID, leaveTypeId: LEAVE_TYPE_ID, year: 2026 } },
+      data: { used: { increment: 5 }, pending: { decrement: 5 } },
     });
   });
 

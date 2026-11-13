@@ -19,7 +19,7 @@ const { mockPrisma, mockAuth, state } = vi.hoisted(() => {
       leaveType: { findUnique: vi.fn() },
       employee: { findUnique: vi.fn() },
       leaveRequest: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
-      leaveBalance: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), upsert: vi.fn() },
+      leaveBalance: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), upsert: vi.fn() },
       user: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn() },
       notification: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
     },
@@ -73,6 +73,7 @@ beforeEach(() => {
     args?.where?.leaveType?.code === "NPL" ? state.nplRows : [],
   );
   mockPrisma.leaveBalance.findUnique.mockImplementation(async () => ({ id: "b1", ...state.balance }));
+  mockPrisma.leaveBalance.findFirst.mockResolvedValue(null);
   mockPrisma.leaveBalance.update.mockResolvedValue({});
   mockPrisma.leaveRequest.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({
     ...args.data,
@@ -139,6 +140,53 @@ describe("Rule 3 — No Pay Leave capped at 21 days/year, prorated (21 × 2/12 =
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.npl.remaining).toBe(0.5);
+  });
+});
+
+describe("Configured internship AL pool", () => {
+  const contract = { id: "contract", year: 2026, entitlement: 7, used: 2, pending: 0, carriedOver: 0, earned: 0, autoDeducted: 0,
+    periodStart: new Date("2026-03-30T00:00:00Z"), periodEnd: new Date("2027-02-26T00:00:00Z") };
+  beforeEach(() => {
+    state.roles = ["INTERN"];
+    state.startDate = contract.periodStart;
+    mockPrisma.leaveBalance.findFirst.mockResolvedValue(contract);
+    mockPrisma.leaveType.findUnique.mockImplementation(async (args) => args.where.code === "AL_OT"
+      ? { id: "ot", code: "AL_OT", name: "Off In Lieu", defaultDays: 0 }
+      : { id: "lt", code: "AL", name: "Annual Leave", defaultDays: 7 });
+    mockPrisma.leaveBalance.findUnique.mockResolvedValue({ year: 2026, earned: 3, used: 1, pending: 0, autoDeducted: 0 });
+  });
+
+  it("reports 7 days needing NPL for the 14-day Dec–Jan request, after 3 advance and 2 OIL days", async () => {
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2027-01-01", useAdvance: true, otDaysUsed: 2 }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", alAvailable: 7, excessDays: 7 });
+    expect(mockPrisma.leaveRequest.create).not.toHaveBeenCalled();
+  });
+
+  it("reserves only 5 AL days and 2 OIL days for a covered 7-working-day request", async () => {
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2026-12-21", useAdvance: true, otDaysUsed: 2 }));
+    expect(res.status).toBe(201);
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      days: 7, balanceDays: 5, balanceYear: 2026, otDaysUsed: 2,
+    }) }));
+    expect(mockPrisma.leaveBalance.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { employeeId_leaveTypeId_year: { employeeId: "emp1", leaveTypeId: "lt", year: 2026 } },
+      data: { pending: { increment: 5 } },
+    }));
+  });
+
+  it("continues to reserve against the 2026 ledger for a request submitted in January", async () => {
+    vi.setSystemTime(new Date("2027-01-04T10:00:00Z"));
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2027-01-04", endDate: "2027-01-08", useAdvance: true }));
+    expect(res.status).toBe(201);
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ balanceYear: 2026, balanceDays: 5 }) }));
+    expect(mockPrisma.leaveBalance.create).not.toHaveBeenCalled();
+  });
+
+  it("does not extend a fixed internship entitlement past the contract end", async () => {
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2027-03-01", endDate: "2027-03-01", useAdvance: true }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/internship entitlement period/);
   });
 });
 

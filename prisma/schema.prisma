@@ -161,6 +161,10 @@ model LeaveBalance {
   employeeId   String
   leaveTypeId  String
   year         Int
+  /// Optional fixed entitlement period, e.g. an internship spanning two calendar years.
+  /// Null keeps the existing calendar-year policy.
+  periodStart  DateTime? @db.Date
+  periodEnd    DateTime? @db.Date
   entitlement  Decimal   @default(0) @db.Decimal(5, 2)
   used         Decimal   @default(0) @db.Decimal(5, 2)
   pending      Decimal   @default(0) @db.Decimal(5, 2)
@@ -178,6 +182,10 @@ model LeaveBalance {
 model LeaveRequest {
   id               String      @id @default(cuid())
   employeeId       String
+  /// The balance ledger charged at submission; contract AL keeps its original year.
+  balanceYear      Int?
+  /// Actual debit to the primary ledger; contract AL excludes days covered by Off In Lieu.
+  balanceDays      Decimal? @db.Decimal(5, 2)
   leaveTypeId      String
   startDate        DateTime
   endDate          DateTime

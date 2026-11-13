@@ -29,7 +29,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const currentYear = new Date().getFullYear();
+    const currentYear = leaveRequest.balanceDays != null ? leaveRequest.createdAt.getFullYear() : new Date().getFullYear();
     const otDaysUsed = Number(leaveRequest.otDaysUsed);
 
     const ops: any[] = [
@@ -42,10 +42,10 @@ export async function POST(
           employeeId_leaveTypeId_year: {
             employeeId: leaveRequest.employeeId,
             leaveTypeId: leaveRequest.leaveTypeId,
-            year: currentYear,
+            year: leaveRequest.balanceYear ?? currentYear,
           },
         },
-        data: { pending: { decrement: Number(leaveRequest.days) } },
+        data: { pending: { decrement: Number(leaveRequest.balanceDays ?? leaveRequest.days) } },
       }),
     ];
 

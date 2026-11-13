@@ -4,6 +4,7 @@ import { getMobileContext, unauthorized, iso, num } from "@/lib/mobile-api";
 import { prorateLeave } from "@/lib/utils";
 import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
 import { isMedicalLeaveCode, mcAnnualEntitlement, NPL_CODE } from "@/lib/leave-policy";
+import { annualLeaveAmounts, leaveBalancePeriodWhere } from "@/lib/annual-leave-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,12 @@ export async function GET() {
   if (!ctx.employeeId) return NextResponse.json({ balances: [], requests: [], types: [] });
 
   const employeeId = ctx.employeeId;
-  const year = new Date().getFullYear();
 
   const employee = await getLeaveProfile(employeeId);
   const [npl, types, balances, requests] = await Promise.all([
     getNplStatus(employeeId, employee).catch(() => null),
     prisma.leaveType.findMany({ orderBy: { name: "asc" } }),
-    prisma.leaveBalance.findMany({ where: { employeeId, year }, include: { leaveType: true } }),
+    prisma.leaveBalance.findMany({ where: { employeeId, ...leaveBalancePeriodWhere() }, include: { leaveType: true } }),
     prisma.leaveRequest.findMany({
       where: { employeeId },
       include: {
@@ -47,8 +47,10 @@ export async function GET() {
     if (isOT) {
       available = earned - used - autoDeducted - pending;
     } else if (isAL) {
-      proRated = prorateLeave(entitlement || b.leaveType.defaultDays, employee?.startDate, employee?.monthlyLeaveRate ?? null, true, new Date(), employee?.endDate);
-      available = proRated + carriedOver - used - pending;
+      const amounts = annualLeaveAmounts({ entitlement: entitlement || b.leaveType.defaultDays, carriedOver, used, pending,
+        periodStart: b.periodStart, periodEnd: b.periodEnd }, employee);
+      proRated = amounts.earned;
+      available = amounts.remaining;
     } else if (isMedicalLeaveCode(b.leaveType.code)) {
       // MC: prorated by completed months served; interns have none.
       proRated = prorateLeave(mcAnnualEntitlement(entitlement, !!employee?.isIntern), employee?.startDate, null, false, new Date(), employee?.endDate);
@@ -72,6 +74,10 @@ export async function GET() {
       earned,
       autoDeducted,
       proRated,
+      ...(isAL && b.periodStart && b.periodEnd ? {
+        periodStart: iso(b.periodStart), periodEnd: iso(b.periodEnd),
+        fullAvailable: annualLeaveAmounts({ entitlement, carriedOver, used, pending, periodStart: b.periodStart, periodEnd: b.periodEnd }, employee).fullAvailable,
+      } : {}),
       available: Math.round(available * 100) / 100,
     };
   });

@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "Leave request is not pending" }, { status: 400 });
     }
 
-    const currentYear = new Date().getFullYear();
+    const currentYear = leaveRequest.balanceDays != null ? leaveRequest.createdAt.getFullYear() : new Date().getFullYear();
     const otDaysUsed = Number(leaveRequest.otDaysUsed);
     const deficitDays = Number(leaveRequest.deficitDays);
 
@@ -55,12 +55,12 @@ export async function POST(
         employeeId_leaveTypeId_year: {
           employeeId: leaveRequest.employeeId,
           leaveTypeId: leaveRequest.leaveTypeId,
-          year: currentYear,
+          year: leaveRequest.balanceYear ?? currentYear,
         },
       },
       data: {
-        used: { increment: Number(leaveRequest.days) },
-        pending: { decrement: Number(leaveRequest.days) },
+        used: { increment: Number(leaveRequest.balanceDays ?? leaveRequest.days) },
+        pending: { decrement: Number(leaveRequest.balanceDays ?? leaveRequest.days) },
       },
     });
 

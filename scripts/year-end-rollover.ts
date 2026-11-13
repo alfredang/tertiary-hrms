@@ -46,6 +46,7 @@ async function main() {
     });
 
     for (const bal of balances) {
+      if (bal.periodStart || bal.periodEnd) continue;
       if (!bal.leaveType.carryOver) continue;
 
       const entitlement = Number(bal.entitlement);

@@ -1,10 +1,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { prorateLeave, computeAlFullEntitlement } from "@/lib/utils";
 import { LeaveRequestForm } from "@/components/leave/leave-request-form";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getLeaveProfile, getNplStatus, type LeaveProfile } from "@/lib/leave-allowance";
 import { NPL_ANNUAL_CAP_DAYS, type NplStatus } from "@/lib/leave-policy";
+import { getAnnualLeaveBalance } from "@/lib/annual-leave";
+import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -27,27 +28,24 @@ async function getOtBalance(employeeId: string): Promise<number> {
 async function getAlData(employeeId: string, employee: LeaveProfile | null): Promise<{
   remaining: number;     // earned to date + carried over - used - pending (same as the Annual Leave page)
   fullAvailable: number; // full-year entitlement - used - pending
-  personalEntitlement: number; // the total days they're entitled to this year
+  personalEntitlement: number; // total for the calendar year or configured internship
+  periodEnd?: string;
 }> {
-  const currentYear = new Date().getFullYear();
   const alType = await prisma.leaveType.findUnique({ where: { code: "AL" } });
   if (!alType) return { remaining: 0, fullAvailable: 0, personalEntitlement: 7 };
 
-  const balance = await prisma.leaveBalance.findUnique({
-    where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alType.id, year: currentYear } },
-  });
+  const balance = await getAnnualLeaveBalance(employeeId, alType.id);
 
-  const monthlyLeaveRate = employee?.monthlyLeaveRate ?? null;
   const yearlyEntitlement = balance ? Number(balance.entitlement) : alType.defaultDays;
-  const personalEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, yearlyEntitlement, employee?.endDate);
-  const earned = prorateLeave(yearlyEntitlement, employee?.startDate, monthlyLeaveRate, true, new Date(), employee?.endDate);
-
-  if (!balance) return { remaining: earned, fullAvailable: personalEntitlement, personalEntitlement };
-
-  const remaining = earned + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
-  const fullAvailable = personalEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
-
-  return { remaining, fullAvailable, personalEntitlement };
+  const amounts = annualLeaveAmounts({
+    entitlement: yearlyEntitlement,
+    used: Number(balance?.used ?? 0), pending: Number(balance?.pending ?? 0), carriedOver: Number(balance?.carriedOver ?? 0),
+    periodStart: balance?.periodStart, periodEnd: balance?.periodEnd,
+  }, employee);
+  return {
+    remaining: amounts.remaining, fullAvailable: amounts.fullAvailable, personalEntitlement: amounts.fullEntitlement,
+    ...(amounts.isContract && balance?.periodEnd ? { periodEnd: balance.periodEnd.toISOString().slice(0, 10) } : {}),
+  };
 }
 
 export default async function LeaveRequestPage({
@@ -75,7 +73,7 @@ export default async function LeaveRequestPage({
   const [leaveTypes, otBalance, alData, npl] = await Promise.all([
     getLeaveTypes(),
     employeeId ? getOtBalance(employeeId) : Promise.resolve(0),
-    employeeId ? getAlData(employeeId, profile) : Promise.resolve({ remaining: 0, fullAvailable: 7, personalEntitlement: 7 }),
+    employeeId ? getAlData(employeeId, profile) : Promise.resolve({ remaining: 0, fullAvailable: 7, personalEntitlement: 7, periodEnd: undefined }),
     employeeId ? getNplStatus(employeeId, profile) : Promise.resolve(emptyNpl),
   ]);
 
@@ -92,6 +90,7 @@ export default async function LeaveRequestPage({
         alRemaining={alData.remaining}
         alFullAvailable={alData.fullAvailable}
         alPersonalEntitlement={alData.personalEntitlement}
+        alEntitlementPeriodEnd={alData.periodEnd}
         defaultLeaveTypeCode={params.type}
         isIntern={profile?.isIntern ?? false}
         npl={npl}

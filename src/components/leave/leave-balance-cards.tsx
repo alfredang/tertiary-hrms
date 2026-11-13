@@ -4,6 +4,7 @@ import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, Info } from "lucide-react";
 import { prorateByMonths } from "@/lib/leave-policy";
+import { contractAccrualPeriods, contractLeaveEarned } from "@/lib/annual-leave-policy";
 
 interface LeaveBalance {
   proRated: number;
@@ -12,6 +13,9 @@ interface LeaveBalance {
   rejected: number;
   carriedOver: number;
   fullEntitlement?: number; // yearly entitlement prorated over months employed this year
+  pending?: number;
+  periodStart?: string | null;
+  periodEnd?: string | null;
 }
 
 interface Props {
@@ -121,14 +125,25 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
   // monthlyLeaveRate is used only for proration capping, not for the displayed entitlement.
   const yearlyEntitlement = leaveBalance.allocation;
 
-  const rows = buildBreakdown(yearlyEntitlement, employeeStartDate, monthlyLeaveRate, employeeEndDate);
-  const remaining = leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken;
+  const isContract = !!leaveBalance.periodStart && !!leaveBalance.periodEnd;
+  const rows = isContract
+    ? contractAccrualPeriods(leaveBalance.periodStart!, leaveBalance.periodEnd!).map((p) => {
+      const now = new Date();
+      const before = contractLeaveEarned(yearlyEntitlement, leaveBalance.periodStart!, leaveBalance.periodEnd!, p.start);
+      const complete = p.until <= now;
+      const cumulative = complete ? contractLeaveEarned(yearlyEntitlement, leaveBalance.periodStart!, leaveBalance.periodEnd!, p.until) : before;
+      return { periodLabel: formatPeriod(p.start, !complete && p.start <= now ? now : p.end),
+        daysAccrued: complete ? cumulative - before : 0, cumulative, isFuture: p.start > now };
+    })
+    : buildBreakdown(yearlyEntitlement, employeeStartDate, monthlyLeaveRate, employeeEndDate);
+  const remaining = leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken - (isContract ? leaveBalance.pending ?? 0 : 0);
 
 
   // Deficit threshold: the yearly entitlement prorated over the months employed this year
   const fullEntitlement = leaveBalance.fullEntitlement ?? yearlyEntitlement;
-  const advanceAl = remaining < 0 && leaveBalance.taken <= fullEntitlement + leaveBalance.carriedOver;
-  const trueDeficit = remaining < 0 && leaveBalance.taken > fullEntitlement + leaveBalance.carriedOver;
+  const reservedDays = leaveBalance.taken + (isContract ? leaveBalance.pending ?? 0 : 0);
+  const advanceAl = remaining < 0 && reservedDays <= fullEntitlement + leaveBalance.carriedOver;
+  const trueDeficit = remaining < 0 && reservedDays > fullEntitlement + leaveBalance.carriedOver;
   const remainingColor = remaining < 0
     ? (trueDeficit ? "text-red-400" : "text-amber-400")
     : "text-green-400";
@@ -139,7 +154,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
   const cards = [
     { label: remainingLabel, value: remaining, color: remainingColor, clickable: true },
     { label: "Earned to Date", value: leaveBalance.proRated, color: "text-cyan-400", clickable: true },
-    { label: "Yearly Entitlement", value: yearlyEntitlement, color: "text-blue-400", clickable: false },
+    { label: isContract ? "Internship Entitlement" : "Yearly Entitlement", value: yearlyEntitlement, color: "text-blue-400", clickable: false },
     { label: "Leave(s) Taken", value: leaveBalance.taken, color: "text-amber-400", clickable: false },
     { label: "Leave(s) Rejected", value: leaveBalance.rejected, color: "text-red-400", clickable: false },
   ];
@@ -162,6 +177,9 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               )}
             </p>
             <p className={`text-xl sm:text-2xl font-bold ${card.color}`}>{card.value}</p>
+            {isContract && card.label === remainingLabel && (leaveBalance.pending ?? 0) > 0 && (
+              <p className="text-xs text-gray-500 mt-1">Includes {leaveBalance.pending} pending day(s)</p>
+            )}
             {card.clickable && (
               <p className="text-xs text-gray-600 group-hover:text-gray-500 mt-1 transition-colors">
                 Click for monthly breakdown
@@ -178,7 +196,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
             <div className="flex items-center justify-between mb-4">
               <DialogPrimitive.Title className="text-base font-semibold text-white flex items-center gap-2">
                 Annual Leave Accrual Breakdown
-                <span className="text-xs font-normal text-gray-400">({new Date().getFullYear()})</span>
+                <span className="text-xs font-normal text-gray-400">({isContract ? "Internship" : new Date().getFullYear()})</span>
               </DialogPrimitive.Title>
               <DialogPrimitive.Close className="text-gray-400 hover:text-white transition-colors rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-600">
                 <X className="h-4 w-4" />
@@ -190,7 +208,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               <div className="bg-gray-900 rounded-lg p-3 grid grid-cols-3 gap-2 text-center text-xs">
                 <div>
                   <p className="text-gray-400">Entitlement</p>
-                  <p className="text-white font-bold text-base">{yearlyEntitlement} days/yr</p>
+                  <p className="text-white font-bold text-base">{yearlyEntitlement} days/{isContract ? "internship" : "yr"}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Earned to Date</p>
@@ -236,7 +254,9 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               </div>
 
               <p className="text-xs text-gray-600">
-                {`Accrues as ${yearlyEntitlement} days × completed months served ÷ 12, rounded down to the half day. A month counts once it is complete. Leave beyond your balance must be taken as No Pay Leave.`}
+                {isContract
+                  ? `${yearlyEntitlement} days over your full internship, accrued over its monthly periods and rounded down to the half day. The same entitlement continues into January without resetting. Advance leave can use the remaining internship entitlement.`
+                  : `Accrues as ${yearlyEntitlement} days × completed months served ÷ 12, rounded down to the half day. A month counts once it is complete. Leave beyond your balance must be taken as No Pay Leave.`}
               </p>
               {advanceAl && (
                 <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-300">
@@ -245,7 +265,9 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               )}
               {trueDeficit && (
                 <div className="bg-red-950/20 border border-red-800/40 rounded-lg p-2.5 text-xs text-red-300">
-                  Your leave usage has exceeded your full entitlement. The deficit will be offset by future OT earnings.
+                  {isContract
+                    ? "Approved and pending leave exceed your internship entitlement. Review pending requests or apply for the excess as No Pay Leave."
+                    : "Your leave usage has exceeded your full entitlement. The deficit will be offset by future OT earnings."}
                 </div>
               )}
             </div>

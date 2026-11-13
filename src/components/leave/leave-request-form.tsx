@@ -31,6 +31,7 @@ interface LeaveRequestFormProps {
   alRemaining?: number;      // AL balance available now: accrued to today + carried over - used - pending
   alFullAvailable?: number;  // full-year entitlement minus used/pending
   alPersonalEntitlement?: number; // total days entitled this year (for display)
+  alEntitlementPeriodEnd?: string; // fixed internship end; absent for calendar-year AL
   defaultLeaveTypeCode?: string; // e.g. "MC" to pre-select Medical Leave
   isIntern?: boolean;        // interns have no paid MC — sick leave goes in as No Pay Leave
   npl?: { cap: number; used: number; pending: number; remaining: number }; // prorated NPL cap status
@@ -43,6 +44,7 @@ export function LeaveRequestForm({
   alRemaining = 0,
   alFullAvailable = 0,
   alPersonalEntitlement = 7,
+  alEntitlementPeriodEnd,
   defaultLeaveTypeCode,
   isIntern = false,
   npl = { cap: 0, used: 0, pending: 0, remaining: 0 },
@@ -303,7 +305,9 @@ export function LeaveRequestForm({
             <div>
               <p className="text-sm text-white font-medium">Use advance annual leave</p>
               <p className="text-xs text-gray-500">
-                Borrow up to {advanceAvailable} day(s) you&apos;ll earn by the end of this year.
+                Borrow up to {advanceAvailable} day(s) within your {alEntitlementPeriodEnd
+                  ? `internship entitlement, ending ${new Date(`${alEntitlementPeriodEnd}T00:00:00Z`).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`
+                  : "entitlement for this year"}.
                 {!useAdvance && " If off, days beyond your balance must be taken as No Pay Leave."}
               </p>
             </div>

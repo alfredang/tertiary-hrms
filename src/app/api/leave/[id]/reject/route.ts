@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "Leave request is not pending" }, { status: 400 });
     }
 
-    const currentYear = new Date().getFullYear();
+    const currentYear = leaveRequest.balanceDays != null ? leaveRequest.createdAt.getFullYear() : new Date().getFullYear();
     const otDaysUsed = Number(leaveRequest.otDaysUsed);
 
     const updatedRequest = await prisma.leaveRequest.update({
@@ -53,10 +53,10 @@ export async function POST(
         employeeId_leaveTypeId_year: {
           employeeId: leaveRequest.employeeId,
           leaveTypeId: leaveRequest.leaveTypeId,
-          year: currentYear,
+          year: leaveRequest.balanceYear ?? currentYear,
         },
       },
-      data: { pending: { decrement: Number(leaveRequest.days) } },
+      data: { pending: { decrement: Number(leaveRequest.balanceDays ?? leaveRequest.days) } },
     });
 
     // Refund OT pending if any was reserved

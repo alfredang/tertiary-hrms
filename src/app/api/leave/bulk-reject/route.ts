@@ -59,10 +59,10 @@ export async function POST(req: NextRequest) {
           employeeId_leaveTypeId_year: {
             employeeId: leaveRequest.employeeId,
             leaveTypeId: leaveRequest.leaveTypeId,
-            year: currentYear,
+            year: leaveRequest.balanceYear ?? currentYear,
           },
         },
-        data: { pending: { decrement: Number(leaveRequest.days) } },
+        data: { pending: { decrement: Number(leaveRequest.balanceDays ?? leaveRequest.days) } },
       });
 
       if (otDaysUsed > 0 && alOtType) {
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
           where: {
             employeeId: leaveRequest.employeeId,
             leaveTypeId: alOtType.id,
-            year: currentYear,
+            year: leaveRequest.balanceDays != null ? leaveRequest.createdAt.getFullYear() : currentYear,
           },
           data: { pending: { decrement: otDaysUsed } },
         });

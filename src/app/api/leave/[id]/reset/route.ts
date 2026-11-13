@@ -50,8 +50,8 @@ export async function POST(
       );
     }
 
-    const currentYear = new Date().getFullYear();
-    const days = Number(leaveRequest.days);
+    const currentYear = leaveRequest.balanceDays != null ? leaveRequest.createdAt.getFullYear() : new Date().getFullYear();
+    const days = Number(leaveRequest.balanceDays ?? leaveRequest.days);
     const oldStatus = leaveRequest.status;
     const otDaysUsed = Number((leaveRequest as any).otDaysUsed) || 0;
     const deficitDays = Number((leaveRequest as any).deficitDays) || 0;
@@ -79,7 +79,7 @@ export async function POST(
           employeeId_leaveTypeId_year: {
             employeeId: leaveRequest.employeeId,
             leaveTypeId: leaveRequest.leaveTypeId,
-            year: currentYear,
+            year: leaveRequest.balanceYear ?? currentYear,
           },
         },
         data: balanceUpdate,

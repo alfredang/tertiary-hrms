@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { num } from "@/lib/mobile-api";
-import { prorateLeave } from "@/lib/utils";
 import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import { getCompanyBranding } from "@/lib/company-settings";
 import { timeOffReasonLabel } from "@/lib/time-off";
 import { leaveDaysInMonth, round2, type ReportMonth, type SummaryEmployeeRow } from "@/lib/leave-summary";
+import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
 
 /**
  * Monthly leave + MC summary of every active staff member and intern. Shared by
@@ -66,7 +66,10 @@ export async function buildLeaveSummary(month: ReportMonth) {
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
     }),
     prisma.leaveBalance.findMany({
-      where: { employeeId: { in: ids }, year: month.year },
+      where: { employeeId: { in: ids }, OR: [
+        { year: month.year, periodStart: null, periodEnd: null },
+        { periodStart: { lte: month.end }, periodEnd: { gte: month.start } },
+      ] },
       include: { leaveType: { select: { code: true, name: true, defaultDays: true } } },
     }),
     prisma.publicHoliday.findMany({ where: { year: month.year, countryCode: "SG" } }),
@@ -166,14 +169,10 @@ export async function buildLeaveSummary(month: ReportMonth) {
         let available: number;
         if (b.leaveType.code === "AL_OT") {
           available = num(b.earned) - used - num(b.autoDeducted) - pending;
-        } else if (b.leaveType.code === "AL" && isCurrentYear) {
-          const proRated = prorateLeave(
-            entitlement || b.leaveType.defaultDays,
-            e.startDate ?? undefined,
-            e.monthlyLeaveRate != null ? num(e.monthlyLeaveRate) : null,
-            true,
-          );
-          available = proRated + carriedOver - used - pending;
+        } else if (b.leaveType.code === "AL" && (isCurrentYear || b.periodStart)) {
+          available = annualLeaveAmounts({ entitlement: entitlement || b.leaveType.defaultDays, carriedOver, used, pending,
+            periodStart: b.periodStart, periodEnd: b.periodEnd }, { ...e, monthlyLeaveRate: e.monthlyLeaveRate != null ? num(e.monthlyLeaveRate) : null },
+            isCurrentYear ? new Date() : month.end).remaining;
         } else {
           available = entitlement + carriedOver - used - pending;
         }

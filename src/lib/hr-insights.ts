@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { computeAlFullEntitlement, prorateLeave } from "@/lib/utils";
+import { prorateLeave } from "@/lib/utils";
 import {
   ALLOW_ADVANCE_AL,
   isInternRoles,
@@ -19,6 +19,7 @@ import {
 } from "@/lib/attendance-policy";
 import type { InternAttendanceRow, PersonLeaveRow } from "@/lib/hr-compliance";
 import { sgtToday } from "@/lib/admin-alerts";
+import { annualLeaveAmounts, leaveBalancePeriodWhere } from "@/lib/annual-leave-policy";
 
 /**
  * Data loaders for the admin dashboard and the HR cron jobs. Interns are users
@@ -187,7 +188,8 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
       where: { status: { in: ["APPROVED", "PENDING"] }, startDate: { gte: yearStart, lt: yearEnd } },
       select: { employeeId: true, status: true, startDate: true, endDate: true, days: true, deficitDays: true, reason: true, leaveType: { select: { code: true } } },
     }),
-    prisma.leaveBalance.findMany({ where: { year }, select: { employeeId: true, leaveTypeId: true, entitlement: true, carriedOver: true } }),
+    prisma.leaveBalance.findMany({ where: leaveBalancePeriodWhere(now), select: { employeeId: true, leaveTypeId: true, entitlement: true,
+      carriedOver: true, used: true, pending: true, periodStart: true, periodEnd: true } }),
     prisma.leaveType.findMany({ select: { id: true, code: true, defaultDays: true } }),
   ]);
 
@@ -204,8 +206,10 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
 
     const alBal = bal("AL");
     const alYearly = alBal ? Number(alBal.entitlement) : alType?.defaultDays ?? 7;
-    const alEarned = prorateLeave(alYearly, e.startDate, rate, true, now, e.endDate);
-    const alFull = computeAlFullEntitlement(e.startDate, rate, alYearly, e.endDate, year);
+    const alAmounts = annualLeaveAmounts({ entitlement: alYearly, used: Number(alBal?.used ?? 0), pending: Number(alBal?.pending ?? 0),
+      carriedOver: Number(alBal?.carriedOver ?? 0), periodStart: alBal?.periodStart, periodEnd: alBal?.periodEnd }, { ...e, monthlyLeaveRate: rate }, now);
+    const alEarned = alAmounts.earned;
+    const alFull = alAmounts.fullEntitlement;
 
     const mcBal = bal("MC");
     const mcYearly = mcAnnualEntitlement(mcBal ? Number(mcBal.entitlement) : mcType?.defaultDays ?? 14, isIntern);
@@ -230,8 +234,8 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
         earned: alEarned,
         full: alFull,
         carried: alBal ? Number(alBal.carriedOver) : 0,
-        used: sum((r) => r.leaveType.code === "AL" && r.status === "APPROVED"),
-        pending: sum((r) => r.leaveType.code === "AL" && r.status === "PENDING"),
+        used: alAmounts.isContract ? Number(alBal!.used) : sum((r) => r.leaveType.code === "AL" && r.status === "APPROVED"),
+        pending: alAmounts.isContract ? Number(alBal!.pending) : sum((r) => r.leaveType.code === "AL" && r.status === "PENDING"),
         allowed: ALLOW_ADVANCE_AL ? Math.max(alEarned, alFull) : alEarned,
       },
       mc: {

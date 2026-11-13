@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, num } from "@/lib/mobile-api";
-import { prorateLeave } from "@/lib/utils";
+import { annualLeaveAmounts, leaveBalancePeriodWhere } from "@/lib/annual-leave-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,7 @@ export async function GET() {
     const employeeId = ctx.employeeId;
     const [employee, balances, approvedExpenses] = await Promise.all([
       prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true, startDate: true, monthlyLeaveRate: true } }),
-      prisma.leaveBalance.findMany({ where: { employeeId, year }, include: { leaveType: true } }),
+      prisma.leaveBalance.findMany({ where: { employeeId, ...leaveBalancePeriodWhere() }, include: { leaveType: true } }),
       prisma.expenseClaim.aggregate({ where: { employeeId, status: "APPROVED", createdAt: { gte: yearStart } }, _sum: { amount: true } }),
     ]);
     name = employee?.name ?? null;
@@ -46,8 +46,8 @@ export async function GET() {
       const used = num(b.used);
       const pending = num(b.pending);
       if (b.leaveType.code === "AL") {
-        const proRated = prorateLeave(entitlement || b.leaveType.defaultDays, employee?.startDate ?? undefined, employee?.monthlyLeaveRate != null ? num(employee.monthlyLeaveRate) : null, true);
-        alAvailable = Math.round((proRated + carriedOver - used - pending) * 100) / 100;
+        alAvailable = Math.round(annualLeaveAmounts({ entitlement: entitlement || b.leaveType.defaultDays, carriedOver, used, pending,
+          periodStart: b.periodStart, periodEnd: b.periodEnd }, employee && { ...employee, monthlyLeaveRate: employee.monthlyLeaveRate != null ? num(employee.monthlyLeaveRate) : null }).remaining * 100) / 100;
       } else if (b.leaveType.code === "MC") {
         mcAvailable = Math.round((entitlement + carriedOver - used - pending) * 100) / 100;
       } else if (b.leaveType.code === "AL_OT") {

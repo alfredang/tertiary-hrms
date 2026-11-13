@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates, computeAlFullEntitlement } from "@/lib/utils";
+import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
 import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import * as z from "zod";
 import path from "path";
@@ -23,6 +23,8 @@ import {
 } from "@/lib/leave-policy";
 import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
 import { isDemoEmployee } from "@/lib/demo-guard";
+import { getAnnualLeaveBalance } from "@/lib/annual-leave";
+import { annualLeaveAmounts, withinAnnualLeavePeriod } from "@/lib/annual-leave-policy";
 
 const leaveRequestSchema = z.object({
   leaveTypeId: z.string().min(1, "Leave type is required"),
@@ -191,7 +193,7 @@ export async function POST(req: NextRequest) {
 
     // Check/create leave balance
     const currentYear = new Date().getFullYear();
-    let balance = await prisma.leaveBalance.findUnique({
+    let balance = isAL ? await getAnnualLeaveBalance(employeeId, leaveTypeId) : await prisma.leaveBalance.findUnique({
       where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: currentYear } },
     });
 
@@ -216,18 +218,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (isAL && balance && !withinAnnualLeavePeriod(balance, start, end)) {
+      return NextResponse.json({ error: "Annual leave must fall within your internship entitlement period." }, { status: 400 });
+    }
+    const alAmounts = isAL && balance ? annualLeaveAmounts({
+      entitlement: Number(balance.entitlement), used: Number(balance.used), pending: Number(balance.pending),
+      carriedOver: Number(balance.carriedOver), periodStart: balance.periodStart, periodEnd: balance.periodEnd,
+    }, employee) : null;
+
     // Calculate available balance
     // AL and MC are prorated strictly by completed months served this year
     // (src/lib/leave-policy.ts); interns have no paid MC.
     let available: number;
-    const monthlyLeaveRate = employee?.monthlyLeaveRate ?? null;
 
     if (isOT) {
       available = Number(balance.earned) - Number(balance.used) - Number(balance.autoDeducted) - Number(balance.pending);
     } else {
       let effectiveEntitlement = Number(balance.entitlement);
       if (isAL) {
-        effectiveEntitlement = prorateLeave(Number(balance.entitlement), employee?.startDate, monthlyLeaveRate, true, new Date(), employee?.endDate);
+        effectiveEntitlement = alAmounts!.earned;
       } else if (isMedical) {
         effectiveEntitlement = prorateLeave(
           mcAnnualEntitlement(Number(balance.entitlement), !!employee?.isIntern),
@@ -276,8 +285,7 @@ export async function POST(req: NextRequest) {
             : 0;
         }
       }
-      const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, Number(balance.entitlement), employee?.endDate);
-      const fullAvailable = fullEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
+      const fullAvailable = alAmounts!.fullAvailable;
       const alCheck = evaluateAlRequest({
         days,
         earnedAvailable: available,
@@ -308,6 +316,7 @@ export async function POST(req: NextRequest) {
       data: {
         id: `lr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         employeeId,
+        ...(alAmounts?.isContract ? { balanceYear: balance.year ?? currentYear, balanceDays: days - resolvedOtDaysUsed } : {}),
         leaveTypeId,
         startDate: start,
         endDate: end,
@@ -354,8 +363,8 @@ export async function POST(req: NextRequest) {
 
     // Update AL balance pending
     await prisma.leaveBalance.update({
-      where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: currentYear } },
-      data: { pending: { increment: days } },
+      where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: balance.year ?? currentYear } },
+      data: { pending: { increment: alAmounts?.isContract ? days - resolvedOtDaysUsed : days } },
     });
 
     // Update OT balance pending if OT days were used

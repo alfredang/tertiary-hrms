@@ -9,6 +9,8 @@ import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getLeaveProfile } from "@/lib/leave-allowance";
 import { mcAnnualEntitlement } from "@/lib/leave-policy";
+import { getAnnualLeaveBalance } from "@/lib/annual-leave";
+import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
 import { getInternAttendance, getLeaveOverview, getMonthlyLeaveSeries, getPendingApprovals, getWorkforceSnapshot } from "@/lib/hr-insights";
 import { buildFindings } from "@/lib/hr-compliance";
 import { AdminKpis } from "@/components/dashboard/admin-kpis";
@@ -80,9 +82,7 @@ async function getStaffStats(employeeId: string) {
 
   const [alBalance, mcBalance, otBalance, expenseClaims, employee] = await Promise.all([
     alType
-      ? prisma.leaveBalance.findUnique({
-          where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alType.id, year: currentYear } },
-        })
+      ? getAnnualLeaveBalance(employeeId, alType.id)
       : null,
     mcType
       ? prisma.leaveBalance.findUnique({
@@ -107,12 +107,11 @@ async function getStaffStats(employeeId: string) {
 
   // Fall back to leave type default if no balance record exists (same as leave page)
   const alAllocation = alBalance ? Number(alBalance.entitlement) : (alType?.defaultDays ?? 0);
-  const alMonthlyRate = employee?.monthlyLeaveRate ?? null;
-  const alEntitlement = prorateLeave(alAllocation, employee?.startDate, alMonthlyRate, true, new Date(), employee?.endDate);
   const alCarriedOver = alBalance ? Number(alBalance.carriedOver) : 0;
   const alUsed = alBalance ? Number(alBalance.used) : 0;
   const alPending = alBalance ? Number(alBalance.pending) : 0;
-  const leaveBalance = alEntitlement + alCarriedOver - alUsed - alPending;
+  const leaveBalance = annualLeaveAmounts({ entitlement: alAllocation, used: alUsed, pending: alPending,
+    carriedOver: alCarriedOver, periodStart: alBalance?.periodStart, periodEnd: alBalance?.periodEnd }, employee).remaining;
 
   // MC is prorated by completed months served, like AL; interns have no paid MC.
   const mcYearly = mcAnnualEntitlement(mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0), !!employee?.isIntern);

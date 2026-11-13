@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates, computeAlFullEntitlement } from "@/lib/utils";
+import { calculateWorkingDays, roundToHalf, prorateLeave, getLeaveConflictDates } from "@/lib/utils";
 import {
   alExcessMessage,
   evaluateAlRequest,
@@ -13,6 +13,8 @@ import {
   NPL_CODE,
 } from "@/lib/leave-policy";
 import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
+import { getAnnualLeaveBalance } from "@/lib/annual-leave";
+import { annualLeaveAmounts, withinAnnualLeavePeriod } from "@/lib/annual-leave-policy";
 import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import * as z from "zod";
 
@@ -186,12 +188,12 @@ export async function PATCH(
 
     // Check leave balance for non-AL types only
     const currentYear = new Date().getFullYear();
-    const balance = await prisma.leaveBalance.findUnique({
+    const balance = isAL ? await getAnnualLeaveBalance(leaveRequest.employeeId, leaveRequest.leaveTypeId) : await prisma.leaveBalance.findUnique({
       where: {
         employeeId_leaveTypeId_year: {
           employeeId: leaveRequest.employeeId,
           leaveTypeId: leaveRequest.leaveTypeId,
-          year: currentYear,
+          year: leaveRequest.balanceYear ?? currentYear,
         },
       },
     });
@@ -203,10 +205,15 @@ export async function PATCH(
       );
     }
 
+    if (isAL && !withinAnnualLeavePeriod(balance, newStart, newEnd)) {
+      return NextResponse.json({ error: "Annual leave must fall within your internship entitlement period." }, { status: 400 });
+    }
+
     // Same policy as submission (src/lib/leave-policy.ts), with this request's own days excluded.
     const employee = await getLeaveProfile(leaveRequest.employeeId);
     const isMedical = isMedicalLeaveCode(leaveType?.code);
-    const pendingWithoutOld = Number(balance.pending) - oldDays;
+    const oldBalanceDays = Number(leaveRequest.balanceDays ?? oldDays);
+    const pendingWithoutOld = Number(balance.pending) - oldBalanceDays;
 
     if (isMedical && employee?.isIntern) {
       return NextResponse.json(
@@ -224,11 +231,11 @@ export async function PATCH(
         );
       }
     } else if (isAL) {
-      const rate = employee?.monthlyLeaveRate ?? null;
       const entitlement = Number(balance.entitlement);
-      const base = Number(balance.carriedOver) - Number(balance.used) - pendingWithoutOld;
-      const earnedAvailable = prorateLeave(entitlement, employee?.startDate, rate, true, new Date(), employee?.endDate) + base;
-      const fullAvailable = computeAlFullEntitlement(employee?.startDate, rate, entitlement, employee?.endDate) + base;
+      const amounts = annualLeaveAmounts({ entitlement, used: Number(balance.used), pending: pendingWithoutOld,
+        carriedOver: Number(balance.carriedOver), periodStart: balance.periodStart, periodEnd: balance.periodEnd }, employee);
+      const earnedAvailable = amounts.remaining;
+      const fullAvailable = amounts.fullAvailable;
       const otHeld = Number(leaveRequest.otDaysUsed);
       const alCheck = evaluateAlRequest({
         days: newDays,
@@ -282,7 +289,11 @@ export async function PATCH(
       }
     }
 
-    const daysDelta = newDays - oldDays;
+    const contractAl = !!balance.periodStart && isAL;
+    const oldOtDays = Number(leaveRequest.otDaysUsed);
+    const newOtDays = contractAl ? Math.min(oldOtDays, newDays) : oldOtDays;
+    const newBalanceDays = contractAl ? newDays - newOtDays : newDays;
+    const daysDelta = newBalanceDays - oldBalanceDays;
 
     await prisma.$transaction([
       prisma.leaveRequest.update({
@@ -291,6 +302,7 @@ export async function PATCH(
           startDate: newStart,
           endDate: newEnd,
           days: newDays,
+          ...(contractAl ? { balanceDays: newBalanceDays, balanceYear: balance.year, otDaysUsed: newOtDays } : {}),
           dayType: effectiveDayType,
           halfDayPosition: effectiveHalfDayPosition,
           reason: reason ?? leaveRequest.reason,
@@ -304,13 +316,17 @@ export async function PATCH(
           employeeId_leaveTypeId_year: {
             employeeId: leaveRequest.employeeId,
             leaveTypeId: leaveRequest.leaveTypeId,
-            year: currentYear,
+            year: balance.year ?? currentYear,
           },
         },
         data: {
           pending: { increment: daysDelta },
         },
       }),
+      ...(contractAl && oldOtDays > newOtDays ? [prisma.leaveBalance.updateMany({
+        where: { employeeId: leaveRequest.employeeId, leaveType: { code: "AL_OT" }, year: leaveRequest.createdAt.getFullYear() },
+        data: { pending: { decrement: oldOtDays - newOtDays } },
+      })] : []),
     ]);
 
     return NextResponse.json({ success: true });

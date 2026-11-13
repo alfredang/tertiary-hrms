@@ -52,6 +52,8 @@ export async function POST(request: Request) {
       });
 
       for (const bal of balances) {
+        // Fixed internship allocations keep one ledger across New Year.
+        if (bal.periodStart || bal.periodEnd) continue;
         if (!bal.leaveType.carryOver) continue;
 
         const entitlement = Number(bal.entitlement);

@@ -191,13 +191,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const currentYear = leave.startDate.getFullYear();
+    const currentYear = leave.balanceYear ?? leave.startDate.getFullYear();
     if (action === "accept") {
       await tx.leaveBalance.updateMany({
         where: { employeeId: leave.employeeId, leaveTypeId: leave.leaveTypeId, year: currentYear },
         data: {
-          used: { increment: Number(leave.days) },
-          pending: { decrement: Number(leave.days) },
+          used: { increment: Number(leave.balanceDays ?? leave.days) },
+          pending: { decrement: Number(leave.balanceDays ?? leave.days) },
         },
       });
 
@@ -227,7 +227,16 @@ export async function POST(req: NextRequest) {
     } else {
       await tx.leaveBalance.updateMany({
         where: { employeeId: leave.employeeId, leaveTypeId: leave.leaveTypeId, year: currentYear },
-        data: { pending: { decrement: Number(leave.days) } },
+        data: { pending: { decrement: Number(leave.balanceDays ?? leave.days) } },
+      });
+    }
+
+    // Contract AL reserves Off In Lieu separately from the actual AL debit.
+    if (leave.balanceDays != null && Number(leave.otDaysUsed) > 0) {
+      await tx.leaveBalance.updateMany({
+        where: { employeeId: leave.employeeId, leaveType: { code: "AL_OT" }, year: leave.createdAt.getFullYear() },
+        data: { pending: { decrement: Number(leave.otDaysUsed) },
+          ...(action === "accept" ? { used: { increment: Number(leave.otDaysUsed) } } : {}) },
       });
     }
 

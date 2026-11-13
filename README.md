@@ -47,6 +47,8 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
+- **Fixed internship annual leave (opt-in)** — an individual AL balance can cover the entire recorded internship using `periodStart` / `periodEnd`. Its configured entitlement is the contract total, accrued over the contract's monthly periods. Advance AL uses the remaining contract entitlement, including January/February, without a new calendar-year allocation. Other balances retain calendar-year rules. Submission, edits, approval/cancellation, mobile balances and rollover use the same pool; Off In Lieu is charged separately. Apply `prisma/changes/2026-11-13-internship-leave.sql`, regenerate Prisma, then use `scripts/configure-internship-leave.ts --employee-id <id> --days 7` (dry-run; add `--apply` to save). Existing used/pending days are preserved and configuration is audited.
+
 Recent additions (November 2026):
 
 - **TIA HRMS rebrand** — the product is now **TIA HRMS** everywhere (web title, login, emails, PWA, desktop and mobile apps) with a premium-blue palette: navy `#0D1638` → `#1A2F86` → royal `#2F5BE6`, gold `#F5B83D` as the single accent. All apps share the iOS app icon. The company name/logo on screens and payslips stays DB-driven (`CompanySettings`).

@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { prorateLeave, hasAdminAccess, computeAlFullEntitlement } from "@/lib/utils";
+import { hasAdminAccess } from "@/lib/utils";
 import { LeaveList } from "@/components/leave/leave-list";
 import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
 import { OtBalancePanel, type OtUsageEntry } from "@/components/leave/ot-breakdown-dialog";
@@ -11,6 +11,8 @@ import { Plus, AlertTriangle } from "lucide-react";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getNplStatus } from "@/lib/leave-allowance";
 import { NPL_ANNUAL_CAP_DAYS } from "@/lib/leave-policy";
+import { getAnnualLeaveBalance } from "@/lib/annual-leave";
+import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
 
 async function getOtLeaveBalance(employeeId: string) {
   const currentYear = new Date().getFullYear();
@@ -83,15 +85,7 @@ async function getLeaveBalance(employeeId: string) {
     return { carriedOver: 0, allocation: 12, taken: 0, rejected: 0, proRated: 12 };
   }
 
-  const balance = await prisma.leaveBalance.findUnique({
-    where: {
-      employeeId_leaveTypeId_year: {
-        employeeId,
-        leaveTypeId: annualLeaveType.id,
-        year: currentYear,
-      },
-    },
-  });
+  const balance = await getAnnualLeaveBalance(employeeId, annualLeaveType.id);
 
   // Get employee start date and monthly leave rate for proration
   const employee = await prisma.employee.findUnique({
@@ -112,13 +106,17 @@ async function getLeaveBalance(employeeId: string) {
   const carriedOver = balance ? Number(balance.carriedOver) : 0;
   const taken = balance ? Number(balance.used) : 0;
   const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
-  const proRated = prorateLeave(allocation, employee?.startDate, monthlyLeaveRate, true, new Date(), employee?.endDate);
+  const amounts = annualLeaveAmounts({ entitlement: allocation, used: taken, pending: Number(balance?.pending ?? 0), carriedOver,
+    periodStart: balance?.periodStart, periodEnd: balance?.periodEnd }, employee && { ...employee, monthlyLeaveRate });
+  const proRated = amounts.earned;
   const employeeStartDate = employee?.startDate?.toISOString() ?? null;
   const employeeEndDate = employee?.endDate?.toISOString() ?? null;
 
-  const fullEntitlement = computeAlFullEntitlement(employee?.startDate, monthlyLeaveRate, allocation, employee?.endDate);
+  const fullEntitlement = amounts.fullEntitlement;
 
-  return { carriedOver, allocation, taken, rejected: rejectedCount, proRated, fullEntitlement, employeeStartDate, employeeEndDate, monthlyLeaveRate };
+  return { carriedOver, allocation, taken, pending: Number(balance?.pending ?? 0), rejected: rejectedCount, proRated, fullEntitlement,
+    periodStart: balance?.periodStart?.toISOString() ?? null, periodEnd: balance?.periodEnd?.toISOString() ?? null,
+    employeeStartDate, employeeEndDate, monthlyLeaveRate };
 }
 
 async function getLeaveRequests(employeeId?: string) {
