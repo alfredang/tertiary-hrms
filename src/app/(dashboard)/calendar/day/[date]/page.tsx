@@ -198,7 +198,7 @@ export default async function CalendarDayPage({
       </div>
 
       {holidays.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-[#ECEFF4] dark:bg-gray-800 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
+        <div className="rounded-lg border border-red-200 bg-[#ECEFF4] px-4 py-3 text-sm font-medium text-red-700">
           Public holiday: {holidays.join(", ")}
         </div>
       )}

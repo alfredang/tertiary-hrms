@@ -13,20 +13,18 @@ function contrast(a: string, b: string) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
-describe("Device appearance palettes", () => {
+describe("Light premium-blue palette (one theme)", () => {
   it("preserves the existing light surfaces and navy text", () => {
     expect(appearanceVariables[":root"]["--hrms-gray-950"]).toBe("255 255 255");
     expect(appearanceVariables[":root"]["--hrms-gray-900"]).toBe("238 243 252");
     expect(appearanceVariables[":root"]["--hrms-ink"]).toBe("15 28 69");
   });
-  it("restores dark surfaces and light text without changing on-colour white", () => {
-    expect(appearanceVariables[".dark"]["--hrms-gray-950"]).toBe("3 7 18");
-    expect(appearanceVariables[".dark"]["--hrms-ink"]).toBe("249 250 251");
+  it("has no dark palette and keeps on-colour white", () => {
+    expect(Object.keys(appearanceVariables)).toEqual([":root"]);
     expect(appearanceColors["on-color"]).toBe("#FFFFFF");
     expect(appearanceColors.gray[950]).toContain("<alpha-value>");
   });
-  it("provides every palette variable in both appearances with valid channels", () => {
-    expect(Object.keys(appearanceVariables[":root"])).toEqual(Object.keys(appearanceVariables[".dark"]));
+  it("provides every palette variable with valid channels", () => {
     for (const palette of Object.values(appearanceVariables)) {
       for (const value of Object.values(palette)) {
         expect(value).toMatch(/^\d+ \d+ \d+$/);
