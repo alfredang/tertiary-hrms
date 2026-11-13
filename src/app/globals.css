@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-  /* One theme: light premium blue, matching the iOS app. */
+  /* Light is the default; .dark is a device-local opt-in. */
   :root {
+    color-scheme: light;
     --background: 222 60% 97%;      /* #F3F6FD */
     --foreground: 226 64% 17%;      /* navy ink */
     --card: 0 0% 100%;
@@ -25,6 +26,28 @@
     --input: 222 45% 86%;
     --ring: 226 78% 54%;
     --radius: 0.75rem;
+  }
+  .dark {
+    color-scheme: dark;
+    --background: 224 71% 4%;
+    --foreground: 210 20% 98%;
+    --card: 221 39% 11%;
+    --card-foreground: 210 20% 98%;
+    --popover: 221 39% 11%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 226 78% 54%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 218 11% 65%;
+    --accent: 215 28% 17%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 63% 40%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 28% 17%;
+    --input: 217 19% 27%;
+    --ring: 226 78% 64%;
   }
 }
 
@@ -77,3 +100,6 @@ td.allow-wrap,
 th.allow-wrap {
   white-space: normal;
 }
+
+.calendar-event-chip { color: var(--event-ink-light); }
+.dark .calendar-event-chip { color: var(--event-ink-dark); }

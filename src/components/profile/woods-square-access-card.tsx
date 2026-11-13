@@ -281,7 +281,7 @@ export function WoodsSquareAccessCard({
       {/* ───────── Stacked: pass card, then details below ───────── */}
       <div className="space-y-5">
         {/* ── The Woods Square access card (light, like the real app) — centered rectangle ── */}
-        <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[22px] border border-gray-200/80 bg-gradient-to-b from-white to-gray-50 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.75)] ring-1 ring-black/5">
+        <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[22px] border border-gray-800 bg-gradient-to-b from-gray-950 to-gray-900 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.75)] ring-1 ring-black/5">
           {/* status accent bar */}
           <div className={`h-1.5 w-full ${status.bar}`} />
 
@@ -588,7 +588,7 @@ export function WoodsSquareAccessCard({
       <DialogPrimitive.Root open={infoOpen} onOpenChange={setInfoOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-          <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 flex max-h-[90vh] w-full max-w-sm translate-x-[-50%] translate-y-[-50%] flex-col overflow-y-auto rounded-2xl border border-gray-800 bg-black p-6 text-white shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+          <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-50 flex max-h-[90vh] w-full max-w-sm translate-x-[-50%] translate-y-[-50%] flex-col overflow-y-auto rounded-2xl border border-gray-800 bg-gray-950 p-6 text-white shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
             {/* header */}
             <div className="relative mb-6 flex items-center justify-center">
               <DialogPrimitive.Title className="text-lg font-medium tracking-wide">

@@ -140,7 +140,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                     "flex h-[84px] flex-col items-stretch overflow-hidden border-b border-r border-gray-800 p-1 text-left transition-colors sm:h-[112px] sm:p-1.5",
                     (i + 1) % 7 === 0 && "border-r-0",
                     !inMonth && "bg-gray-900/60",
-                    inMonth && holidays.length > 0 && "bg-[#ECEFF4]",
+                    inMonth && holidays.length > 0 && "bg-[#ECEFF4] dark:bg-gray-800",
                     isToday && "bg-blue-950/40",
                     isSelected && !isToday && "ring-2 ring-inset ring-blue-500/50",
                     "hover:bg-gray-900"
@@ -158,7 +158,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className="truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight sm:text-xs"
+                        className="calendar-event-chip truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight sm:text-xs"
                         style={chipStyle(event.color)}
                       >
                         {event.title}
@@ -241,7 +241,7 @@ function safeHex(color: string): string {
 /** Tinted fill with the event colour as text — the Planner app chip style. */
 function chipStyle(color: string): React.CSSProperties {
   const hex = safeHex(color);
-  return { backgroundColor: `${hex}26`, color: darken(hex, 0.45) };
+  return { backgroundColor: `${hex}26`, "--event-ink-light": darken(hex, 0.45), "--event-ink-dark": hex } as React.CSSProperties;
 }
 
 /** Darker shade of a #RRGGBB colour so chip text stays readable on its own tint. */

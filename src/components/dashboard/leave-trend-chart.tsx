@@ -85,8 +85,8 @@ export function LeaveTrendChart({ data, year }: { data: MonthlyLeavePoint[]; yea
           <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`Leave days by month, ${who}`}>
             {[0, 0.5, 1].map((f) => (
               <g key={f}>
-                <line x1={padL} x2={W} y1={y(niceMax * f)} y2={y(niceMax * f)} stroke="#E3E9F5" strokeWidth={1} />
-                <text x={padL - 6} y={y(niceMax * f) + 3} textAnchor="end" fontSize={10} fill="#6B7280">{fmt(niceMax * f)}</text>
+                <line x1={padL} x2={W} y1={y(niceMax * f)} y2={y(niceMax * f)} stroke="hsl(var(--border))" strokeWidth={1} />
+                <text x={padL - 6} y={y(niceMax * f) + 3} textAnchor="end" fontSize={10} fill="rgb(var(--hrms-gray-400))">{fmt(niceMax * f)}</text>
               </g>
             ))}
             {rows.map((r, i) => {
@@ -108,7 +108,7 @@ export function LeaveTrendChart({ data, year }: { data: MonthlyLeavePoint[]; yea
                     base = top - 2; // 2px surface gap between stacked segments
                     return el;
                   })}
-                  <text x={cx} y={H - 6} textAnchor="middle" fontSize={10} fill={hover === i ? "#0F1C45" : "#6B7280"}>{r.month}</text>
+                  <text x={cx} y={H - 6} textAnchor="middle" fontSize={10} fill={hover === i ? "rgb(var(--hrms-ink))" : "rgb(var(--hrms-gray-400))"}>{r.month}</text>
                 </g>
               );
             })}
