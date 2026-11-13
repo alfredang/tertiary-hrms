@@ -233,7 +233,7 @@ export async function PATCH(
     } else if (isAL) {
       const entitlement = Number(balance.entitlement);
       const amounts = annualLeaveAmounts({ entitlement, used: Number(balance.used), pending: pendingWithoutOld,
-        carriedOver: Number(balance.carriedOver), periodStart: balance.periodStart, periodEnd: balance.periodEnd }, employee);
+        carriedOver: Number(balance.carriedOver), recordedEarned: Number(balance.earned), periodStart: balance.periodStart, periodEnd: balance.periodEnd }, employee);
       const earnedAvailable = amounts.remaining;
       const fullAvailable = amounts.fullAvailable;
       const otHeld = Number(leaveRequest.otDaysUsed);

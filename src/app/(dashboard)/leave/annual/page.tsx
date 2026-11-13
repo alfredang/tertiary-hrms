@@ -107,7 +107,7 @@ async function getLeaveBalance(employeeId: string) {
   const taken = balance ? Number(balance.used) : 0;
   const monthlyLeaveRate = employee?.monthlyLeaveRate ? Number(employee.monthlyLeaveRate) : null;
   const amounts = annualLeaveAmounts({ entitlement: allocation, used: taken, pending: Number(balance?.pending ?? 0), carriedOver,
-    periodStart: balance?.periodStart, periodEnd: balance?.periodEnd }, employee && { ...employee, monthlyLeaveRate });
+    recordedEarned: Number(balance?.earned ?? 0), periodStart: balance?.periodStart, periodEnd: balance?.periodEnd }, employee && { ...employee, monthlyLeaveRate });
   const proRated = amounts.earned;
   const employeeStartDate = employee?.startDate?.toISOString() ?? null;
   const employeeEndDate = employee?.endDate?.toISOString() ?? null;

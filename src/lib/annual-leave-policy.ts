@@ -7,6 +7,8 @@ export interface AnnualLeaveAllocation {
   used: number;
   pending: number;
   carriedOver: number;
+  /** Audited earned-to-date minimum retained when reconciling an existing contract pool. */
+  recordedEarned?: number;
   periodStart?: DateValue | null;
   periodEnd?: DateValue | null;
 }
@@ -59,7 +61,10 @@ export function contractLeaveEarned(total: number, start: DateValue, end: DateVa
 export function annualLeaveAmounts(balance: AnnualLeaveAllocation, employee?: LeaveEmployment | null, asOf: Date = new Date()) {
   const isContract = !!balance.periodStart && !!balance.periodEnd;
   const earned = isContract
-    ? contractLeaveEarned(balance.entitlement, balance.periodStart!, balance.periodEnd!, asOf)
+    ? Math.min(balance.entitlement, Math.max(
+      contractLeaveEarned(balance.entitlement, balance.periodStart!, balance.periodEnd!, asOf),
+      balance.recordedEarned ?? 0,
+    ))
     : prorateLeave(balance.entitlement, employee?.startDate, employee?.monthlyLeaveRate, true, asOf, employee?.endDate);
   const fullEntitlement = isContract
     ? balance.entitlement

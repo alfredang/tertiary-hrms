@@ -188,6 +188,13 @@ describe("Configured internship AL pool", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/internship entitlement period/);
   });
+
+  it("uses the audited prior allocation for new requests, without requiring advance a second time", async () => {
+    mockPrisma.leaveBalance.findFirst.mockResolvedValue({ ...contract, earned: 5.5, used: 5 });
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-11-16", endDate: "2026-11-16", dayType: "AM_HALF", useAdvance: false }));
+    expect(res.status).toBe(201);
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ days: 0.5, balanceDays: 0.5 }) }));
+  });
 });
 
 describe("Rule 4 — interns have no paid MC", () => {

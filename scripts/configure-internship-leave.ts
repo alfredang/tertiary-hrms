@@ -39,7 +39,7 @@ async function main() {
       }
       if (Number(balance.carriedOver) !== 0) throw new Error("Reconcile carried-over days before configuring a fixed contract pool: " + id);
       const amounts = annualLeaveAmounts({ entitlement: days, used: Number(balance.used), pending: Number(balance.pending), carriedOver: 0,
-        periodStart: e.startDate, periodEnd: e.endDate });
+        recordedEarned: Number(balance.earned), periodStart: e.startDate, periodEnd: e.endDate });
       if (apply) {
         await tx.leaveBalance.update({ where: { id: balance.id }, data: {
           entitlement: new Prisma.Decimal(days), periodStart: e.startDate, periodEnd: e.endDate,

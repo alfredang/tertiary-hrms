@@ -48,7 +48,7 @@ export async function GET() {
       available = earned - used - autoDeducted - pending;
     } else if (isAL) {
       const amounts = annualLeaveAmounts({ entitlement: entitlement || b.leaveType.defaultDays, carriedOver, used, pending,
-        periodStart: b.periodStart, periodEnd: b.periodEnd }, employee);
+        recordedEarned: earned, periodStart: b.periodStart, periodEnd: b.periodEnd }, employee);
       proRated = amounts.earned;
       available = amounts.remaining;
     } else if (isMedicalLeaveCode(b.leaveType.code)) {
@@ -76,7 +76,7 @@ export async function GET() {
       proRated,
       ...(isAL && b.periodStart && b.periodEnd ? {
         periodStart: iso(b.periodStart), periodEnd: iso(b.periodEnd),
-        fullAvailable: annualLeaveAmounts({ entitlement, carriedOver, used, pending, periodStart: b.periodStart, periodEnd: b.periodEnd }, employee).fullAvailable,
+        fullAvailable: annualLeaveAmounts({ entitlement, carriedOver, used, pending, recordedEarned: earned, periodStart: b.periodStart, periodEnd: b.periodEnd }, employee).fullAvailable,
       } : {}),
       available: Math.round(available * 100) / 100,
     };

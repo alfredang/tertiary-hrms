@@ -189,7 +189,7 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
       select: { employeeId: true, status: true, startDate: true, endDate: true, days: true, deficitDays: true, reason: true, leaveType: { select: { code: true } } },
     }),
     prisma.leaveBalance.findMany({ where: leaveBalancePeriodWhere(now), select: { employeeId: true, leaveTypeId: true, entitlement: true,
-      carriedOver: true, used: true, pending: true, periodStart: true, periodEnd: true } }),
+      carriedOver: true, used: true, pending: true, earned: true, periodStart: true, periodEnd: true } }),
     prisma.leaveType.findMany({ select: { id: true, code: true, defaultDays: true } }),
   ]);
 
@@ -207,7 +207,7 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
     const alBal = bal("AL");
     const alYearly = alBal ? Number(alBal.entitlement) : alType?.defaultDays ?? 7;
     const alAmounts = annualLeaveAmounts({ entitlement: alYearly, used: Number(alBal?.used ?? 0), pending: Number(alBal?.pending ?? 0),
-      carriedOver: Number(alBal?.carriedOver ?? 0), periodStart: alBal?.periodStart, periodEnd: alBal?.periodEnd }, { ...e, monthlyLeaveRate: rate }, now);
+      carriedOver: Number(alBal?.carriedOver ?? 0), recordedEarned: Number(alBal?.earned ?? 0), periodStart: alBal?.periodStart, periodEnd: alBal?.periodEnd }, { ...e, monthlyLeaveRate: rate }, now);
     const alEarned = alAmounts.earned;
     const alFull = alAmounts.fullEntitlement;
 

@@ -7,6 +7,16 @@ const allocation = { entitlement: 7, used: 2, pending: 0, carriedOver: 0,
   periodStart: "2026-03-30", periodEnd: "2027-02-26" };
 
 describe("Opt-in internship annual leave", () => {
+  it("retains previously allocated days when a completed holiday is reconciled, without increasing the contract total", () => {
+    const a = annualLeaveAmounts({ ...allocation, used: 5, pending: 0.5, recordedEarned: 5.5 }, null, d("2026-11-13"));
+    expect(a).toMatchObject({ earned: 5.5, remaining: 0, fullEntitlement: 7, fullAvailable: 1.5 });
+    const afterApproval = annualLeaveAmounts({ ...allocation, used: 5.5, pending: 0, recordedEarned: 5.5 }, null, d("2026-11-13"));
+    expect(afterApproval.remaining).toBe(0);
+    // Future accrual catches up naturally; the retained allocation is never added a second time.
+    expect(annualLeaveAmounts({ ...allocation, used: 5.5, recordedEarned: 5.5 }, null, d("2027-01-31")).earned).toBe(6);
+    expect(annualLeaveAmounts({ ...allocation, recordedEarned: 20 }, null, d("2026-11-13")).earned).toBe(7);
+  });
+
   it("offers 3 advance days from the full 7-day internship, with 4 earned and 2 used", () => {
     const a = annualLeaveAmounts(allocation, null, d("2026-11-13"));
     expect(a).toEqual({ isContract: true, earned: 4, fullEntitlement: 7, remaining: 2, fullAvailable: 5 });

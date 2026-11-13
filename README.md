@@ -48,6 +48,7 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 ## What's New
 
 - **Fixed internship annual leave (opt-in)** — an individual AL balance can cover the entire recorded internship using `periodStart` / `periodEnd`. Its configured entitlement is the contract total, accrued over the contract's monthly periods. Advance AL uses the remaining contract entitlement, including January/February, without a new calendar-year allocation. Other balances retain calendar-year rules. Submission, edits, approval/cancellation, mobile balances and rollover use the same pool; Off In Lieu is charged separately. Apply `prisma/changes/2026-11-13-internship-leave.sql`, regenerate Prisma, then use `scripts/configure-internship-leave.ts --employee-id <id> --days 7` (dry-run; add `--apply` to save). Existing used/pending days are preserved and configuration is audited.
+  - An audited reconciliation can retain previously allocated days in the AL balance's `earned` field. For fixed periods only, this is a minimum earned-to-date value, capped by the original contract total. Normal accrual catches up naturally; the retained allocation is not added again or carried into a new entitlement.
 
 Recent additions (November 2026):
 

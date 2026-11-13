@@ -223,7 +223,7 @@ export async function POST(req: NextRequest) {
     }
     const alAmounts = isAL && balance ? annualLeaveAmounts({
       entitlement: Number(balance.entitlement), used: Number(balance.used), pending: Number(balance.pending),
-      carriedOver: Number(balance.carriedOver), periodStart: balance.periodStart, periodEnd: balance.periodEnd,
+      carriedOver: Number(balance.carriedOver), recordedEarned: Number(balance.earned), periodStart: balance.periodStart, periodEnd: balance.periodEnd,
     }, employee) : null;
 
     // Calculate available balance

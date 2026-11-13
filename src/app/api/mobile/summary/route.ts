@@ -47,7 +47,7 @@ export async function GET() {
       const pending = num(b.pending);
       if (b.leaveType.code === "AL") {
         alAvailable = Math.round(annualLeaveAmounts({ entitlement: entitlement || b.leaveType.defaultDays, carriedOver, used, pending,
-          periodStart: b.periodStart, periodEnd: b.periodEnd }, employee && { ...employee, monthlyLeaveRate: employee.monthlyLeaveRate != null ? num(employee.monthlyLeaveRate) : null }).remaining * 100) / 100;
+          recordedEarned: num(b.earned), periodStart: b.periodStart, periodEnd: b.periodEnd }, employee && { ...employee, monthlyLeaveRate: employee.monthlyLeaveRate != null ? num(employee.monthlyLeaveRate) : null }).remaining * 100) / 100;
       } else if (b.leaveType.code === "MC") {
         mcAvailable = Math.round((entitlement + carriedOver - used - pending) * 100) / 100;
       } else if (b.leaveType.code === "AL_OT") {

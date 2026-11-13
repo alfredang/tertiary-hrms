@@ -40,7 +40,7 @@ async function getAlData(employeeId: string, employee: LeaveProfile | null): Pro
   const amounts = annualLeaveAmounts({
     entitlement: yearlyEntitlement,
     used: Number(balance?.used ?? 0), pending: Number(balance?.pending ?? 0), carriedOver: Number(balance?.carriedOver ?? 0),
-    periodStart: balance?.periodStart, periodEnd: balance?.periodEnd,
+    recordedEarned: Number(balance?.earned ?? 0), periodStart: balance?.periodStart, periodEnd: balance?.periodEnd,
   }, employee);
   return {
     remaining: amounts.remaining, fullAvailable: amounts.fullAvailable, personalEntitlement: amounts.fullEntitlement,

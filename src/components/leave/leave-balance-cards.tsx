@@ -126,6 +126,9 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
   const yearlyEntitlement = leaveBalance.allocation;
 
   const isContract = !!leaveBalance.periodStart && !!leaveBalance.periodEnd;
+  const retainedEarned = isContract ? Math.max(0, leaveBalance.proRated - contractLeaveEarned(
+    yearlyEntitlement, leaveBalance.periodStart!, leaveBalance.periodEnd!,
+  )) : 0;
   const rows = isContract
     ? contractAccrualPeriods(leaveBalance.periodStart!, leaveBalance.periodEnd!).map((p) => {
       const now = new Date();
@@ -258,6 +261,11 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
                   ? `${yearlyEntitlement} days over your full internship, accrued over its monthly periods and rounded down to the half day. The same entitlement continues into January without resetting. Advance leave can use the remaining internship entitlement.`
                   : `Accrues as ${yearlyEntitlement} days × completed months served ÷ 12, rounded down to the half day. A month counts once it is complete. Leave beyond your balance must be taken as No Pay Leave.`}
               </p>
+              {retainedEarned > 0 && (
+                <p className="text-xs text-gray-500">
+                  Includes {retainedEarned} day(s) retained from your previous leave allocation. Your total internship entitlement remains {yearlyEntitlement} days.
+                </p>
+              )}
               {advanceAl && (
                 <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-300">
                   You have used days in advance of monthly accrual. Your balance will normalise as you continue earning leave each month.

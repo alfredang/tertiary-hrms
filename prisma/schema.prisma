@@ -172,6 +172,7 @@ model LeaveBalance {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   autoDeducted Decimal   @default(0) @db.Decimal(5, 2)
+  /// OIL earned days; for fixed AL periods, an audited earned-to-date minimum.
   earned       Decimal   @default(0) @db.Decimal(5, 2)
   employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   leaveType    LeaveType @relation(fields: [leaveTypeId], references: [id])

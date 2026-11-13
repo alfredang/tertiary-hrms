@@ -111,7 +111,7 @@ async function getStaffStats(employeeId: string) {
   const alUsed = alBalance ? Number(alBalance.used) : 0;
   const alPending = alBalance ? Number(alBalance.pending) : 0;
   const leaveBalance = annualLeaveAmounts({ entitlement: alAllocation, used: alUsed, pending: alPending,
-    carriedOver: alCarriedOver, periodStart: alBalance?.periodStart, periodEnd: alBalance?.periodEnd }, employee).remaining;
+    carriedOver: alCarriedOver, recordedEarned: Number(alBalance?.earned ?? 0), periodStart: alBalance?.periodStart, periodEnd: alBalance?.periodEnd }, employee).remaining;
 
   // MC is prorated by completed months served, like AL; interns have no paid MC.
   const mcYearly = mcAnnualEntitlement(mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0), !!employee?.isIntern);
