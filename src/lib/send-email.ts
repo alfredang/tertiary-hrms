@@ -76,6 +76,44 @@ async function getGmailClient() {
   return { client: cachedClient, senderEmail: GMAIL_EMAIL_USER };
 }
 
+// ── Sender-copy cleanup ──────────────────────────────────────────────────────
+
+/**
+ * The HRMS sends from a real person's mailbox (GMAIL_EMAIL_USER / SMTP_USER),
+ * and Gmail files the sent copy under SENT + INBOX, so private mail such as a
+ * login OTP shows up in that person's inbox. This takes the copy out of the
+ * inbox (it stays in Sent) and marks it read. Pass the Gmail API message id, or
+ * the RFC 822 Message-ID header for mail sent over SMTP. Best effort: it never
+ * throws, because the email itself was already delivered.
+ */
+export async function removeSenderInboxCopy(ref: { gmailId?: string; rfc822MessageId?: string }) {
+  try {
+    const gmailAuth = await getGmailClient();
+    if (!gmailAuth) return;
+    const gmail = google.gmail({ version: "v1", auth: gmailAuth.client });
+
+    let id = ref.gmailId;
+    if (!id && ref.rfc822MessageId) {
+      const msgId = ref.rfc822MessageId.replace(/^<|>$/g, "");
+      // An SMTP-sent message can take a few seconds to become searchable.
+      for (let attempt = 1; attempt <= 4 && !id; attempt++) {
+        if (attempt > 1) await new Promise((r) => setTimeout(r, attempt * 1500));
+        const res = await gmail.users.messages.list({ userId: "me", q: `rfc822msgid:${msgId}`, maxResults: 1 });
+        id = res.data.messages?.[0]?.id ?? undefined;
+      }
+    }
+    if (!id) return;
+
+    await gmail.users.messages.modify({
+      userId: "me",
+      id,
+      requestBody: { removeLabelIds: ["INBOX", "UNREAD"] },
+    });
+  } catch (err: any) {
+    console.warn("[send-email] could not remove the sender's inbox copy:", err?.message ?? err);
+  }
+}
+
 // RFC 2047-encode a header value so non-ASCII characters survive transit.
 // Nodemailer handles this automatically; the manual Gmail raw-message path needs it.
 function encodeHeader(value: string): string {
