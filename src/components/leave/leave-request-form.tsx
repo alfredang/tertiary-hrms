@@ -101,6 +101,8 @@ export function LeaveRequestForm({
   const advanceBeforeOt = isAL && useAdvance ? Math.max(0, Math.min(daysNum, alCover) - availableNow) : 0;
   const advanceDays = Math.max(0, advanceBeforeOt - otForAdvance);
   const deficitDays = isAL ? Math.max(0, deficitBeforeOt - otForDeficit) : 0;
+  // Use the same applied credits as the breakdown, so toggling advance updates the forecast.
+  const balanceAfterRequest = alRemaining - daysNum + advanceDays + effectiveOtUsed;
   const fullyWithinEntitlement = isAL && daysNum <= alCover;
   // Days not yet earned (advance + deficit) — OT can cover any of this
   const nonEarnedDays = isAL ? Math.max(0, daysNum - availableNow) : 0;
@@ -283,8 +285,8 @@ export function LeaveRequestForm({
             </div>
             <div>
               <p className="text-xs text-gray-500">After This Request</p>
-              <p className={`text-base font-bold ${alRemaining - daysNum + effectiveOtUsed < 0 ? "text-red-400" : "text-cyan-400"}`}>
-                {alRemaining - daysNum + effectiveOtUsed}
+              <p className={`text-base font-bold ${balanceAfterRequest < 0 ? "text-red-400" : "text-cyan-400"}`}>
+                {balanceAfterRequest}
               </p>
               {(advanceDays > 0 || deficitDays > 0) && (
                 <p className="text-[11px] text-gray-500 mt-0.5">
@@ -314,6 +316,9 @@ export function LeaveRequestForm({
             <button
               type="button"
               onClick={() => setUseAdvance(!useAdvance)}
+              role="switch"
+              aria-label="Use advance annual leave"
+              aria-checked={useAdvance}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${useAdvance ? "bg-amber-500" : "bg-gray-700"}`}
             >
               <span className={`inline-block h-3 w-3 transform rounded-full bg-on-color transition-transform ${useAdvance ? "translate-x-5" : "translate-x-1"}`} />
@@ -336,6 +341,9 @@ export function LeaveRequestForm({
             <button
               type="button"
               onClick={() => setUseOt(!useOt)}
+              role="switch"
+              aria-label="Use Off In Lieu days for this request"
+              aria-checked={useOt}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${useOt ? "bg-emerald-600" : "bg-gray-700"}`}
             >
               <span className={`inline-block h-3 w-3 transform rounded-full bg-on-color transition-transform ${useOt ? "translate-x-5" : "translate-x-1"}`} />
