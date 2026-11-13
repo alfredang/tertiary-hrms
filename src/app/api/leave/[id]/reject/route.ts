@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendLeaveDecisionEmail } from "@/lib/decision-email";
 
 export async function POST(
   req: NextRequest,
@@ -90,6 +91,8 @@ export async function POST(
     } catch {
       // Non-critical
     }
+
+    await sendLeaveDecisionEmail(leaveRequest.id, "REJECTED", { approverName: session.user.name, comment: reason });
 
     return NextResponse.json(updatedRequest);
   } catch (error) {

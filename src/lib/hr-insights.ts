@@ -76,7 +76,7 @@ async function correctedKeys(employeeIds: string[], from: Date, to: Date): Promi
 export async function getMissedPunches(interns: InternRef[], from: Date, to: Date): Promise<MissedPunch[]> {
   if (interns.length === 0 || from >= to) return [];
   const ids = interns.map((i) => i.id);
-  const [punches, leaves, holidays, corrected] = await Promise.all([
+  const [punches, leaves, offDays, holidays, corrected] = await Promise.all([
     prisma.attendancePunch.findMany({
       where: { employeeId: { in: ids }, date: { gte: from, lt: to } },
       select: { employeeId: true, date: true, clockIn: true, clockOut: true },
@@ -85,6 +85,11 @@ export async function getMissedPunches(interns: InternRef[], from: Date, to: Dat
       where: { employeeId: { in: ids }, status: "APPROVED", startDate: { lt: to }, endDate: { gte: from } },
       select: { employeeId: true, startDate: true, endDate: true },
     }),
+    // Approved Off Days (full-day time off): no clock-in/out is expected.
+    prisma.timeOffRequest.findMany({
+      where: { employeeId: { in: ids }, status: "APPROVED", reason: "OFF_DAY", date: { gte: from, lt: to } },
+      select: { employeeId: true, date: true },
+    }),
     prisma.publicHoliday.findMany({ where: { countryCode: "SG", date: { gte: from, lt: to } }, select: { date: true } }),
     correctedKeys(ids, from, to),
   ]);
@@ -92,9 +97,10 @@ export async function getMissedPunches(interns: InternRef[], from: Date, to: Dat
   const out: MissedPunch[] = [];
   for (let d = new Date(from); d < to; d = addDays(d, 1)) {
     const key = ymd(d);
-    const onLeave = new Set(
-      leaves.filter((l) => ymd(l.startDate) <= key && ymd(l.endDate) >= key).map((l) => l.employeeId),
-    );
+    const onLeave = new Set([
+      ...leaves.filter((l) => ymd(l.startDate) <= key && ymd(l.endDate) >= key).map((l) => l.employeeId),
+      ...offDays.filter((o) => ymd(o.date) === key).map((o) => o.employeeId),
+    ]);
     out.push(
       ...findMissedPunches({ date: d, interns, punches, onLeave, isPublicHoliday: holidaySet.has(key), corrected }),
     );

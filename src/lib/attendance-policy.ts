@@ -140,14 +140,14 @@ export interface MissedPunch {
 
 /**
  * Interns who, on `date`, clocked in without clocking out, or did not clock in at
- * all on a scheduled workday. Skipped: public holidays, approved leave, days outside
+ * all on a scheduled workday. Skipped: public holidays, approved leave or Off Day, days outside
  * the internship, and days that already have a pending/approved correction.
  */
 export function findMissedPunches(args: {
   date: Date;
   interns: InternRef[];
   punches: Array<{ employeeId: string; date: Date; clockIn: Date | null; clockOut: Date | null }>;
-  onLeave: Set<string>; // employeeIds on approved leave that day
+  onLeave: Set<string>; // employeeIds on approved leave or an approved Off Day that day
   isPublicHoliday: boolean;
   corrected: Set<string>; // `${employeeId}|${YYYY-MM-DD}` with a pending/approved correction
 }): MissedPunch[] {

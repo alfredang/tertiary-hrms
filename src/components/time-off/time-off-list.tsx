@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import { formatTime12h, timeOffReasonLabel } from "@/lib/time-off";
+import { formatTime12h, timeOffReasonLabel, isOffDay } from "@/lib/time-off";
 import { Calendar, Check, X, Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TextViewDialog, TruncatedTextButton, type TextView } from "@/components/ui/text-view-dialog";
@@ -279,7 +279,8 @@ export function TimeOffList({
     );
 
   const timeRange = (r: TimeOffRow) =>
-    `${formatTime12h(r.startTime)} – ${formatTime12h(r.endTime)}`;
+    isOffDay(r.reason) ? "Full day" : `${formatTime12h(r.startTime)} – ${formatTime12h(r.endTime)}`;
+  const hoursText = (r: TimeOffRow) => (isOffDay(r.reason) ? "Off Day" : `${Number(r.hours)}h`);
 
   return (
     <div className="space-y-4">
@@ -347,7 +348,7 @@ export function TimeOffList({
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-400">
               <Clock className="h-3 w-3 shrink-0" />
-              <span>{timeRange(r)} ({Number(r.hours)}h)</span>
+              <span>{timeRange(r)} ({hoursText(r)})</span>
             </div>
             <div>{renderComment(r)}</div>
             {r.status === "PENDING" &&
@@ -399,7 +400,7 @@ export function TimeOffList({
                   {timeRange(r)}
                 </td>
                 <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
-                  {Number(r.hours)}h
+                  {hoursText(r)}
                 </td>
                 <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                   {formatDate(r.createdAt)}

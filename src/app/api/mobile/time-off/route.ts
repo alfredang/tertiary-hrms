@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, iso, num } from "@/lib/mobile-api";
+import { appSafeTimeOffReason } from "@/lib/time-off";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +23,12 @@ export async function GET() {
 
   return NextResponse.json({
     requests: requests.map((r) => ({
+      ...appSafeTimeOffReason({ reason: r.reason, reasonDetail: r.reasonDetail }),
       id: r.id,
       date: iso(r.date),
       startTime: r.startTime,
       endTime: r.endTime,
       hours: num(r.hours),
-      reason: r.reason,
-      reasonDetail: r.reasonDetail,
       status: r.status,
       approver: r.approver?.name ?? null,
       approvedAt: iso(r.approvedAt),

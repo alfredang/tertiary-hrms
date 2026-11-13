@@ -17,7 +17,7 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, Send, Info, AlertTriangle } from "lucide-react";
-import { TIME_OFF_REASONS, computeTimeOffHours } from "@/lib/time-off";
+import { TIME_OFF_REASONS, computeTimeOffHours, isOffDay } from "@/lib/time-off";
 
 type Reason = (typeof TIME_OFF_REASONS)[number]["value"];
 
@@ -33,16 +33,16 @@ export function TimeOffRequestForm() {
   const [reasonDetail, setReasonDetail] = useState("");
 
   const isOthers = reason === "OTHERS";
+  // Off Day = whole day: no times to pick, no clock-in/out once approved.
+  const offDay = isOffDay(reason);
   const hours = startTime && endTime ? computeTimeOffHours(startTime, endTime) : null;
-  const invalidRange = Boolean(startTime && endTime && hours === null);
+  const invalidRange = !offDay && Boolean(startTime && endTime && hours === null);
   const selectedReason = TIME_OFF_REASONS.find((r) => r.value === reason);
 
   const canSubmit =
     !isLoading &&
     !!date &&
-    !!startTime &&
-    !!endTime &&
-    hours !== null &&
+    (offDay || (!!startTime && !!endTime && hours !== null)) &&
     !!reason &&
     (!isOthers || reasonDetail.trim().length > 0);
 
@@ -57,8 +57,7 @@ export function TimeOffRequestForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date,
-          startTime,
-          endTime,
+          ...(offDay ? {} : { startTime, endTime }),
           reason,
           reasonDetail: isOthers ? reasonDetail.trim() : undefined,
         }),
@@ -68,7 +67,7 @@ export function TimeOffRequestForm() {
       if (!res.ok) throw new Error(data.error || "Failed to submit time off request");
 
       toast({
-        title: "Time off request submitted",
+        title: offDay ? "Off Day request submitted" : "Time off request submitted",
         description: "Your manager has been notified and will review it.",
       });
       router.push("/time-off");
@@ -138,6 +137,19 @@ export function TimeOffRequestForm() {
             <DatePicker id="date" value={date} onChange={(val) => setDate(val)} />
           </div>
 
+          {offDay ? (
+            <div className="space-y-2">
+              <Label className="text-white">Duration</Label>
+              <div className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white text-sm">
+                Full day
+              </div>
+              <p className="text-xs text-gray-500">
+                Once approved, you don&apos;t need to clock in or out that day and you won&apos;t get a missed clock-in reminder.
+                Your regular weekly off days are already excluded; use this only for an extra day off.
+              </p>
+            </div>
+          ) : (
+          <>
           {/* Time range */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -180,6 +192,8 @@ export function TimeOffRequestForm() {
               Time off is counted in hours on a single day and does not deduct from your leave balance.
             </p>
           </div>
+          </>
+          )}
 
           <div className="flex justify-end gap-3">
             <Button

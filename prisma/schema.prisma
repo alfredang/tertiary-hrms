@@ -245,6 +245,7 @@ enum TimeOffReason {
   EMERGENCY
   UNPAID_LEAVE
   OTHERS
+  OFF_DAY // intern full-day off: no clock-in/out expected once approved
 }
 
 model LeaveType {

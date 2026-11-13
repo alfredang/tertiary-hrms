@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendTimeOffDecisionEmail } from "@/lib/decision-email";
 import { formatTime12h } from "@/lib/time-off";
 
 export async function POST(
@@ -58,6 +59,8 @@ export async function POST(
     } catch {
       // Non-critical
     }
+
+    await sendTimeOffDecisionEmail(updated.id, "APPROVED", { approverName: session.user.name, comment: approvalComment });
 
     return NextResponse.json(updated);
   } catch (error) {

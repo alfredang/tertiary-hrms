@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendLeaveDecisionEmail } from "@/lib/decision-email";
 
 // Bulk-reject multiple PENDING leave requests in one shot.
 // Mirrors the per-id reject logic: refunds AL + OT pending, notifies the employee.
@@ -98,6 +99,11 @@ export async function POST(req: NextRequest) {
       results.skipped.push({ id, reason: err instanceof Error ? err.message : "error" });
     }
   }
+
+  const approverName = session.user.name;
+  void (async () => {
+    for (const id of results.rejected) await sendLeaveDecisionEmail(id, "REJECTED", { approverName, comment: reason });
+  })();
 
   return NextResponse.json(results);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendLeaveDecisionEmail } from "@/lib/decision-email";
 
 // Bulk-approve multiple PENDING leave requests in one shot.
 // Mirrors the single-approve logic in /api/leave/[id]/approve so balance
@@ -146,6 +147,12 @@ export async function POST(req: NextRequest) {
       results.skipped.push({ id, reason: err instanceof Error ? err.message : "error" });
     }
   }
+
+  // Decision emails in the background so a large batch doesn't hold the response.
+  const approverName = session.user.name;
+  void (async () => {
+    for (const id of results.approved) await sendLeaveDecisionEmail(id, "APPROVED", { approverName });
+  })();
 
   return NextResponse.json(results);
 }

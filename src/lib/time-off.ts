@@ -2,6 +2,11 @@ import type { TimeOffReason } from "@prisma/client";
 
 export const TIME_OFF_REASONS = [
   {
+    value: "OFF_DAY" as const,
+    label: "Off Day (full day)",
+    hint: "A whole day off. Once approved, you don't need to clock in or out that day.",
+  },
+  {
     value: "EXAMS" as const,
     label: "Exams",
     hint: "Sitting for a scheduled examination.",
@@ -22,6 +27,44 @@ export const TIME_OFF_REASONS = [
     hint: "Anything else. You must describe the reason.",
   },
 ];
+
+/**
+ * Off Day = an intern's approved full day off. Stored as one TimeOffRequest with
+ * these placeholder times and 0 hours (it is a day, not hours of time off), and
+ * the missed clock-in/out check skips the day once it is approved.
+ */
+export const OFF_DAY_START = "00:00";
+export const OFF_DAY_END = "23:59";
+
+export function isOffDay(reason: TimeOffReason | string | null | undefined): boolean {
+  return reason === "OFF_DAY";
+}
+
+/** "Full day" for an Off Day, else "start – end (N h)" using `fmt` for the times. */
+export function timeOffWhen(
+  r: { reason: TimeOffReason | string; startTime: string; endTime: string; hours: { toString(): string } | number },
+  fmt: (t: string) => string = (t) => t,
+): string {
+  if (isOffDay(r.reason)) return "Full day";
+  return `${fmt(r.startTime)} – ${fmt(r.endTime)} (${Number(r.hours.toString())} h)`;
+}
+
+/**
+ * Native-app JSON for a time-off row. Shipped iOS/Android builds know only
+ * EXAMS / EMERGENCY / UNPAID_LEAVE / OTHERS, so an Off Day is sent as OTHERS with
+ * an "Off Day (full day)" detail, plus `offDay: true` for newer builds.
+ */
+export function appSafeTimeOffReason<T extends { reason: TimeOffReason | string; reasonDetail: string | null }>(
+  r: T,
+): T & { offDay: boolean } {
+  if (!isOffDay(r.reason)) return { ...r, offDay: false };
+  return {
+    ...r,
+    reason: "OTHERS",
+    reasonDetail: `Off Day (full day)${r.reasonDetail ? ` — ${r.reasonDetail}` : ""}`,
+    offDay: true,
+  };
+}
 
 export function timeOffReasonLabel(reason: TimeOffReason): string {
   return TIME_OFF_REASONS.find((r) => r.value === reason)?.label ?? reason;
