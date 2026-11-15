@@ -363,7 +363,7 @@ export function TimeOffList({
       </div>
 
       {/* Desktop table */}
-      <div className="hidden sm:block rounded-lg border border-gray-800 overflow-x-auto">
+      <div className="hidden sm:block rounded-lg border border-gray-700 bg-gray-950 shadow-sm overflow-x-auto">
         <table className="w-full min-w-[700px]">
           <thead>
             <tr className="bg-gray-950 border-b border-gray-800">
