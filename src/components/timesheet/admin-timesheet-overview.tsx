@@ -80,7 +80,7 @@ function formatShortDate(dateStr: string): string {
 }
 
 function HoursCell({ day }: { day: DayStatus }) {
-  if (!day.hours || day.hours === 0) return <span className="text-xs text-gray-500">—</span>;
+  if (!day.hours || day.hours === 0) return <span className="text-xs text-gray-400">—</span>;
 
   const statusColors: Record<string, string> = {
     APPROVED: "text-green-400",
@@ -114,7 +114,7 @@ function StatusBadge({ status }: { status: EmployeeRow["status"] }) {
       <Clock className="h-3 w-3" /> Mixed
     </span>
   );
-  return <span className="text-xs text-gray-500">—</span>;
+  return <span className="text-xs text-gray-400">—</span>;
 }
 
 /**
@@ -210,24 +210,24 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
         </div>
 
         {oilLoading ? (
-          <div className="flex items-center gap-2 text-gray-500 py-4">
+          <div className="flex items-center gap-2 text-gray-400 py-4">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading...
           </div>
         ) : pendingOil.length === 0 && recentOil.length === 0 ? (
-          <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-6 text-center text-gray-500 text-sm">
+          <div className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm p-6 text-center text-gray-400 text-sm">
             No weekend/public holiday submissions yet.
           </div>
         ) : (
-          <div className="rounded-xl border border-gray-800 overflow-hidden">
+          <div className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800 bg-gray-900">
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Employee</th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Date</th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Hours</th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Off In Lieu</th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Status</th>
-                  <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Action</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-400 font-medium">Employee</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-400 font-medium">Date</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-400 font-medium">Hours</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-400 font-medium">Off In Lieu</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-400 font-medium">Status</th>
+                  <th className="text-left px-4 py-2.5 text-xs text-gray-400 font-medium">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -235,7 +235,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
                   <tr key={entry.id} className="hover:bg-gray-900/50 transition-colors">
                     <td className="px-4 py-3">
                       <p className="text-white font-medium">{entry.employeeName}</p>
-                      <p className="text-[10px] text-gray-500">{entry.employeeCode}</p>
+                      <p className="text-[10px] text-gray-400">{entry.employeeCode}</p>
                     </td>
                     <td className="px-4 py-3 text-gray-300 whitespace-nowrap">
                       <span>{entry.dayName}, {entry.date}</span>
@@ -251,12 +251,12 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
                       ) : entry.status === "APPROVED" ? (
                         <div>
                           <span className="text-xs text-green-400 bg-green-950/30 border border-green-800/50 rounded px-2 py-0.5">Approved</span>
-                          {entry.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{entry.adminComment}</p>}
+                          {entry.adminComment && <p className="text-[10px] text-gray-400 mt-0.5">{entry.adminComment}</p>}
                         </div>
                       ) : (
                         <div>
                           <span className="text-xs text-red-400 bg-red-950/30 border border-red-800/50 rounded px-2 py-0.5">Rejected</span>
-                          {entry.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{entry.adminComment}</p>}
+                          {entry.adminComment && <p className="text-[10px] text-gray-400 mt-0.5">{entry.adminComment}</p>}
                         </div>
                       )}
                     </td>
@@ -360,7 +360,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
       {/* Summary cards */}
       {data && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
+          <div className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm px-4 py-3">
             <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
               <Users className="h-3.5 w-3.5" /> Total employees
             </div>
@@ -378,7 +378,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
             </div>
             <p className="text-2xl font-bold text-amber-400">{data.summary.pending}</p>
           </div>
-          <div className="rounded-xl border border-gray-700/50 bg-gray-900/40 px-4 py-3">
+          <div className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm px-4 py-3">
             <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
               <AlertCircle className="h-3.5 w-3.5" /> Not Submitted
             </div>
@@ -389,22 +389,22 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-gray-500">
+        <div className="flex items-center justify-center py-20 text-gray-400">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
         </div>
       ) : data ? (
-        <div className="rounded-xl border border-gray-800 overflow-x-auto">
+        <div className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm overflow-x-auto">
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-900">
-                <th className="text-left px-4 py-3 text-xs text-gray-500 font-medium uppercase tracking-wide w-40">
+                <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide w-40">
                   Employee
                 </th>
                 {data.dayHeaders.map((h) => (
                   <th
                     key={h.date}
                     className={`text-center px-2 py-3 text-xs font-medium uppercase tracking-wide min-w-[64px]
-                      ${h.isWeekend || h.isPublicHoliday ? "text-gray-500" : "text-gray-500"}
+                      ${h.isWeekend || h.isPublicHoliday ? "text-gray-400" : "text-gray-400"}
                       ${h.date === data.todayKey ? "text-primary" : ""}
                     `}
                   >
@@ -412,10 +412,10 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
                     <div className="text-[10px] font-normal mt-0.5 opacity-70">{formatShortDate(h.date)}</div>
                   </th>
                 ))}
-                <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium uppercase tracking-wide">
+                <th className="text-center px-3 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide">
                   Total
                 </th>
-                <th className="text-center px-3 py-3 text-xs text-gray-500 font-medium uppercase tracking-wide">
+                <th className="text-center px-3 py-3 text-xs text-gray-400 font-medium uppercase tracking-wide">
                   Status
                 </th>
               </tr>
@@ -423,7 +423,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
             <tbody>
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-gray-500 text-sm">
+                  <td colSpan={10} className="text-center py-12 text-gray-400 text-sm">
                     No employees match this filter.
                   </td>
                 </tr>
@@ -435,7 +435,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
                   >
                     <td className="px-4 py-3">
                       <p className="text-white font-medium text-sm truncate max-w-[140px]">{row.name}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5 capitalize">
+                      <p className="text-[10px] text-gray-400 mt-0.5 capitalize">
                         {row.employmentType?.toLowerCase().replace("_", " ")}
                       </p>
                     </td>
@@ -466,7 +466,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
         </div>
       ) : null}
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-400">
         Shows weekend and public holiday submissions only. Off In Lieu days are credited after admin approval.
       </p>
       </div>

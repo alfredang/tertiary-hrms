@@ -2,9 +2,11 @@ import defaults from "tailwindcss/colors";
 
 type Scale = Record<string, string>;
 const LIGHT_GRAY: Scale = {
-  50: "#0F1C45", 100: "#17275A", 200: "#22346B", 300: "#33467D",
-  400: "#55668F", 500: "#5F7098", 600: "#97A6C6", 700: "#C3CEE6",
-  800: "#DCE4F4", 900: "#EEF3FC", 950: "#FFFFFF",
+  50: "#0F1C45", 100: "#17275A", 200: "#22346B", 300: "#2A3C70",
+  // 400 = secondary text (7.5:1 on white), 500 = tertiary text (5.6:1), 600 = decoration only,
+  // 700 / 800 = input and card borders, 900 = inset / hover tint, 950 = card.
+  400: "#43547E", 500: "#56678F", 600: "#8090B5", 700: "#B3C0DD",
+  800: "#D0DAEE", 900: "#EEF3FC", 950: "#FFFFFF",
 };
 const SCALES = ["red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose", "slate", "zinc", "neutral", "stone"] as const;
 

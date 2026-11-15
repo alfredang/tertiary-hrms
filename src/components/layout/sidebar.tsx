@@ -313,7 +313,8 @@ function TopLevelNavItem({
           <item.icon
             className={cn(
               "h-5 w-5 shrink-0",
-              isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200",
+              // Inherit the row colour: white on the blue active fill, ink on the light "open group" fill.
+              isActive ? "text-current" : "text-gray-400 group-hover:text-gray-200",
             )}
           />
           {!collapsed && <span className="flex-1 truncate">{label}</span>}
@@ -402,7 +403,7 @@ function NestedChildRow({
               <child.icon
                 className={cn(
                   "h-4 w-4 shrink-0",
-                  childActive ? "text-white" : "text-gray-500 group-hover:text-gray-200",
+                  childActive ? "text-current" : "text-gray-500 group-hover:text-gray-200",
                 )}
               />
             )}

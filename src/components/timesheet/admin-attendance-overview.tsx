@@ -58,18 +58,18 @@ export function AdminAttendanceOverview() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid flex-1 grid-cols-2 gap-4 sm:max-w-md">
-          <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4">
+          <div className="rounded-2xl border border-gray-700 bg-gray-950 shadow-sm p-4">
             <Users className="h-5 w-5 text-blue-400" />
             <p className="mt-2 text-2xl font-bold text-white">{rows.length}</p>
             <p className="text-xs text-gray-400">People tracked</p>
           </div>
-          <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4">
+          <div className="rounded-2xl border border-gray-700 bg-gray-950 shadow-sm p-4">
             <Sigma className="h-5 w-5 text-emerald-400" />
             <p className="mt-2 text-2xl font-bold text-white">{(data?.totalHours ?? 0).toFixed(1)} h</p>
             <p className="text-xs text-gray-400">Total hours</p>
           </div>
         </div>
-        <div className="flex items-center gap-1 rounded-xl border border-gray-800 bg-gray-900/60 p-1">
+        <div className="flex items-center gap-1 rounded-xl border border-gray-700 bg-gray-950 shadow-sm p-1">
           <button
             type="button"
             onClick={() => setMonth(shiftMonth(month, -1))}
@@ -92,18 +92,18 @@ export function AdminAttendanceOverview() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/60 py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+        <div className="flex items-center justify-center rounded-2xl border border-gray-700 bg-gray-950 shadow-sm py-12">
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         </div>
       ) : error ? (
-        <p className="flex items-center justify-center gap-2 rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-8 text-sm text-red-400">
+        <p className="flex items-center justify-center gap-2 rounded-xl border border-gray-700 bg-gray-950 shadow-sm px-4 py-8 text-sm text-red-400">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
       ) : rows.length ? (
-        <div className="overflow-x-auto rounded-2xl border border-gray-800">
+        <div className="overflow-x-auto rounded-2xl border border-gray-700 bg-gray-950 shadow-sm">
           <table className="w-full min-w-[560px] text-sm">
-            <thead className="bg-gray-900 text-left text-xs uppercase tracking-wide text-gray-500">
+            <thead className="bg-gray-900 text-left text-xs uppercase tracking-wide text-gray-400">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 text-right font-medium">Days worked</th>
@@ -112,7 +112,7 @@ export function AdminAttendanceOverview() {
                 <th className="px-4 py-3 font-medium">Today</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800 bg-gray-900/60">
+            <tbody className="divide-y divide-gray-800 bg-gray-950">
               {rows.map((r) => (
                 <tr
                   key={r.id}
@@ -121,7 +121,7 @@ export function AdminAttendanceOverview() {
                 >
                   <td className="px-4 py-3">
                     <p className="font-medium text-white">{r.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-400">
                       {r.employeeCode}
                       {!r.isIntern && " · non-intern"}
                     </p>
@@ -135,7 +135,7 @@ export function AdminAttendanceOverview() {
                         Working
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-500">—</span>
+                      <span className="text-xs text-gray-400">—</span>
                     )}
                   </td>
                 </tr>
@@ -144,7 +144,7 @@ export function AdminAttendanceOverview() {
           </table>
         </div>
       ) : (
-        <p className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-8 text-center text-sm text-gray-500">
+        <p className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm px-4 py-8 text-center text-sm text-gray-400">
           No interns or check-ins for {formatMonth(month)}.
         </p>
       )}

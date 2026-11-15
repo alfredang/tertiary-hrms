@@ -152,12 +152,12 @@ export function EmailTemplateEditor({ def, initialSubject, initialBody, isCustom
       </div>
 
       {/* Available Variables */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+      <div className="bg-gray-950 border border-gray-700 shadow-sm rounded-xl p-4">
         <p className="text-sm font-medium text-white mb-3">Available Variables</p>
         <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
           {def.variables.map((v) => (
             <div key={v.name} className="flex items-center gap-2 min-w-0">
-              <code className="text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700 text-primary font-mono shrink-0">
+              <code className="text-xs px-2 py-1 rounded bg-gray-950 border border-gray-700 text-primary font-mono shrink-0">
                 {`{${v.name}}`}
               </code>
               <span className="text-xs text-gray-400 truncate">{v.description}</span>
@@ -167,7 +167,7 @@ export function EmailTemplateEditor({ def, initialSubject, initialBody, isCustom
       </div>
 
       {/* Editor */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">
+      <div className="bg-gray-950 border border-gray-700 shadow-sm rounded-xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-white">Email Template</p>
           <span
@@ -187,7 +187,7 @@ export function EmailTemplateEditor({ def, initialSubject, initialBody, isCustom
             id="subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            className="bg-gray-800 border-gray-700 text-white font-mono text-sm"
+            className="bg-gray-950 border-gray-700 text-white font-mono text-sm"
           />
         </div>
 
@@ -198,13 +198,13 @@ export function EmailTemplateEditor({ def, initialSubject, initialBody, isCustom
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={16}
-            className="bg-gray-800 border-gray-700 text-white font-mono text-sm leading-relaxed"
+            className="bg-gray-950 border-gray-700 text-white font-mono text-sm leading-relaxed"
           />
         </div>
       </div>
 
       {/* Preview */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-3">
+      <div className="bg-gray-950 border border-gray-700 shadow-sm rounded-xl p-6 space-y-3">
         <div className="flex items-center gap-2">
           <Eye className="h-4 w-4 text-primary" />
           <p className="text-sm font-medium text-white">Preview</p>

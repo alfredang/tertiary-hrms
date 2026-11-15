@@ -299,7 +299,7 @@ function LoginForm() {
         </div>
 
         {/* Card */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-5">
+        <div className="bg-gray-950 border border-gray-700 shadow-sm rounded-2xl p-6 space-y-5">
           {/* Error */}
           {error && (
             <div className="bg-red-950/50 border border-red-800 text-red-400 text-sm p-3 rounded-lg">
@@ -326,7 +326,7 @@ function LoginForm() {
                   type="email"
                   autoComplete="email"
                   placeholder="name@company.com"
-                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary"
+                  className="bg-gray-950 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -400,7 +400,7 @@ function LoginForm() {
                     onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ""))}
                     maxLength={6}
                     placeholder="000000"
-                    className="bg-gray-800 border-gray-700 text-white text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-500 focus:border-primary"
+                    className="bg-gray-950 border-gray-700 text-white text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-500 focus:border-primary"
                     required
                     disabled={isLoading}
                   />
@@ -461,7 +461,7 @@ function LoginForm() {
                   type="email"
                   autoComplete="username"
                   placeholder="name@company.com"
-                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary"
+                  className="bg-gray-950 border-gray-700 text-white placeholder:text-gray-500 focus:border-primary"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -482,7 +482,7 @@ function LoginForm() {
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 pr-10 focus:border-primary"
+                    className="bg-gray-950 border-gray-700 text-white placeholder:text-gray-500 pr-10 focus:border-primary"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -537,7 +537,7 @@ function LoginForm() {
               <span className="w-full border-t border-gray-700" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-gray-900 px-2 text-gray-500">Or continue with</span>
+              <span className="bg-gray-950 px-2 text-gray-500">Or continue with</span>
             </div>
           </div>
 
@@ -545,7 +545,7 @@ function LoginForm() {
           <Button
             type="button"
             variant="outline"
-            className="w-full border-gray-700 bg-gray-800 text-white hover:bg-gray-700"
+            className="w-full border-gray-700 bg-gray-950 border border-gray-700 text-white hover:bg-gray-900"
             onClick={handleGoogleSignIn}
             disabled={isLoading || isGoogleLoading}
           >
@@ -597,7 +597,7 @@ function LoginSkeleton() {
             <div className="h-7 bg-gray-800 rounded w-48 animate-pulse" />
             <div className="h-5 bg-gray-800 rounded w-64 animate-pulse" />
           </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
+          <div className="bg-gray-950 border border-gray-700 shadow-sm rounded-2xl p-6 space-y-4">
             <div className="h-10 bg-gray-800 rounded animate-pulse" />
             <div className="h-10 bg-gray-800 rounded animate-pulse" />
             <div className="h-10 bg-gray-800 rounded animate-pulse" />

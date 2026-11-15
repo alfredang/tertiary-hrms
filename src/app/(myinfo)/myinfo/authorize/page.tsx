@@ -26,7 +26,7 @@ function AuthorizeContent() {
         <span className="text-2xl font-bold text-white">Singpass</span>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-6">
+      <div className="bg-gray-950 border border-gray-700 shadow-sm rounded-2xl p-8 space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-white mb-2">Complete Your Employee Profile</h1>
           <p className="text-gray-400 text-sm">

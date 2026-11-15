@@ -130,7 +130,7 @@ export default function LeavePolicyPage() {
           const carryOn = !!(patch.carryOver ?? lt.carryOver);
 
           return (
-            <Card key={lt.id} className="bg-gray-900 border-gray-700">
+            <Card key={lt.id} className="bg-gray-950 border-gray-700">
               <CardContent className="p-0">
                 {/* Header row */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
@@ -156,7 +156,7 @@ export default function LeavePolicyPage() {
                       max={365}
                       value={patch.defaultDays ?? lt.defaultDays}
                       onChange={(e) => update(lt.id, "defaultDays", e.target.value)}
-                      className="bg-gray-800 border-gray-600 text-white h-9"
+                      className="bg-gray-950 border-gray-600 text-white h-9"
                     />
                   </Field>
 
@@ -167,7 +167,7 @@ export default function LeavePolicyPage() {
                       max={365}
                       value={patch.internDefaultDays ?? lt.internDefaultDays}
                       onChange={(e) => update(lt.id, "internDefaultDays", e.target.value)}
-                      className="bg-gray-800 border-gray-600 text-white h-9"
+                      className="bg-gray-950 border-gray-600 text-white h-9"
                     />
                   </Field>
 
@@ -179,7 +179,7 @@ export default function LeavePolicyPage() {
                         max={patch.defaultDays ?? lt.defaultDays}
                         value={patch.paidDays ?? lt.paidDays}
                         onChange={(e) => update(lt.id, "paidDays", e.target.value)}
-                        className="bg-gray-800 border-gray-600 text-white h-9"
+                        className="bg-gray-950 border-gray-600 text-white h-9"
                       />
                     </Field>
                   )}
@@ -192,7 +192,7 @@ export default function LeavePolicyPage() {
                       disabled={!carryOn}
                       value={carryOn ? (patch.maxCarryOver ?? lt.maxCarryOver) : 0}
                       onChange={(e) => update(lt.id, "maxCarryOver", e.target.value)}
-                      className="bg-gray-800 border-gray-600 text-white h-9 disabled:opacity-40"
+                      className="bg-gray-950 border-gray-600 text-white h-9 disabled:opacity-40"
                     />
                   </Field>
 
@@ -203,7 +203,7 @@ export default function LeavePolicyPage() {
                       className={`w-full h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-between px-3 ${
                         carryOn
                           ? "bg-emerald-900 border-emerald-700 text-emerald-300 hover:bg-emerald-800"
-                          : "bg-gray-800 border-gray-600 text-gray-400 hover:bg-gray-700"
+                          : "bg-gray-950 border-gray-600 text-gray-400 hover:bg-gray-700"
                       }`}
                     >
                       <span>{carryOn ? "Enabled" : "Disabled"}</span>

@@ -72,7 +72,7 @@ export function AttendanceHistory({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-white">{title}</h2>
-        <div className="flex items-center gap-1 rounded-xl border border-gray-800 bg-gray-900/60 p-1">
+        <div className="flex items-center gap-1 rounded-xl border border-gray-700 bg-gray-950 shadow-sm p-1">
           <button
             type="button"
             onClick={() => setMonth(shiftMonth(month, -1))}
@@ -95,12 +95,12 @@ export function AttendanceHistory({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5">
+        <div className="rounded-2xl border border-gray-700 bg-gray-950 shadow-sm p-5">
           <Sigma className="h-5 w-5 text-emerald-400" />
           <p className="mt-2 text-3xl font-bold text-white">{loading || !data ? "—" : `${data.totalHours.toFixed(1)} h`}</p>
           <p className="text-sm text-gray-400">Total hours ({formatMonth(month)})</p>
         </div>
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5">
+        <div className="rounded-2xl border border-gray-700 bg-gray-950 shadow-sm p-5">
           <CalendarCheck className="h-5 w-5 text-blue-400" />
           <p className="mt-2 text-3xl font-bold text-white">{loading || !data ? "—" : data.daysWorked}</p>
           <p className="text-sm text-gray-400">Days worked</p>
@@ -108,11 +108,11 @@ export function AttendanceHistory({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/60 py-12">
+        <div className="flex items-center justify-center rounded-2xl border border-gray-700 bg-gray-950 shadow-sm py-12">
           <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
         </div>
       ) : error ? (
-        <p className="flex items-center justify-center gap-2 rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-8 text-sm text-red-400">
+        <p className="flex items-center justify-center gap-2 rounded-xl border border-gray-700 bg-gray-950 shadow-sm px-4 py-8 text-sm text-red-400">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
@@ -127,7 +127,7 @@ export function AttendanceHistory({
                 <th className="px-4 py-3 text-right font-medium">Hours</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800 bg-gray-900/60">
+            <tbody className="divide-y divide-gray-800 bg-gray-950">
               {data.days.map((p) => {
                 // Open punch: still accruing if it's today, otherwise the clock-out was missed.
                 const open = p.clockIn && !p.clockOut;
@@ -171,7 +171,7 @@ export function AttendanceHistory({
           </table>
         </div>
       ) : (
-        <p className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-8 text-center text-sm text-gray-500">
+        <p className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm px-4 py-8 text-center text-sm text-gray-500">
           No check-ins in {formatMonth(month)}.
         </p>
       )}

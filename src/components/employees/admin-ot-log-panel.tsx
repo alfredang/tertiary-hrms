@@ -120,7 +120,7 @@ export function AdminOtLogPanel({ employeeId }: Props) {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -128,7 +128,7 @@ export function AdminOtLogPanel({ employeeId }: Props) {
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="WEEKEND">Weekend</option>
                 <option value="PUBLIC_HOLIDAY">Public Holiday</option>
@@ -145,7 +145,7 @@ export function AdminOtLogPanel({ employeeId }: Props) {
                 value={daysEarned}
                 onChange={(e) => setDaysEarned(e.target.value)}
                 required
-                className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -155,7 +155,7 @@ export function AdminOtLogPanel({ employeeId }: Props) {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="e.g. Project deadline, Labour Day"
-                className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>

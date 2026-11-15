@@ -6,7 +6,7 @@
   /* One theme: light premium blue, matching the iOS app. */
   :root {
     color-scheme: light;
-    --background: 222 60% 97%;      /* #F3F6FD */
+    --background: 220 64% 94.5%;    /* #E8EEFA page: deep enough that white cards stand out */
     --foreground: 226 64% 17%;      /* navy ink */
     --card: 0 0% 100%;
     --card-foreground: 226 64% 17%;
@@ -17,13 +17,13 @@
     --secondary: 222 70% 95%;
     --secondary-foreground: 226 64% 17%;
     --muted: 222 60% 95%;
-    --muted-foreground: 223 22% 45%;
+    --muted-foreground: 223 31% 38%;
     --accent: 222 80% 94%;
     --accent-foreground: 226 64% 17%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 222 45% 89%;
-    --input: 222 45% 86%;
+    --border: 220 47% 87.5%;
+    --input: 221 38% 78%;
     --ring: 226 78% 54%;
     --radius: 0.75rem;
   }

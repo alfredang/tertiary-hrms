@@ -209,7 +209,7 @@ export function WeeklyTimesheet() {
       ) : data ? (
         <>
           {nonWorkDays.length === 0 ? (
-            <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-8 text-center text-gray-500">
+            <div className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm p-8 text-center text-gray-500">
               <p className="text-sm">No weekends or public holidays this week.</p>
             </div>
           ) : (
