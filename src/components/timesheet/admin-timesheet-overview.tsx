@@ -80,7 +80,7 @@ function formatShortDate(dateStr: string): string {
 }
 
 function HoursCell({ day }: { day: DayStatus }) {
-  if (!day.hours || day.hours === 0) return <span className="text-xs text-gray-600">—</span>;
+  if (!day.hours || day.hours === 0) return <span className="text-xs text-gray-500">—</span>;
 
   const statusColors: Record<string, string> = {
     APPROVED: "text-green-400",
@@ -114,7 +114,7 @@ function StatusBadge({ status }: { status: EmployeeRow["status"] }) {
       <Clock className="h-3 w-3" /> Mixed
     </span>
   );
-  return <span className="text-xs text-gray-600">—</span>;
+  return <span className="text-xs text-gray-500">—</span>;
 }
 
 /**
@@ -404,7 +404,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
                   <th
                     key={h.date}
                     className={`text-center px-2 py-3 text-xs font-medium uppercase tracking-wide min-w-[64px]
-                      ${h.isWeekend || h.isPublicHoliday ? "text-gray-600" : "text-gray-500"}
+                      ${h.isWeekend || h.isPublicHoliday ? "text-gray-500" : "text-gray-500"}
                       ${h.date === data.todayKey ? "text-primary" : ""}
                     `}
                   >
@@ -466,7 +466,7 @@ export function AdminTimesheetOverview({ showWeekly = true }: { showWeekly?: boo
         </div>
       ) : null}
 
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-500">
         Shows weekend and public holiday submissions only. Off In Lieu days are credited after admin approval.
       </p>
       </div>

@@ -271,7 +271,7 @@ export function LeaveEditForm({ leaveId, leaveTypeName, leaveTypeCode, initialDa
           <div className="space-y-2">
             <Label className="text-white">Leave Type</Label>
             <div className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-400 text-sm">
-              {leaveTypeName} <span className="text-gray-600 text-xs">(cannot be changed)</span>
+              {leaveTypeName} <span className="text-gray-500 text-xs">(cannot be changed)</span>
             </div>
           </div>
 

@@ -15,7 +15,7 @@ async function getEmployees(viewAs: string, currentEmployeeId?: string) {
       where: { id: currentEmployeeId },
       include: {
         department: true,
-        user: true,
+        user: { select: { roles: true } },
       },
     });
     return employee ? [employee] : [];
@@ -29,7 +29,7 @@ async function getEmployees(viewAs: string, currentEmployeeId?: string) {
   const employees = await prisma.employee.findMany({
     include: {
       department: true,
-      user: true,
+      user: { select: { roles: true } },
     },
   });
 

@@ -53,7 +53,7 @@ export function AdminKpis(d: AdminKpiData) {
           <div className="mt-2 text-3xl font-semibold tabular-nums text-white">{t.value}</div>
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className={cn("truncate text-xs", t.attention ? "text-amber-300" : "text-gray-500")}>{t.sub}</span>
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-500 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
           </div>
         </Link>
       ))}

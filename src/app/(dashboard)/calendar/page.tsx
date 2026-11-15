@@ -12,44 +12,42 @@ import { hasAdminAccess } from "@/lib/utils";
 export const dynamic = 'force-dynamic';
 
 async function getCalendarEvents(userId: string, employeeId?: string, showAllLeaves = false) {
-  // 1. Personal events created by this user (meetings, training, company events)
-  const ownEvents = await prisma.calendarEvent.findMany({
-    where: {
-      createdById: userId,
-      type: { in: ["MEETING", "TRAINING", "COMPANY_EVENT"] },
-    },
-    orderBy: { startDate: "asc" },
-  });
-
-  // 2. Global holiday events — visible to everyone regardless of who created them
-  const holidayEvents = await prisma.calendarEvent.findMany({
-    where: { type: "HOLIDAY" },
-    orderBy: { startDate: "asc" },
-  });
-
-  // 2. Leave events — admin view: all employees; staff view: own only
-  let leaveEvents: typeof ownEvents = [];
-  if (showAllLeaves) {
-    leaveEvents = await prisma.calendarEvent.findMany({
-      where: { type: "LEAVE", leaveRequestId: { not: null } },
+  // The four sources are independent, so they load together.
+  const [ownEvents, holidayEvents, leaveEvents, allPublicHolidays] = await Promise.all([
+    // 1. Personal events created by this user (meetings, training, company events)
+    prisma.calendarEvent.findMany({
+      where: {
+        createdById: userId,
+        type: { in: ["MEETING", "TRAINING", "COMPANY_EVENT"] },
+      },
       orderBy: { startDate: "asc" },
-    });
-  } else if (employeeId) {
-    const userLeaveRequests = await prisma.leaveRequest.findMany({
-      where: { employeeId, status: "APPROVED" },
-      select: { id: true },
-    });
-    const userLeaveRequestIds = new Set(userLeaveRequests.map((lr) => lr.id));
-
-    const allLeaveEvents = await prisma.calendarEvent.findMany({
-      where: { type: "LEAVE", leaveRequestId: { not: null } },
+    }),
+    // 2. Global holiday events — visible to everyone regardless of who created them
+    prisma.calendarEvent.findMany({
+      where: { type: "HOLIDAY" },
       orderBy: { startDate: "asc" },
-    });
-
-    leaveEvents = allLeaveEvents.filter(
-      (event) => event.leaveRequestId && userLeaveRequestIds.has(event.leaveRequestId)
-    );
-  }
+    }),
+    // 3. Leave events — admin view: all employees; staff view: own approved leave only
+    (async () => {
+      if (showAllLeaves) {
+        return prisma.calendarEvent.findMany({
+          where: { type: "LEAVE", leaveRequestId: { not: null } },
+          orderBy: { startDate: "asc" },
+        });
+      }
+      if (!employeeId) return [];
+      const userLeaveRequests = await prisma.leaveRequest.findMany({
+        where: { employeeId, status: "APPROVED" },
+        select: { id: true },
+      });
+      if (userLeaveRequests.length === 0) return [];
+      return prisma.calendarEvent.findMany({
+        where: { type: "LEAVE", leaveRequestId: { in: userLeaveRequests.map((lr) => lr.id) } },
+        orderBy: { startDate: "asc" },
+      });
+    })(),
+    prisma.publicHoliday.findMany({ where: { countryCode: "SG" }, orderBy: { date: "asc" } }),
+  ]);
 
   // Deduplicate across all sources
   const eventMap = new Map<string, (typeof ownEvents)[0]>();
@@ -61,8 +59,7 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
   //    added as calendar events (Alfred, 11 Nov 2026). Skipped where a holiday event already exists.
   const dayKey = (d: Date) => d.toISOString().slice(0, 10);
   const holidayDays = new Set(holidayEvents.map((e) => dayKey(e.startDate)));
-  const publicHolidays = (await prisma.publicHoliday.findMany({ where: { countryCode: "SG" }, orderBy: { date: "asc" } }))
-    .filter((ph) => !holidayDays.has(dayKey(ph.date)));
+  const publicHolidays = allPublicHolidays.filter((ph) => !holidayDays.has(dayKey(ph.date)));
 
   return [
     ...Array.from(eventMap.values()).map((event) => ({
@@ -101,8 +98,7 @@ function getDefaultColor(type: string): string {
 }
 
 export default async function CalendarPage() {
-  const session = await auth();
-  const viewMode = await getViewMode();
+  const [session, viewMode] = await Promise.all([auth(), getViewMode()]);
 
   let role: Role = "STAFF";
   let currentUserId: string | undefined;

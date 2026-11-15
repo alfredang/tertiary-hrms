@@ -400,7 +400,7 @@ function LoginForm() {
                     onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ""))}
                     maxLength={6}
                     placeholder="000000"
-                    className="bg-gray-800 border-gray-700 text-white text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-600 focus:border-primary"
+                    className="bg-gray-800 border-gray-700 text-white text-center text-2xl tracking-[0.5em] font-mono placeholder:text-gray-500 focus:border-primary"
                     required
                     disabled={isLoading}
                   />
@@ -428,7 +428,7 @@ function LoginForm() {
                 >
                   {isResending ? "Resending..." : "Resend OTP"}
                 </button>
-                <span className="text-gray-600">|</span>
+                <span className="text-gray-500">|</span>
                 <button
                   type="button"
                   onClick={goToPassword}

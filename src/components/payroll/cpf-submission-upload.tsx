@@ -251,7 +251,7 @@ export function CpfSubmissionUpload() {
                   href={outcome.driveWebViewLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm text-blue-500 hover:underline"
+                  className="inline-flex items-center gap-1 text-sm text-blue-400 hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   View archived PDF in Drive
@@ -281,7 +281,7 @@ export function CpfSubmissionUpload() {
 
             {outcome.unmatched.length > 0 && (
               <div className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-3 text-sm">
-                <p className="mb-1 flex items-center gap-2 font-medium text-amber-500">
+                <p className="mb-1 flex items-center gap-2 font-medium text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
                   Not processed — no matching employee found
                 </p>
@@ -300,7 +300,7 @@ export function CpfSubmissionUpload() {
             )}
 
             {outcome.apply.details && outcome.apply.details.length > 0 && (
-              <ul className="list-inside list-disc text-sm text-amber-500">
+              <ul className="list-inside list-disc text-sm text-amber-400">
                 {outcome.apply.details.map((d, i) => (
                   <li key={i}>{d}</li>
                 ))}

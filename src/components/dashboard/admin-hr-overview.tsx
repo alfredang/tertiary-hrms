@@ -109,7 +109,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
                   <th key={c.key} className="py-2 pr-3 text-right" colSpan={2}>{c.label}</th>
                 ))}
               </tr>
-              <tr className="text-right text-[11px] text-gray-600 border-b border-gray-800">
+              <tr className="text-right text-[11px] text-gray-500 border-b border-gray-800">
                 <th />
                 {CATS.map((c) => (
                   <Fragment key={c.key}>
@@ -134,7 +134,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-600">Days are counted in the month the leave starts. Interns&apos; sick leave is recorded as No Pay Leave.</p>
+        <p className="text-xs text-gray-500">Days are counted in the month the leave starts. Interns&apos; sick leave is recorded as No Pay Leave.</p>
       </Section>
 
       {/* Per person */}
@@ -179,7 +179,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-gray-500">
           Available AL and earned MC are prorated by completed months served this year; the No Pay Leave cap is 21 days a year, prorated the same way.
         </p>
       </Section>
@@ -217,20 +217,20 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
                     <td className="py-2 pr-3 text-right font-mono">{i.weekHours.toFixed(1)} h</td>
                     <td className="py-2 pr-3 text-right font-mono">{i.monthHours.toFixed(1)} h</td>
                     <td className="py-2 pr-3 text-right font-mono">{i.daysWorkedMonth}</td>
-                    <td className={`py-2 pr-3 ${i.missingClockOuts.length ? "text-red-400 font-medium" : "text-gray-600"}`}>
+                    <td className={`py-2 pr-3 ${i.missingClockOuts.length ? "text-red-400 font-medium" : "text-gray-500"}`}>
                       {i.missingClockOuts.length ? i.missingClockOuts.join(", ") : "—"}
                     </td>
-                    <td className={`py-2 pr-3 ${i.missingClockIns.length ? "text-amber-400" : "text-gray-600"}`}>
+                    <td className={`py-2 pr-3 ${i.missingClockIns.length ? "text-amber-400" : "text-gray-500"}`}>
                       {i.missingClockIns.length ? i.missingClockIns.join(", ") : "—"}
                     </td>
-                    <td className={`py-2 text-right font-mono ${i.pendingCorrections ? "text-amber-400" : "text-gray-600"}`}>{i.pendingCorrections}</td>
+                    <td className={`py-2 text-right font-mono ${i.pendingCorrections ? "text-amber-400" : "text-gray-500"}`}>{i.pendingCorrections}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        <p className="text-xs text-gray-600 flex items-center gap-1"><Wallet className="h-3 w-3" /> Hours count completed punches only. Today is excluded from missing punches.</p>
+        <p className="text-xs text-gray-500 flex items-center gap-1"><Wallet className="h-3 w-3" /> Hours count completed punches only. Today is excluded from missing punches.</p>
       </Section>
     </div>
   );

@@ -265,7 +265,7 @@ export function CorrectionApprovals() {
     <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4 sm:p-5 space-y-3">
       <h2 className="text-white font-semibold">Missing punch requests {rows.length > 0 && <span className="text-amber-400">({rows.length} pending)</span>}</h2>
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-500 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /> Nothing waiting for approval.</p>
+        <p className="text-sm text-gray-500 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-400" /> Nothing waiting for approval.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

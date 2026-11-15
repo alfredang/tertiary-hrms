@@ -16,16 +16,16 @@ async function getExpenseStats(employeeId?: string) {
     status: "APPROVED" as const,
   };
 
-  const totalExpenses = await prisma.expenseClaim.aggregate({
+  // Sum and count in one query.
+  const totals = await prisma.expenseClaim.aggregate({
     where,
     _sum: { amount: true },
+    _count: { _all: true },
   });
 
-  const claimsCount = await prisma.expenseClaim.count({ where });
-
   return {
-    totalExpenses: Number(totalExpenses._sum.amount || 0),
-    claimsCount,
+    totalExpenses: Number(totals._sum.amount || 0),
+    claimsCount: totals._count._all,
   };
 }
 

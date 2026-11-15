@@ -246,7 +246,7 @@ export default function PrivacyPolicyPage() {
           </section>
         </div>
 
-        <p className="text-center text-xs text-gray-600">
+        <p className="text-center text-xs text-gray-500">
           &copy; {new Date().getFullYear()} Tertiary Infotech Academy Pte. Ltd. All rights reserved.
         </p>
       </div>

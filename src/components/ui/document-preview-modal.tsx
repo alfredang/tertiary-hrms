@@ -63,7 +63,7 @@ export function DocumentPreviewModal({
               />
             ) : (
               <div className="text-center space-y-3">
-                <FileText className="h-16 w-16 text-gray-600 mx-auto" />
+                <FileText className="h-16 w-16 text-gray-500 mx-auto" />
                 <p className="text-sm text-gray-400">
                   Preview not available for this file type
                 </p>

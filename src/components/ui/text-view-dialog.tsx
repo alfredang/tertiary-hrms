@@ -44,7 +44,7 @@ export function TruncatedTextButton({
   tone?: string;
   className?: string;
 }) {
-  if (!text) return <span className="text-xs text-gray-600">—</span>;
+  if (!text) return <span className="text-xs text-gray-500">—</span>;
   return (
     <button
       type="button"

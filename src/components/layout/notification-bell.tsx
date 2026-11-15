@@ -241,7 +241,7 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
                 </span>
               )}
               {permission === "granted" && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] text-green-500">
+                <span className="inline-flex items-center gap-0.5 text-[10px] text-green-400">
                   <Check className="h-3 w-3" /> desktop on
                 </span>
               )}
@@ -261,7 +261,7 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
           <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-800/60">
             {visible.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-10 text-gray-500">
-                <Bell className="h-8 w-8 opacity-30" />
+                <Bell className="h-8 w-8 opacity-50" />
                 <p className="text-sm">No notifications yet</p>
               </div>
             ) : (
@@ -279,7 +279,7 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
                       <p className={`text-xs font-semibold truncate ${n.read ? "text-gray-400" : "text-white"}`}>
                         {n.title}
                       </p>
-                      <span className="text-[10px] text-gray-600 shrink-0">{timeAgo(n.createdAt)}</span>
+                      <span className="text-[10px] text-gray-500 shrink-0">{timeAgo(n.createdAt)}</span>
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
                   </div>

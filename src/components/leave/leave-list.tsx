@@ -590,7 +590,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
               onClick={() => setStatusFilter(v)}
               className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                 statusFilter === v
-                  ? "bg-white text-gray-900"
+                  ? "bg-primary text-on-color"
                   : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
               }`}
             >
@@ -749,7 +749,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                         ? renderTextCell(request.approvalComment, "Admin comment", request, "text-green-400")
                         : request.status === "REJECTED"
                           ? renderTextCell(request.rejectionReason, "Rejection reason", request, "text-red-400")
-                          : <span className="text-xs text-gray-600">—</span>}
+                          : <span className="text-xs text-gray-500">—</span>}
                     </td>
                     <td className="px-2 sm:px-4 py-3 min-w-[180px]">
                       <div className="flex items-center gap-2 whitespace-nowrap">
@@ -850,7 +850,7 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
                       ) : request.status === "REJECTED" && request.rejectionReason ? (
                         <span className="text-xs text-red-400">{request.rejectionReason}</span>
                       ) : (
-                        <span className="text-xs text-gray-600">—</span>
+                        <span className="text-xs text-gray-500">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">

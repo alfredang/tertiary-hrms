@@ -69,8 +69,9 @@ const nextConfig = {
         ],
       },
       {
-        // no-store only on HTML pages and API — not on static assets (already excluded)
-        source: '/((?!_next/static|_next/image|favicon.ico).*)',
+        // no-store only on HTML pages and API — not on static assets (app icons, logo and
+        // the manifest revalidate with an ETag instead of being re-downloaded every load)
+        source: '/((?!_next/static|_next/image|favicon.ico|icons/|branding/|manifest.json).*)',
         headers: [
           { key: 'Cache-Control', value: 'no-store' },
         ],

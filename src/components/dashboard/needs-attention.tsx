@@ -72,7 +72,7 @@ export function NeedsAttention({ findings, pending }: { findings: Finding[]; pen
                     <span className="block truncate text-xs text-gray-500">{g.names.slice(0, 4).join(", ")}{g.names.length > 4 ? ` +${g.names.length - 4}` : ""}</span>
                   </span>
                   <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs tabular-nums text-gray-300">{g.people.size} {g.people.size === 1 ? "person" : "people"}</span>
-                  <ChevronRight className="h-4 w-4 text-gray-600 group-hover:text-primary" />
+                  <ChevronRight className="h-4 w-4 text-gray-500 group-hover:text-primary" />
                 </Link>
               </li>
             );

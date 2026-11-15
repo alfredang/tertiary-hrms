@@ -56,8 +56,7 @@ async function getMcRequests(mcTypeId: string, employeeId?: string) {
 }
 
 export default async function MedicalLeavePage() {
-  const session = await auth();
-  const viewMode = await getViewMode();
+  const [session, viewMode] = await Promise.all([auth(), getViewMode()]);
 
   let role = "STAFF";
   let currentEmployeeId: string | undefined;
@@ -75,7 +74,10 @@ export default async function MedicalLeavePage() {
     currentEmployeeId = session.user.employeeId;
   }
   // Intern = roles exactly ["INTERN"] (admins hold INTERN too, to switch views).
-  const profile = currentEmployeeId ? await getLeaveProfile(currentEmployeeId) : null;
+  const [profile, mcType] = await Promise.all([
+    currentEmployeeId ? getLeaveProfile(currentEmployeeId) : Promise.resolve(null),
+    getMcLeaveType(),
+  ]);
 
   const isAdmin = hasAdminAccess(role);
   const viewAs = isAdmin ? viewMode : "staff";
@@ -92,7 +94,6 @@ export default async function MedicalLeavePage() {
     );
   }
 
-  const mcType = await getMcLeaveType();
   const isIntern = !!profile?.isIntern;
   // paidDays: 0 = fully paid; N > 0 = only N days are paid, rest are unpaid
   const rawPaidDays = mcType?.paidDays ?? 0;
@@ -173,7 +174,7 @@ export default async function MedicalLeavePage() {
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
             <p className="text-xs sm:text-sm text-gray-400 mb-1">Earned to Date</p>
             <p className="text-2xl sm:text-3xl font-bold text-blue-400">{balance.earned}</p>
-            <p className="text-xs text-gray-600 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               of {balance.entitlement} days/year, prorated by completed months served
               {isPartiallyPaid ? ` · ${paidMcDays} paid · ${unpaidMcDays} unpaid` : ""}
             </p>

@@ -48,6 +48,9 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 ## What's New
 
 - **One light theme** — premium blue, matching the iOS app, on every device (including ones whose operating system uses dark mode). There is no dark mode and no appearance switch.
+- **App download links in the top bar** — App Store and Google Play buttons sit next to the refresh button on every signed-in page (in the avatar menu on phones).
+- **Readable light theme** — secondary text, status colours and icons were darkened to at least 4.5:1 contrast on white, and a unit test (`src/lib/__tests__/appearance.test.ts`) keeps them there.
+- **Faster pages** — database indexes on leave requests, expense claims, notifications, attendance, timesheets and calendar events; the dashboard, calendar, leave and expense pages load their data in parallel.
 
 - **Fixed internship annual leave (opt-in)** — an individual AL balance can cover the entire recorded internship using `periodStart` / `periodEnd`. Its configured entitlement is the contract total, accrued over the contract's monthly periods. Advance AL uses the remaining contract entitlement, including January/February, without a new calendar-year allocation. Other balances retain calendar-year rules. Submission, edits, approval/cancellation, mobile balances and rollover use the same pool; Off In Lieu is charged separately. Apply `prisma/changes/2026-11-13-internship-leave.sql`, regenerate Prisma, then use `scripts/configure-internship-leave.ts --employee-id <id> --days 7` (dry-run; add `--apply` to save). Existing used/pending days are preserved and configuration is audited.
   - An audited reconciliation can retain previously allocated days in the AL balance's `earned` field. For fixed periods only, this is a minimum earned-to-date value, capped by the original contract total. Normal accrual catches up naturally; the retained allocation is not added again or carried into a new entitlement.
@@ -133,7 +136,7 @@ Earlier additions (May 2026):
 - **Staff view**: can only see own leave, expenses, payslips, and personal profile
 - View toggle lets admins preview the staff experience
 - **Trainer Admin** (`TRAINER_ADMIN`) is a separate role held alongside a person's normal role; only it opens Trainer Management (trainer records hold NRIC). It never becomes the primary role, so it does not change anyone's dashboard or view. It is also linked from the **View As** menu. Signed-in sessions re-read their roles from the database every 5 minutes, so a newly granted role appears without signing out
-- **Appearance.** One theme, light premium blue (`ThemeProvider forcedTheme="light"`). The code is written dark-first, so `tailwind.config.ts` maps those utility classes onto the light palette in `src/lib/theme-palette.ts` (CSS variables on `:root`). Solid fills that need real white text use `text-on-color` (`bg-on-color` for real white surfaces).
+- **Appearance.** One theme, light premium blue (`ThemeProvider forcedTheme="light"`). The code is written dark-first, so `tailwind.config.ts` maps those utility classes onto the light palette in `src/lib/theme-palette.ts` (CSS variables on `:root`). Solid fills that need real white text use `text-on-color` (`bg-on-color` for real white surfaces). The `-300` / `-400` text shades and `gray-500` are held at 4.5:1 or better on white by `appearance.test.ts`.
 - **Demo accounts are hidden.** The App Review login(s) (`E9999`, `src/lib/demo-accounts.ts`) are dropped from every employee list and count by a Prisma extension in `src/lib/prisma.ts`; `scripts/create-demo-employee.ts` no longer seeds sample leave/claims/timesheets unless `--with-samples`.
 - **Tables** keep one line per row; long reasons and comments open in a dialog (`src/components/ui/text-view-dialog.tsx`). Trainer Management has a skill / certification search with suggestions and click-to-mail / call / WhatsApp / copy contacts.
 - **One canonical host.** Page visits on the `hrms.tertiaryinfo.tech` alias are redirected (308) to the `AUTH_URL` host (`hrms.tertiaryinfotech.com`) so Google sign-in's PKCE cookie and callback share a domain; `/api/*` is never redirected, so the native apps keep working on either host (`src/lib/canonical-host.ts`).
@@ -261,7 +264,7 @@ Earlier additions (May 2026):
 Native iOS and Android companion apps (**TIA HRMS**, following the iOS design system) talk to this
 web app over its JSON API (`/api/mobile/*` + `/api/auth/google-mobile`). Leave submissions return
 machine-readable codes (`AL_EXCEEDS_BALANCE`, `INTERN_MC_NOT_PAID`, `NPL_CAP_EXCEEDED`) so the apps can
-offer "Apply as No Pay Leave". Both are published and linked from the login page:
+offer "Apply as No Pay Leave". Both are published and linked from the login page and the dashboard top bar:
 
 [![Download on the App Store](https://img.shields.io/badge/App_Store-Download-000000?style=flat-square&logo=apple)](https://apps.apple.com/sg/app/tertiary-hrms/id6759821144)
 [![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_it_on-414141?style=flat-square&logo=google-play)](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)

@@ -181,8 +181,7 @@ async function getRecentActivity(employeeId?: string) {
 }
 
 export default async function DashboardPage() {
-  const session = await auth();
-  const viewMode = await getViewMode();
+  const [session, viewMode] = await Promise.all([auth(), getViewMode()]);
 
   let role: Role = "STAFF";
   let currentEmployeeId: string | undefined;
@@ -219,12 +218,19 @@ export default async function DashboardPage() {
 
   // For non-admin views: filter recent activity by own employee ID
   const activityEmployeeId = isStaffView ? currentEmployeeId : undefined;
-  const activity = await getRecentActivity(activityEmployeeId);
-
-  // For admin users, fetch both stats so they can toggle views
-  const adminStats = isAdmin ? await getAdminStats() : null;
-  const staffStats = currentEmployeeId ? await getStaffStats(currentEmployeeId) : null;
-  const adminDash = isAdmin && !isStaffView ? await getAdminDashboard() : null;
+  // Independent loaders run together. The admin dashboard replaces StatsCards, so the
+  // stats behind StatsCards are only loaded when StatsCards is what gets rendered
+  // (staff view, or the admin dashboard failed to load).
+  const [activity, adminDash] = await Promise.all([
+    getRecentActivity(activityEmployeeId),
+    isAdmin && !isStaffView ? getAdminDashboard() : Promise.resolve(null),
+  ]);
+  const [adminStats, staffStats] = adminDash
+    ? [null, null]
+    : await Promise.all([
+        isAdmin && !isStaffView ? getAdminStats() : Promise.resolve(null),
+        isStaffView && currentEmployeeId ? getStaffStats(currentEmployeeId) : Promise.resolve(null),
+      ]);
 
   return (
     <div className="space-y-8">

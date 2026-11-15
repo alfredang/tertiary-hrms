@@ -215,7 +215,7 @@ export function Sidebar({
           {companyLogo ? (
             <Image src={companyLogo} alt="Logo" width={40} height={40} className="object-contain" unoptimized />
           ) : (
-            <span className="text-lg font-bold text-white">HR</span>
+            <span className="text-lg font-bold text-on-color">HR</span>
           )}
         </div>
         {!collapsed && (

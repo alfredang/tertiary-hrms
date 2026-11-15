@@ -185,7 +185,7 @@ export function OtBalancePanel({ otStats, employeeId, usage }: Props) {
                   {plural(Math.abs(otStats.remaining))}
                 </p>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs border-t border-white/5 pt-2">
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs border-t border-gray-800 pt-2">
                 <div>
                   <p className="text-gray-400">Earned</p>
                   <p className="text-gray-200 font-semibold">{otStats.earned}</p>
@@ -279,7 +279,7 @@ function StatButton({ label, value, color, hint, onClick }: { label: string; val
     >
       <div className="flex items-center justify-between">
         <p className="text-xs text-gray-400">{label}</p>
-        <ChevronRight className="h-3.5 w-3.5 text-gray-600 group-hover:text-gray-400 transition-colors" />
+        <ChevronRight className="h-3.5 w-3.5 text-gray-500 group-hover:text-gray-400 transition-colors" />
       </div>
       <p className={`text-xl font-bold mt-1 ${color}`}>{value}</p>
       <p className="text-[11px] text-gray-500 mt-0.5">{hint}</p>
@@ -345,10 +345,10 @@ function UsageRow({ entry }: { entry: OtUsageEntry }) {
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 py-10 text-gray-600">
-      <Calendar className="h-8 w-8 opacity-30" />
+    <div className="flex flex-col items-center gap-2 py-10 text-gray-500">
+      <Calendar className="h-8 w-8 opacity-50" />
       <p className="text-sm">{title}</p>
-      <p className="text-xs text-center text-gray-700 max-w-xs">{body}</p>
+      <p className="text-xs text-center text-gray-500 max-w-xs">{body}</p>
     </div>
   );
 }

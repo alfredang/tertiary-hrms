@@ -123,7 +123,7 @@ export function TimeOffList({
       return <span className="text-xs text-green-400">{r.approvalComment}</span>;
     if (r.status === "REJECTED" && r.rejectionReason)
       return <span className="text-xs text-red-400">{r.rejectionReason}</span>;
-    return <span className="text-xs text-gray-600">—</span>;
+    return <span className="text-xs text-gray-500">—</span>;
   };
 
   // Desktop table: one-line truncated cells that open the full text in a dialog.
@@ -144,7 +144,7 @@ export function TimeOffList({
       ? <TruncatedTextButton text={r.approvalComment} tone="text-green-400" onOpen={() => openText(r, "Comment", r.approvalComment ?? "", "text-green-400")} />
       : r.status === "REJECTED"
         ? <TruncatedTextButton text={r.rejectionReason} tone="text-red-400" onOpen={() => openText(r, "Rejection reason", r.rejectionReason ?? "", "text-red-400")} />
-        : <span className="text-xs text-gray-600">—</span>;
+        : <span className="text-xs text-gray-500">—</span>;
 
   const renderManagerActions = (id: string) => {
     if (approveConfirm === id) {
@@ -316,7 +316,7 @@ export function TimeOffList({
               onClick={() => setStatusFilter(v)}
               className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                 statusFilter === v
-                  ? "bg-white text-gray-900"
+                  ? "bg-primary text-on-color"
                   : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
               }`}
             >

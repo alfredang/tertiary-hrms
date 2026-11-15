@@ -21,7 +21,7 @@ function AuthorizeContent() {
       {/* Singpass-style logo area */}
       <div className="flex items-center justify-center gap-3 mb-8">
         <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
-          <ShieldCheck className="h-6 w-6 text-white" />
+          <ShieldCheck className="h-6 w-6 text-on-color" />
         </div>
         <span className="text-2xl font-bold text-white">Singpass</span>
       </div>
@@ -58,7 +58,7 @@ function AuthorizeContent() {
 
         <a
           href={`/api/myinfo/auth?token=${encodeURIComponent(token)}`}
-          className="block w-full py-3 rounded-xl font-semibold text-white text-center"
+          className="block w-full py-3 rounded-xl font-semibold text-on-color text-center"
           style={{ background: "#c0152b" }}
         >
           Connect via Singpass

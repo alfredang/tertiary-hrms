@@ -85,22 +85,22 @@ async function getLeaveBalance(employeeId: string) {
     return { carriedOver: 0, allocation: 12, taken: 0, rejected: 0, proRated: 12 };
   }
 
-  const balance = await getAnnualLeaveBalance(employeeId, annualLeaveType.id);
-
-  // Get employee start date and monthly leave rate for proration
-  const employee = await prisma.employee.findUnique({
-    where: { id: employeeId },
-    select: { startDate: true, endDate: true, monthlyLeaveRate: true },
-  });
-
-  const rejectedCount = await prisma.leaveRequest.count({
-    where: {
-      employeeId,
-      leaveTypeId: annualLeaveType.id,
-      status: "REJECTED",
-      startDate: { gte: new Date(`${currentYear}-01-01`) },
-    },
-  });
+  const [balance, employee, rejectedCount] = await Promise.all([
+    getAnnualLeaveBalance(employeeId, annualLeaveType.id),
+    // Employee start date and monthly leave rate for proration
+    prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { startDate: true, endDate: true, monthlyLeaveRate: true },
+    }),
+    prisma.leaveRequest.count({
+      where: {
+        employeeId,
+        leaveTypeId: annualLeaveType.id,
+        status: "REJECTED",
+        startDate: { gte: new Date(`${currentYear}-01-01`) },
+      },
+    }),
+  ]);
 
   const allocation = balance ? Number(balance.entitlement) : annualLeaveType.defaultDays;
   const carriedOver = balance ? Number(balance.carriedOver) : 0;
@@ -153,8 +153,7 @@ async function getLeaveRequests(employeeId?: string) {
 }
 
 export default async function LeavePage() {
-  const session = await auth();
-  const viewMode = await getViewMode();
+  const [session, viewMode] = await Promise.all([auth(), getViewMode()]);
 
   let role = "STAFF";
   let currentEmployeeId: string | undefined;
@@ -190,12 +189,14 @@ export default async function LeavePage() {
     );
   }
 
+  // The balance panels only render in staff view, so admin view skips their queries.
+  const ownEmployeeId = viewAs !== "admin" ? currentEmployeeId : undefined;
   const [leaveBalance, otBalance, otUsage, requests, npl] = await Promise.all([
-    currentEmployeeId
-      ? getLeaveBalance(currentEmployeeId)
+    ownEmployeeId
+      ? getLeaveBalance(ownEmployeeId)
       : Promise.resolve({ carriedOver: 0, allocation: 7, taken: 0, rejected: 0, proRated: 7, employeeStartDate: null, employeeEndDate: null, monthlyLeaveRate: null }),
-    currentEmployeeId ? getOtLeaveBalance(currentEmployeeId) : Promise.resolve(null),
-    currentEmployeeId ? getOtUsage(currentEmployeeId) : Promise.resolve([]),
+    ownEmployeeId ? getOtLeaveBalance(ownEmployeeId) : Promise.resolve(null),
+    ownEmployeeId ? getOtUsage(ownEmployeeId) : Promise.resolve([]),
     getLeaveRequests(filterByEmployeeId),
     currentEmployeeId && viewAs !== "admin" ? getNplStatus(currentEmployeeId) : Promise.resolve(null),
   ]);

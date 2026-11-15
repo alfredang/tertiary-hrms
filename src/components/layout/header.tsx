@@ -21,6 +21,7 @@ import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
 import { NotificationBell } from "./notification-bell";
 import { useViewModeOptional } from "./view-mode-context";
+import { APP_STORE_URL, PLAY_STORE_URL, AppleLogo, GooglePlayLogo, StoreLinks } from "@/components/store-badges";
 
 interface HeaderProps {
   isAdmin?: boolean;
@@ -81,6 +82,7 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-x-4 lg:gap-x-6">
+          <StoreLinks className="hidden sm:flex" />
           <Button
             variant="ghost"
             size="icon"
@@ -117,6 +119,18 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
               <DropdownMenuItem onClick={() => router.push("/profile")}>
                 <User className="mr-2 h-4 w-4" />
                 My Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="sm:hidden">
+                <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+                  <AppleLogo className="mr-2 h-4 w-4" />
+                  Download on the App Store
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="sm:hidden">
+                <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
+                  <GooglePlayLogo className="mr-2 h-4 w-4" />
+                  Get it on Google Play
+                </a>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="text-red-600">

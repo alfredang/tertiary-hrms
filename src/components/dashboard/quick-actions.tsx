@@ -17,14 +17,14 @@ const adminActions = [
     description: "Review leave requests",
     href: "/leave",
     icon: Clock,
-    iconBg: "bg-amber-500",
+    iconBg: "bg-amber-600",
   },
   {
     title: "Manage Claims",
     description: "Review expense claims",
     href: "/expenses",
     icon: DollarSign,
-    iconBg: "bg-green-500",
+    iconBg: "bg-green-600",
   },
   {
     title: "View Calendar",
@@ -41,21 +41,21 @@ const staffActions = [
     description: "Submit time off request",
     href: "/leave/request",
     icon: Clock,
-    iconBg: "bg-amber-500",
+    iconBg: "bg-amber-600",
   },
   {
     title: "Request Time Off",
     description: "Exams, emergency, others",
     href: "/time-off/request",
     icon: AlarmClockOff,
-    iconBg: "bg-orange-500",
+    iconBg: "bg-orange-600",
   },
   {
     title: "Submit Expense",
     description: "Claim reimbursement",
     href: "/expenses/submit",
     icon: DollarSign,
-    iconBg: "bg-green-500",
+    iconBg: "bg-green-600",
   },
   {
     title: "View Calendar",
@@ -84,7 +84,7 @@ export function QuickActions({ isAdmin = true }: QuickActionsProps) {
             <Link key={action.href} href={action.href}>
               <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-800 hover:border-gray-700 hover:bg-gray-900 transition-all cursor-pointer">
                 <div className={`p-3 rounded-xl ${action.iconBg}`}>
-                  <action.icon className="h-5 w-5 text-white" />
+                  <action.icon className="h-5 w-5 text-on-color" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-white">{action.title}</p>

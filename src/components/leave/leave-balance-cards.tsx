@@ -176,7 +176,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
             <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
               {card.label}
               {card.clickable && (
-                <Info className="h-3 w-3 text-gray-600 group-hover:text-gray-400 transition-colors" />
+                <Info className="h-3 w-3 text-gray-500 group-hover:text-gray-400 transition-colors" />
               )}
             </p>
             <p className={`text-xl sm:text-2xl font-bold ${card.color}`}>{card.value}</p>
@@ -184,7 +184,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
               <p className="text-xs text-gray-500 mt-1">Includes {leaveBalance.pending} pending day(s)</p>
             )}
             {card.clickable && (
-              <p className="text-xs text-gray-600 group-hover:text-gray-500 mt-1 transition-colors">
+              <p className="text-xs text-gray-500 group-hover:text-gray-500 mt-1 transition-colors">
                 Click for monthly breakdown
               </p>
             )}
@@ -235,10 +235,10 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
                   </thead>
                   <tbody className="divide-y divide-gray-800">
                     {rows.map((row, i) => (
-                      <tr key={i} className={row.isFuture ? "text-gray-600" : "text-gray-200"}>
+                      <tr key={i} className={row.isFuture ? "text-gray-500" : "text-gray-200"}>
                         <td className="px-3 py-2">
                           {row.periodLabel}
-                          {row.isFuture && <span className="ml-1 text-gray-700">(upcoming)</span>}
+                          {row.isFuture && <span className="ml-1 text-gray-500">(upcoming)</span>}
                         </td>
                         <td className="px-3 py-2 text-right font-mono">
                           {row.isFuture ? "—" : `+${row.daysAccrued}`}
@@ -256,7 +256,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
                 </table>
               </div>
 
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-500">
                 {isContract
                   ? `${yearlyEntitlement} days over your full internship, accrued over its monthly periods and rounded down to the half day. The same entitlement continues into January without resetting. Advance leave can use the remaining internship entitlement.`
                   : `Accrues as ${yearlyEntitlement} days × completed months served ÷ 12, rounded down to the half day. A month counts once it is complete. Leave beyond your balance must be taken as No Pay Leave.`}

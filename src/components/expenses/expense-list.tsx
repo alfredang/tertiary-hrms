@@ -542,7 +542,7 @@ export function ExpenseList({ claims, categories, isManager }: ExpenseListProps)
               onClick={() => setStatusFilter(v)}
               className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                 statusFilter === v
-                  ? "bg-white text-gray-900"
+                  ? "bg-primary text-on-color"
                   : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
               }`}
             >

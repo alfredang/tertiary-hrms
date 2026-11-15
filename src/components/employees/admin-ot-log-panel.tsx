@@ -174,8 +174,8 @@ export function AdminOtLogPanel({ employeeId }: Props) {
           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading...
         </div>
       ) : logs.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-8 text-gray-600">
-          <Calendar className="h-7 w-7 opacity-30" />
+        <div className="flex flex-col items-center gap-2 py-8 text-gray-500">
+          <Calendar className="h-7 w-7 opacity-50" />
           <p className="text-sm">No Off In Lieu entries recorded yet.</p>
         </div>
       ) : (
@@ -190,14 +190,14 @@ export function AdminOtLogPanel({ employeeId }: Props) {
                   </span>
                 </div>
                 {log.note && <p className="text-xs text-gray-400 mt-0.5">{log.note}</p>}
-                {log.recordedBy && <p className="text-[10px] text-gray-600 mt-0.5">Recorded by {log.recordedBy}</p>}
+                {log.recordedBy && <p className="text-[10px] text-gray-500 mt-0.5">Recorded by {log.recordedBy}</p>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-sm font-bold text-emerald-400">+{log.daysEarned}d</span>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-gray-600 hover:text-red-400"
+                  className="h-6 w-6 text-gray-500 hover:text-red-400"
                   onClick={() => handleDelete(log.id)}
                   disabled={deletingId === log.id}
                   title="Remove entry"

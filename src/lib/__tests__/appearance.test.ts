@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { appearanceColors, appearanceVariables } from "../theme-palette";
 
@@ -40,5 +42,37 @@ describe("Light premium-blue palette (one theme)", () => {
         }
       }
     }
+  });
+  it("keeps the dark-first text shades (gray-500, every -300 / -400) readable on a white card", () => {
+    const root = appearanceVariables[":root"];
+    const white = root["--hrms-gray-950"];
+    expect(contrast(root["--hrms-gray-500"], white)).toBeGreaterThanOrEqual(4.5);
+    const hues = ["red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky",
+      "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"];
+    for (const hue of hues) {
+      for (const shade of [300, 400]) {
+        expect(contrast(root[`--hrms-${hue}-${shade}`], white), `${hue}-${shade}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+  it("never puts ink (`text-white`) on a solid colour fill; white labels use `text-on-color`", () => {
+    const offenders: string[] = [];
+    const fill = /\bbg-(primary|black|(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(500|600|700))(?![/\d])/;
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (!["api", "__tests__", "email-templates"].includes(entry.name)) walk(full);
+        } else if (entry.name.endsWith(".tsx")) {
+          readFileSync(full, "utf8").split("\n").forEach((line, i) => {
+            for (const m of Array.from(line.matchAll(/className="([^"]*)"/g))) {
+              if (fill.test(m[1]) && /(^|\s)text-white(?![/\w-])/.test(m[1])) offenders.push(`${full}:${i + 1}`);
+            }
+          });
+        }
+      }
+    };
+    walk(join(process.cwd(), "src"));
+    expect(offenders).toEqual([]);
   });
 });

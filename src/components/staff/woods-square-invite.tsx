@@ -908,7 +908,7 @@ export function WoodsSquareInvite({
             <button
               onClick={toggleAll}
               disabled={eligible.length === 0}
-              className="text-xs font-medium text-blue-400 hover:text-blue-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+              className="text-xs font-medium text-blue-400 hover:text-blue-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
             >
               {allSelected ? "Clear all" : "Select all"}
             </button>
@@ -933,7 +933,7 @@ export function WoodsSquareInvite({
                 Tab
               </kbd>
               <span>to move</span>
-              <span className="text-gray-700">·</span>
+              <span className="text-gray-600">·</span>
               <kbd className="rounded border border-gray-700 bg-gray-900 px-1 py-px font-sans text-[10px] text-gray-400">
                 Space
               </kbd>
@@ -993,7 +993,7 @@ export function WoodsSquareInvite({
                     {usable ? (
                       <p className="text-xs text-gray-500 truncate">{s.email}</p>
                     ) : (
-                      <p className="text-xs text-amber-500/90 truncate">No email on file</p>
+                      <p className="text-xs text-amber-400 truncate">No email on file</p>
                     )}
                   </div>
                   {usable && (
@@ -1072,7 +1072,7 @@ export function WoodsSquareInvite({
                 </div>
               </div>
               {selected.length === 0 ? (
-                <p className="text-xs text-gray-600 bg-gray-900/50 rounded-lg px-3 py-2.5">
+                <p className="text-xs text-gray-500 bg-gray-900/50 rounded-lg px-3 py-2.5">
                   No staff selected yet — pick people from the list.
                 </p>
               ) : showAllSelected ? (
@@ -1394,7 +1394,7 @@ export function WoodsSquareInvite({
                   <span className="text-xs text-gray-500 tabular-nums">
                     {currentLogPage * LOG_PAGE_SIZE + 1}–
                     {currentLogPage * LOG_PAGE_SIZE + pagedLogs.length}{" "}
-                    <span className="text-gray-600">of</span> {filteredLogs.length}
+                    <span className="text-gray-500">of</span> {filteredLogs.length}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button

@@ -104,7 +104,7 @@ export function SopDirectory({ items }: { items: SopListItem[] }) {
                         <ListChecks className="h-3.5 w-3.5" />
                         {s.stepCount}
                       </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-600 group-hover:text-primary" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-500 group-hover:text-primary" />
                     </Link>
                   </li>
                 ))}

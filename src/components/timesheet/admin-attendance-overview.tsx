@@ -135,7 +135,7 @@ export function AdminAttendanceOverview() {
                         Working
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-600">—</span>
+                      <span className="text-xs text-gray-500">—</span>
                     )}
                   </td>
                 </tr>

@@ -43,8 +43,8 @@ function Calendar({
         ),
         selected: "bg-blue-600 text-on-color hover:bg-blue-700 hover:text-on-color focus:bg-blue-600 focus:text-on-color rounded-md",
         today: "bg-gray-800 text-white rounded-md",
-        outside: "text-gray-600 opacity-50",
-        disabled: "text-gray-700 opacity-50",
+        outside: "text-gray-500 opacity-50",
+        disabled: "text-gray-600",
         hidden: "invisible",
         ...classNames,
       }}
