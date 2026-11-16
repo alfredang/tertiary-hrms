@@ -76,7 +76,7 @@ export function SopDirectory({ items }: { items: SopListItem[] }) {
             <section
               key={g.category}
               aria-labelledby={`sop-cat-${g.category}`}
-              className="mb-5 break-inside-avoid rounded-xl border border-gray-800 bg-gray-900/40"
+              className="mb-5 break-inside-avoid rounded-xl border border-gray-700 bg-gray-950 shadow-sm"
             >
               <header className="flex items-baseline justify-between gap-3 border-b border-gray-800 px-4 py-3">
                 <div className="min-w-0">
@@ -104,7 +104,7 @@ export function SopDirectory({ items }: { items: SopListItem[] }) {
                         <ListChecks className="h-3.5 w-3.5" />
                         {s.stepCount}
                       </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-600 group-hover:text-primary" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-500 group-hover:text-primary" />
                     </Link>
                   </li>
                 ))}

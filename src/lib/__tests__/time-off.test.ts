@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  isOffDay,
+  timeOffWhen,
+  appSafeTimeOffReason,
   parseTimeToMinutes,
   computeTimeOffHours,
   formatTime12h,
@@ -62,7 +65,34 @@ describe("timeOffReasonLabel", () => {
     expect(timeOffReasonLabel("OTHERS")).toBe("Others — Pls specify");
   });
 
-  it("has exactly the four required reasons", () => {
-    expect(TIME_OFF_REASONS.map((r) => r.value)).toEqual(["EXAMS", "EMERGENCY", "UNPAID_LEAVE", "OTHERS"]);
+  it("has exactly the five required reasons (Off Day first)", () => {
+    expect(TIME_OFF_REASONS.map((r) => r.value)).toEqual(["OFF_DAY", "EXAMS", "EMERGENCY", "UNPAID_LEAVE", "OTHERS"]);
+  });
+});
+
+
+describe("Off Day", () => {
+  it("is offered as a reason", () => {
+    expect(TIME_OFF_REASONS.map((r) => r.value)).toContain("OFF_DAY");
+    expect(isOffDay("OFF_DAY")).toBe(true);
+    expect(isOffDay("EXAMS")).toBe(false);
+  });
+
+  it("shows Full day instead of times", () => {
+    expect(timeOffWhen({ reason: "OFF_DAY", startTime: "00:00", endTime: "23:59", hours: 0 })).toBe("Full day");
+    expect(timeOffWhen({ reason: "EXAMS", startTime: "14:00", endTime: "16:30", hours: 2.5 })).toBe("14:00 – 16:30 (2.5 h)");
+  });
+
+  it("goes to the native apps as OTHERS with a readable detail", () => {
+    expect(appSafeTimeOffReason({ reason: "OFF_DAY", reasonDetail: null })).toEqual({
+      reason: "OTHERS",
+      reasonDetail: "Off Day (full day)",
+      offDay: true,
+    });
+    expect(appSafeTimeOffReason({ reason: "EXAMS", reasonDetail: "Finals" })).toEqual({
+      reason: "EXAMS",
+      reasonDetail: "Finals",
+      offDay: false,
+    });
   });
 });

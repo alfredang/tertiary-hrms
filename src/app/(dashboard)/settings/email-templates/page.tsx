@@ -29,7 +29,7 @@ export default async function EmailTemplatesIndex() {
             <Link
               key={k}
               href={href}
-              className="flex items-center gap-3 p-4 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-3 p-4 bg-gray-950 border border-gray-700 shadow-sm rounded-xl hover:bg-gray-800 transition-colors"
             >
               <Mail className="h-5 w-5 text-gray-400 shrink-0" />
               <div className="flex-1 min-w-0">
@@ -40,7 +40,7 @@ export default async function EmailTemplatesIndex() {
                 className={
                   isCustom
                     ? "shrink-0 text-xs px-2 py-1 rounded bg-amber-950/50 border border-amber-800 text-amber-300"
-                    : "shrink-0 text-xs px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-400"
+                    : "shrink-0 text-xs px-2 py-1 rounded bg-gray-950 border border-gray-700 text-gray-400"
                 }
               >
                 {isCustom ? "Customised" : "Default"}

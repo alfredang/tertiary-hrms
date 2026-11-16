@@ -225,7 +225,7 @@ export function CompanySettingsForm({ settings }: CompanySettingsFormProps) {
                     {logoUrl ? (
                       <Image src={logoUrl} alt="Company logo" width={64} height={64} className="object-contain" unoptimized />
                     ) : (
-                      <Building2 className="h-7 w-7 text-gray-600" />
+                      <Building2 className="h-7 w-7 text-gray-500" />
                     )}
                   </div>
                   <input

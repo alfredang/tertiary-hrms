@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { google } from "googleapis";
 import nodemailer from "nodemailer";
+import { removeSenderInboxCopy } from "@/lib/send-email";
 
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -51,8 +52,11 @@ async function sendViaSmtp(to: string, code: string) {
   const companyName = branding?.name || "TIA HRMS";
   const { subject, htmlBody } = await buildOtpHtml(code, to);
 
-  await transport.sendMail({ from: `${companyName} <${from || user}>`, to, subject, html: htmlBody });
+  // To the requester only: never Cc or Bcc admins on an OTP.
+  const info = await transport.sendMail({ from: `${companyName} <${from || user}>`, to, subject, html: htmlBody });
   console.log(`[send-otp] SMTP email sent to ${to}`);
+  // Keep the sending mailbox's copy out of its inbox (runs in the background).
+  if (info?.messageId) void removeSenderInboxCopy({ rfc822MessageId: info.messageId });
   return true;
 }
 
@@ -120,8 +124,10 @@ async function sendViaGmailOAuth(
   let lastErr: any;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } });
+      const sent = await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } });
       console.log(`[send-otp] Gmail OAuth email sent to ${to}`);
+      // Gmail files the sender's copy under SENT + INBOX; keep it out of the inbox.
+      if (sent.data.id) void removeSenderInboxCopy({ gmailId: sent.data.id });
       return;
     } catch (err: any) {
       lastErr = err;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendExpenseDecisionEmail } from "@/lib/decision-email";
 
 export async function POST(
   req: NextRequest,
@@ -42,6 +43,8 @@ export async function POST(
         approvedAt: new Date(),
       },
     });
+
+    await sendExpenseDecisionEmail(updated.id, "APPROVED", { approverName: session.user.name });
 
     return NextResponse.json(updated);
   } catch (error) {

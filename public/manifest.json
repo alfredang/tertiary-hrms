@@ -4,8 +4,8 @@
   "description": "TIA HRMS \u2014 HR, payroll, leave, trainers and accounting for Tertiary Infotech Academy",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#0D1638",
-  "theme_color": "#1A2F86",
+  "background_color": "#F3F6FD",
+  "theme_color": "#F3F6FD",
   "orientation": "portrait-primary",
   "icons": [
     {

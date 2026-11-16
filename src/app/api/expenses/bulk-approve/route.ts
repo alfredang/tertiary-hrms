@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendExpenseDecisionEmail } from "@/lib/decision-email";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -16,14 +17,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "ids array required" }, { status: 400 });
   }
 
+  const now = new Date();
   const updated = await prisma.expenseClaim.updateMany({
     where: { id: { in: ids }, status: "PENDING" },
     data: {
       status: "APPROVED",
       approverId: session.user.employeeId,
-      approvedAt: new Date(),
+      approvedAt: now,
     },
   });
+
+  // Email each claimant whose claim this call actually changed (Cc both admins), in the background.
+  const changed = await prisma.expenseClaim.findMany({
+    where: { id: { in: ids }, status: "APPROVED", approvedAt: now },
+    select: { id: true },
+  });
+  const approverName = session.user.name;
+  void (async () => {
+    for (const c of changed) await sendExpenseDecisionEmail(c.id, "APPROVED", { approverName });
+  })();
 
   return NextResponse.json({ approved: updated.count, requested: ids.length });
 }

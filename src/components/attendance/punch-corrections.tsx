@@ -139,11 +139,11 @@ export function MissingPunchPanel() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4 sm:p-5 space-y-4">
+      <div className="rounded-2xl border border-gray-700 bg-gray-950 shadow-sm p-4 sm:p-5 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-white font-semibold">Missing clock-in / clock-out</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Forgot to punch? Ask an admin to add the time for that day.</p>
+            <p className="text-xs text-gray-400 mt-0.5">Forgot to punch? Ask an admin to add the time for that day.</p>
           </div>
           {!open && <Button size="sm" onClick={() => startFix()}>New request</Button>}
         </div>
@@ -200,14 +200,14 @@ export function MissingPunchPanel() {
               <li key={c.id} className="flex items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
                   <p className="text-gray-200">{formatDay(c.date)} · {KIND_LABEL[c.kind]} · {requestedText(c)}</p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs text-gray-400 truncate">
                     {c.reason}{c.rejectionReason ? ` — rejected: ${c.rejectionReason}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLE[c.status] ?? STATUS_STYLE.CANCELLED}`}>{c.status.toLowerCase()}</span>
                   {c.status === "PENDING" && (
-                    <button type="button" onClick={() => cancel(c.id)} className="text-gray-500 hover:text-white" aria-label="Cancel request">
+                    <button type="button" onClick={() => cancel(c.id)} className="text-gray-400 hover:text-white" aria-label="Cancel request">
                       <X className="h-4 w-4" />
                     </button>
                   )}
@@ -262,15 +262,15 @@ export function CorrectionApprovals() {
   if (rows === null) return null;
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4 sm:p-5 space-y-3">
+    <div className="rounded-2xl border border-gray-700 bg-gray-950 shadow-sm p-4 sm:p-5 space-y-3">
       <h2 className="text-white font-semibold">Missing punch requests {rows.length > 0 && <span className="text-amber-400">({rows.length} pending)</span>}</h2>
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-500 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /> Nothing waiting for approval.</p>
+        <p className="text-sm text-gray-400 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-400" /> Nothing waiting for approval.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+              <tr className="text-left text-xs text-gray-400 border-b border-gray-800">
                 <th className="py-2 pr-3">Employee</th>
                 <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Recorded</th>
@@ -282,7 +282,7 @@ export function CorrectionApprovals() {
             <tbody className="divide-y divide-gray-800">
               {rows.map((c) => (
                 <tr key={c.id} className="text-gray-200">
-                  <td className="py-2 pr-3">{c.employeeName} <span className="text-gray-500">({c.employeeCode})</span></td>
+                  <td className="py-2 pr-3">{c.employeeName} <span className="text-gray-400">({c.employeeCode})</span></td>
                   <td className="py-2 pr-3 whitespace-nowrap">{formatDay(c.date)}</td>
                   <td className="py-2 pr-3 whitespace-nowrap text-gray-400">{formatTime(c.currentClockIn)} – {formatTime(c.currentClockOut)}</td>
                   <td className="py-2 pr-3 whitespace-nowrap text-amber-300">{requestedText(c)}</td>

@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
           </p>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 md:p-8 space-y-6">
+        <div className="bg-gray-950 border border-gray-700 shadow-sm rounded-2xl p-6 md:p-8 space-y-6">
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-white">1. Introduction</h2>
             <p>
@@ -246,7 +246,7 @@ export default function PrivacyPolicyPage() {
           </section>
         </div>
 
-        <p className="text-center text-xs text-gray-600">
+        <p className="text-center text-xs text-gray-500">
           &copy; {new Date().getFullYear()} Tertiary Infotech Academy Pte. Ltd. All rights reserved.
         </p>
       </div>

@@ -54,6 +54,9 @@ model CalendarEvent {
   createdById    String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  @@index([type, startDate])
+  @@index([createdById, type])
 }
 
 model Department {
@@ -154,6 +157,10 @@ model ExpenseClaim {
   approver         Employee?       @relation("ExpenseClaim_approverIdToEmployee", fields: [approverId], references: [id])
   category         ExpenseCategory @relation(fields: [categoryId], references: [id])
   employee         Employee        @relation("ExpenseClaim_employeeIdToEmployee", fields: [employeeId], references: [id])
+
+  @@index([employeeId, status, createdAt])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model LeaveBalance {
@@ -211,6 +218,11 @@ model LeaveRequest {
   approver         Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
   employee         Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
   leaveType        LeaveType   @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([employeeId, startDate])
+  @@index([status, startDate])
+  @@index([leaveTypeId, status])
+  @@index([createdAt])
 }
 
 /// A short, partial-day absence request (e.g. leaving for an exam or an
@@ -245,6 +257,7 @@ enum TimeOffReason {
   EMERGENCY
   UNPAID_LEAVE
   OTHERS
+  OFF_DAY // intern full-day off: no clock-in/out expected once approved
 }
 
 model LeaveType {
@@ -514,6 +527,7 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
+  @@index([userId, createdAt])
 }
 
 model BankTransaction {
@@ -684,6 +698,7 @@ model TimesheetEntry {
 
   @@unique([employeeId, date])
   @@index([employeeId])
+  @@index([date])
 }
 
 model AttendancePunch {
@@ -702,6 +717,7 @@ model AttendancePunch {
 
   @@unique([employeeId, date])
   @@index([employeeId])
+  @@index([date])
 }
 
 /// A missing clock-in / clock-out an employee (usually an intern) asks an admin

@@ -140,7 +140,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                     "flex h-[84px] flex-col items-stretch overflow-hidden border-b border-r border-gray-800 p-1 text-left transition-colors sm:h-[112px] sm:p-1.5",
                     (i + 1) % 7 === 0 && "border-r-0",
                     !inMonth && "bg-gray-900/60",
-                    inMonth && holidays.length > 0 && "bg-[#ECEFF4] dark:bg-gray-800",
+                    inMonth && holidays.length > 0 && "bg-[#ECEFF4]",
                     isToday && "bg-blue-950/40",
                     isSelected && !isToday && "ring-2 ring-inset ring-blue-500/50",
                     "hover:bg-gray-900"

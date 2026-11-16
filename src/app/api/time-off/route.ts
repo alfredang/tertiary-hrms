@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasAdminAccess } from "@/lib/utils";
-import { computeTimeOffHours, timeOffReasonLabel } from "@/lib/time-off";
+import { computeTimeOffHours, timeOffReasonLabel, isOffDay, appSafeTimeOffReason, OFF_DAY_START, OFF_DAY_END } from "@/lib/time-off";
+import { isScheduledWorkday } from "@/lib/attendance-policy";
 import { sendTimeOffApprovalEmail } from "@/lib/approval-email";
 import { notifyApprovers } from "@/lib/admin-alerts";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -11,7 +12,7 @@ import { isDemoEmployee } from "@/lib/demo-guard";
 
 export const dynamic = "force-dynamic";
 
-const VALID_REASONS: TimeOffReason[] = ["EXAMS", "EMERGENCY", "UNPAID_LEAVE", "OTHERS"];
+const VALID_REASONS: TimeOffReason[] = ["OFF_DAY", "EXAMS", "EMERGENCY", "UNPAID_LEAVE", "OTHERS"];
 
 async function resolveActor() {
   if (isDevAuthSkipped()) {
@@ -44,7 +45,8 @@ export async function GET() {
     take: 500,
   });
 
-  return NextResponse.json(requests);
+  // Read only by the native apps (the web pages query Prisma directly).
+  return NextResponse.json(requests.map((r) => appSafeTimeOffReason(r)));
 }
 
 // POST /api/time-off — submit a new request for the signed-in employee.
@@ -57,8 +59,12 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { date, startTime, endTime, reason } = body ?? {};
+    const { date, reason } = body ?? {};
     const reasonDetail: string | undefined = body?.reasonDetail?.trim() || undefined;
+    // An Off Day is a whole day: the times are fixed and it counts 0 hours.
+    const offDay = isOffDay(reason);
+    const startTime: string | undefined = offDay ? OFF_DAY_START : body?.startTime;
+    const endTime: string | undefined = offDay ? OFF_DAY_END : body?.endTime;
 
     if (!date || !startTime || !endTime || !reason) {
       return NextResponse.json(
@@ -78,7 +84,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const hours = computeTimeOffHours(startTime, endTime);
+    const hours = offDay ? 0 : computeTimeOffHours(startTime, endTime);
     if (hours === null) {
       return NextResponse.json(
         { error: "End time must be later than start time, and both must be valid times" },
@@ -93,20 +99,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
     }
 
+    if (offDay) {
+      const emp = await prisma.employee.findUnique({
+        where: { id: actor.employeeId },
+        select: { workdays: true, startDate: true, endDate: true },
+      });
+      if (emp && !isScheduledWorkday(emp.workdays, requestDate)) {
+        return NextResponse.json(
+          { error: "That day is already not one of your workdays, so no Off Day is needed." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Reject an overlapping request on the same day (pending or approved).
+    // An Off Day covers the whole day, so it clashes with any request that day.
     const sameDay = await prisma.timeOffRequest.findMany({
       where: {
         employeeId: actor.employeeId,
         date: requestDate,
         status: { in: ["PENDING", "APPROVED"] },
       },
-      select: { startTime: true, endTime: true },
+      select: { startTime: true, endTime: true, reason: true },
     });
 
-    const overlaps = sameDay.some((r) => startTime < r.endTime && endTime > r.startTime);
+    const overlaps = sameDay.some(
+      (r) => offDay || isOffDay(r.reason) || (startTime < r.endTime && endTime > r.startTime)
+    );
     if (overlaps) {
       return NextResponse.json(
-        { error: "You already have a time off request covering part of that time." },
+        {
+          error: offDay
+            ? "You already have a time off request on that day."
+            : "You already have a time off request covering part of that time.",
+        },
         { status: 400 }
       );
     }
@@ -130,7 +156,9 @@ export async function POST(req: Request) {
       const detail = reasonDetail ? ` — ${reasonDetail}` : "";
       await notifyApprovers({
         title: "New Time Off request",
-        message: `${created.employee.name} requested ${hours}h time off on ${String(date).slice(0, 10)} (${timeOffReasonLabel(reason)})${detail}.`,
+        message: offDay
+          ? `${created.employee.name} requested an Off Day on ${String(date).slice(0, 10)}${detail}.`
+          : `${created.employee.name} requested ${hours}h time off on ${String(date).slice(0, 10)} (${timeOffReasonLabel(reason)})${detail}.`,
         type: "TIME_OFF_SUBMITTED",
         link: "/time-off",
       });
@@ -146,6 +174,7 @@ export async function POST(req: Request) {
         startTime,
         endTime,
         hours,
+        offDay,
         reason: timeOffReasonLabel(reason),
         reasonDetail: reasonDetail ?? null,
       });

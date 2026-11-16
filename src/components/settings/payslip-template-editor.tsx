@@ -165,7 +165,7 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
           </div>
           <div className="bg-on-color text-[#0f172a] rounded-md border border-[#cbd5e1] p-8 max-h-[40rem] overflow-y-auto shadow-sm">
             {/* Header: logo + company name */}
-            <div className="flex items-center gap-4 border-b border-gray-300 pb-4">
+            <div className="flex items-center gap-4 border-b border-gray-700 pb-4">
               {companyLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={companyLogo} alt={companyName} className="h-14 w-auto object-contain" />
@@ -177,7 +177,7 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
               <div className="flex-1">
                 <p className="text-lg font-bold leading-tight">{companyName}</p>
                 {headerNote.trim() && (
-                  <p className="text-xs text-gray-600 mt-1">{headerNote}</p>
+                  <p className="text-xs text-gray-500 mt-1">{headerNote}</p>
                 )}
               </div>
             </div>
@@ -210,33 +210,33 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
             </table>
 
             {/* Salary breakdown */}
-            <table className="allow-wrap w-full text-sm border border-gray-300 mb-4">
-              <thead className="bg-gray-100">
+            <table className="allow-wrap w-full text-sm border border-gray-700 mb-4">
+              <thead className="bg-gray-900">
                 <tr>
-                  <th className="text-left px-3 py-2 border-b border-gray-300">Description</th>
-                  <th className="text-right px-3 py-2 border-b border-gray-300 w-40">Amount (SGD)</th>
+                  <th className="text-left px-3 py-2 border-b border-gray-700">Description</th>
+                  <th className="text-right px-3 py-2 border-b border-gray-700 w-40">Amount (SGD)</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="px-3 py-1.5 border-b border-gray-200">Basic Salary</td>
-                  <td className="px-3 py-1.5 border-b border-gray-200 text-right">{SAMPLE.basic}</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800">Basic Salary</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800 text-right">{SAMPLE.basic}</td>
                 </tr>
                 <tr>
-                  <td className="px-3 py-1.5 border-b border-gray-200">Allowances</td>
-                  <td className="px-3 py-1.5 border-b border-gray-200 text-right">{SAMPLE.allowances}</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800">Allowances</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800 text-right">{SAMPLE.allowances}</td>
                 </tr>
-                <tr className="font-semibold bg-gray-50">
-                  <td className="px-3 py-1.5 border-b border-gray-200">Gross Salary</td>
-                  <td className="px-3 py-1.5 border-b border-gray-200 text-right">{SAMPLE.gross}</td>
-                </tr>
-                <tr>
-                  <td className="px-3 py-1.5 border-b border-gray-200">CPF Employee Contribution</td>
-                  <td className="px-3 py-1.5 border-b border-gray-200 text-right">({SAMPLE.cpfEmployee})</td>
+                <tr className="font-semibold bg-gray-900">
+                  <td className="px-3 py-1.5 border-b border-gray-800">Gross Salary</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800 text-right">{SAMPLE.gross}</td>
                 </tr>
                 <tr>
-                  <td className="px-3 py-1.5 border-b border-gray-200">CPF Employer Contribution</td>
-                  <td className="px-3 py-1.5 border-b border-gray-200 text-right">{SAMPLE.cpfEmployer}</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800">CPF Employee Contribution</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800 text-right">({SAMPLE.cpfEmployee})</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-1.5 border-b border-gray-800">CPF Employer Contribution</td>
+                  <td className="px-3 py-1.5 border-b border-gray-800 text-right">{SAMPLE.cpfEmployer}</td>
                 </tr>
                 <tr className="font-bold bg-blue-50">
                   <td className="px-3 py-2">Take Home Pay</td>
@@ -246,8 +246,8 @@ export function PayslipTemplateEditor({ initialRemarks, initialTitle, initialHea
             </table>
 
             {/* Editable footer/remarks */}
-            <div className="border-t border-gray-300 pt-4 mt-6">
-              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Remarks</p>
+            <div className="border-t border-gray-700 pt-4 mt-6">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Remarks</p>
               <pre className="whitespace-pre-wrap font-sans text-xs text-[#334155] leading-relaxed">
                 {renderPreview(body) || <span className="text-gray-400 italic">Footer is empty.</span>}
               </pre>

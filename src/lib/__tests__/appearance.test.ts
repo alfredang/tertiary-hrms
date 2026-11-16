@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { appearanceColors, appearanceVariables } from "../theme-palette";
 
@@ -13,20 +15,18 @@ function contrast(a: string, b: string) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
-describe("Device appearance palettes", () => {
+describe("Light premium-blue palette (one theme)", () => {
   it("preserves the existing light surfaces and navy text", () => {
     expect(appearanceVariables[":root"]["--hrms-gray-950"]).toBe("255 255 255");
     expect(appearanceVariables[":root"]["--hrms-gray-900"]).toBe("238 243 252");
     expect(appearanceVariables[":root"]["--hrms-ink"]).toBe("15 28 69");
   });
-  it("restores dark surfaces and light text without changing on-colour white", () => {
-    expect(appearanceVariables[".dark"]["--hrms-gray-950"]).toBe("3 7 18");
-    expect(appearanceVariables[".dark"]["--hrms-ink"]).toBe("249 250 251");
+  it("has no dark palette and keeps on-colour white", () => {
+    expect(Object.keys(appearanceVariables)).toEqual([":root"]);
     expect(appearanceColors["on-color"]).toBe("#FFFFFF");
     expect(appearanceColors.gray[950]).toContain("<alpha-value>");
   });
-  it("provides every palette variable in both appearances with valid channels", () => {
-    expect(Object.keys(appearanceVariables[":root"])).toEqual(Object.keys(appearanceVariables[".dark"]));
+  it("provides every palette variable with valid channels", () => {
     for (const palette of Object.values(appearanceVariables)) {
       for (const value of Object.values(palette)) {
         expect(value).toMatch(/^\d+ \d+ \d+$/);
@@ -42,5 +42,37 @@ describe("Device appearance palettes", () => {
         }
       }
     }
+  });
+  it("keeps the dark-first text shades (gray-500, every -300 / -400) readable on a white card", () => {
+    const root = appearanceVariables[":root"];
+    const white = root["--hrms-gray-950"];
+    expect(contrast(root["--hrms-gray-500"], white)).toBeGreaterThanOrEqual(4.5);
+    const hues = ["red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky",
+      "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"];
+    for (const hue of hues) {
+      for (const shade of [300, 400]) {
+        expect(contrast(root[`--hrms-${hue}-${shade}`], white), `${hue}-${shade}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+  it("never puts ink (`text-white`) on a solid colour fill; white labels use `text-on-color`", () => {
+    const offenders: string[] = [];
+    const fill = /\bbg-(primary|black|(red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(500|600|700))(?![/\d])/;
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (!["api", "__tests__", "email-templates"].includes(entry.name)) walk(full);
+        } else if (entry.name.endsWith(".tsx")) {
+          readFileSync(full, "utf8").split("\n").forEach((line, i) => {
+            for (const m of Array.from(line.matchAll(/className="([^"]*)"/g))) {
+              if (fill.test(m[1]) && /(^|\s)text-white(?![/\w-])/.test(m[1])) offenders.push(`${full}:${i + 1}`);
+            }
+          });
+        }
+      }
+    };
+    walk(join(process.cwd(), "src"));
+    expect(offenders).toEqual([]);
   });
 });

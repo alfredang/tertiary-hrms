@@ -209,7 +209,7 @@ export function WeeklyTimesheet() {
       ) : data ? (
         <>
           {nonWorkDays.length === 0 ? (
-            <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-8 text-center text-gray-500">
+            <div className="rounded-xl border border-gray-700 bg-gray-950 shadow-sm p-8 text-center text-gray-500">
               <p className="text-sm">No weekends or public holidays this week.</p>
             </div>
           ) : (
@@ -268,9 +268,9 @@ export function WeeklyTimesheet() {
                           ))}
                         </div>
                       ) : (
-                        <span className={`text-sm font-semibold ${hours === 0 ? "text-gray-600" : "text-emerald-400"}`}>{hours === 0 ? "—" : `${hours}h`}</span>
+                        <span className={`text-sm font-semibold ${hours === 0 ? "text-gray-500" : "text-emerald-400"}`}>{hours === 0 ? "—" : `${hours}h`}</span>
                       )}
-                      <div>{earned > 0 ? <span className="text-xs font-semibold text-emerald-400">+{earned}d</span> : <span className="text-xs text-gray-600">—</span>}</div>
+                      <div>{earned > 0 ? <span className="text-xs font-semibold text-emerald-400">+{earned}d</span> : <span className="text-xs text-gray-500">—</span>}</div>
                       <div>
                         {statusBadge ? (
                           <div>
@@ -278,9 +278,9 @@ export function WeeklyTimesheet() {
                             {day.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{day.adminComment}</p>}
                           </div>
                         ) : day.isSubmittable ? (
-                          <span className="text-[10px] text-gray-600">Not submitted</span>
+                          <span className="text-[10px] text-gray-500">Not submitted</span>
                         ) : (
-                          <span className="text-[10px] text-gray-700">—</span>
+                          <span className="text-[10px] text-gray-600">—</span>
                         )}
                       </div>
                     </div>
@@ -316,7 +316,7 @@ export function WeeklyTimesheet() {
                             ))}
                           </div>
                         ) : (
-                          <span className={`text-sm font-semibold ${hours === 0 ? "text-gray-600" : "text-emerald-400"}`}>{hours === 0 ? "—" : `${hours}h`}</span>
+                          <span className={`text-sm font-semibold ${hours === 0 ? "text-gray-500" : "text-emerald-400"}`}>{hours === 0 ? "—" : `${hours}h`}</span>
                         )}
                       </div>
 
@@ -324,7 +324,7 @@ export function WeeklyTimesheet() {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-gray-500 uppercase tracking-wide">Off In Lieu</span>
-                          {earned > 0 ? <span className="text-xs font-semibold text-emerald-400">+{earned}d</span> : <span className="text-xs text-gray-600">—</span>}
+                          {earned > 0 ? <span className="text-xs font-semibold text-emerald-400">+{earned}d</span> : <span className="text-xs text-gray-500">—</span>}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-gray-500 uppercase tracking-wide">Status</span>
@@ -334,9 +334,9 @@ export function WeeklyTimesheet() {
                               {day.adminComment && <p className="text-[10px] text-gray-500 mt-0.5">{day.adminComment}</p>}
                             </div>
                           ) : day.isSubmittable ? (
-                            <span className="text-[10px] text-gray-600">Not submitted</span>
+                            <span className="text-[10px] text-gray-500">Not submitted</span>
                           ) : (
-                            <span className="text-[10px] text-gray-700">—</span>
+                            <span className="text-[10px] text-gray-600">—</span>
                           )}
                         </div>
                       </div>
@@ -376,7 +376,7 @@ export function WeeklyTimesheet() {
             </div>
           )}
 
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-500">
             Log hours worked on weekends and public holidays. Submit by 11:30 PM SGT. Off In Lieu days are credited after admin approval.
           </p>
         </>

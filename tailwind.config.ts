@@ -3,7 +3,7 @@ import plugin from "tailwindcss/plugin";
 import { appearanceColors, appearanceVariables } from "./src/lib/theme-palette";
 
 const config: Config = {
-  darkMode: ["class"],
+  darkMode: ["class"], // unused: the app has one light theme
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -12,8 +12,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Existing dark-first utility classes use theme variables: preserve the current light
-        // palette, restore dark colours on .dark, and keep text-on-color white in both modes.
+        // ONE theme, light premium blue: dark-first utility classes map to the light palette
+        // in src/lib/theme-palette.ts; text-on-color stays white.
         ...appearanceColors,
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

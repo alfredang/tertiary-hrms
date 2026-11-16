@@ -229,7 +229,7 @@ export function WoodsSquareManageList({ staff }: { staff: ManageStaff[] }) {
           <button onClick={() => setAll(true)} className="text-xs text-gray-400 hover:text-white transition-colors">
             Add all
           </button>
-          <span className="text-gray-700">·</span>
+          <span className="text-gray-600">·</span>
           <button onClick={() => setAll(false)} className="text-xs text-gray-400 hover:text-white transition-colors">
             Clear all
           </button>
@@ -251,7 +251,7 @@ export function WoodsSquareManageList({ staff }: { staff: ManageStaff[] }) {
             onChange={(e) => setPasteText(e.target.value)}
             rows={3}
             placeholder="amanda@example.com, marcus@example.com …"
-            className="w-full resize-none rounded-md border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-600"
+            className="w-full resize-none rounded-md border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-500"
           />
           <div className="flex items-center gap-3">
             <Button size="sm" onClick={applyPaste} disabled={!pasteText.trim()}>

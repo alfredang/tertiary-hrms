@@ -14,10 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Plus, Pencil } from "lucide-react";
-import type { Employee, Department, EmployeeStatus, User, Role } from "@prisma/client";
+import type { Employee, Department, EmployeeStatus, Role } from "@prisma/client";
 
 interface EmployeeListProps {
-  employees: (Employee & { department: Department | null; user: User })[];
+  employees: (Employee & { department: Department | null; user: { roles: Role[] } })[];
   departments: Department[];
   isAdmin?: boolean;
 }

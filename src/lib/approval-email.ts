@@ -5,7 +5,6 @@ import { sendEmail, type EmailAttachment } from "@/lib/send-email";
 import { renderEmail } from "@/lib/email-templates/render";
 import { getCompanyBranding } from "@/lib/company-settings";
 import { generateEndpointToken, getBaseUrl } from "@/lib/webhooks";
-import type { TemplateKey } from "@/lib/email-templates/defaults";
 
 const EXTENSION_TO_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -129,19 +128,6 @@ function buildActionButtonsHtml(approveUrl: string, declineUrl: string): string 
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0;"><tr><td style="padding-right:10px;"><a href="${approveUrl}" style="display:inline-block;background:#16A34A;color:#ffffff;padding:11px 28px;border-radius:6px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;">Approve</a></td><td><a href="${declineUrl}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:11px 28px;border-radius:6px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;">Decline</a></td></tr></table>`;
 }
 
-function textToHtml(body: string, actionButtonsHtml: string): string {
-  const escaped = body
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  const withButtons = escaped.replace(/\{ACTION_BUTTONS\}/g, actionButtonsHtml);
-  const paragraphs = withButtons
-    .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 12px;line-height:1.6;">${p.replace(/\n/g, "<br/>")}</p>`)
-    .join("");
-  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;max-width:600px;">${paragraphs}</div>`;
-}
-
 async function issueToken(kind: "LEAVE" | "EXPENSE" | "TIME_OFF", targetId: string): Promise<string> {
   const token = generateEndpointToken();
   const expiresAt = new Date(Date.now() + APPROVAL_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -258,6 +244,8 @@ export async function sendTimeOffApprovalEmail(args: {
   hours: number | string;
   reason: string;
   reasonDetail?: string | null;
+  /** Full-day Off Day (intern): show "Full day" instead of times and hours. */
+  offDay?: boolean;
 }): Promise<void> {
   if (await isDemoEmployee(args.employeeId)) return; // demo / App Review: never email real approvers
   const token = await issueToken("TIME_OFF", args.timeOffRequestId);
@@ -272,19 +260,25 @@ export async function sendTimeOffApprovalEmail(args: {
   });
 
   const branding = await getCompanyBranding();
-  const rows: Array<{ label: string; value: string; style?: RowStyle }> = [
-    { label: "Date", value: dateDisplay, style: "bold" },
-    { label: "Time", value: `${args.startTime} – ${args.endTime}` },
-    { label: "Duration", value: `${args.hours} hour${Number(args.hours) === 1 ? "" : "s"}`, style: "pill" },
-    { label: "Reason", value: args.reason, style: "accent" },
-  ];
+  const rows: Array<{ label: string; value: string; style?: RowStyle }> = args.offDay
+    ? [
+        { label: "Date", value: dateDisplay, style: "bold" },
+        { label: "Duration", value: "Full day (no clock-in/out once approved)", style: "pill" },
+        { label: "Reason", value: args.reason, style: "accent" },
+      ]
+    : [
+        { label: "Date", value: dateDisplay, style: "bold" },
+        { label: "Time", value: `${args.startTime} – ${args.endTime}` },
+        { label: "Duration", value: `${args.hours} hour${Number(args.hours) === 1 ? "" : "s"}`, style: "pill" },
+        { label: "Reason", value: args.reason, style: "accent" },
+      ];
   if (args.reasonDetail) rows.push({ label: "Details", value: args.reasonDetail });
 
   const html = buildNotificationEmailHtml({
     companyName: branding.name,
     headerTitle: "Time Off Request",
     employeeName: args.employeeName,
-    introAction: "a time off request",
+    introAction: args.offDay ? "an Off Day" : "a time off request",
     rows,
     ctaLabel: "Please review and take action:",
     buttonsHtml: buildActionButtonsHtml(approveUrl, declineUrl),
@@ -293,15 +287,4 @@ export async function sendTimeOffApprovalEmail(args: {
 
   const { to, cc } = await getApproverEmails();
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc })));
-}
-
-export async function sendDecisionEmailToStaff(args: {
-  templateKey: TemplateKey;
-  staffEmail: string;
-  vars: Record<string, string | number | undefined | null>;
-}): Promise<void> {
-  if (isDemoEmail(args.staffEmail)) return;
-  const { subject, body } = await renderEmail(args.templateKey, args.vars);
-  const html = textToHtml(body, "");
-  await sendEmail({ to: args.staffEmail, subject, html });
 }

@@ -2,17 +2,8 @@
 
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider, useTheme } from "next-themes";
-import { useEffect, useState } from "react";
-import { APPEARANCE_STORAGE_KEY } from "@/lib/appearance";
-
-function BrowserThemeColor() {
-  const { resolvedTheme } = useTheme();
-  useEffect(() => {
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolvedTheme === "dark" ? "#030712" : "#F3F6FD");
-  }, [resolvedTheme]);
-  return null;
-}
+import { ThemeProvider } from "next-themes";
+import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -29,8 +20,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <ThemeProvider attribute="class" defaultTheme="light" themes={["light", "dark"]} storageKey={APPEARANCE_STORAGE_KEY} enableSystem={false} disableTransitionOnChange>
-        <BrowserThemeColor />
+      {/* One theme: light premium blue (Alfred, 10 + 13 Nov 2026). No dark mode, no switch. */}
+      <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       </ThemeProvider>
     </SessionProvider>

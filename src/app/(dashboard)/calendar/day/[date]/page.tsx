@@ -81,7 +81,7 @@ export default async function CalendarDayPage({
           </Button>
         </Link>
         <div className="text-center py-12">
-          <Calendar className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+          <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-white">Invalid Date</h1>
           <p className="text-gray-400 mt-2">
             The date &ldquo;{date}&rdquo; is not valid. Please use the format YYYY-MM-DD.
@@ -198,7 +198,7 @@ export default async function CalendarDayPage({
       </div>
 
       {holidays.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-[#ECEFF4] dark:bg-gray-800 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300">
+        <div className="rounded-lg border border-red-200 bg-[#ECEFF4] px-4 py-3 text-sm font-medium text-red-700">
           Public holiday: {holidays.join(", ")}
         </div>
       )}
@@ -207,7 +207,7 @@ export default async function CalendarDayPage({
       <Card className="bg-gray-950 border-gray-800">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
-            <Calendar className="h-5 w-5 text-blue-500" />
+            <Calendar className="h-5 w-5 text-blue-400" />
             Events
           </CardTitle>
         </CardHeader>
@@ -235,7 +235,7 @@ export default async function CalendarDayPage({
       <Card className="bg-gray-950 border-gray-800">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
-            <Users className="h-5 w-5 text-amber-500" />
+            <Users className="h-5 w-5 text-amber-400" />
             {viewAs !== "admin" ? "My Leaves" : "People on Leave"}
           </CardTitle>
         </CardHeader>

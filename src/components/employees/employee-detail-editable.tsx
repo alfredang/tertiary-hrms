@@ -257,7 +257,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
               </AvatarFallback>
             </Avatar>
             {employee.status === "ACTIVE" && !editing && (
-              <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
+              <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-on-color" />
             )}
             {editing && canEdit && (
               <>
@@ -614,6 +614,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                   })}
                 </div>
               ) : (
+                <div className="space-y-1">
                 <div className="flex flex-wrap gap-3">
                   {WORKDAY_OPTIONS.map((d) => {
                     const selected = employee.workdays?.length
@@ -628,7 +629,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                               : "bg-gray-900 border-gray-700"
                           }`}
                         >
-                          {selected && <Check className="h-3 w-3 text-white" />}
+                          {selected && <Check className="h-3 w-3 text-on-color" />}
                         </span>
                         <span className={`text-sm ${selected ? "text-white" : "text-gray-500"}`}>
                           {d.short}
@@ -636,6 +637,16 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                       </div>
                     );
                   })}
+                </div>
+                {/* Unticked days = weekly off days: no clock-in/out expected, no missed-punch alerts. */}
+                <p className="text-xs text-gray-500">
+                  Off days:{" "}
+                  {WORKDAY_OPTIONS.filter((d) =>
+                    employee.workdays?.length ? !employee.workdays.includes(d.value) : d.value > 5,
+                  )
+                    .map((d) => d.short)
+                    .join(", ") || "none"}
+                </p>
                 </div>
               )}
             </Field>

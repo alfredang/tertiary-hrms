@@ -47,7 +47,10 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
-- **Optional dark appearance** — light remains the default, including on devices whose operating system uses dark mode. Switch with the header sun/moon button or **My Profile → Appearance**. The preference stays in that device/browser rather than being saved as an account-wide setting.
+- **One light theme** — premium blue, matching the iOS app, on every device (including ones whose operating system uses dark mode). There is no dark mode and no appearance switch.
+- **App download links in the top bar** — App Store and Google Play buttons sit next to the refresh button on every signed-in page (in the avatar menu on phones).
+- **Readable light theme** — secondary text, status colours and icons were darkened to at least 4.5:1 contrast on white, and a unit test (`src/lib/__tests__/appearance.test.ts`) keeps them there. Cards are white on a deeper page tint with firmer borders, so panels, tables and inputs stand apart from the page. Every admin page was checked against screenshots after the change.
+- **Faster pages** — database indexes on leave requests, expense claims, notifications, attendance, timesheets and calendar events; the dashboard, calendar, leave and expense pages load their data in parallel.
 
 - **Fixed internship annual leave (opt-in)** — an individual AL balance can cover the entire recorded internship using `periodStart` / `periodEnd`. Its configured entitlement is the contract total, accrued over the contract's monthly periods. Advance AL uses the remaining contract entitlement, including January/February, without a new calendar-year allocation. Other balances retain calendar-year rules. Submission, edits, approval/cancellation, mobile balances and rollover use the same pool; Off In Lieu is charged separately. Apply `prisma/changes/2026-11-13-internship-leave.sql`, regenerate Prisma, then use `scripts/configure-internship-leave.ts --employee-id <id> --days 7` (dry-run; add `--apply` to save). Existing used/pending days are preserved and configuration is audited.
   - An audited reconciliation can retain previously allocated days in the AL balance's `earned` field. For fixed periods only, this is a minimum earned-to-date value, capped by the original contract total. Normal accrual catches up naturally; the retained allocation is not added again or carried into a new entitlement.
@@ -75,7 +78,7 @@ Earlier additions (July 2026):
 
 - **Web clock in / out** (`/attendance`) — one-tap Clock in / Clock out for staff and interns, mirroring the native app: live running timer plus a **monthly daily history** (date, check-in, check-out, hours) with month navigation, total hours and days worked. A punch with no clock-out shows the **hours so far** when it is today, or **"No clock-out"** for an earlier day (a missed clock-out, so it adds no hours). Web and mobile write the same `AttendancePunch` rows (one per employee per Singapore calendar day) via a shared `src/lib/attendance.ts`, so every record lands in the database regardless of device.
 - **Timesheet** (`/timesheet/overview`, admin; the old Intern Attendance page `/attendance/overview` redirects here) — one page for interns: missing-punch approvals, Off In Lieu approvals (shown only when there are any), and every intern (`employmentType = INTERN`: all active interns, so zero-check-in interns are visible, plus interns who left but punched that month; staff are not listed), with days worked, total hours, last check-in and a live "Working" badge; select a row to open that intern's daily check-in / check-out history. Served by `/api/attendance/summary` (admin only) and `/api/attendance/history?month=YYYY-MM[&employeeId=]`, mirrored 1:1 at `/api/mobile/attendance/{summary,history}` for the native apps.
-- **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, others) measured in hours on a single date; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.
+- **Time Off requests** (`/time-off`) — short partial-day absences (exams, emergency, unpaid, others) measured in hours on a single date, plus a full-day **Off Day** for interns; needs manager sign-off but never touches leave balances. Admin view doubles as the approvals queue.
 - **Generate payroll from a CPF submission** (Payroll Management → Upload CPF):
   - Admin uploads the CPF EZPay **Confirm Employee Details** PDF; the pay period, ordinary/additional wages and per-employee CPF are read straight from the statement, so payslips match what was actually filed with the CPF Board (CPF is taken verbatim, not recomputed).
   - Rows are matched to employees by **CPF account number (NRIC) first**, then exact name, then fuzzy name tokens — CPF prints names as per NRIC, which often differ from the HRMS record. Ambiguous rows are reported as unmatched rather than guessed, and cannot be selected.
@@ -91,7 +94,7 @@ Earlier additions (May 2026):
   - Staff card always renders (even before any salary is entered); admin edits **Basic Salary** inline with a pencil-icon Save flow.
   - **Intern Compensation** card is allowance-only with CPF rows fixed at $0 (CPF skipped).
   - Saving either card auto-regenerates the **current-month payslip** and replaces the Drive PDF.
-- **Managers card** — admin can **add or remove approvers** directly from the employee detail page (dropdown of all active staff). Approval request emails (leave of every type including MC and No Pay Leave, expense claims, time off) go To Tan Soik Ching and Cc Alfred Ang, the two HRMS admins; addresses under Settings → Company → Approval emails are CC'd too.
+- **Managers card** — admin can **add or remove approvers** directly from the employee detail page (dropdown of all active staff). Approval request emails (leave of every type including MC and No Pay Leave, expense claims, time off) go To Tan Soik Ching and Cc Alfred Ang, the two HRMS admins; addresses under Settings → Company → Approval emails are CC'd too. The emailed Approve / Decline links act on the click and show a year-to-date summary. Every leave, expense or time-off decision, on every path (email link, web, bulk, app), sends the requester a **decision email** (`src/lib/decision-email.ts`, CC both admins) with the status, the request and the summary (leave: paid taken, AL balance, MC and NPL taken). **Login OTP emails** go to the requester only, never Cc'd, and the sending mailbox's own copy is taken out of its inbox (`removeSenderInboxCopy()` in `src/lib/send-email.ts`).
 - **Bulk approval** — admins / managers can select multiple PENDING items (checkbox column with select-all) and approve in one shot on:
   - Leave / Medical Leave (`/api/leave/bulk-approve`) — keeps balance accounting, calendar events, and notifications consistent
   - Expense Claims (`/api/expenses/bulk-approve`)
@@ -133,7 +136,7 @@ Earlier additions (May 2026):
 - **Staff view**: can only see own leave, expenses, payslips, and personal profile
 - View toggle lets admins preview the staff experience
 - **Trainer Admin** (`TRAINER_ADMIN`) is a separate role held alongside a person's normal role; only it opens Trainer Management (trainer records hold NRIC). It never becomes the primary role, so it does not change anyone's dashboard or view. It is also linked from the **View As** menu. Signed-in sessions re-read their roles from the database every 5 minutes, so a newly granted role appears without signing out
-- **Appearance.** Light premium blue is the default, with optional dark mode saved per device. `tailwind.config.ts` uses CSS palette variables to keep the existing dark-first utility classes readable in either appearance. Solid fills that need real white text use `text-on-color` (`bg-on-color` for real white surfaces).
+- **Appearance.** One theme, light premium blue (`ThemeProvider forcedTheme="light"`). The code is written dark-first, so `tailwind.config.ts` maps those utility classes onto the light palette in `src/lib/theme-palette.ts` (CSS variables on `:root`). Solid fills that need real white text use `text-on-color` (`bg-on-color` for real white surfaces). The `-300` / `-400` text shades and `gray-500` are held at 4.5:1 or better on white by `appearance.test.ts`.
 - **Demo accounts are hidden.** The App Review login(s) (`E9999`, `src/lib/demo-accounts.ts`) are dropped from every employee list and count by a Prisma extension in `src/lib/prisma.ts`; `scripts/create-demo-employee.ts` no longer seeds sample leave/claims/timesheets unless `--with-samples`.
 - **Tables** keep one line per row; long reasons and comments open in a dialog (`src/components/ui/text-view-dialog.tsx`). Trainer Management has a skill / certification search with suggestions and click-to-mail / call / WhatsApp / copy contacts.
 - **One canonical host.** Page visits on the `hrms.tertiaryinfo.tech` alias are redirected (308) to the `AUTH_URL` host (`hrms.tertiaryinfotech.com`) so Google sign-in's PKCE cookie and callback share a domain; `/api/*` is never redirected, so the native apps keep working on either host (`src/lib/canonical-host.ts`).
@@ -164,7 +167,7 @@ Earlier additions (May 2026):
 - **Where requests appear**: `/leave/medical` lists medical leave; `/leave/annual` lists everything else, including No Pay and Compassionate Leave, for staff and approvers
 - **Half-day leave** (AM/PM) — available for Annual Leave only, single-day or multi-day with first/last day half
 - **Monthly accrual proration** for Annual Leave, Medical Leave and the No Pay Leave cap — allocation = entitlement x completed months served this year / 12, rounded down to nearest 0.5 day. Months count from the join date (1 Jan for earlier joiners) and a month counts only once complete (joined 1 Sep, on 9 Nov → 2 months)
-- **Intern attendance**: interns must clock in and out; a daily 21:00 SGT job reminds anyone who forgot, an 08:30 SGT roll-up goes to the admins, and interns submit a missing clock-in/out on `/attendance` for an admin to approve on the admin **Timesheet** page (`/timesheet/overview`). Only interns see "Timesheet" in their menu; staff log weekend / public-holiday work under **Off In Lieu**
+- **Intern attendance**: interns must clock in and out; a daily 21:00 SGT job reminds anyone who forgot, an 08:30 SGT roll-up goes to the admins, and interns submit a missing clock-in/out on `/attendance` for an admin to approve on the admin **Timesheet** page (`/timesheet/overview`). **Intern off days**: weekly off days are the days left unticked in the intern's **Workdays** (the employee page shows "Off days: …"), and an extra day off is requested as a Time Off **Off Day**; neither expects a clock-in, so no reminder or missed-punch alert is raised (a forgotten clock-out after an actual clock-in still is). Only interns see "Timesheet" in their menu; staff log weekend / public-holiday work under **Off In Lieu**
 - **HR compliance agent** (`/api/cron/hr-compliance`, Mondays 08:30 SGT): NPL near/over cap, MC above entitlement or patterned, AL beyond entitlement, repeated missed punches — emailed and notified to the admins; the same alerts show on the admin dashboard
 - **Year-end rollover** — admin triggers via Settings page; Annual Leave carries forward (no cap), MC/CL/NPL reset
 - Leave balance tracking per employee per year with carry-over support
@@ -181,7 +184,8 @@ Earlier additions (May 2026):
 
 ### Time Off (hourly)
 - Short single-day, hour-based absence requests — separate from leave, no balance deduction
-- Reasons: **Exams**, **Emergency — Pls approve**, **Others — Pls specify** (detail required)
+- Reasons: **Off Day (full day)**, **Exams**, **Emergency — Pls approve**, **Unpaid Leave**, **Others — Pls specify** (detail required)
+- **Off Day** (interns): a whole day with no times to pick, stored as 0 hours and counted separately ("Off Days in <year>"); once approved the missed clock-in check skips that day. Native apps receive it as `OTHERS` + "Off Day (full day)" (`appSafeTimeOffReason()`) so shipped builds keep decoding
 - Manager approval workflow (approve with comment / reject with reason), staff cancel while pending
 - Same-day overlap prevention and in-app notifications for both parties
 
@@ -260,7 +264,7 @@ Earlier additions (May 2026):
 Native iOS and Android companion apps (**TIA HRMS**, following the iOS design system) talk to this
 web app over its JSON API (`/api/mobile/*` + `/api/auth/google-mobile`). Leave submissions return
 machine-readable codes (`AL_EXCEEDS_BALANCE`, `INTERN_MC_NOT_PAID`, `NPL_CAP_EXCEEDED`) so the apps can
-offer "Apply as No Pay Leave". Both are published and linked from the login page:
+offer "Apply as No Pay Leave". Both are published and linked from the login page and the dashboard top bar:
 
 [![Download on the App Store](https://img.shields.io/badge/App_Store-Download-000000?style=flat-square&logo=apple)](https://apps.apple.com/sg/app/tertiary-hrms/id6759821144)
 [![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_it_on-414141?style=flat-square&logo=google-play)](https://play.google.com/store/apps/details?id=com.tertiaryinfotech.hrportal)

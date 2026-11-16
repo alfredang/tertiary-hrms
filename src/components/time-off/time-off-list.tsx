@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import { formatTime12h, timeOffReasonLabel } from "@/lib/time-off";
+import { formatTime12h, timeOffReasonLabel, isOffDay } from "@/lib/time-off";
 import { Calendar, Check, X, Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TextViewDialog, TruncatedTextButton, type TextView } from "@/components/ui/text-view-dialog";
@@ -123,7 +123,7 @@ export function TimeOffList({
       return <span className="text-xs text-green-400">{r.approvalComment}</span>;
     if (r.status === "REJECTED" && r.rejectionReason)
       return <span className="text-xs text-red-400">{r.rejectionReason}</span>;
-    return <span className="text-xs text-gray-600">—</span>;
+    return <span className="text-xs text-gray-500">—</span>;
   };
 
   // Desktop table: one-line truncated cells that open the full text in a dialog.
@@ -144,7 +144,7 @@ export function TimeOffList({
       ? <TruncatedTextButton text={r.approvalComment} tone="text-green-400" onOpen={() => openText(r, "Comment", r.approvalComment ?? "", "text-green-400")} />
       : r.status === "REJECTED"
         ? <TruncatedTextButton text={r.rejectionReason} tone="text-red-400" onOpen={() => openText(r, "Rejection reason", r.rejectionReason ?? "", "text-red-400")} />
-        : <span className="text-xs text-gray-600">—</span>;
+        : <span className="text-xs text-gray-500">—</span>;
 
   const renderManagerActions = (id: string) => {
     if (approveConfirm === id) {
@@ -279,7 +279,8 @@ export function TimeOffList({
     );
 
   const timeRange = (r: TimeOffRow) =>
-    `${formatTime12h(r.startTime)} – ${formatTime12h(r.endTime)}`;
+    isOffDay(r.reason) ? "Full day" : `${formatTime12h(r.startTime)} – ${formatTime12h(r.endTime)}`;
+  const hoursText = (r: TimeOffRow) => (isOffDay(r.reason) ? "Off Day" : `${Number(r.hours)}h`);
 
   return (
     <div className="space-y-4">
@@ -315,7 +316,7 @@ export function TimeOffList({
               onClick={() => setStatusFilter(v)}
               className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                 statusFilter === v
-                  ? "bg-white text-gray-900"
+                  ? "bg-primary text-on-color"
                   : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
               }`}
             >
@@ -347,7 +348,7 @@ export function TimeOffList({
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-400">
               <Clock className="h-3 w-3 shrink-0" />
-              <span>{timeRange(r)} ({Number(r.hours)}h)</span>
+              <span>{timeRange(r)} ({hoursText(r)})</span>
             </div>
             <div>{renderComment(r)}</div>
             {r.status === "PENDING" &&
@@ -362,7 +363,7 @@ export function TimeOffList({
       </div>
 
       {/* Desktop table */}
-      <div className="hidden sm:block rounded-lg border border-gray-800 overflow-x-auto">
+      <div className="hidden sm:block rounded-lg border border-gray-700 bg-gray-950 shadow-sm overflow-x-auto">
         <table className="w-full min-w-[700px]">
           <thead>
             <tr className="bg-gray-950 border-b border-gray-800">
@@ -399,7 +400,7 @@ export function TimeOffList({
                   {timeRange(r)}
                 </td>
                 <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
-                  {Number(r.hours)}h
+                  {hoursText(r)}
                 </td>
                 <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 whitespace-nowrap">
                   {formatDate(r.createdAt)}

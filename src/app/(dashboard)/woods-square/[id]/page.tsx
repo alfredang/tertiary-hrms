@@ -224,7 +224,7 @@ export default async function StaffInvitesPage({ params }: { params: { id: strin
           </div>
           <p
             className={`mt-1.5 text-2xl font-bold tabular-nums ${
-              failedCount > 0 ? "text-red-400" : "text-gray-600"
+              failedCount > 0 ? "text-red-400" : "text-gray-500"
             }`}
           >
             {failedCount}
@@ -248,7 +248,7 @@ export default async function StaffInvitesPage({ params }: { params: { id: strin
               </div>
             </>
           ) : (
-            <p className="mt-1.5 text-base font-semibold text-gray-600">No pass</p>
+            <p className="mt-1.5 text-base font-semibold text-gray-500">No pass</p>
           )}
         </Card>
       </div>

@@ -164,7 +164,7 @@ export function WoodsSquareOverview({
                       key={d.day}
                       className={`px-0 py-1.5 text-center font-normal ${d.weekend ? "bg-gray-900/40" : ""}`}
                     >
-                      <div className="text-[9px] uppercase text-gray-600">{WEEKDAY[d.dow]}</div>
+                      <div className="text-[9px] uppercase text-gray-500">{WEEKDAY[d.dow]}</div>
                       <div
                         className={`mx-auto flex h-5 w-5 items-center justify-center rounded-full text-[10px] tabular-nums ${
                           isToday ? "bg-blue-500 font-semibold text-on-color" : "text-gray-400"
@@ -194,7 +194,7 @@ export function WoodsSquareOverview({
                         </div>
                         <div className="min-w-0">
                           <p className={`truncate text-sm ${none ? "text-gray-500" : "text-white"}`}>{s.name}</p>
-                          <p className="truncate text-xs text-gray-600">{s.email}</p>
+                          <p className="truncate text-xs text-gray-500">{s.email}</p>
                         </div>
                       </div>
                     </td>

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { num } from "@/lib/mobile-api";
 import { getSgHolidaysForYear } from "@/lib/sg-public-holidays";
 import { getCompanyBranding } from "@/lib/company-settings";
-import { timeOffReasonLabel } from "@/lib/time-off";
+import { timeOffReasonLabel, isOffDay } from "@/lib/time-off";
 import { leaveDaysInMonth, round2, type ReportMonth, type SummaryEmployeeRow } from "@/lib/leave-summary";
 import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
 
@@ -153,6 +153,7 @@ export async function buildLeaveSummary(month: ReportMonth) {
           hours: num(t.hours),
           reason: timeOffReasonLabel(t.reason),
           status: t.status,
+          offDay: isOffDay(t.reason),
         })),
       };
     }

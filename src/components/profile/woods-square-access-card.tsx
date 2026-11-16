@@ -54,27 +54,27 @@ const STATUS_LIGHT: Record<
   },
   UPCOMING: {
     word: "Scheduled",
-    cls: "text-amber-900",
-    dot: "bg-amber-900 ring-4 ring-amber-900/15",
-    bar: "bg-gradient-to-r from-amber-800 to-amber-900",
-    fill: "bg-gradient-to-r from-amber-800 to-amber-900",
+    cls: "text-amber-400",
+    dot: "bg-amber-500 ring-4 ring-amber-500/15",
+    bar: "bg-gradient-to-r from-amber-500 to-amber-600",
+    fill: "bg-gradient-to-r from-amber-500 to-amber-600",
     avatar: "bg-amber-900 text-amber-100 ring-amber-300",
   },
   EXPIRED: {
     word: "Expired",
     cls: "text-gray-400",
-    dot: "bg-gray-300",
-    bar: "bg-gray-200",
-    fill: "bg-gray-300",
-    avatar: "bg-gray-100 text-gray-400 ring-gray-200",
+    dot: "bg-gray-700",
+    bar: "bg-gray-800",
+    fill: "bg-gray-700",
+    avatar: "bg-gray-900 text-gray-400 ring-gray-800",
   },
   LOCKED: {
     word: "Not activated",
     cls: "text-gray-400",
-    dot: "bg-gray-300",
-    bar: "bg-gray-200",
-    fill: "bg-gray-300",
-    avatar: "bg-gray-100 text-gray-400 ring-gray-200",
+    dot: "bg-gray-700",
+    bar: "bg-gray-800",
+    fill: "bg-gray-700",
+    avatar: "bg-gray-900 text-gray-400 ring-gray-800",
   },
 };
 
@@ -281,7 +281,7 @@ export function WoodsSquareAccessCard({
       {/* ───────── Stacked: pass card, then details below ───────── */}
       <div className="space-y-5">
         {/* ── The Woods Square access card (light, like the real app) — centered rectangle ── */}
-        <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[22px] border border-gray-800 bg-gradient-to-b from-gray-950 to-gray-900 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.75)] ring-1 ring-black/5">
+        <div className="relative mx-auto w-full max-w-xl overflow-hidden rounded-[22px] border border-gray-800 bg-gradient-to-b from-gray-950 to-gray-900 shadow-[0_24px_60px_-24px_rgba(15,28,69,0.28)] ring-1 ring-black/5">
           {/* status accent bar */}
           <div className={`h-1.5 w-full ${status.bar}`} />
 
@@ -294,7 +294,7 @@ export function WoodsSquareAccessCard({
             }}
           />
           {/* large faint building watermark */}
-          <Building2 className="pointer-events-none absolute -bottom-6 -right-4 h-40 w-40 text-gray-900/[0.03]" strokeWidth={1} />
+          <Building2 className="pointer-events-none absolute -bottom-6 -right-4 h-40 w-40 text-white/[0.03]" strokeWidth={1} />
 
         <div className="relative p-6">
           {/* header: brand badge + wordmark, info icon */}
@@ -304,7 +304,7 @@ export function WoodsSquareAccessCard({
                 <Building2 className="h-5 w-5" />
               </div>
               <div className="leading-tight">
-                <div className="font-extralight lowercase tracking-tight text-[1.35rem] text-gray-500">
+                <div className="font-light lowercase tracking-tight text-[1.35rem] text-gray-400">
                   woods square
                 </div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-400">
@@ -330,7 +330,7 @@ export function WoodsSquareAccessCard({
               {primary ? initials(holderName) : <KeyRound className="h-5 w-5" />}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-lg font-semibold text-gray-800">{holderName ?? "Staff"}</p>
+              <p className="truncate text-lg font-semibold text-white">{holderName ?? "Staff"}</p>
               <p className="truncate text-xs text-gray-400">
                 Staff{employeeId ? ` · ID ${employeeId}` : ""}
               </p>
@@ -352,16 +352,16 @@ export function WoodsSquareAccessCard({
 
           {/* validity + progress, or request prompt when no pass */}
           {primary ? (
-            <div className="mt-4 border-t border-gray-100 pt-4">
+            <div className="mt-4 border-t border-gray-800 pt-4">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">
                   Valid
                 </span>
-                <span className="font-mono text-sm font-medium tabular-nums text-gray-600">
+                <span className="font-mono text-sm font-medium tabular-nums text-gray-500">
                   {primary.inv.fromDate} — {primary.inv.toDate}
                 </span>
               </div>
-              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-900">
                 <div
                   className={`h-full rounded-full ${status.fill}`}
                   style={{
@@ -376,10 +376,10 @@ export function WoodsSquareAccessCard({
               </div>
             </div>
           ) : (
-            <div className="mt-4 border-t border-gray-100 pt-4">
+            <div className="mt-4 border-t border-gray-800 pt-4">
               <p className="text-sm text-gray-500">
                 No active pass. Tap{" "}
-                <span className="font-medium text-gray-700">Request access</span> above — your entry
+                <span className="font-medium text-gray-200">Request access</span> above — your entry
                 PIN is emailed to you once it&rsquo;s granted.
               </p>
             </div>
@@ -387,7 +387,7 @@ export function WoodsSquareAccessCard({
 
           {/* in-card entry-method caption */}
           {primary && (
-            <div className="relative mt-4 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 ring-1 ring-gray-100">
+            <div className="relative mt-4 flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 ring-1 ring-gray-800">
               <KeyRound className="h-3.5 w-3.5 shrink-0 text-gray-400" />
               <span className="text-xs text-gray-500">Entry via PIN — sent to your email</span>
             </div>

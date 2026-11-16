@@ -96,7 +96,7 @@ export function ClockWidget() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/60 py-16">
+      <div className="flex items-center justify-center rounded-2xl border border-gray-700 bg-gray-950 shadow-sm py-16">
         <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
       </div>
     );
@@ -108,7 +108,7 @@ export function ClockWidget() {
   return (
     <div className="space-y-4">
       {/* Clock card */}
-      <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-6 sm:p-8">
+      <div className="rounded-2xl border border-gray-700 bg-gray-950 shadow-sm p-6 sm:p-8">
         <p className="text-center text-sm text-gray-400">
           {paused
             ? `On break since ${formatTime(today!.pausedAt)} — timer paused`

@@ -170,7 +170,7 @@ export function RequestAccessButton({ pendingCount = 0 }: { pendingCount?: numbe
                 maxLength={300}
                 rows={2}
                 placeholder="e.g. client visit, working onsite this week…"
-                className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 text-sm text-white placeholder:text-gray-600 resize-none"
+                className="w-full bg-gray-900 border border-gray-800 rounded-md px-3 py-2 text-sm text-white placeholder:text-gray-500 resize-none"
               />
             </div>
           </div>
