@@ -33,7 +33,13 @@ export async function GET() {
 
   return NextResponse.json({
     today: todayPunch
-      ? { id: todayPunch.id, clockIn: iso(todayPunch.clockIn), clockOut: iso(todayPunch.clockOut) }
+      ? {
+          id: todayPunch.id,
+          clockIn: iso(todayPunch.clockIn),
+          clockOut: iso(todayPunch.clockOut),
+          pausedAt: todayPunch.clockOut ? null : iso(todayPunch.pausedAt),
+          breakSeconds: todayPunch.breakSeconds,
+        }
       : null,
     recent: punches.map((p) => ({
       id: p.id,

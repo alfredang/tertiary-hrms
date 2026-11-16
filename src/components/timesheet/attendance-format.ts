@@ -51,8 +51,23 @@ export function todayDate(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 }
 
-/** Hours elapsed since `iso`, rounded to 2dp — for a punch still open today. */
-export function hoursSince(iso: string): number {
-  const ms = Date.now() - new Date(iso).getTime();
-  return Math.max(0, Math.round((ms / 3_600_000) * 100) / 100);
+/**
+ * Worked ms so far for an open punch: time since clock-in less completed breaks
+ * and, while paused, the current break (so the timer freezes).
+ */
+export function workedMsSoFar(
+  clockIn: string,
+  nowMs: number,
+  breakSeconds = 0,
+  pausedAt: string | null = null,
+): number {
+  let ms = nowMs - new Date(clockIn).getTime() - breakSeconds * 1000;
+  if (pausedAt) ms -= nowMs - new Date(pausedAt).getTime();
+  return Math.max(0, ms);
+}
+
+/** Worked hours so far, rounded to 2dp — for a punch still open today. */
+export function hoursSince(iso: string, breakSeconds = 0, pausedAt: string | null = null): number {
+  const ms = workedMsSoFar(iso, Date.now(), breakSeconds, pausedAt);
+  return Math.round((ms / 3_600_000) * 100) / 100;
 }

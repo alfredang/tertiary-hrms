@@ -10,6 +10,8 @@ interface Punch {
   clockIn: string | null;
   clockOut: string | null;
   hours: number | null;
+  pausedAt?: string | null;
+  breakSeconds?: number;
 }
 
 interface HistoryData {
@@ -140,7 +142,7 @@ export function AttendanceHistory({
                       {p.clockOut ? (
                         formatTime(p.clockOut)
                       ) : inProgress ? (
-                        <span className="text-amber-400">Still in…</span>
+                        <span className="text-amber-400">{p.pausedAt ? "On break…" : "Still in…"}</span>
                       ) : open ? (
                         <span className="text-amber-400">No clock-out</span>
                       ) : (
@@ -151,7 +153,7 @@ export function AttendanceHistory({
                       {p.hours != null ? (
                         p.hours.toFixed(2)
                       ) : inProgress ? (
-                        <span className="text-amber-400">{hoursSince(p.clockIn!).toFixed(2)} so far</span>
+                        <span className="text-amber-400">{hoursSince(p.clockIn!, p.breakSeconds, p.pausedAt).toFixed(2)} so far</span>
                       ) : (
                         "—"
                       )}

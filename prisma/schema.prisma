@@ -692,6 +692,10 @@ model AttendancePunch {
   date       DateTime  @db.Date
   clockIn    DateTime?
   clockOut   DateTime?
+  /// Set while the clock is paused (on a break); cleared on resume or clock-out.
+  pausedAt     DateTime?
+  /// Completed break time, excluded from worked hours.
+  breakSeconds Int       @default(0)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)

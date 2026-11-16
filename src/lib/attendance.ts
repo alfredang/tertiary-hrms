@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { workedMs } from "@/lib/attendance-policy";
 
 /**
  * Shared attendance (clock in / clock out) helpers.
@@ -20,13 +21,28 @@ export function todaySgt(): Date {
   return new Date(`${ymd}T00:00:00Z`);
 }
 
-/** Worked hours for a punch pair, rounded to 2dp. Null until clocked out. */
-export function punchHours(clockIn: Date | null, clockOut: Date | null): number | null {
+/**
+ * Worked hours for a punch pair less break time, rounded to 2dp. Null until clocked out.
+ */
+export function punchHours(
+  clockIn: Date | null,
+  clockOut: Date | null,
+  breakSeconds?: number | null,
+  pausedAt?: Date | null,
+): number | null {
   if (!clockIn || !clockOut) return null;
-  const ms = clockOut.getTime() - clockIn.getTime();
-  if (ms <= 0) return 0;
+  const ms = workedMs(clockIn, clockOut, breakSeconds, pausedAt);
   return Math.round((ms / 3_600_000) * 100) / 100;
 }
+
+type PunchTimes = {
+  clockIn: Date | null;
+  clockOut: Date | null;
+  pausedAt?: Date | null;
+  breakSeconds?: number | null;
+};
+
+const hoursOf = (p: PunchTimes) => punchHours(p.clockIn, p.clockOut, p.breakSeconds, p.pausedAt);
 
 export interface PunchDto {
   id: string;
@@ -34,20 +50,21 @@ export interface PunchDto {
   clockIn: string | null;
   clockOut: string | null;
   hours: number | null;
+  /** Set while the clock is paused (on a break). */
+  pausedAt: string | null;
+  /** Completed break time in seconds (excluded from hours). */
+  breakSeconds: number;
 }
 
-export function toPunchDto(p: {
-  id: string;
-  date: Date;
-  clockIn: Date | null;
-  clockOut: Date | null;
-}): PunchDto {
+export function toPunchDto(p: PunchTimes & { id: string; date: Date }): PunchDto {
   return {
     id: p.id,
     date: p.date.toISOString().slice(0, 10),
     clockIn: p.clockIn ? p.clockIn.toISOString() : null,
     clockOut: p.clockOut ? p.clockOut.toISOString() : null,
-    hours: punchHours(p.clockIn, p.clockOut),
+    hours: hoursOf(p),
+    pausedAt: p.pausedAt && !p.clockOut ? p.pausedAt.toISOString() : null,
+    breakSeconds: p.breakSeconds ?? 0,
   };
 }
 
@@ -75,9 +92,54 @@ export async function clockOut(employeeId: string) {
   if (!existing?.clockIn) throw new Error("Not clocked in yet today");
   if (existing.clockOut) throw new Error("Already clocked out today");
 
+  // Clocking out while paused ends the break at the same instant.
+  const now = new Date();
   return prisma.attendancePunch.update({
     where: { id: existing.id },
-    data: { clockOut: new Date() },
+    data: {
+      clockOut: now,
+      pausedAt: null,
+      breakSeconds: existing.breakSeconds + openBreakSeconds(existing.pausedAt, now),
+    },
+  });
+}
+
+function openBreakSeconds(pausedAt: Date | null, now: Date): number {
+  return pausedAt ? Math.max(0, Math.round((now.getTime() - pausedAt.getTime()) / 1000)) : 0;
+}
+
+/** Pause today's running clock (start a break). Paused time is not counted as worked. */
+export async function pauseClock(employeeId: string) {
+  const date = todaySgt();
+  const existing = await prisma.attendancePunch.findUnique({
+    where: { employeeId_date: { employeeId, date } },
+  });
+  if (!existing?.clockIn) throw new Error("Not clocked in yet today");
+  if (existing.clockOut) throw new Error("Already clocked out today");
+  if (existing.pausedAt) throw new Error("Already paused");
+
+  return prisma.attendancePunch.update({
+    where: { id: existing.id },
+    data: { pausedAt: new Date() },
+  });
+}
+
+/** Resume today's paused clock; the break length is added to breakSeconds. */
+export async function resumeClock(employeeId: string) {
+  const date = todaySgt();
+  const existing = await prisma.attendancePunch.findUnique({
+    where: { employeeId_date: { employeeId, date } },
+  });
+  if (!existing?.clockIn) throw new Error("Not clocked in yet today");
+  if (existing.clockOut) throw new Error("Already clocked out today");
+  if (!existing.pausedAt) throw new Error("Clock is not paused");
+
+  return prisma.attendancePunch.update({
+    where: { id: existing.id },
+    data: {
+      pausedAt: null,
+      breakSeconds: existing.breakSeconds + openBreakSeconds(existing.pausedAt, new Date()),
+    },
   });
 }
 
@@ -102,8 +164,8 @@ export function monthRange(month: string | null | undefined): { month: string; f
 }
 
 /** Sum of completed-punch hours, rounded to 2dp. */
-export function totalHoursOf(punches: { clockIn: Date | null; clockOut: Date | null }[]): number {
-  const total = punches.reduce((sum, p) => sum + (punchHours(p.clockIn, p.clockOut) ?? 0), 0);
+export function totalHoursOf(punches: PunchTimes[]): number {
+  const total = punches.reduce((sum, p) => sum + (hoursOf(p) ?? 0), 0);
   return Math.round(total * 100) / 100;
 }
 
@@ -170,7 +232,7 @@ export async function getAttendanceSummary(month: string | null | undefined): Pr
   const [punches, interns, openToday] = await Promise.all([
     prisma.attendancePunch.findMany({
       where: { date: { gte: range.from, lt: range.to } },
-      select: { employeeId: true, date: true, clockIn: true, clockOut: true },
+      select: { employeeId: true, date: true, clockIn: true, clockOut: true, pausedAt: true, breakSeconds: true },
     }),
     prisma.employee.findMany({
       // employmentType, not roles: admins hold the INTERN role just to switch views.

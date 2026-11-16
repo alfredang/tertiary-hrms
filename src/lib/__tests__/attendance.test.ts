@@ -18,6 +18,38 @@ describe("punchHours", () => {
     const end = new Date("2026-07-27T09:00:00Z");
     expect(punchHours(start, end)).toBe(0);
   });
+
+  it("excludes completed break time", () => {
+    const start = new Date("2026-07-27T01:00:00Z");
+    const end = new Date("2026-07-27T10:00:00Z"); // 9h span
+    expect(punchHours(start, end, 3600)).toBe(8); // 1h break
+  });
+
+  it("excludes a break still open at clock-out", () => {
+    const start = new Date("2026-07-27T01:00:00Z");
+    const end = new Date("2026-07-27T10:00:00Z");
+    const pausedAt = new Date("2026-07-27T09:30:00Z");
+    expect(punchHours(start, end, 1800, pausedAt)).toBe(8); // 30m + 30m
+  });
+});
+
+describe("break-aware totals", () => {
+  it("totalHoursOf subtracts breaks", () => {
+    const punches = [
+      { clockIn: new Date("2026-07-27T01:00:00Z"), clockOut: new Date("2026-07-27T10:00:00Z"), breakSeconds: 3600, pausedAt: null },
+      { clockIn: new Date("2026-07-28T01:00:00Z"), clockOut: new Date("2026-07-28T05:00:00Z") },
+    ];
+    expect(totalHoursOf(punches)).toBe(12);
+  });
+
+  it("toPunchDto exposes pausedAt only while open", () => {
+    const base = { id: "p", date: new Date("2026-07-27T00:00:00Z"), clockIn: new Date("2026-07-27T01:00:00Z"), breakSeconds: 60 };
+    const pausedAt = new Date("2026-07-27T03:00:00Z");
+    expect(toPunchDto({ ...base, clockOut: null, pausedAt }).pausedAt).toBe(pausedAt.toISOString());
+    const done = toPunchDto({ ...base, clockOut: new Date("2026-07-27T05:00:00Z"), pausedAt: null });
+    expect(done.pausedAt).toBeNull();
+    expect(done.breakSeconds).toBe(60);
+  });
 });
 
 describe("toPunchDto", () => {
@@ -34,6 +66,8 @@ describe("toPunchDto", () => {
       clockIn: "2026-07-27T02:23:00.000Z",
       clockOut: "2026-07-27T06:23:00.000Z",
       hours: 4,
+      pausedAt: null,
+      breakSeconds: 0,
     });
   });
 

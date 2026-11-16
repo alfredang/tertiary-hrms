@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     punches.find((p) => p.date.getTime() === today.getTime()) ?? null;
 
   const totalHours = punches.reduce(
-    (sum, p) => sum + (punchHours(p.clockIn, p.clockOut) ?? 0),
+    (sum, p) => sum + (punchHours(p.clockIn, p.clockOut, p.breakSeconds, p.pausedAt) ?? 0),
     0,
   );
 

@@ -170,16 +170,37 @@ export function findMissedPunches(args: {
   return out;
 }
 
+/**
+ * Worked milliseconds for a punch: clock-out minus clock-in, less completed breaks
+ * and any break still open at clock-out (paused, then clocked out by an admin fix).
+ */
+export function workedMs(
+  clockIn: Date,
+  clockOut: Date,
+  breakSeconds?: number | null,
+  pausedAt?: Date | null,
+): number {
+  let ms = clockOut.getTime() - clockIn.getTime() - (breakSeconds ?? 0) * 1000;
+  if (pausedAt && pausedAt < clockOut) ms -= clockOut.getTime() - pausedAt.getTime();
+  return Math.max(0, ms);
+}
+
 /** Sum of completed-punch hours in [from, to), rounded to 2dp. */
 export function hoursBetween(
-  punches: Array<{ date: Date; clockIn: Date | null; clockOut: Date | null }>,
+  punches: Array<{
+    date: Date;
+    clockIn: Date | null;
+    clockOut: Date | null;
+    pausedAt?: Date | null;
+    breakSeconds?: number | null;
+  }>,
   from: Date,
   to: Date,
 ): number {
   let ms = 0;
   for (const p of punches) {
     if (p.date < from || p.date >= to || !p.clockIn || !p.clockOut) continue;
-    ms += Math.max(0, p.clockOut.getTime() - p.clockIn.getTime());
+    ms += workedMs(p.clockIn, p.clockOut, p.breakSeconds, p.pausedAt);
   }
   return Math.round((ms / 3_600_000) * 100) / 100;
 }

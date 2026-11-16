@@ -79,7 +79,7 @@ export async function getMissedPunches(interns: InternRef[], from: Date, to: Dat
   const [punches, leaves, holidays, corrected] = await Promise.all([
     prisma.attendancePunch.findMany({
       where: { employeeId: { in: ids }, date: { gte: from, lt: to } },
-      select: { employeeId: true, date: true, clockIn: true, clockOut: true },
+      select: { employeeId: true, date: true, clockIn: true, clockOut: true, pausedAt: true, breakSeconds: true },
     }),
     prisma.leaveRequest.findMany({
       where: { employeeId: { in: ids }, status: "APPROVED", startDate: { lt: to }, endDate: { gte: from } },
@@ -126,7 +126,7 @@ export async function getInternAttendance(lookbackDays = 14, now: Date = new Dat
   const [punches, missed, pending] = await Promise.all([
     prisma.attendancePunch.findMany({
       where: { employeeId: { in: ids }, date: { gte: from, lte: today } },
-      select: { employeeId: true, date: true, clockIn: true, clockOut: true },
+      select: { employeeId: true, date: true, clockIn: true, clockOut: true, pausedAt: true, breakSeconds: true },
     }),
     getMissedPunches(interns, addDays(today, -lookbackDays), today),
     prisma.attendanceCorrection
