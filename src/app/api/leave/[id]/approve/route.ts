@@ -141,7 +141,7 @@ export async function POST(
     }
 
     // Email the staff member (Cc both admins) with the status and leave summary.
-    await sendLeaveDecisionEmail(leaveRequest.id, "APPROVED", { approverName: session.user.name, comment: approvalComment });
+    await sendLeaveDecisionEmail(leaveRequest.id, "APPROVED", { alreadyNotified: true, approverName: session.user.name, comment: approvalComment });
 
     return NextResponse.json(updatedRequest);
   } catch (error) {

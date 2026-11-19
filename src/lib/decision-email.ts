@@ -23,6 +23,24 @@ export interface DecisionOptions {
   approverName?: string | null;
   /** Approval note or rejection reason entered by the approver. */
   comment?: string | null;
+  /** The caller has already created the requester's in-app notification (and so the phone push). */
+  alreadyNotified?: boolean;
+}
+
+/**
+ * In-app notification for the requester; every Notification row is also pushed to their phones
+ * (src/lib/prisma.ts → src/lib/push.ts). Sent from here so that every decision path — web, bulk,
+ * app and the emailed Approve / Decline links — notifies the requester. Never throws.
+ */
+async function notifyRequester(userId: string | null | undefined, opts: DecisionOptions, note: { title: string; message: string; type: string; link: string }) {
+  if (!userId || opts.alreadyNotified) return;
+  try {
+    const comment = opts.comment?.trim();
+    const message = comment ? `${note.message} ${note.type.endsWith("REJECTED") ? "Reason" : "Note"}: ${comment}` : note.message;
+    await prisma.notification.create({ data: { userId, title: note.title, message, type: note.type, link: note.link } });
+  } catch (err) {
+    console.error(`Decision notification failed (${note.type}):`, err);
+  }
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -146,9 +164,13 @@ export async function sendLeaveDecisionEmail(leaveRequestId: string, decision: D
   try {
     const leave = await prisma.leaveRequest.findUnique({
       where: { id: leaveRequestId },
-      include: { leaveType: true, employee: { select: { id: true, name: true, email: true, user: { select: { email: true } } } } },
+      include: { leaveType: true, employee: { select: { id: true, userId: true, name: true, email: true, user: { select: { email: true } } } } },
     });
     if (!leave) return;
+    const leaveDays = `${Number(leave.days)} day${Number(leave.days) === 1 ? "" : "s"}`;
+    await notifyRequester(leave.employee.userId, opts, decision === "APPROVED"
+      ? { title: "Leave Request Approved", message: `Your ${leave.leaveType.name} request (${leaveDays}) has been approved.`, type: "LEAVE_APPROVED", link: "/leave" }
+      : { title: "Leave Request Rejected", message: `Your ${leave.leaveType.name} request (${leaveDays}) was not approved.`, type: "LEAVE_REJECTED", link: "/leave" });
     const summary = await loadLeaveSummary(leave.employeeId, leave.startDate.getUTCFullYear());
     const comment = opts.comment?.trim();
     const rows = [
@@ -185,9 +207,13 @@ export async function sendExpenseDecisionEmail(claimId: string, decision: Decisi
   try {
     const claim = await prisma.expenseClaim.findUnique({
       where: { id: claimId },
-      include: { category: true, employee: { select: { name: true, email: true, user: { select: { email: true } } } } },
+      include: { category: true, employee: { select: { userId: true, name: true, email: true, user: { select: { email: true } } } } },
     });
     if (!claim) return;
+    const claimLabel = `${claim.category.name} claim of ${formatCurrency(Number(claim.amount))}`;
+    await notifyRequester(claim.employee.userId, opts, decision === "APPROVED"
+      ? { title: "Expense Claim Approved", message: `Your ${claimLabel} has been approved.`, type: "EXPENSE_APPROVED", link: "/expenses" }
+      : { title: "Expense Claim Rejected", message: `Your ${claimLabel} was not approved.`, type: "EXPENSE_REJECTED", link: "/expenses" });
     const summary = await loadExpenseSummary(claim.employeeId, claim.expenseDate.getUTCFullYear());
     const comment = opts.comment?.trim();
     const amount = formatCurrency(Number(claim.amount));
@@ -224,9 +250,13 @@ export async function sendTimeOffDecisionEmail(requestId: string, decision: Deci
   try {
     const req = await prisma.timeOffRequest.findUnique({
       where: { id: requestId },
-      include: { employee: { select: { name: true, email: true, user: { select: { email: true } } } } },
+      include: { employee: { select: { userId: true, name: true, email: true, user: { select: { email: true } } } } },
     });
     if (!req) return;
+    const timeOffLabel = `time off request (${prettyDate(req.date)}, ${timeOffWhen(req)})`;
+    await notifyRequester(req.employee.userId, opts, decision === "APPROVED"
+      ? { title: "Time Off Approved", message: `Your ${timeOffLabel} has been approved.`, type: "TIME_OFF_APPROVED", link: "/time-off" }
+      : { title: "Time Off Rejected", message: `Your ${timeOffLabel} was not approved.`, type: "TIME_OFF_REJECTED", link: "/time-off" });
     const summary = await loadTimeOffSummary(req.employeeId, req.date);
     const comment = opts.comment?.trim();
     const date = prettyDate(req.date);

@@ -60,7 +60,7 @@ export async function POST(
       // Non-critical
     }
 
-    await sendTimeOffDecisionEmail(updated.id, "APPROVED", { approverName: session.user.name, comment: approvalComment });
+    await sendTimeOffDecisionEmail(updated.id, "APPROVED", { alreadyNotified: true, approverName: session.user.name, comment: approvalComment });
 
     return NextResponse.json(updated);
   } catch (error) {

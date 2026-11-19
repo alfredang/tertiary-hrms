@@ -92,7 +92,7 @@ export async function POST(
       // Non-critical
     }
 
-    await sendLeaveDecisionEmail(leaveRequest.id, "REJECTED", { approverName: session.user.name, comment: reason });
+    await sendLeaveDecisionEmail(leaveRequest.id, "REJECTED", { alreadyNotified: true, approverName: session.user.name, comment: reason });
 
     return NextResponse.json(updatedRequest);
   } catch (error) {

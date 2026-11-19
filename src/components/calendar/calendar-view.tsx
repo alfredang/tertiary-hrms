@@ -16,11 +16,22 @@ interface CalendarEvent {
   type: string;
   color: string;
   description?: string | null;
+  /** Leave events in the admin view: whose leave it is. */
+  group?: "staff" | "intern";
 }
 
 interface CalendarViewProps {
   events: CalendarEvent[];
+  /** Admin view: show the All / Staff / Interns filter for leave. */
+  groupFilter?: boolean;
 }
+
+type Who = "all" | "staff" | "intern";
+const WHO: { value: Who; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "staff", label: "Staff" },
+  { value: "intern", label: "Interns" },
+];
 
 const eventTypeLabels: Record<string, { label: string; color: string }> = {
   HOLIDAY: { label: "Holiday", color: "bg-red-500" },
@@ -46,7 +57,14 @@ const dayKey = (d: Date) =>
 
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 
-export function CalendarView({ events }: CalendarViewProps) {
+export function CalendarView({ events: allEvents, groupFilter = false }: CalendarViewProps) {
+  const [who, setWho] = useState<Who>("all");
+  // Holidays, meetings and other events always show; the filter applies to people's leave.
+  const events = useMemo(
+    () => (who === "all" ? allEvents : allEvents.filter((e) => e.type !== "LEAVE" || e.group === who)),
+    [allEvents, who],
+  );
+  const leaveCount = (w: Who) => allEvents.filter((e) => e.type === "LEAVE" && (w === "all" || e.group === w)).length;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
   const today = new Date();
@@ -109,6 +127,20 @@ export function CalendarView({ events }: CalendarViewProps) {
               </Button>
             </div>
           </div>
+
+          {groupFilter && (
+            <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
+              <span className="text-xs text-gray-500">Leave shown for</span>
+              <div role="tablist" aria-label="Leave shown for" className="inline-flex rounded-lg border border-gray-800 bg-gray-900 p-0.5 text-xs">
+                {WHO.map((w) => (
+                  <button key={w.value} type="button" role="tab" aria-selected={who === w.value} onClick={() => setWho(w.value)}
+                    className={cn("rounded-md px-3 py-1 transition-colors", who === w.value ? "bg-primary text-on-color" : "text-gray-400 hover:text-white")}>
+                    {w.label} <span className="tabular-nums opacity-70">{leaveCount(w.value)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Weekday header */}
           <div className="grid grid-cols-7 border-y border-gray-800">

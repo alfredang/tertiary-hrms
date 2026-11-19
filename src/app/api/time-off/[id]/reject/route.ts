@@ -60,7 +60,7 @@ export async function POST(
       // Non-critical
     }
 
-    await sendTimeOffDecisionEmail(updated.id, "REJECTED", { approverName: session.user.name, comment: reason });
+    await sendTimeOffDecisionEmail(updated.id, "REJECTED", { alreadyNotified: true, approverName: session.user.name, comment: reason });
 
     return NextResponse.json(updated);
   } catch (error) {

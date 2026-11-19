@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
   // Decision emails in the background so a large batch doesn't hold the response.
   const approverName = session.user.name;
   void (async () => {
-    for (const id of results.approved) await sendLeaveDecisionEmail(id, "APPROVED", { approverName });
+    for (const id of results.approved) await sendLeaveDecisionEmail(id, "APPROVED", { alreadyNotified: true, approverName });
   })();
 
   return NextResponse.json(results);

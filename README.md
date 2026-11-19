@@ -47,6 +47,9 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
+- **Analytics dashboard** (`/dashboard/analytics`, from the Analytics button on the admin dashboard) — the last 12 months of bank revenue and expenses, leave and MC per person, and headcount. Filters: period (3 / 6 / 12 months), All / Staff / Interns, a person, leave type, and expense category (click a category to leave it out). Every chart has a hover tooltip and a Table view; the tiles use the same filtered numbers.
+- **Calendar filter** — in the admin view, an All / Staff / Interns control shows whose leave appears on the calendar. Holidays and events always show.
+- **Phone notifications for every decision** — the requester now gets an in-app notification (and a push on the iOS and Android apps) when a leave, MC, time-off or expense request is approved or rejected, including decisions made from the emailed Approve / Decline links and expense decisions, which were missing before. Admins already get one for every new request.
 - **Light, Dark or System appearance** — choose in **My Profile → Appearance**. The default is System (follows the device); the choice is saved in that browser rather than on the account. Light is the premium-blue look that matches the iOS app.
 - **App download links in the top bar** — App Store and Google Play buttons sit next to the refresh button on every signed-in page (in the avatar menu on phones).
 - **Readable light theme** — secondary text, status colours and icons were darkened to at least 4.5:1 contrast on white, and a unit test (`src/lib/__tests__/appearance.test.ts`) keeps them there. Cards are white on a deeper page tint with firmer borders, so panels, tables and inputs stand apart from the page. Every admin page was checked against screenshots after the change.

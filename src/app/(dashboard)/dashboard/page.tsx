@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { BarChart3 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { prorateLeave, hasAdminAccess } from "@/lib/utils";
@@ -235,13 +237,20 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">
-          Welcome Back, {displayName}
-        </h1>
-        <p className="text-gray-400 mt-1">
-          Here&apos;s what&apos;s happening in your organization
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-white">
+            Welcome Back, {displayName}
+          </h1>
+          <p className="text-gray-400 mt-1">
+            Here&apos;s what&apos;s happening in your organization
+          </p>
+        </div>
+        {adminDash && (
+          <Link href="/dashboard/analytics" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-800 bg-gray-950 px-3 py-1.5 text-sm text-gray-300 hover:border-primary/60 hover:text-white">
+            <BarChart3 className="h-4 w-4" /> Analytics
+          </Link>
+        )}
       </div>
 
       {adminDash ? (

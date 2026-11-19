@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { sendEmail, leave } = vi.hoisted(() => ({
+const { sendEmail, createNotification, leave } = vi.hoisted(() => ({
   sendEmail: vi.fn().mockResolvedValue(undefined),
+  createNotification: vi.fn().mockResolvedValue({}),
   leave: {
   id: "lr1",
   employeeId: "e1",
@@ -10,11 +11,11 @@ const { sendEmail, leave } = vi.hoisted(() => ({
   days: 1,
   reason: "attend course",
   leaveType: { name: "No Pay Leave" },
-  employee: { id: "e1", name: "ANG SEE SIANG", email: "staff@tertiaryinfotech.com", user: { email: "staff@tertiaryinfotech.com" } },
+  employee: { id: "e1", userId: "u1", name: "ANG SEE SIANG", email: "staff@tertiaryinfotech.com", user: { email: "staff@tertiaryinfotech.com" } },
   },
 }));
 
-vi.mock("@/lib/prisma", () => ({ prisma: { leaveRequest: { findUnique: vi.fn(async () => leave) } } }));
+vi.mock("@/lib/prisma", () => ({ prisma: { leaveRequest: { findUnique: vi.fn(async () => leave) }, notification: { create: createNotification } } }));
 vi.mock("@/lib/send-email", () => ({ sendEmail }));
 vi.mock("@/lib/email-templates/render", () => ({
   renderEmail: vi.fn(async (key: string) => ({ subject: `subject ${key}`, body: "Hi ANG SEE SIANG,\n\nDone." })),
@@ -40,6 +41,7 @@ import { sendLeaveDecisionEmail } from "@/lib/decision-email";
 describe("sendLeaveDecisionEmail", () => {
   beforeEach(() => {
     sendEmail.mockClear();
+    createNotification.mockClear();
     delete process.env.HR_ALERT_CC;
   });
 
@@ -53,6 +55,21 @@ describe("sendLeaveDecisionEmail", () => {
     for (const text of ["Not Approved", "Paid leave taken", "Annual leave balance", "MC taken", "No-pay leave taken", "Clash with class", "Tan Soik Ching"]) {
       expect(arg.html).toContain(text);
     }
+  });
+
+  it("notifies the requester in the app (and so by phone push), with the reason", async () => {
+    await sendLeaveDecisionEmail("lr1", "REJECTED", { comment: "Clash with class" });
+    expect(createNotification).toHaveBeenCalledWith({
+      data: { userId: "u1", title: "Leave Request Rejected", message: "Your No Pay Leave request (1 day) was not approved. Reason: Clash with class", type: "LEAVE_REJECTED", link: "/leave" },
+    });
+  });
+
+  it("does not notify twice when the route already did, and a failed notification never blocks the email", async () => {
+    await sendLeaveDecisionEmail("lr1", "APPROVED", { alreadyNotified: true });
+    expect(createNotification).not.toHaveBeenCalled();
+    createNotification.mockRejectedValueOnce(new Error("db down"));
+    await sendLeaveDecisionEmail("lr1", "APPROVED");
+    expect(sendEmail).toHaveBeenCalledTimes(2);
   });
 
   it("never emails the demo account and never throws", async () => {

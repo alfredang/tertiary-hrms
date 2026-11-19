@@ -8,6 +8,7 @@ import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
+import { isInternRoles } from "@/lib/leave-policy";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,16 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
     prisma.publicHoliday.findMany({ where: { countryCode: "SG" }, orderBy: { date: "asc" } }),
   ]);
 
+  // Admin view: mark each leave as staff or intern, so the calendar can filter by group.
+  const groupByLeaveRequest = new Map<string, "staff" | "intern">();
+  if (showAllLeaves) {
+    const ids = leaveEvents.map((e) => e.leaveRequestId).filter((id): id is string => !!id);
+    const requests = ids.length
+      ? await prisma.leaveRequest.findMany({ where: { id: { in: ids } }, select: { id: true, employee: { select: { user: { select: { roles: true } } } } } })
+      : [];
+    for (const r of requests) groupByLeaveRequest.set(r.id, isInternRoles(r.employee?.user?.roles) ? "intern" : "staff");
+  }
+
   // Deduplicate across all sources
   const eventMap = new Map<string, (typeof ownEvents)[0]>();
   for (const event of [...holidayEvents, ...ownEvents, ...leaveEvents]) {
@@ -71,6 +82,7 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       type: event.type,
       color: event.color || getDefaultColor(event.type),
       description: event.description,
+      group: event.leaveRequestId ? groupByLeaveRequest.get(event.leaveRequestId) : undefined,
     })),
     ...publicHolidays.map((ph) => ({
       id: `ph-${ph.id}`,
@@ -82,6 +94,7 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       type: "HOLIDAY",
       color: getDefaultColor("HOLIDAY"),
       description: "Public holiday",
+      group: undefined,
     })),
   ];
 }
@@ -151,7 +164,7 @@ export default async function CalendarPage() {
         </Link>
       </div>
 
-      <CalendarView events={events} />
+      <CalendarView events={events} groupFilter={showAllLeaves} />
     </div>
   );
 }

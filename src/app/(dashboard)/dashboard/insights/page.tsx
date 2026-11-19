@@ -42,6 +42,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
         </div>
         <nav className="flex flex-wrap gap-2 text-xs">
           {focus && <Link href="/dashboard/insights#alerts" className="rounded-full border border-primary/60 px-3 py-1 text-primary">Show all alerts</Link>}
+          <Link href="/dashboard/analytics" className="rounded-full border border-gray-800 px-3 py-1 text-gray-300 hover:border-primary/60">Analytics</Link>
           {(["alerts", "leave", "interns"] as const).map((a) => (
             <a key={a} href={`#${a}`} className="rounded-full border border-gray-800 px-3 py-1 capitalize text-gray-300 hover:border-primary/60">{a === "interns" ? "Intern hours" : a}</a>
           ))}

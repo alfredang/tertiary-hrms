@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
 
   const approverName = session.user.name;
   void (async () => {
-    for (const id of results.rejected) await sendLeaveDecisionEmail(id, "REJECTED", { approverName, comment: reason });
+    for (const id of results.rejected) await sendLeaveDecisionEmail(id, "REJECTED", { alreadyNotified: true, approverName, comment: reason });
   })();
 
   return NextResponse.json(results);
