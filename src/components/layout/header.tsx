@@ -82,7 +82,7 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-x-4 lg:gap-x-6">
-          <StoreLinks className="hidden sm:flex" />
+          <StoreLinks className="mr-auto hidden sm:flex" />
           <Button
             variant="ghost"
             size="icon"

@@ -8,7 +8,6 @@ import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
-import { isInternRoles } from "@/lib/leave-policy";
 
 export const dynamic = 'force-dynamic';
 
@@ -50,14 +49,14 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
     prisma.publicHoliday.findMany({ where: { countryCode: "SG" }, orderBy: { date: "asc" } }),
   ]);
 
-  // Admin view: mark each leave as staff or intern, so the calendar can filter by group.
-  const groupByLeaveRequest = new Map<string, "staff" | "intern">();
+  // Admin view: attach the person to each leave, so the calendar can filter by individual.
+  const personByLeaveRequest = new Map<string, { id: string; name: string }>();
   if (showAllLeaves) {
     const ids = leaveEvents.map((e) => e.leaveRequestId).filter((id): id is string => !!id);
     const requests = ids.length
-      ? await prisma.leaveRequest.findMany({ where: { id: { in: ids } }, select: { id: true, employee: { select: { user: { select: { roles: true } } } } } })
+      ? await prisma.leaveRequest.findMany({ where: { id: { in: ids } }, select: { id: true, employee: { select: { id: true, name: true } } } })
       : [];
-    for (const r of requests) groupByLeaveRequest.set(r.id, isInternRoles(r.employee?.user?.roles) ? "intern" : "staff");
+    for (const r of requests) if (r.employee) personByLeaveRequest.set(r.id, r.employee);
   }
 
   // Deduplicate across all sources
@@ -82,7 +81,8 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       type: event.type,
       color: event.color || getDefaultColor(event.type),
       description: event.description,
-      group: event.leaveRequestId ? groupByLeaveRequest.get(event.leaveRequestId) : undefined,
+      personId: event.leaveRequestId ? personByLeaveRequest.get(event.leaveRequestId)?.id : undefined,
+      personName: event.leaveRequestId ? personByLeaveRequest.get(event.leaveRequestId)?.name : undefined,
     })),
     ...publicHolidays.map((ph) => ({
       id: `ph-${ph.id}`,
@@ -94,7 +94,8 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       type: "HOLIDAY",
       color: getDefaultColor("HOLIDAY"),
       description: "Public holiday",
-      group: undefined,
+      personId: undefined,
+      personName: undefined,
     })),
   ];
 }
@@ -164,7 +165,7 @@ export default async function CalendarPage() {
         </Link>
       </div>
 
-      <CalendarView events={events} groupFilter={showAllLeaves} />
+      <CalendarView events={events} personFilter={showAllLeaves} />
     </div>
   );
 }

@@ -17,21 +17,15 @@ interface CalendarEvent {
   color: string;
   description?: string | null;
   /** Leave events in the admin view: whose leave it is. */
-  group?: "staff" | "intern";
+  personId?: string;
+  personName?: string;
 }
 
 interface CalendarViewProps {
   events: CalendarEvent[];
-  /** Admin view: show the All / Staff / Interns filter for leave. */
-  groupFilter?: boolean;
+  /** Admin view: show the person filter for leave. */
+  personFilter?: boolean;
 }
-
-type Who = "all" | "staff" | "intern";
-const WHO: { value: Who; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "staff", label: "Staff" },
-  { value: "intern", label: "Interns" },
-];
 
 const eventTypeLabels: Record<string, { label: string; color: string }> = {
   HOLIDAY: { label: "Holiday", color: "bg-red-500" },
@@ -57,14 +51,24 @@ const dayKey = (d: Date) =>
 
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 
-export function CalendarView({ events: allEvents, groupFilter = false }: CalendarViewProps) {
-  const [who, setWho] = useState<Who>("all");
+export function CalendarView({ events: allEvents, personFilter = false }: CalendarViewProps) {
+  const [person, setPerson] = useState("");
+  // Everyone who has leave on the calendar, by name, with how many leave entries each has.
+  const people = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    for (const e of allEvents) {
+      if (e.type !== "LEAVE" || !e.personId) continue;
+      const p = map.get(e.personId) ?? { id: e.personId, name: e.personName ?? "Employee", count: 0 };
+      p.count += 1;
+      map.set(e.personId, p);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allEvents]);
   // Holidays, meetings and other events always show; the filter applies to people's leave.
   const events = useMemo(
-    () => (who === "all" ? allEvents : allEvents.filter((e) => e.type !== "LEAVE" || e.group === who)),
-    [allEvents, who],
+    () => (person ? allEvents.filter((e) => e.type !== "LEAVE" || e.personId === person) : allEvents),
+    [allEvents, person],
   );
-  const leaveCount = (w: Who) => allEvents.filter((e) => e.type === "LEAVE" && (w === "all" || e.group === w)).length;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
   const today = new Date();
@@ -128,17 +132,19 @@ export function CalendarView({ events: allEvents, groupFilter = false }: Calenda
             </div>
           </div>
 
-          {groupFilter && (
+          {personFilter && people.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
-              <span className="text-xs text-gray-500">Leave shown for</span>
-              <div role="tablist" aria-label="Leave shown for" className="inline-flex rounded-lg border border-gray-800 bg-gray-900 p-0.5 text-xs">
-                {WHO.map((w) => (
-                  <button key={w.value} type="button" role="tab" aria-selected={who === w.value} onClick={() => setWho(w.value)}
-                    className={cn("rounded-md px-3 py-1 transition-colors", who === w.value ? "bg-primary text-on-color" : "text-gray-400 hover:text-white")}>
-                    {w.label} <span className="tabular-nums opacity-70">{leaveCount(w.value)}</span>
-                  </button>
-                ))}
-              </div>
+              <label htmlFor="calendar-person" className="text-xs text-gray-500">Leave shown for</label>
+              <select id="calendar-person" value={person} onChange={(e) => setPerson(e.target.value)}
+                className="max-w-[16rem] rounded-lg border border-gray-800 bg-gray-900 px-2 py-1.5 text-sm text-white">
+                <option value="">Everyone ({people.reduce((t, p) => t + p.count, 0)})</option>
+                {people.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.count})</option>)}
+              </select>
+              {person && (
+                <button type="button" onClick={() => setPerson("")} className="rounded-lg border border-gray-800 px-2.5 py-1 text-xs text-gray-400 hover:text-white">
+                  Show everyone
+                </button>
+              )}
             </div>
           )}
 
