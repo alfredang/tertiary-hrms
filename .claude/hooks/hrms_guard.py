@@ -27,7 +27,9 @@ DESTRUCTIVE_SQL = re.compile(r"^\s*(DROP\s|ALTER\s+TABLE\s+\S+\s+(DROP|ALTER\s+C
 
 
 def run(cmd, timeout=600):
-    p = subprocess.run(cmd, cwd=ROOT, shell=True, capture_output=True, text=True, timeout=timeout)
+    # Hooks can start with a bare PATH (no Homebrew), and "npx: command not found" then reads as a failed check.
+    env = dict(os.environ, PATH="/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", "/usr/bin:/bin"))
+    p = subprocess.run(cmd, cwd=ROOT, shell=True, capture_output=True, text=True, timeout=timeout, env=env)
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
