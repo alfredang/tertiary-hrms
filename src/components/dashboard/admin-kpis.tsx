@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, CalendarOff, Inbox, BellRing, CalendarDays, Stethoscope, Wallet, AlarmClock, ChevronRight } from "lucide-react";
+import { Users, GraduationCap, Inbox, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface AdminKpiData {
@@ -20,26 +20,18 @@ export interface AdminKpiData {
   monthLabel: string;
 }
 
-const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
-
-/** Eight clickable KPI tiles: one number each, one short context line, a link to the detail. */
+/**
+ * Three clickable KPI tiles (Alfred, 20 Nov 2026: staff, interns, pending approvals only).
+ * Leave, MC, alerts and intern hours stay one click away on Analytics and HR Insights.
+ */
 export function AdminKpis(d: AdminKpiData) {
-  const tiles = [
-    { label: "Headcount", value: String(d.staff + d.interns), sub: `${d.staff} staff · ${d.interns} interns`, href: "/employees", icon: Users },
-    {
-      label: "On leave today", value: String(d.onLeaveToday.length),
-      sub: d.onLeaveToday.length ? d.onLeaveToday.slice(0, 2).map((p) => p.name.split(" ")[0]).join(", ") + (d.onLeaveToday.length > 2 ? ` +${d.onLeaveToday.length - 2}` : "") : "Everyone in",
-      href: "/calendar", icon: CalendarOff,
-    },
+  const tiles: { label: string; value: string; sub: string; href: string; icon: typeof Users; attention?: boolean }[] = [
+    { label: "Full-time staff", value: String(d.staff), sub: "Active staff", href: "/employees", icon: Users },
+    { label: "Interns", value: String(d.interns), sub: "Active interns", href: "/employees", icon: GraduationCap },
     { label: "Pending approvals", value: String(d.pendingTotal), sub: d.pendingTotal ? "Leave, MC, claims, punches" : "Nothing waiting", href: "/dashboard/insights#approvals", icon: Inbox, attention: d.pendingTotal > 0 },
-    { label: "Alerts", value: String(d.alertsTotal), sub: d.alertsHigh ? `${d.alertsHigh} high priority` : d.alertsTotal ? "No high priority" : "All clear", href: "/dashboard/insights#alerts", icon: BellRing, attention: d.alertsHigh > 0 },
-    { label: "Leave days YTD", value: fmt(d.leaveYtd), sub: `${fmt(d.leaveMonth)} in ${d.monthLabel}`, href: "/dashboard/insights#leave", icon: CalendarDays },
-    { label: "MC days YTD", value: fmt(d.mcYtd), sub: `${fmt(d.mcMonth)} in ${d.monthLabel}`, href: "/dashboard/insights#leave", icon: Stethoscope },
-    { label: "No Pay Leave YTD", value: fmt(d.nplYtd), sub: `${fmt(d.nplMonth)} in ${d.monthLabel}`, href: "/dashboard/insights#leave", icon: Wallet },
-    { label: "Intern hours (week)", value: fmt(d.internHoursWeek), sub: d.missingClockOuts ? `${d.missingClockOuts} missing clock-out${d.missingClockOuts > 1 ? "s" : ""}` : "No missing clock-outs", href: "/dashboard/insights#interns", icon: AlarmClock, attention: d.missingClockOuts > 0 },
   ];
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
       {tiles.map((t) => (
         <Link
           key={t.label}
