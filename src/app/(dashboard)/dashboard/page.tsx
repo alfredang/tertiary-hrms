@@ -18,6 +18,8 @@ import { buildFindings } from "@/lib/hr-compliance";
 import { AdminKpis } from "@/components/dashboard/admin-kpis";
 import { NeedsAttention } from "@/components/dashboard/needs-attention";
 import { LeaveTrendChart } from "@/components/dashboard/leave-trend-chart";
+import { WorkforceBreakdown } from "@/components/dashboard/workforce-breakdown";
+import { getWorkforceBreakdown } from "@/lib/workforce-breakdown";
 
 /**
  * Admin dashboard data: KPI tiles, the grouped "needs attention" summary and the monthly leave chart.
@@ -26,8 +28,10 @@ import { LeaveTrendChart } from "@/components/dashboard/leave-trend-chart";
 async function getAdminDashboard() {
   try {
     const now = new Date();
-    const [people, interns, pending, series, workforce] = await Promise.all([
+    const [people, interns, pending, series, workforce, breakdown] = await Promise.all([
       getLeaveOverview(now), getInternAttendance(14, now), getPendingApprovals(), getMonthlyLeaveSeries(now), getWorkforceSnapshot(),
+      // The breakdown is an extra: if it fails, the rest of the dashboard still shows.
+      getWorkforceBreakdown(now).catch((err) => { console.error("[dashboard] workforce breakdown failed:", err); return null; }),
     ]);
     const findings = buildFindings(people, interns);
     // Tiles and chart use the same series (approved days by start month) so their numbers always agree.
@@ -46,7 +50,7 @@ async function getAdminDashboard() {
         missingClockOuts: interns.reduce((t, i) => t + i.missingClockOuts.length, 0),
         monthLabel,
       },
-      findings, pending, series, year: now.getFullYear(),
+      findings, pending, series, breakdown, year: now.getFullYear(),
     };
   } catch (err) {
     console.error("[dashboard] admin dashboard data failed:", err);
@@ -262,6 +266,7 @@ export default async function DashboardPage() {
             <div className="xl:col-span-2"><NeedsAttention findings={adminDash.findings} pending={adminDash.pending} /></div>
             <div className="xl:col-span-3"><LeaveTrendChart data={adminDash.series} year={adminDash.year} /></div>
           </div>
+          {adminDash.breakdown && <WorkforceBreakdown people={adminDash.breakdown} />}
         </>
       ) : (
         <StatsCards

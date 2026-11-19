@@ -126,6 +126,28 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
         </Button>
       </div>
 
+      {/* KPI board: trainers only (applicants are counted in the line above). */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[
+          { label: "Total trainers", value: stats.total, sub: `${stats.applicants} applicants not counted`, onClick: clearAll },
+          { label: "ACLP trainers", value: stats.byCert.ACLP ?? 0, sub: "Hold the ACLP · click to list them", onClick: () => { clearAll(); setCerts(["ACLP"]); } },
+          { label: "Non-ACLP trainers", value: stats.total - (stats.byCert.ACLP ?? 0), sub: "No ACLP on record (ACTA, DACE or none)", onClick: undefined },
+        ].map((k) => {
+          const body = (
+            <>
+              <div className="text-sm text-muted-foreground">{k.label}</div>
+              <div className="mt-1 text-3xl font-semibold tabular-nums">{k.value}</div>
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">{k.sub}</div>
+            </>
+          );
+          return k.onClick ? (
+            <button key={k.label} type="button" onClick={k.onClick} className="rounded-2xl border bg-card p-4 text-left transition-colors hover:border-primary/60">{body}</button>
+          ) : (
+            <div key={k.label} className="rounded-2xl border bg-card p-4">{body}</div>
+          );
+        })}
+      </div>
+
       <Card className="p-3 space-y-2">
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
           <SkillSearch

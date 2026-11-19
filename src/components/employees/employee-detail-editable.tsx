@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarPlaceholder } from "@/components/ui/avatar-placeholder";
+import { ETHNIC_GROUPS } from "@/lib/demographics";
 import type {
   Department,
   EducationLevel,
@@ -125,6 +126,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
     dateOfBirth: formatDateValue(employee.dateOfBirth),
     gender: employee.gender,
     nationality: employee.nationality,
+    ethnicGroup: employee.ethnicGroup ?? "",
     nric: employee.nric ?? "",
     address: employee.address ?? "",
     educationLevel: employee.educationLevel,
@@ -201,6 +203,7 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
           dateOfBirth: form.dateOfBirth,
           gender: form.gender,
           nationality: form.nationality,
+          ethnicGroup: form.ethnicGroup || null,
           nric: form.nric,
           address: form.address,
           educationLevel: form.educationLevel,
@@ -387,6 +390,23 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
                 <p className="font-medium text-white">
                   {employee.gender.charAt(0) + employee.gender.slice(1).toLowerCase()}
                 </p>
+              )}
+            </Field>
+            <Field label="Ethnic group">
+              {editing ? (
+                <Select value={form.ethnicGroup || "NONE"} onValueChange={(v) => set("ethnicGroup", v === "NONE" ? "" : v)}>
+                  <SelectTrigger className="bg-gray-900 border-gray-800 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Not recorded</SelectItem>
+                    {ETHNIC_GROUPS.map((g) => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="font-medium text-white">{employee.ethnicGroup || "—"}</p>
               )}
             </Field>
             <Field label="Nationality">

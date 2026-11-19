@@ -79,6 +79,8 @@ model Employee {
   dateOfBirth       DateTime?
   gender            Gender            @default(MALE)
   nationality       String            @default("Singaporean")
+  /// Singapore CMIO group (ETHNIC_GROUPS in src/lib/demographics.ts); null = not recorded.
+  ethnicGroup       String?
   nric              String?           @unique
   address           String?
   departmentId      String?

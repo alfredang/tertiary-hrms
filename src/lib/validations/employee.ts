@@ -99,6 +99,7 @@ export const createPersonalInfoSchema = z.object({
     }),
   gender: z.nativeEnum(Gender).optional(),
   nationality: z.string().optional(),
+  ethnicGroup: z.string().max(40).nullable().optional(),
   nric: z.string().optional(),
   address: z.string().optional(),
   educationLevel: z.nativeEnum(EducationLevel).optional(),

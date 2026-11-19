@@ -10,3 +10,5 @@ Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/
   bank revenue / expenses, leave and MC per person, headcount. One filter row drives every chart and tile. Same three
   colour slots, validated on the light and dark cards. Admin gate as `/accounting`. Add new long-range charts here, not
   on `/dashboard`.
+- Below that row: `workforce-breakdown.tsx` (gender / age group / ethnic group donuts, Staff default; Alfred, 20 Nov 2026).
+  Helpers in `src/lib/demographics.ts`, loader `src/lib/workforce-breakdown.ts`. `Employee.ethnicGroup` is optional text.
