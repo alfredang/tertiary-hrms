@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, iso } from "@/lib/mobile-api";
+import { isInternRoles } from "@/lib/leave-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export async function GET(req: Request) {
         dayType: true,
         employeeId: true,
         employee: {
-          select: { id: true, name: true, department: { select: { name: true } } },
+          select: { id: true, name: true, department: { select: { name: true } }, user: { select: { roles: true } } },
         },
         leaveType: { select: { name: true } },
       },
@@ -80,6 +81,8 @@ export async function GET(req: Request) {
       halfDay: l.dayType !== "FULL_DAY",
       leaveType: showType ? (l.leaveType?.name ?? "Leave") : null,
       isSelf,
+      // Approvers can filter the calendar by staff or interns (same control as the web calendar).
+      group: ctx.isAdmin ? (isInternRoles(l.employee?.user?.roles) ? "intern" : "staff") : null,
     };
   });
 
