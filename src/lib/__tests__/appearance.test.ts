@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { appearanceColors, appearanceVariables } from "../theme-palette";
+import { appearanceColors, appearanceVariables, darkVariables, lightVariables } from "../theme-palette";
+import { defaultAppearanceFor, isAppearance } from "../appearance";
 
 function luminance(rgb: string) {
   const [r, g, b] = rgb.split(" ").map(Number).map((n) => {
@@ -15,14 +16,17 @@ function contrast(a: string, b: string) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
-describe("Light premium-blue palette (one theme)", () => {
+describe("Appearance palettes (light premium blue + dark)", () => {
   it("preserves the existing light surfaces and navy text", () => {
-    expect(appearanceVariables[":root"]["--hrms-gray-950"]).toBe("255 255 255");
-    expect(appearanceVariables[":root"]["--hrms-gray-900"]).toBe("238 243 252");
-    expect(appearanceVariables[":root"]["--hrms-ink"]).toBe("15 28 69");
+    expect(lightVariables["--hrms-gray-950"]).toBe("255 255 255");
+    expect(lightVariables["--hrms-gray-900"]).toBe("238 243 252");
+    expect(lightVariables["--hrms-ink"]).toBe("15 28 69");
   });
-  it("has no dark palette and keeps on-colour white", () => {
-    expect(Object.keys(appearanceVariables)).toEqual([":root"]);
+  it("restores dark surfaces and light text, declared after light, and keeps on-colour white", () => {
+    expect(Object.keys(appearanceVariables)).toEqual([":root, .light", ".dark"]);
+    expect(Object.keys(lightVariables)).toEqual(Object.keys(darkVariables));
+    expect(darkVariables["--hrms-gray-950"]).toBe("3 7 18");
+    expect(darkVariables["--hrms-ink"]).toBe("249 250 251");
     expect(appearanceColors["on-color"]).toBe("#FFFFFF");
     expect(appearanceColors.gray[950]).toContain("<alpha-value>");
   });
@@ -44,7 +48,7 @@ describe("Light premium-blue palette (one theme)", () => {
     }
   });
   it("keeps the dark-first text shades (gray-500, every -300 / -400) readable on a white card", () => {
-    const root = appearanceVariables[":root"];
+    const root = lightVariables;
     const white = root["--hrms-gray-950"];
     expect(contrast(root["--hrms-gray-500"], white)).toBeGreaterThanOrEqual(4.5);
     const hues = ["red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky",
@@ -74,5 +78,13 @@ describe("Light premium-blue palette (one theme)", () => {
     };
     walk(join(process.cwd(), "src"));
     expect(offenders).toEqual([]);
+  });
+  it("starts everyone on System except the two accounts pinned to Light", () => {
+    expect(defaultAppearanceFor("angch@tertiaryinfotech.com")).toBe("light");
+    expect(defaultAppearanceFor(" TanSC@tertiaryinfotech.com ")).toBe("light");
+    expect(defaultAppearanceFor("someone@tertiaryinfotech.com")).toBe("system");
+    expect(defaultAppearanceFor(null)).toBe("system");
+    expect(isAppearance("system")).toBe(true);
+    expect(isAppearance("sepia")).toBe(false);
   });
 });

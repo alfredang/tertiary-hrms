@@ -291,7 +291,7 @@ function LoginForm() {
       </div>
 
       {/* ── Right panel (dark): sign-in card ─────────────────────────────── */}
-      <div className="flex items-center justify-center bg-gradient-to-br from-[#F3F6FD] via-[#E6EDFF] to-[#D3E0FF] px-6 py-12 lg:px-12 lg:py-16">
+      <div className="light flex items-center justify-center bg-gradient-to-br from-[#F3F6FD] via-[#E6EDFF] to-[#D3E0FF] px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-md space-y-6">
         <div className="space-y-1 text-center lg:text-left">
           <h2 className="text-2xl font-bold text-white">Welcome back</h2>
@@ -591,7 +591,7 @@ function LoginSkeleton() {
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-center bg-gradient-to-br from-[#F3F6FD] via-[#E6EDFF] to-[#D3E0FF] px-6 py-12 lg:px-12 lg:py-16">
+      <div className="light flex items-center justify-center bg-gradient-to-br from-[#F3F6FD] via-[#E6EDFF] to-[#D3E0FF] px-6 py-12 lg:px-12 lg:py-16">
         <div className="w-full max-w-md space-y-6">
           <div className="space-y-2">
             <div className="h-7 bg-gray-800 rounded w-48 animate-pulse" />
