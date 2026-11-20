@@ -1,9 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isInternRoles } from "@/lib/leave-policy";
 import { CalendarView } from "@/components/calendar/calendar-view";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { AddEventButton } from "@/components/calendar/add-event-button";
 import { auth } from "@/lib/auth";
 import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
@@ -293,12 +291,7 @@ export default async function CalendarPage() {
             Events, holidays, leave & time off
           </p>
         </div>
-        <Link href="/calendar/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Event
-          </Button>
-        </Link>
+        <AddEventButton />
       </div>
 
       <CalendarView events={[...events, ...attendance, ...birthdays]} personFilter={showAllLeaves} people={people} ownWorkdays={self?.workdays} />

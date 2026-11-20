@@ -1,6 +1,7 @@
 // Month totals for one person on the calendar (Alfred, 20 Nov 2026): when the admin filters the
 // calendar by a staff member or intern, the month shown carries how much annual leave, medical
-// leave, no-pay leave and time off that person has in it.
+// leave, no-pay leave and time off that person has in it. With nobody picked ("Everyone"), the
+// same row shows the totals of everyone together (Alfred, 21 Nov 2026).
 
 export interface SummaryEvent {
   category: string;
@@ -32,7 +33,7 @@ const key = (d: Date) =>
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Totals for `personId` in the month (`month` is 0-based), in the viewer's local time, the same
+ * Totals for `personId` (null = everyone together) in the month (`month` is 0-based), in the viewer's local time, the same
  * way the month grid places events.
  *
  * A leave wholly inside the month counts its charged days. A leave that crosses a month boundary
@@ -41,7 +42,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  */
 export function personMonthSummary(
   events: SummaryEvent[],
-  personId: string,
+  personId: string | null,
   year: number,
   month: number,
   holidayKeys: ReadonlySet<string> = new Set(),
@@ -54,14 +55,15 @@ export function personMonthSummary(
   const isWorking = (d: Date) => d.getDay() !== 0 && d.getDay() !== 6 && !holidayKeys.has(key(d));
 
   for (const e of events) {
-    if (e.personId !== personId) continue;
+    if (personId === null ? !e.personId : e.personId !== personId) continue;
     const start = new Date(e.start);
     const end = new Date(e.end);
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
 
     if (e.category === "ATTENDANCE") {
-      if (inMonth(start)) clockInDays.add(key(start));
+      // For everyone, one working day per person per day.
+      if (inMonth(start)) clockInDays.add(`${e.personId}:${key(start)}`);
       continue;
     }
     if (e.category === "TIME_OFF") {

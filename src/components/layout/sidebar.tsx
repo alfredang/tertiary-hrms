@@ -67,7 +67,7 @@ type NavItem = {
   internOnly?: true;  // visible only in intern view (and accountant view when allowAccountant is set)
   staffOnly?: true;   // visible only in staff/intern view (hidden for admin + accountant)
   allowAccountant?: true; // exception: a staffOnly item that should ALSO show in accountant view
-  trainerAdminOnly?: true; // visible only to holders of the TRAINER_ADMIN role; not in the accountant view
+  trainerAdminOnly?: true; // TRAINER_ADMIN holders only; for admins, in the admin and Trainer Admin views only
   children?: Child[];
 };
 
@@ -98,8 +98,8 @@ const navigationGroups: NavGroup[] = [
     id: "people",
     label: "People",
     items: [
-      { name: "Employees", adminName: "Staff Management", href: "/employees", icon: Users, adminOnly: true as const },
-      { name: "Intern Management", href: "/interns", icon: UserPlus, adminOnly: true as const },
+      { name: "Employees", adminName: "Staff", href: "/employees", icon: Users, adminOnly: true as const },
+      { name: "Interns", href: "/interns", icon: UserPlus, adminOnly: true as const },
       { name: "Trainers", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
     ],
   },
@@ -108,7 +108,7 @@ const navigationGroups: NavGroup[] = [
     label: "Processes",
     items: [
       {
-        name: "Leave",
+        name: "Leave Application",
         adminName: "Leave Management",
         href: "/leave",
         icon: Clock,
@@ -120,7 +120,7 @@ const navigationGroups: NavGroup[] = [
           { name: "Payback", href: "/leave/payback", icon: RotateCcw },
         ],
       },
-      { name: "Time Off", adminName: "Time Off Approvals", href: "/time-off", icon: Timer, noAccountant: true as const },
+      { name: "Time Off Application", adminName: "Time Off Approvals", href: "/time-off", icon: Timer, noAccountant: true as const },
       // Clock In/Out and Timesheet: interns, plus the accountant view (Alfred, 20 Nov 2026).
       { name: "Clock In/Out", href: "/attendance", icon: AlarmClock, staffOnly: true as const, allowAccountant: true as const },
       // Timesheets are for interns (and the accountant view). Staff log weekend / public-holiday work for Off In Lieu on the same page.
@@ -283,10 +283,10 @@ export function Sidebar({
 
   const isVisible = (item: NavItem): boolean => {
     if (isTrainerView) return TRAINER_VIEW_HREFS.includes(item.href);
-    // Trainer Admin follows its own role, in every view except the accountant view an admin
-    // switched to (finance only; Alfred, 21 Nov 2026, replaces the 20 Nov rule). A real
-    // accountant who holds the role has no other view, so keeps the link.
-    if (item.trainerAdminOnly) return isTrainerAdmin && !(isActualAdmin && viewAs === "accountant");
+    // Trainers shows in the admin view and the Trainer Admin view only (Alfred, 21 Nov 2026,
+    // replaces the 20 Nov rule): an admin who switched to staff, intern or accountant does not
+    // see it. A holder who is not an admin has no View As menu, so keeps the link.
+    if (item.trainerAdminOnly) return isTrainerAdmin && (!isActualAdmin || viewAs === "admin");
     if (item.adminOnly && !isAdmin) return false;
     if (item.financeOnly && !canSeeFinance) return false;
     if (item.noAccountant && isAccountantView) return false;

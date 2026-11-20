@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, Plus, Users } from "lucide-react";
+import { ArrowLeft, Calendar, Users } from "lucide-react";
+import { AddEventButton } from "@/components/calendar/add-event-button";
 import { CalendarEventCard } from "@/components/calendar/calendar-event-card";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
@@ -191,12 +192,7 @@ export default async function CalendarDayPage({
               : "Nothing scheduled"}
           </p>
         </div>
-        <Link href={`/calendar/new?date=${date}`} className="w-full sm:w-auto">
-          <Button size="sm" className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Event
-          </Button>
-        </Link>
+        <AddEventButton date={date} size="sm" />
       </div>
 
       {holidays.length > 0 && (

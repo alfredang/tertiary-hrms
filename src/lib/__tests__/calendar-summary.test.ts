@@ -67,4 +67,21 @@ describe("personMonthSummary working days", () => {
     );
     expect(s.workingDays).toBe(2);
   });
+
+  it("adds everyone together when no person is picked", () => {
+    const events: SummaryEvent[] = [
+      leave("ANNUAL_LEAVE", d(2026, 11, 2), d(2026, 11, 3), 2, "p1"),
+      leave("ANNUAL_LEAVE", d(2026, 11, 2), d(2026, 11, 2), 0.5, "p2"),
+      leave("MEDICAL_LEAVE", d(2026, 11, 10), d(2026, 11, 10), 1, "p2"),
+      leave("NO_PAY_LEAVE", d(2026, 11, 12), d(2026, 11, 12), 1, "p3"),
+      { category: "TIME_OFF", start: d(2026, 11, 18), end: d(2026, 11, 18), allDay: false, personId: "p1", hours: 2 },
+      { category: "TIME_OFF", start: d(2026, 11, 18), end: d(2026, 11, 18), allDay: false, personId: "p3", hours: 1.5 },
+      // No person (a holiday, a meeting) and another month: not counted.
+      { category: "HOLIDAY", start: d(2026, 11, 9), end: d(2026, 11, 9), allDay: true },
+      leave("ANNUAL_LEAVE", d(2026, 10, 26), d(2026, 10, 26), 1, "p3"),
+    ];
+    expect(personMonthSummary(events, null, 2026, 10)).toEqual({
+      annualLeaveDays: 2.5, medicalLeaveDays: 1, noPayLeaveDays: 1, otherLeaveDays: 0, timeOffHours: 3.5, offDays: 0, workingDays: 0,
+    });
+  });
 });

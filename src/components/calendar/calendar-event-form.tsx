@@ -35,9 +35,16 @@ interface CalendarEventFormProps {
     type: string;
   };
   eventId?: string; // If provided → PATCH (edit) mode
+  /**
+   * Set when the form is shown inside a dialog (Add Event popup): no card frame or heading,
+   * and saving or cancelling closes the dialog through these instead of changing page.
+   */
+  onSaved?: () => void;
+  onCancel?: () => void;
 }
 
-export function CalendarEventForm({ initialData, eventId }: CalendarEventFormProps) {
+export function CalendarEventForm({ initialData, eventId, onSaved, onCancel }: CalendarEventFormProps) {
+  const inDialog = !!onSaved;
   const router = useRouter();
   const { toast } = useToast();
   const isEditMode = !!eventId;
@@ -83,7 +90,9 @@ export function CalendarEventForm({ initialData, eventId }: CalendarEventFormPro
           : "The calendar event has been created successfully.",
       });
 
-      if (isEditMode) {
+      if (onSaved) {
+        onSaved();
+      } else if (isEditMode) {
         router.push(`/calendar/day/${startDate}`);
       } else {
         router.push("/calendar");
@@ -113,8 +122,8 @@ export function CalendarEventForm({ initialData, eventId }: CalendarEventFormPro
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="bg-gray-950 border-gray-800 max-w-2xl">
-        <CardHeader>
+      <Card className={inDialog ? "border-0 bg-transparent shadow-none" : "bg-gray-950 border-gray-800 max-w-2xl"}>
+        <CardHeader className={inDialog ? "hidden" : undefined}>
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
             <CardTitle className="text-white">
@@ -122,7 +131,7 @@ export function CalendarEventForm({ initialData, eventId }: CalendarEventFormPro
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className={inDialog ? "space-y-5 p-0" : "space-y-6"}>
           <div className="space-y-2">
             <Label htmlFor="eventType" className="text-white">
               Event Type *
@@ -238,7 +247,7 @@ export function CalendarEventForm({ initialData, eventId }: CalendarEventFormPro
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.back()}
+                  onClick={() => (onCancel ? onCancel() : router.back())}
                   disabled={isLoading}
                   className="border-gray-700 hover:bg-gray-800"
                 >

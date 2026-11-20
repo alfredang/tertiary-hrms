@@ -199,8 +199,10 @@ export default async function DashboardPage() {
   const isTrainerView = viewAs === "trainer" && hasTrainerAdminAccess(roles);
   const isStaffView = !isAdminView;
   const showOwnLeave = !isAdminView && !isTrainerView && (!isAccountantView || isAccountant);
-  // Trainer Admin follows its own role, in every view except the accountant view (finance only).
-  const showTrainers = hasTrainerAdminAccess(roles) && !isAccountantView;
+  // The trainer row shows where the sidebar's Trainers link does (Alfred, 21 Nov 2026): for an
+  // admin, the admin and Trainer Admin views only; a holder who is not an admin keeps it, except
+  // a real accountant (finance only).
+  const showTrainers = hasTrainerAdminAccess(roles) && (isAdmin ? isAdminView || isTrainerView : !isAccountantView);
 
   // For non-admin views: filter recent activity by own employee ID
   const activityEmployeeId = isStaffView ? currentEmployeeId : undefined;

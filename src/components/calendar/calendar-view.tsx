@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AddEventButton } from "./add-event-button";
 import { cn } from "@/lib/utils";
 import { CALENDAR_CATEGORIES, calendarCategoryColor, calendarCategoryLabel, isPersonCategory } from "@/lib/calendar-categories";
 import { personMonthSummary } from "@/lib/calendar-summary";
@@ -152,11 +153,12 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
 
   // Interns and accountants clock in: their clock-ins and working days show once picked.
   const pickedClocksIn = !!person && !!activePeople.find((p) => p.id === person)?.clocksIn;
-  // The picked person's leave and time off in the month shown.
+  // The picked person's leave and time off in the month shown; with nobody picked on the admin
+  // calendar ("Everyone"), the totals of everyone together (Alfred, 21 Nov 2026).
   const monthSummary = useMemo(() => {
-    if (!person) return null;
+    if (!person && !personFilter) return null;
     const holidayKeys = new Set(allEvents.filter((e) => e.type === "HOLIDAY").map((e) => dayKey(new Date(e.start))));
-    const s = personMonthSummary(allEvents, person, currentDate.getFullYear(), currentDate.getMonth(), holidayKeys);
+    const s = personMonthSummary(allEvents, person || null, currentDate.getFullYear(), currentDate.getMonth(), holidayKeys);
     const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
     return [
       ...(pickedClocksIn
@@ -174,7 +176,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
         color: calendarCategoryColor("TIME_OFF"),
       },
     ];
-  }, [allEvents, person, currentDate, pickedClocksIn]);
+  }, [allEvents, person, personFilter, currentDate, pickedClocksIn]);
 
   const shiftMonth = (delta: number) => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1));
   const goToToday = () => {
@@ -259,7 +261,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
 
           {monthSummary && (
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6" aria-label={`Totals for ${monthName} ${year}`}>
-              <span className="text-xs text-gray-500">{monthName} {year}</span>
+              <span className="text-xs text-gray-500">{monthName} {year}{person ? "" : " · Everyone"}</span>
               {monthSummary.map((t) => (
                 <span key={t.label} className="flex items-center gap-1.5 rounded-lg border border-gray-800 px-2.5 py-1 text-xs text-gray-400">
                   <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: t.color }} />
@@ -377,12 +379,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
             <Link href={`/calendar/day/${dayKey(selected)}`} className="text-sm font-medium text-blue-600 hover:underline">
               Open day
             </Link>
-            <Link href={`/calendar/new?date=${dayKey(selected)}`}>
-              <Button size="sm" variant="outline">
-                <Plus className="mr-1 h-4 w-4" />
-                Add
-              </Button>
-            </Link>
+            <AddEventButton key={dayKey(selected)} date={dayKey(selected)} compact />
           </div>
         </div>
         <Card>

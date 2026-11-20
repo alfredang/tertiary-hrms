@@ -15,7 +15,8 @@ Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/
     when there is any. Never compute these a second way on the dashboard;
   - trainer view (View As → Trainer Admin, admins holding TRAINER_ADMIN): the trainer row only;
   - TRAINER_ADMIN holders: a second row of trainers, ACLP, non-ACLP (`TrainerKpiRow`, same counting as `/trainers`),
-    under their own row in the admin, staff and intern views. Not in the accountant view (finance only).
+    under their own row. For an admin: the admin view only (plus the trainer view), not staff, intern or accountant
+    (Alfred, 21 Nov 2026; same rule as the sidebar Trainers link). A holder who is not an admin keeps it.
   - Every tile row uses `kpi-tiles.tsx`; add a role's row there, not a new tile style.
 - `/dashboard/analytics` (`analytics-dashboard.tsx`, loader `src/lib/analytics.ts`, shared `bar-chart.tsx`): 12 months of
   bank revenue / expenses, leave and MC per person, headcount. One filter row drives every chart and tile. Same three
