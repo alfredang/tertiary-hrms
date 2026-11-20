@@ -27,12 +27,16 @@ interface StaffStats {
   otStats: OtStats | null;
 }
 
-/** Icon and colour for each leave tile, by its position in the summary. */
+/**
+ * Icon and colour for each leave tile, by its position in the summary. Solid 600 fill with a white
+ * icon: 600 is the same colour in the light and dark themes, so the icon stays clear in both
+ * (a 100 tint turns dark in the light theme and the 600 icon disappears into it).
+ */
 const LEAVE_TILE_STYLE = [
-  { icon: CalendarCheck, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-  { icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-  { icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
-  { icon: CalendarOff, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+  { icon: CalendarCheck, iconBg: "bg-emerald-600", iconColor: "text-on-color" },
+  { icon: CalendarDays, iconBg: "bg-blue-600", iconColor: "text-on-color" },
+  { icon: Stethoscope, iconBg: "bg-red-600", iconColor: "text-on-color" },
+  { icon: CalendarOff, iconBg: "bg-amber-600", iconColor: "text-on-color" },
 ];
 
 interface StatsCardsProps {
@@ -55,9 +59,9 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
 
   if (adminStats) {
     cards.push(
-      { title: "Pending Leaves", value: String(adminStats.pendingLeaves), icon: Clock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
-      { title: "Pending MC", value: String(adminStats.pendingMC), icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
-      { title: "Pending Claims", value: String(adminStats.pendingClaims), icon: Receipt, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+      { title: "Pending Leaves", value: String(adminStats.pendingLeaves), icon: Clock, iconBg: "bg-amber-600", iconColor: "text-on-color" },
+      { title: "Pending MC", value: String(adminStats.pendingMC), icon: Stethoscope, iconBg: "bg-red-600", iconColor: "text-on-color" },
+      { title: "Pending Claims", value: String(adminStats.pendingClaims), icon: Receipt, iconBg: "bg-purple-600", iconColor: "text-on-color" },
     );
   } else if (staffStats) {
     staffStats.leave.forEach((stat, i) => {
@@ -70,8 +74,8 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
         title: "Off In Lieu",
         value: String(staffStats.otStats.remaining),
         icon: Briefcase,
-        iconBg: staffStats.otStats.remaining < 0 ? "bg-red-100" : "bg-emerald-100",
-        iconColor: staffStats.otStats.remaining < 0 ? "text-red-600" : "text-emerald-600",
+        iconBg: staffStats.otStats.remaining < 0 ? "bg-red-600" : "bg-emerald-600",
+        iconColor: "text-on-color",
       });
     }
   }
