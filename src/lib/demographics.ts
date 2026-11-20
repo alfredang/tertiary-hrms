@@ -51,3 +51,21 @@ export function countBy(people: BreakdownPerson[], key: "gender" | "ageGroup" | 
   for (const p of people) counts.set(p[key], (counts.get(p[key]) ?? 0) + 1);
   return [...order, NOT_RECORDED].filter((l, i, a) => a.indexOf(l) === i).map((label) => ({ label, count: counts.get(label) ?? 0 })).filter((s) => s.count > 0);
 }
+
+/**
+ * Whole-number percentages that always add up to 100 (largest-remainder rounding). Rounding each
+ * slice on its own drifts: six interns split 1/1/1/1/1/1 would read 17% six times, 102% in all.
+ */
+export function wholePercents(counts: number[]): number[] {
+  const total = counts.reduce((t, n) => t + n, 0);
+  if (total <= 0) return counts.map(() => 0);
+  const exact = counts.map((n) => (n / total) * 100);
+  const out = exact.map(Math.floor);
+  const left = 100 - out.reduce((t, n) => t + n, 0);
+  // Hand the leftover points to the largest fractions; ties go to the bigger slice, then the earlier one.
+  exact.map((v, i) => ({ i, frac: v - out[i] }))
+    .sort((a, b) => b.frac - a.frac || counts[b.i] - counts[a.i] || a.i - b.i)
+    .slice(0, left)
+    .forEach(({ i }) => { out[i] += 1; });
+  return out;
+}

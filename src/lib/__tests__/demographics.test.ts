@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AGE_GROUPS, ETHNIC_GROUPS, NOT_RECORDED, ageGroup, ageOn, countBy, ethnicLabel, type BreakdownPerson } from "@/lib/demographics";
+import { AGE_GROUPS, ETHNIC_GROUPS, NOT_RECORDED, ageGroup, ageOn, countBy, ethnicLabel, wholePercents, type BreakdownPerson } from "@/lib/demographics";
 
 const d = (s: string) => new Date(`${s}T00:00:00Z`);
 const now = d("2026-11-20");
@@ -38,5 +38,23 @@ describe("countBy", () => {
     expect(countBy(people, "ethnicGroup", ETHNIC_GROUPS)).toEqual([
       { label: "Chinese", count: 1 }, { label: "Indian", count: 1 }, { label: NOT_RECORDED, count: 1 },
     ]);
+  });
+});
+
+describe("wholePercents", () => {
+  const sum = (a: number[]) => a.reduce((t, n) => t + n, 0);
+  it("always adds up to 100", () => {
+    for (const counts of [[1, 1, 1, 1, 1, 1], [1, 1, 1], [5, 9], [7, 1, 2, 4], [3, 3, 8], [8, 12], [10, 1, 2, 4, 3]]) {
+      expect(sum(wholePercents(counts))).toBe(100);
+    }
+  });
+  it("keeps exact shares and gives leftover points to the largest fractions", () => {
+    expect(wholePercents([8, 12])).toEqual([40, 60]);
+    expect(wholePercents([1, 1, 1])).toEqual([34, 33, 33]);
+    expect(wholePercents([5, 9])).toEqual([36, 64]);
+  });
+  it("is all zeros when there is nobody", () => {
+    expect(wholePercents([0, 0])).toEqual([0, 0]);
+    expect(wholePercents([])).toEqual([]);
   });
 });

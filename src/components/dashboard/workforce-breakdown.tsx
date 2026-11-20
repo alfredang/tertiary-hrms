@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AGE_GROUPS, ETHNIC_GROUPS, NOT_RECORDED, countBy, type BreakdownPerson } from "@/lib/demographics";
+import { AGE_GROUPS, ETHNIC_GROUPS, NOT_RECORDED, countBy, wholePercents, type BreakdownPerson } from "@/lib/demographics";
 import { cn } from "@/lib/utils";
 
 // Categorical slots validated with the dataviz validator on the light (#FFFFFF) and dark (#030712) cards.
@@ -71,7 +71,8 @@ function Donut({ title, slices, noun }: { title: string; slices: Slice[]; noun: 
     return { ...s, d: ring(C, C, R, r, from, angle) };
   });
   const focus = hover !== null ? slices[hover] : null;
-  const pct = (n: number) => (total ? `${Math.round((n / total) * 100)}%` : "0%");
+  // Shares are rounded together so each chart's percentages add up to exactly 100.
+  const shares = wholePercents(slices.map((s) => s.count));
 
   return (
     <div>
@@ -87,7 +88,7 @@ function Donut({ title, slices, noun }: { title: string; slices: Slice[]; noun: 
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} />
             ))}
             <text x={C} y={C - 1} textAnchor="middle" fontSize={15} fontWeight={600} fill="rgb(var(--hrms-ink))">{focus ? focus.count : total}</text>
-            <text x={C} y={C + 10} textAnchor="middle" fontSize={6.5} fill="rgb(var(--hrms-gray-400))">{focus ? pct(focus.count) : noun}</text>
+            <text x={C} y={C + 10} textAnchor="middle" fontSize={6.5} fill="rgb(var(--hrms-gray-400))">{hover !== null ? `${shares[hover]}%` : noun}</text>
           </svg>
           <ul className="min-w-0 flex-1 space-y-1 text-xs">
             {slices.map((s, i) => (
@@ -95,7 +96,7 @@ function Donut({ title, slices, noun }: { title: string; slices: Slice[]; noun: 
                 className={cn("flex items-center gap-2 rounded px-1 py-0.5", hover === i && "bg-gray-900")}>
                 <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: s.color }} aria-hidden />
                 <span className="truncate text-gray-300">{s.label}</span>
-                <span className="ml-auto whitespace-nowrap tabular-nums text-white">{s.count} <span className="text-gray-500">{pct(s.count)}</span></span>
+                <span className="ml-auto whitespace-nowrap tabular-nums text-white">{s.count} <span className="text-gray-500">{shares[i]}%</span></span>
               </li>
             ))}
           </ul>
