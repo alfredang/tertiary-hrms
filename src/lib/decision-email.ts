@@ -56,7 +56,8 @@ export function summaryEmailHtml(s: ResultSummary): string {
         `<td style="width:${width}%;padding:4px;vertical-align:top;"><div style="background:#F5F8FC;border:1px solid #E5E9F0;border-radius:8px;padding:12px;">` +
         `<div style="font-size:12px;color:#6B7280;">${esc(st.label)}</div>` +
         `<div style="font-size:19px;font-weight:700;color:#1B3A6B;margin-top:3px;white-space:nowrap;">${esc(st.value)}</div>` +
-        (st.hint ? `<div style="font-size:11.5px;color:#6B7280;margin-top:2px;">${esc(st.hint)}</div>` : "") +
+        // Always three rows (label, value, hint) so every tile is the same height.
+        `<div style="font-size:11.5px;line-height:16px;color:#6B7280;margin-top:2px;">${st.hint ? esc(st.hint) : "&nbsp;"}</div>` +
         `</div></td>`,
     )
     .join("");
@@ -112,7 +113,7 @@ export function buildDecisionEmailHtml(opts: {
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#E8ECF3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-<div style="max-width:600px;margin:0 auto;padding:24px 16px;">
+<div style="max-width:760px;margin:0 auto;padding:24px 16px;">
 <div style="background:#ffffff;border-radius:6px;overflow:hidden;box-shadow:0 2px 16px rgba(27,58,107,0.10),0 1px 4px rgba(0,0,0,0.06);">
 <div style="background:#1B3A6B;padding:22px 32px;">
 <div style="font-size:11px;font-weight:600;letter-spacing:0.10em;text-transform:uppercase;color:rgba(255,255,255,0.55);">${esc(opts.companyName)}</div>
