@@ -31,6 +31,7 @@ Applies to `src/app/(dashboard)/trainers/**`, `src/app/api/trainers/**`, `src/ap
 - Training certs: ACLP, ACTA, DACE, DDDLP (users also write "DDDPL"; "ALCP" is a typo for ACLP) — `canonicalTrainingCert()`.
 - Finance background (evidence list), IBF Fit and Proper declaration form on file (detected from the folder files),
   professional certifications (PMP, CCAR-F, CFA…), skills (Articulate, Python…), courses taught, last class.
+- The directory opens on ACLP trainers, sorted A–Z; ACLP / Non-ACLP / All control (`?aclp=non|all`), also set by the three KPI tiles (Alfred, 20 Nov 2026).
 - Applicants from email have status `Applicant`/`Contacted`; the directory hides them by default.
 
 ## Privacy

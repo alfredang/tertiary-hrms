@@ -20,6 +20,8 @@ import {
 const PAGE = 60;
 type Sort = "recent" | "name" | "classes";
 
+type AclpFilter = "aclp" | "non" | "all";
+
 export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerListItem[]; lastImport: string | null }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -27,37 +29,45 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
 
   // Filters live in the URL so a search can be bookmarked/shared and survives Back from a profile.
   const [q, setQ] = useState(sp.get("q") ?? "");
-  const [certs, setCerts] = useState<string[]>(sp.getAll("cert"));
+  // ACLP / Non-ACLP / All. The directory opens on ACLP trainers, A–Z (Alfred, 20 Nov 2026).
+  // An old "?cert=ACLP" link means the same as the ACLP filter.
+  const [aclp, setAclp] = useState<AclpFilter>(
+    sp.get("aclp") === "non" ? "non" : sp.get("aclp") === "all" ? "all" : "aclp",
+  );
+  const [certs, setCerts] = useState<string[]>(sp.getAll("cert").filter((c) => c !== "ACLP"));
   const [tags, setTags] = useState<string[]>(sp.getAll("tag"));
   const [finance, setFinance] = useState(sp.get("finance") === "1");
   const [ibfFit, setIbfFit] = useState(sp.get("ibfFit") === "1");
   const [status, setStatus] = useState<NonNullable<TrainerFilters["status"]>>(
     (sp.get("status") as TrainerFilters["status"]) || "trainers",
   );
-  const [sort, setSort] = useState<Sort>((sp.get("sort") as Sort) || "recent");
+  const [sort, setSort] = useState<Sort>((sp.get("sort") as Sort) || "name");
   const [limit, setLimit] = useState(PAGE);
 
   useEffect(() => {
     const p = new URLSearchParams();
     if (q.trim()) p.set("q", q.trim());
+    if (aclp !== "aclp") p.set("aclp", aclp);
     certs.forEach((c) => p.append("cert", c));
     tags.forEach((t) => p.append("tag", t));
     if (finance) p.set("finance", "1");
     if (ibfFit) p.set("ibfFit", "1");
     if (status !== "trainers") p.set("status", status);
-    if (sort !== "recent") p.set("sort", sort);
+    if (sort !== "name") p.set("sort", sort);
     const qs = p.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     setLimit(PAGE);
-  }, [q, certs, tags, finance, ibfFit, status, sort, pathname, router]);
+  }, [q, aclp, certs, tags, finance, ibfFit, status, sort, pathname, router]);
 
   const results = useMemo(() => {
-    const list = filterTrainers(trainers, { q, certs, tags, finance, ibfFit, status });
+    const list = filterTrainers(trainers, { q, certs, tags, finance, ibfFit, status }).filter(
+      (t) => aclp === "all" || t.trainingCerts.includes("ACLP") === (aclp === "aclp"),
+    );
     const byName = (a: TrainerListItem, b: TrainerListItem) => a.name.localeCompare(b.name);
     if (sort === "name") return [...list].sort(byName);
     if (sort === "classes") return [...list].sort((a, b) => b.classesCount - a.classesCount || byName(a, b));
     return [...list].sort((a, b) => (b.lastClassDate ?? "").localeCompare(a.lastClassDate ?? "") || b.classesCount - a.classesCount || byName(a, b));
-  }, [trainers, q, certs, tags, finance, ibfFit, status, sort]);
+  }, [trainers, q, aclp, certs, tags, finance, ibfFit, status, sort]);
 
   const pool = useMemo(() => trainers.filter((t) => !isApplicant(t)), [trainers]);
   const stats = useMemo(
@@ -98,8 +108,9 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
     setIbfFit(v === "ibf");
   };
 
-  const anyFilter = q || certs.length || tags.length || finance || ibfFit || status !== "trainers";
-  const clearAll = () => {
+  const anyFilter = q || aclp !== "aclp" || certs.length || tags.length || finance || ibfFit || status !== "trainers";
+  const clearAll = (show: AclpFilter = "aclp") => {
+    setAclp(show);
     setQ("");
     setCerts([]);
     setTags([]);
@@ -129,10 +140,11 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
       {/* KPI board: trainers only (applicants are counted in the line above). */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
-          { label: "Total trainers", value: stats.total, sub: `${stats.applicants} applicants not counted`, onClick: clearAll },
-          { label: "ACLP trainers", value: stats.byCert.ACLP ?? 0, sub: "Hold the ACLP · click to list them", onClick: () => { clearAll(); setCerts(["ACLP"]); } },
-          { label: "Non-ACLP trainers", value: stats.total - (stats.byCert.ACLP ?? 0), sub: "No ACLP on record (ACTA, DACE or none)", onClick: undefined },
+          { key: "all" as const, label: "Total trainers", value: stats.total, sub: `${stats.applicants} applicants not counted` },
+          { key: "aclp" as const, label: "ACLP trainers", value: stats.byCert.ACLP ?? 0, sub: "Hold the ACLP" },
+          { key: "non" as const, label: "Non-ACLP trainers", value: stats.total - (stats.byCert.ACLP ?? 0), sub: "No ACLP on record (ACTA, DACE or none)" },
         ].map((k) => {
+          const on = aclp === k.key;
           const body = (
             <>
               <div className="text-sm text-muted-foreground">{k.label}</div>
@@ -140,10 +152,11 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
               <div className="mt-0.5 truncate text-xs text-muted-foreground">{k.sub}</div>
             </>
           );
-          return k.onClick ? (
-            <button key={k.label} type="button" onClick={k.onClick} className="rounded-2xl border bg-card p-4 text-left transition-colors hover:border-primary/60">{body}</button>
-          ) : (
-            <div key={k.label} className="rounded-2xl border bg-card p-4">{body}</div>
+          return (
+            <button key={k.key} type="button" onClick={() => clearAll(k.key)} aria-pressed={on}
+              className={`rounded-2xl border bg-card p-4 text-left transition-colors hover:border-primary/60 ${on ? "border-primary ring-1 ring-primary" : ""}`}>
+              {body}
+            </button>
           );
         })}
       </div>
@@ -160,7 +173,7 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
           <div className="grid grid-cols-3 gap-2 lg:contents">
             <select value={accValue} onChange={(e) => setAcc(e.target.value)} className={selectCls} aria-label="Accreditation">
               <option value="">All accreditations</option>
-              {TRAINING_CERTS.map((c) => (
+              {TRAINING_CERTS.filter((c) => c.code !== "ACLP").map((c) => (
                 <option key={c.code} value={c.code} title={c.full}>{c.label} ({stats.byCert[c.code] ?? 0})</option>
               ))}
               <option value="finance">Finance background ({stats.finance})</option>
@@ -173,13 +186,21 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
               <option value="all">All ({trainers.length})</option>
             </select>
             <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className={selectCls} aria-label="Sort">
+              <option value="name">Name A–Z</option>
               <option value="recent">Most recent class</option>
               <option value="classes">Most classes</option>
-              <option value="name">Name A–Z</option>
             </select>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 px-1 text-sm">
+          <div role="group" aria-label="ACLP filter" className="inline-flex overflow-hidden rounded-md border">
+            {([["aclp", "ACLP", stats.byCert.ACLP ?? 0], ["non", "Non-ACLP", stats.total - (stats.byCert.ACLP ?? 0)], ["all", "All", stats.total]] as const).map(([key, label, n]) => (
+              <button key={key} type="button" onClick={() => setAclp(key)} aria-pressed={aclp === key}
+                className={`px-3 py-1.5 text-sm ${aclp === key ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
+                {label} <span className="tabular-nums opacity-80">({n})</span>
+              </button>
+            ))}
+          </div>
           <span className="text-muted-foreground">
             {results.length} {results.length === 1 ? "trainer" : "trainers"}
           </span>
@@ -190,7 +211,7 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
             </button>
           ))}
           {anyFilter ? (
-            <button type="button" onClick={clearAll} className="ml-auto inline-flex items-center gap-1 text-primary hover:underline">
+            <button type="button" onClick={() => clearAll()} className="ml-auto inline-flex items-center gap-1 text-primary hover:underline">
               <X className="h-3.5 w-3.5" /> Clear filters
             </button>
           ) : null}
