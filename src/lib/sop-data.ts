@@ -5,6 +5,7 @@
 // System" (Policy & Operations Manual, POM v4.0, effective 26 May 2025) and the TPQA evidence it
 // cites (refund flowchart, website cancellation/refund policy, Marketing Code of Conduct).
 // Each SOP records its source section. Wording follows the manual, condensed into numbered steps.
+// The Human Resources SOPs are the exception: they describe company policy as the HRMS enforces it.
 // Keep personal data out of this file: roles, not people; company mailboxes only; no phone numbers.
 //
 // To change an SOP: edit it here, then run `npx tsx scripts/seed-sops.ts --apply` (upsert by slug).
@@ -19,6 +20,7 @@ export const SOP_CATEGORIES = [
   { name: "Finance", description: "Invoicing, payouts, reconciliation and financial reporting." },
   { name: "Funding & Grants", description: "SSG training grants, SkillsFuture Credit and UTAP funding." },
   { name: "Governance & Compliance", description: "Strategy, management reviews, outcomes tracking and records." },
+  { name: "Human Resources", description: "Leave, medical leave and other staff and intern policies." },
 ] as const;
 
 export type SopCategory = (typeof SOP_CATEGORIES)[number]["name"];
@@ -1428,6 +1430,94 @@ const RAW: SopInput[] = [
       { title: "Update TPG", detail: "Update the profile data on TPG.", timing: "Within 7 days of the change" },
     ],
     source: `${POM}, Annex D.1 (item 34)`,
+  },
+
+  // ─────────────────────────── Human Resources ───────────────────────────
+  // Not from the POM: this is the company leave policy as the HRMS enforces it
+  // (src/lib/leave-policy.ts). Change the code and this SOP together.
+  {
+    slug: "leave-policy",
+    title: "Leave Policy: Annual, Medical and No Pay Leave",
+    category: "Human Resources",
+    summary: "How much leave staff and interns have, how it is earned, and how to apply for and approve it in the HRMS.",
+    purpose: "Give every staff member and intern one clear set of leave rules, matching what the HRMS checks when a request is submitted.",
+    scope: "All staff and interns. Covers Annual Leave, Medical Leave, Compassionate Leave, No Pay Leave and Off In Lieu.",
+    owner: "HR Admin",
+    triggers: ["A staff member or intern needs time away from work", "A leave request is waiting for approval"],
+    steps: [
+      {
+        title: "Know the yearly entitlements",
+        detail: "Leave is counted in working days. Weekends and Singapore public holidays are not counted.",
+        items: [
+          "Annual Leave: 7 days a year, paid.",
+          "Medical Leave: 14 days a year for staff, of which 7 are paid. Interns have no paid Medical Leave.",
+          "Compassionate Leave: 3 days a year, paid.",
+          "No Pay Leave: up to 14 days a year, unpaid, for staff and interns alike.",
+          "Off In Lieu: days earned by working on a weekend or public holiday, once approved.",
+        ],
+      },
+      {
+        title: "Annual Leave and Medical Leave are earned month by month",
+        detail: "Only Annual Leave and Medical Leave are prorated. What you have earned so far is the yearly entitlement × completed months served this year ÷ 12, rounded down to the nearest half day.",
+        items: [
+          "Months are counted from your join date, or from 1 January if you joined in an earlier year.",
+          "A month counts only once it is complete. Joined 1 September, today 9 November: 2 months served.",
+          "An intern with a fixed contract allocation earns it evenly over the months of the contract.",
+        ],
+      },
+      {
+        title: "No Pay Leave is not prorated",
+        detail: "The full 14 days of No Pay Leave are available from your first day and are the same for staff and interns. Days already taken and days pending approval both count towards the 14.",
+        note: "A request that would take you past 14 days in the year is rejected by the system.",
+      },
+      {
+        title: "Apply in the HRMS",
+        detail: "Go to Leave, then Request Leave. Choose the leave type and dates, add a reason, and submit. The form shows your balance before you submit.",
+        items: [
+          "Half days (morning or afternoon) are available for Annual Leave.",
+          "You may choose to use Annual Leave you will still earn later this year (advance leave), up to your full-year entitlement.",
+          "You may use Off In Lieu days towards an Annual Leave request.",
+        ],
+        owner: "Staff / Intern",
+      },
+      {
+        title: "Annual Leave beyond your balance goes to No Pay Leave",
+        detail: "If a request is longer than the Annual Leave you have available, the system rejects it and tells you how many days it can cover. Shorten the Annual Leave request to that number and apply for the remaining days as No Pay Leave.",
+        owner: "Staff / Intern",
+      },
+      {
+        title: "Medical Leave",
+        detail: "Apply for Medical Leave and attach your medical certificate.",
+        items: [
+          "Staff: paid up to the paid days above; Medical Leave is limited to what has been earned to date.",
+          "Interns: sick leave is No Pay Leave. Apply for No Pay Leave and attach the medical certificate.",
+        ],
+        owner: "Staff / Intern",
+        timing: "As soon as you have the medical certificate",
+      },
+      {
+        title: "Approval",
+        detail: "Each request is emailed to the two HR admins, who approve or decline it from the email or in the HRMS. You receive an email and an in-app notification with the decision and your year-to-date leave summary.",
+        owner: "HR Admin",
+      },
+      {
+        title: "Year end",
+        detail: "At the year-end rollover, up to 4 unused Annual Leave days carry forward to the next year. Carried-forward days must be used within that year and do not carry forward again. Medical, Compassionate and No Pay Leave start afresh each year.",
+        owner: "HR Admin",
+        timing: "Year-end rollover",
+      },
+      {
+        title: "Monitoring",
+        detail: "Every Monday the HRMS checks all active staff and interns and alerts the HR admins to: No Pay Leave near or over 14 days, Medical Leave above what has been earned, paid Medical Leave recorded for an intern, frequent single-day or Monday / Friday medical leave, and Annual Leave beyond entitlement.",
+        owner: "HR Admin",
+        timing: "Weekly",
+      },
+    ],
+    references: [
+      { label: "Request leave", value: "HRMS → Leave → Request Leave", href: "/leave/request" },
+      { label: "Entitlement settings (admins)", value: "HRMS → Settings → Leave Policy", href: "/settings/leave-policy" },
+    ],
+    source: "Company leave policy as enforced by the HRMS, updated 20 Nov 2026 (No Pay Leave: 14 days a year, not prorated)",
   },
 ];
 

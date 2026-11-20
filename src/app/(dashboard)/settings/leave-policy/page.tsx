@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { NPL_ANNUAL_CAP_DAYS } from "@/lib/leave-policy";
 
 interface LeaveType {
   id: string;
@@ -117,9 +118,10 @@ export default function LeavePolicyPage() {
 
       {/* Proration note */}
       <div className="rounded-lg border border-blue-800 bg-blue-950/40 px-4 py-3 text-xs text-blue-300">
-        <span className="font-semibold">Proration:</span> Annual leave accrues as{" "}
-        <code className="bg-blue-900/60 px-1 rounded">ceil(days / 12 × months worked)</code>.
-        Example — Feb join = ceil(7 ÷ 12 × 1) = <strong>1 day</strong>.
+        <span className="font-semibold">Proration:</span> only Annual Leave and Medical Leave are prorated: days × completed
+        months served this year ÷ 12, rounded down to the nearest half day. Example: joined 1 Sep, on 9 Nov, 2 months
+        served = 7 × 2 ÷ 12 = <strong>1 day</strong>. No Pay Leave is a flat <strong>{NPL_ANNUAL_CAP_DAYS} days</strong> a
+        year for staff and interns, not prorated (the days fields on its card below do not change this).
         Carried-forward days expire after <strong>1 year</strong> and cannot roll again.
       </div>
 
