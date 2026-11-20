@@ -95,3 +95,13 @@ describe("categoryTitle", () => {
     expect(categoryTitle("MEDICAL_LEAVE", "🤒 DEEPA - MC")).toBe("🤒 DEEPA - MC");
   });
 });
+
+describe("categoryEmoji (also sent to the apps)", () => {
+  it("gives the leave, time-off and birthday emoji, and nothing for other categories", async () => {
+    const { categoryEmoji } = await import("@/lib/calendar-categories");
+    expect(categoryEmoji("MEDICAL_LEAVE")).toBe("🤒");
+    expect(categoryEmoji("TIME_OFF")).toBe("⏰");
+    expect(categoryEmoji("BIRTHDAY")).toBe("🎂");
+    expect(categoryEmoji("MEETING")).toBe("");
+  });
+});

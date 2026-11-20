@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, iso, num } from "@/lib/mobile-api";
+import { OFFICE_HOURS_LABEL, splitWorkWeek } from "@/lib/attendance-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,11 @@ export async function GET() {
       monthlyLeaveRate: employee.monthlyLeaveRate != null ? num(employee.monthlyLeaveRate) : null,
       roles: employee.user?.roles ?? [],
       role: ctx.role,
+      // Work Schedule card (same as web My Profile, 20 Nov 2026): ISO weekdays 1=Mon..7=Sun.
+      workdays: employee.workdays?.length ? employee.workdays : [1, 2, 3, 4, 5],
+      workingDays: splitWorkWeek(employee.workdays).working,
+      offDays: splitWorkWeek(employee.workdays).off,
+      officeHours: OFFICE_HOURS_LABEL,
     },
   });
 }

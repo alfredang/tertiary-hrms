@@ -22,6 +22,8 @@ export interface MobileContext {
   isAdmin: boolean;
   /** Holds TRAINER_ADMIN: the apps show the Trainers tab (backed by /api/mobile/trainers). */
   canManageTrainers: boolean;
+  /** Every role the user holds (the primary `role` is only the highest one). */
+  roles: string[];
 }
 
 /** Resolve the signed-in employee, mirroring the dev-auth fallback the pages use. */
@@ -38,6 +40,7 @@ export async function getMobileContext(): Promise<MobileContext | null> {
       email: adminUser?.email,
       isAdmin: true,
       canManageTrainers: true,
+      roles: ["ADMIN"],
     };
   }
 
@@ -50,6 +53,7 @@ export async function getMobileContext(): Promise<MobileContext | null> {
     email: session.user.email,
     isAdmin: hasAdminAccess(session.user.role),
     canManageTrainers: hasTrainerAdminAccess(session.user.roles),
+    roles: session.user.roles ?? [session.user.role],
   };
 }
 

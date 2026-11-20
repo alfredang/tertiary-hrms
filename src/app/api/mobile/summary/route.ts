@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, num } from "@/lib/mobile-api";
 import { annualLeaveAmounts, leaveBalancePeriodWhere } from "@/lib/annual-leave-policy";
+import { loadLeaveSummary } from "@/lib/approval-summaries";
+import { getFinanceKpis, getTrainerKpis } from "@/lib/dashboard-kpis";
 
 export const dynamic = "force-dynamic";
 
@@ -56,8 +58,22 @@ export async function GET() {
     }
   }
 
+  // Role tiles, as on the web dashboard (20 Nov 2026). All additive; older app builds ignore them.
+  // - leaveSummary: the signed-in person's own leave tiles, the same summary as the decision email.
+  // - financeKpis: accountants (not admins), pending claims and this month's bank income / expenses.
+  // - trainerKpis: Trainer Admins, trainer counts (all / ACLP / non-ACLP).
+  const isAccountant = !ctx.isAdmin && ctx.roles.includes("ACCOUNTANT");
+  const [leaveSummary, financeKpis, trainerKpis] = await Promise.all([
+    ctx.employeeId ? loadLeaveSummary(ctx.employeeId, year).then((s) => s?.stats ?? null) : Promise.resolve(null),
+    isAccountant ? getFinanceKpis().catch(() => null) : Promise.resolve(null),
+    ctx.canManageTrainers ? getTrainerKpis().catch(() => null) : Promise.resolve(null),
+  ]);
+
   return NextResponse.json({
     name,
+    leaveSummary,
+    financeKpis,
+    trainerKpis,
     role: ctx.role,
     isAdmin: ctx.isAdmin,
     canManageTrainers: ctx.canManageTrainers,

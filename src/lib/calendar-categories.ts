@@ -130,6 +130,12 @@ const CATEGORY_EMOJI: Partial<Record<CalendarCategory, string>> = {
   TIME_OFF: "⏰",
 };
 
+/** The emoji shown in front of a leave / time-off title ("" for other categories). The apps use it too. */
+export function categoryEmoji(category: string): string {
+  if (category === "BIRTHDAY") return "🎂";
+  return CATEGORY_EMOJI[category as CalendarCategory] ?? "";
+}
+
 /** Leave / time-off title with its category emoji in front: "🤒 DEEPA ARUMUGAM - Medical Leave". */
 export function categoryTitle(category: CalendarCategory, title: string): string {
   const emoji = CATEGORY_EMOJI[category];
