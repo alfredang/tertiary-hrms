@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
-const VALID_VIEWS = ["admin", "staff", "accountant", "intern"] as const;
+// "trainer" = the Trainer Admin view, for admins who also hold TRAINER_ADMIN (Alfred, 20 Nov 2026).
+const VALID_VIEWS = ["admin", "staff", "accountant", "intern", "trainer"] as const;
 type ViewMode = (typeof VALID_VIEWS)[number];
 
 export async function getViewMode(): Promise<ViewMode> {

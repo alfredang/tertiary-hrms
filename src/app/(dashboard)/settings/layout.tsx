@@ -10,7 +10,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const viewMode = await getViewMode();
 
   const role = isDevAuthSkipped() ? "ADMIN" : session?.user?.role || "STAFF";
-  if (role !== "ADMIN" || viewMode === "staff") redirect("/dashboard");
+  if (role !== "ADMIN" || viewMode === "staff" || viewMode === "trainer") redirect("/dashboard");
 
   return (
     <div className="space-y-6">

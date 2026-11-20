@@ -13,6 +13,7 @@ Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/
   - staff / intern view: the same four figures as the decision email, from the same `loadLeaveSummary()` (paid leave
     taken, annual leave balance, MC taken, no-pay leave taken with "N of 14 left"; `StatsCards`), plus Off In Lieu
     when there is any. Never compute these a second way on the dashboard;
+  - trainer view (View As → Trainer Admin, admins holding TRAINER_ADMIN): the trainer row only;
   - TRAINER_ADMIN holders: a second row of trainers, ACLP, non-ACLP (`TrainerKpiRow`, same counting as `/trainers`),
     under their own row in the admin, staff and intern views. Not in the accountant view (finance only).
   - Every tile row uses `kpi-tiles.tsx`; add a role's row there, not a new tile style.

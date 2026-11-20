@@ -205,6 +205,9 @@ const navigationGroups: NavGroup[] = [
 
 const CLOSED_GROUPS_KEY = "sidebarClosedGroups";
 
+/** The sidebar of the Trainer Admin view. */
+const TRAINER_VIEW_HREFS = ["/dashboard", "/profile", "/calendar", "/trainers", "/sop"];
+
 export function Sidebar({
   role,
   companyShortName,
@@ -270,12 +273,16 @@ export function Sidebar({
   const isAccountantView = isActualAdmin
     ? viewAs === "accountant"
     : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT") && !isActualAdmin;
+  // Trainer Admin view (Alfred, 20 Nov 2026): an admin holding TRAINER_ADMIN who picked it in View As.
+  // Shows only Dashboard, My Stuff, People → Trainer Admin and Documents.
+  const isTrainerView = isActualAdmin && isTrainerAdmin && viewAs === "trainer";
   // Intern view: admins respect viewAs; pure intern role always sees intern view
   const isInternView = isActualAdmin
     ? viewAs === "intern"
     : actualRoles.length > 0 && actualRoles.every((r) => r.toUpperCase() === "INTERN");
 
   const isVisible = (item: NavItem): boolean => {
+    if (isTrainerView) return TRAINER_VIEW_HREFS.includes(item.href);
     // Trainer Admin follows its own role, in every view, the accountant view included
     // (People section for Trainer Admin holders, Alfred, 20 Nov 2026).
     if (item.trainerAdminOnly) return isTrainerAdmin;

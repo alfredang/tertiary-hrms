@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { Eye, ChevronDown, Check, ShieldCheck, Calculator, User, GraduationCap, BookUser } from "lucide-react";
 import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 import { useViewMode, type ViewMode } from "@/components/layout/view-mode-context";
@@ -19,6 +18,8 @@ const ALL_ROLES = [
   { value: "staff",      label: "Staff",      icon: User },
   { value: "intern",     label: "Intern",     icon: GraduationCap },
   { value: "accountant", label: "Accountant", icon: Calculator },
+  // A real view for TRAINER_ADMIN holders (Alfred, 20 Nov 2026); opens /trainers.
+  { value: "trainer",    label: "Trainer Admin", icon: BookUser },
 ] as const;
 
 interface ViewToggleProps {
@@ -28,7 +29,9 @@ interface ViewToggleProps {
 export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
   const { viewMode: currentView, setViewMode } = useViewMode();
   const assignedLower = userRoles.map((r) => r.toLowerCase());
-  const ROLES = ALL_ROLES.filter((r) => assignedLower.includes(r.value));
+  const ROLES = ALL_ROLES.filter((r) =>
+    r.value === "trainer" ? hasTrainerAdminAccess(userRoles) : assignedLower.includes(r.value),
+  );
 
   // setViewMode flips the sidebar/header instantly and refreshes server
   // components (the main-content overlay shows the loading state).
@@ -73,18 +76,6 @@ export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
             {currentView === value && <Check className="h-3.5 w-3.5 text-primary" />}
           </DropdownMenuItem>
         ))}
-        {hasTrainerAdminAccess(userRoles) && (
-          <>
-            <DropdownMenuSeparator />
-            {/* Trainer Admin is a separate role, not a view: it opens its own section */}
-            <DropdownMenuItem asChild className="cursor-pointer">
-              <Link href="/trainers" className="flex items-center gap-2">
-                <BookUser className="h-4 w-4 text-gray-400" />
-                <span className="flex-1">Trainer Admin</span>
-              </Link>
-            </DropdownMenuItem>
-          </>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

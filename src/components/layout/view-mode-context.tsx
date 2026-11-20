@@ -3,8 +3,9 @@
 import { createContext, useContext, useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-export type ViewMode = "admin" | "staff" | "accountant" | "intern";
-const VALID: ViewMode[] = ["admin", "staff", "accountant", "intern"];
+// "trainer" = the Trainer Admin view (TRAINER_ADMIN holders, Alfred, 20 Nov 2026).
+export type ViewMode = "admin" | "staff" | "accountant" | "intern" | "trainer";
+const VALID: ViewMode[] = ["admin", "staff", "accountant", "intern", "trainer"];
 
 interface Ctx {
   viewMode: ViewMode;
@@ -31,11 +32,12 @@ export function ViewModeProvider({
   // Flip the sidebar/header instantly from context, persist the cookie, and
   // navigate to /dashboard so the user lands on a page accessible to every
   // role instead of staying on an admin-only page (e.g. /accounting).
+  // The Trainer Admin view lands on its own page, /trainers.
   const setViewMode = useCallback(
     (v: ViewMode) => {
       setViewState(v);
       document.cookie = `viewAs=${v};path=/;max-age=${60 * 60 * 24 * 365}`;
-      startTransition(() => router.push("/dashboard"));
+      startTransition(() => router.push(v === "trainer" ? "/trainers" : "/dashboard"));
     },
     [router],
   );

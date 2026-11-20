@@ -188,6 +188,7 @@ export default async function DashboardPage() {
   //   accountant view -> pending claims, income, expenses
   //   staff / intern  -> own paid leave taken, annual leave balance, MC taken, no-pay leave taken (as in the decision email)
   //   Trainer Admins  -> trainers, ACLP, non-ACLP, as a second row under their own (not in accountant view)
+  //   trainer view    -> the trainer row only (admins holding TRAINER_ADMIN, picked in View As)
   // Admins pick the view; an accountant always gets the accountant view, with their own leave row under it.
   const isAdmin = hasAdminAccess(role);
   const isAccountant = !isAdmin && roles.includes("ACCOUNTANT");
@@ -195,8 +196,9 @@ export default async function DashboardPage() {
 
   const isAdminView = viewAs === "admin";
   const isAccountantView = viewAs === "accountant";
+  const isTrainerView = viewAs === "trainer" && hasTrainerAdminAccess(roles);
   const isStaffView = !isAdminView;
-  const showOwnLeave = !isAdminView && (!isAccountantView || isAccountant);
+  const showOwnLeave = !isAdminView && !isTrainerView && (!isAccountantView || isAccountant);
   // Trainer Admin follows its own role, in every view except the accountant view (finance only).
   const showTrainers = hasTrainerAdminAccess(roles) && !isAccountantView;
 

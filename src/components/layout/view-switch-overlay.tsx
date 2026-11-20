@@ -13,6 +13,7 @@ const ROLE_LABELS: Record<string, string> = {
   staff: "Staff",
   accountant: "Accountant",
   intern: "Intern",
+  trainer: "Trainer Admin",
 };
 
 export function ViewSwitchOverlay() {

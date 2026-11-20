@@ -7,6 +7,10 @@ Applies to `src/app/(dashboard)/trainers/**`, `src/app/api/trainers/**`, `src/ap
 - Gated by the **TRAINER_ADMIN** role only (`hasTrainerAdminAccess(roles)` / `getTrainerAccess()`), held alongside the
   person's normal role, e.g. `["STAFF","TRAINER_ADMIN"]`. ADMIN alone does NOT grant it (NRIC/phone/email inside).
 - Holders (9 Nov 2026): Alfred Ang (E0001), Tan Soik Ching (E0002), Deepa Arumugam (E10001), Ang See Siang (E0014).
+- **Trainer Admin view (Alfred, 20 Nov 2026)**: an admin holding TRAINER_ADMIN can pick **View As → Trainer Admin**
+  (view mode `trainer` in `src/lib/view-mode.ts` / `view-mode-context.tsx`). It lands on `/trainers`; the sidebar shows
+  only Dashboard, My Stuff, People → Trainer Admin and SOP (`TRAINER_VIEW_HREFS`); the dashboard shows the trainer row
+  only. Non-admin holders have no View As menu and keep the sidebar link in their staff view.
 - The sidebar link (People → Trainer Admin) shows in every view, the accountant view included (Alfred, 20 Nov 2026).
   The dashboard trainer row is still left out of the accountant view (finance KPIs only).
 - TRAINER_ADMIN is deliberately absent from `ROLE_PRIORITY` in `src/lib/auth.ts`; it must never become a primary role.
