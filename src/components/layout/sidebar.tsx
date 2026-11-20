@@ -64,7 +64,7 @@ type NavItem = {
   noAccountant?: true;
   financeOnly?: true;
   hideForIntern?: true;
-  internOnly?: true;  // visible only in intern view
+  internOnly?: true;  // visible only in intern view (and accountant view when allowAccountant is set)
   staffOnly?: true;   // visible only in staff/intern view (hidden for admin + accountant)
   allowAccountant?: true; // exception: a staffOnly item that should ALSO show in accountant view
   trainerAdminOnly?: true; // visible only to holders of the TRAINER_ADMIN role, in every view except accountant
@@ -120,9 +120,10 @@ const navigationGroups: NavGroup[] = [
         ],
       },
       { name: "Time Off", adminName: "Time Off Approvals", href: "/time-off", icon: Timer, noAccountant: true as const },
-      { name: "Clock In/Out", href: "/attendance", icon: AlarmClock, staffOnly: true as const },
-      // Timesheets are for interns only. Staff log weekend / public-holiday work for Off In Lieu on the same page.
-      { name: "Timesheet", href: "/timesheet", icon: ClipboardList, staffOnly: true as const, internOnly: true as const },
+      // Clock In/Out and Timesheet: interns, plus the accountant view (Alfred, 20 Nov 2026).
+      { name: "Clock In/Out", href: "/attendance", icon: AlarmClock, staffOnly: true as const, allowAccountant: true as const },
+      // Timesheets are for interns (and the accountant view). Staff log weekend / public-holiday work for Off In Lieu on the same page.
+      { name: "Timesheet", href: "/timesheet", icon: ClipboardList, staffOnly: true as const, internOnly: true as const, allowAccountant: true as const },
       { name: "Off In Lieu", href: "/timesheet", icon: ClipboardList, staffOnly: true as const, hideForIntern: true as const },
       // Admin: one Timesheet page (intern clock-in days/hours, missing punches, Off In Lieu approvals)
       { name: "Timesheet", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
@@ -281,7 +282,7 @@ export function Sidebar({
     if (item.financeOnly && !canSeeFinance) return false;
     if (item.noAccountant && isAccountantView) return false;
     if (item.hideForIntern && isInternView) return false;
-    if (item.internOnly && !isInternView) return false;
+    if (item.internOnly && !isInternView && !(isAccountantView && item.allowAccountant)) return false;
     if (item.staffOnly && (isAdmin || (isAccountantView && !item.allowAccountant))) return false;
     return true;
   };

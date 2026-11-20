@@ -13,9 +13,9 @@ export default async function TimesheetPage() {
   const isAdmin = hasAdminAccess(session.user.role);
   const viewMode = await getViewMode();
 
-  // Only staff/intern view — redirect admin and accountant views
+  // Staff, intern and accountant views (accountants clock in like interns, Alfred, 20 Nov 2026).
+  // Admin view uses /timesheet/overview instead.
   if (isAdmin && viewMode === "admin") redirect("/dashboard");
-  if (isAdmin && viewMode === "accountant") redirect("/dashboard");
 
   return (
     <div className="space-y-6">
