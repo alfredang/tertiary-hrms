@@ -5,7 +5,16 @@ Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/
   category (`needs-attention.tsx`) + ONE chart (`leave-trend-chart.tsx`). Never list individual findings there.
 - Detail lives on `/dashboard/insights` (`#alerts`, `#approvals`, `#leave`, `#interns`, `?cat=<category>`).
 - Tiles and chart use the same `getMonthlyLeaveSeries()` numbers. Chart palette is validated (dataviz skill).
-- Staff/intern views keep the simple `StatsCards`.
+- KPIs follow the role (Alfred, 20 Nov 2026), branching in `dashboard/page.tsx`:
+  - admin view: staff, interns, pending approvals (`admin-kpis.tsx`);
+  - accountant view (admin switched to it, or a real ACCOUNTANT): pending expense claims, this month's bank income and
+    expenses with the year to date (`FinanceKpiRow`, loader `getFinanceKpis()` in `src/lib/dashboard-kpis.ts`), finance
+    quick actions. A real accountant also gets their own leave row;
+  - staff / intern view: own Annual Leave left, Medical Leave left, No Pay Leave taken of 14 (`StatsCards`; interns
+    have no paid MC), plus Off In Lieu when there is any;
+  - TRAINER_ADMIN holders: a second row of trainers, ACLP, non-ACLP (`TrainerKpiRow`, same counting as `/trainers`),
+    in the staff / intern view only. Not in the accountant view (finance only) or the admin view (three tiles).
+  - Every tile row uses `kpi-tiles.tsx`; add a role's row there, not a new tile style.
 - `/dashboard/analytics` (`analytics-dashboard.tsx`, loader `src/lib/analytics.ts`, shared `bar-chart.tsx`): 12 months of
   bank revenue / expenses, leave and MC per person, headcount. One filter row drives every chart and tile. Same three
   colour slots, validated on the light and dark cards. Admin gate as `/accounting`. Add new long-range charts here, not

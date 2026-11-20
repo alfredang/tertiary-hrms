@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Clock, DollarSign, Calendar, ChevronRight, AlarmClockOff } from "lucide-react";
+import { Users, Clock, DollarSign, Calendar, ChevronRight, AlarmClockOff, TrendingUp, TrendingDown, Scale } from "lucide-react";
 
 const adminActions = [
   {
@@ -66,12 +66,46 @@ const staffActions = [
   },
 ];
 
+// Accountant view is finance only (Alfred, 20 Nov 2026).
+const accountantActions = [
+  {
+    title: "Manage Claims",
+    description: "Review expense claims",
+    href: "/expenses",
+    icon: DollarSign,
+    iconBg: "bg-green-600",
+  },
+  {
+    title: "Income Tracking",
+    description: "Bank credits by month",
+    href: "/accounting/income-tracking",
+    icon: TrendingUp,
+    iconBg: "bg-blue-500",
+  },
+  {
+    title: "Expense Tracking",
+    description: "Bank debits by month",
+    href: "/accounting/expense-tracking",
+    icon: TrendingDown,
+    iconBg: "bg-red-500",
+  },
+  {
+    title: "Bank Reconciliation",
+    description: "Match bank against QuickBooks",
+    href: "/accounting/reconciliation",
+    icon: Scale,
+    iconBg: "bg-amber-600",
+  },
+];
+
 interface QuickActionsProps {
   isAdmin?: boolean;
+  /** Finance actions; wins over `isAdmin`. */
+  isAccountant?: boolean;
 }
 
-export function QuickActions({ isAdmin = true }: QuickActionsProps) {
-  const visibleActions = isAdmin ? adminActions : staffActions;
+export function QuickActions({ isAdmin = true, isAccountant = false }: QuickActionsProps) {
+  const visibleActions = isAccountant ? accountantActions : isAdmin ? adminActions : staffActions;
 
   return (
     <Card className="bg-gray-950 border-gray-800">

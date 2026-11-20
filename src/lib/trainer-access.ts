@@ -6,7 +6,8 @@ import { isDevAuthSkipped } from "@/lib/dev-auth";
  * normal role (e.g. ["STAFF", "TRAINER_ADMIN"]). ADMIN alone does not grant it: trainer
  * records hold NRIC, phone and email, so access is opt-in per person.
  * TRAINER_ADMIN is deliberately NOT in auth.ts ROLE_PRIORITY — it never becomes the
- * primary role, so it does not change anyone's dashboard or view mode.
+ * primary role, so it does not change anyone's view mode. On /dashboard it adds a row of
+ * trainer counts under the holder's own row (staff / intern view only).
  */
 import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 export { hasTrainerAdminAccess, TRAINER_ADMIN_ROLE } from "@/lib/trainer-access-client";

@@ -66,7 +66,7 @@ type NavItem = {
   internOnly?: true;  // visible only in intern view
   staffOnly?: true;   // visible only in staff/intern view (hidden for admin + accountant)
   allowAccountant?: true; // exception: a staffOnly item that should ALSO show in accountant view
-  trainerAdminOnly?: true; // visible only to holders of the TRAINER_ADMIN role, in every view
+  trainerAdminOnly?: true; // visible only to holders of the TRAINER_ADMIN role, in every view except accountant
   children?: Child[];
 };
 
@@ -271,8 +271,9 @@ export function Sidebar({
     : actualRoles.length > 0 && actualRoles.every((r) => r.toUpperCase() === "INTERN");
 
   const isVisible = (item: NavItem): boolean => {
-    // Trainer Management follows its own role, in every view.
-    if (item.trainerAdminOnly) return isTrainerAdmin;
+    // Trainer Management follows its own role, in every view except the
+    // accountant view, which is finance only (Alfred, 20 Nov 2026).
+    if (item.trainerAdminOnly) return isTrainerAdmin && !isAccountantView;
     if (item.adminOnly && !isAdmin) return false;
     if (item.financeOnly && !canSeeFinance) return false;
     if (item.noAccountant && isAccountantView) return false;
