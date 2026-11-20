@@ -38,6 +38,20 @@ export function isScheduledWorkday(workdays: number[] | null | undefined, date: 
   return days.includes(isoWeekday(date));
 }
 
+/** Office working hours, the same for staff and interns (Alfred, 20 Nov 2026). */
+export const OFFICE_HOURS_LABEL = "9am to 6pm";
+
+const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** A person's week as day names: scheduled working days, and the weekly off days (the rest). */
+export function splitWorkWeek(workdays: number[] | null | undefined): { working: string[]; off: string[] } {
+  const days = workdays && workdays.length > 0 ? workdays : [1, 2, 3, 4, 5];
+  const working: string[] = [];
+  const off: string[] = [];
+  WEEKDAY_SHORT.forEach((name, i) => (days.includes(i + 1) ? working : off).push(name));
+  return { working, off };
+}
+
 /** Monday (UTC-midnight date) of the week containing `date`. */
 export function weekStart(date: Date): Date {
   const d = new Date(date);

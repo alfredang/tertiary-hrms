@@ -98,3 +98,15 @@ describe("Rule 6 — intern hours", () => {
     expect(hoursBetween(punches, wk, d("2026-11-16"))).toBe(8.5);
   });
 });
+
+describe("splitWorkWeek", () => {
+  it("defaults to Mon–Fri working, Sat and Sun off", async () => {
+    const { splitWorkWeek } = await import("../attendance-policy");
+    expect(splitWorkWeek(null)).toEqual({ working: ["Mon", "Tue", "Wed", "Thu", "Fri"], off: ["Sat", "Sun"] });
+    expect(splitWorkWeek([])).toEqual(splitWorkWeek(undefined));
+  });
+  it("lists unticked days as off days", async () => {
+    const { splitWorkWeek } = await import("../attendance-policy");
+    expect(splitWorkWeek([1, 2, 4, 6])).toEqual({ working: ["Mon", "Tue", "Thu", "Sat"], off: ["Wed", "Fri", "Sun"] });
+  });
+});

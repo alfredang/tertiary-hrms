@@ -180,18 +180,22 @@ export default async function CalendarPage() {
 
   // Admin view: see all employees' leaves; Staff view: see only own leaves
   const showAllLeaves = viewAs === "admin";
-  const [events, activeEmployees] = await Promise.all([
+  const [events, activeEmployees, self] = await Promise.all([
     getCalendarEvents(currentUserId, currentEmployeeId, showAllLeaves),
     // The person filter lists every active staff member and intern, with or without leave.
     showAllLeaves
       ? prisma.employee.findMany({
           where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
-          select: { id: true, name: true, user: { select: { roles: true } } },
+          select: { id: true, name: true, workdays: true, user: { select: { roles: true } } },
           orderBy: { name: "asc" },
         })
       : Promise.resolve([]),
+    // Staff / intern view: the viewer's own workdays, so their off days are shaded.
+    !showAllLeaves && currentEmployeeId
+      ? prisma.employee.findUnique({ where: { id: currentEmployeeId }, select: { workdays: true } })
+      : Promise.resolve(null),
   ]);
-  const people = activeEmployees.map((e) => ({ id: e.id, name: e.name, intern: isInternRoles(e.user?.roles) }));
+  const people = activeEmployees.map((e) => ({ id: e.id, name: e.name, intern: isInternRoles(e.user?.roles), workdays: e.workdays }));
 
   return (
     <div className="space-y-6">
@@ -210,7 +214,7 @@ export default async function CalendarPage() {
         </Link>
       </div>
 
-      <CalendarView events={events} personFilter={showAllLeaves} people={people} />
+      <CalendarView events={events} personFilter={showAllLeaves} people={people} ownWorkdays={self?.workdays} />
     </div>
   );
 }

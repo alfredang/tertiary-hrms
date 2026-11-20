@@ -29,8 +29,14 @@ interface CalendarViewProps {
   /** Admin view: show the person filter for leave. */
   personFilter?: boolean;
   /** Admin view: every active staff member and intern, for the person filter. */
-  people?: { id: string; name: string; intern: boolean }[];
+  people?: { id: string; name: string; intern: boolean; workdays?: number[] }[];
+  /** Staff / intern view: the viewer's own workdays (ISO 1 = Mon … 7 = Sun). The other days are their off days. */
+  ownWorkdays?: number[];
 }
+
+const DEFAULT_WORKDAYS = [1, 2, 3, 4, 5];
+/** Off-day cells share the public-holiday grey (Alfred, 20 Nov 2026). */
+const OFF_DAY_BG = "bg-[#ECEFF4] dark:bg-gray-800";
 
 /** Monday-first, single-letter headers — the Planner app calendar layout (Alfred, 11 Nov 2026). */
 const WEEKDAYS = [
@@ -48,7 +54,7 @@ const dayKey = (d: Date) =>
 
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 
-export function CalendarView({ events: allEvents, personFilter = false, people: activePeople = [] }: CalendarViewProps) {
+export function CalendarView({ events: allEvents, personFilter = false, people: activePeople = [], ownWorkdays }: CalendarViewProps) {
   const [person, setPerson] = useState("");
   // Every active staff member and intern, with how many leave and time-off entries each has (0 when none).
   // People who have left are not listed; their past leave still shows under Everyone.
@@ -68,6 +74,11 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
     () => (person ? allEvents.filter((e) => !isPersonCategory(e.category) || e.personId === person) : allEvents),
     [allEvents, person],
   );
+  // Whose off days to shade: the viewer's own (staff / intern view) or the person picked in the admin filter.
+  // With "Everyone" there is no single schedule, so nothing is shaded.
+  const offDaysFor = personFilter ? activePeople.find((p) => p.id === person)?.workdays : ownWorkdays;
+  const showOffDays = personFilter ? !!person : ownWorkdays !== undefined;
+  const scheduled = offDaysFor && offDaysFor.length > 0 ? offDaysFor : DEFAULT_WORKDAYS;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selected, setSelected] = useState(new Date());
   const today = new Date();
@@ -135,7 +146,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
               <label htmlFor="calendar-person" className="text-xs text-gray-500">Leave & time off for</label>
               <select id="calendar-person" value={person} onChange={(e) => setPerson(e.target.value)}
-                className="max-w-[16rem] rounded-lg border border-gray-800 bg-gray-900 px-2 py-1.5 text-sm text-white">
+                className="max-w-[16rem] rounded-lg border border-gray-800 bg-gray-900 py-1.5 pl-3 text-sm text-white">
                 <option value="">Everyone ({totalLeave})</option>
                 {staff.length > 0 && (
                   <optgroup label={`Staff (${staff.length})`}>
@@ -171,6 +182,10 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
             {cells.map(({ date, inMonth }, i) => {
               const dayEvents = eventsOn(date);
               const holidays = dayEvents.filter((e) => e.type === "HOLIDAY");
+              // Weekly off day (not one of the person's workdays) or an approved full-day Off Day.
+              const isOff =
+                showOffDays &&
+                (!scheduled.includes(date.getDay() || 7) || dayEvents.some((e) => e.category === "TIME_OFF" && e.allDay));
               const isToday = sameDay(date, today);
               const isSelected = sameDay(date, selected);
               return (
@@ -181,12 +196,12 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                     setSelected(date);
                     if (!inMonth) setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
                   }}
-                  title={holidays.map((h) => h.title).join(", ") || undefined}
+                  title={holidays.map((h) => h.title).join(", ") || (isOff ? "Off day" : undefined)}
                   className={cn(
                     "flex h-[84px] flex-col items-stretch overflow-hidden border-b border-r border-gray-800 p-1 text-left transition-colors sm:h-[112px] sm:p-1.5",
                     (i + 1) % 7 === 0 && "border-r-0",
                     !inMonth && "bg-gray-900/60",
-                    inMonth && holidays.length > 0 && "bg-[#ECEFF4] dark:bg-gray-800",
+                    inMonth && (holidays.length > 0 || isOff) && OFF_DAY_BG,
                     isToday && "bg-blue-950/40",
                     isSelected && !isToday && "ring-2 ring-inset ring-blue-500/50",
                     "hover:bg-gray-900"
@@ -229,6 +244,12 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                 <span className="text-xs text-gray-400">{label}</span>
               </div>
             ))}
+            {showOffDays && (
+              <div className="flex items-center gap-1.5">
+                <div className={cn("h-2.5 w-2.5 rounded-sm border border-gray-700", OFF_DAY_BG)} />
+                <span className="text-xs text-gray-400">Off day</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
