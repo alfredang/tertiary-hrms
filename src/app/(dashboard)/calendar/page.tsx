@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isInternRoles } from "@/lib/leave-policy";
 import { CalendarView } from "@/components/calendar/calendar-view";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -146,7 +147,18 @@ export default async function CalendarPage() {
 
   // Admin view: see all employees' leaves; Staff view: see only own leaves
   const showAllLeaves = viewAs === "admin";
-  const events = await getCalendarEvents(currentUserId, currentEmployeeId, showAllLeaves);
+  const [events, activeEmployees] = await Promise.all([
+    getCalendarEvents(currentUserId, currentEmployeeId, showAllLeaves),
+    // The person filter lists every active staff member and intern, with or without leave.
+    showAllLeaves
+      ? prisma.employee.findMany({
+          where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+          select: { id: true, name: true, user: { select: { roles: true } } },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
+  const people = activeEmployees.map((e) => ({ id: e.id, name: e.name, intern: isInternRoles(e.user?.roles) }));
 
   return (
     <div className="space-y-6">
@@ -165,7 +177,7 @@ export default async function CalendarPage() {
         </Link>
       </div>
 
-      <CalendarView events={events} personFilter={showAllLeaves} />
+      <CalendarView events={events} personFilter={showAllLeaves} people={people} />
     </div>
   );
 }

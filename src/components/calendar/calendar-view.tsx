@@ -25,6 +25,8 @@ interface CalendarViewProps {
   events: CalendarEvent[];
   /** Admin view: show the person filter for leave. */
   personFilter?: boolean;
+  /** Admin view: every active staff member and intern, for the person filter. */
+  people?: { id: string; name: string; intern: boolean }[];
 }
 
 const eventTypeLabels: Record<string, { label: string; color: string }> = {
@@ -51,19 +53,21 @@ const dayKey = (d: Date) =>
 
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 
-export function CalendarView({ events: allEvents, personFilter = false }: CalendarViewProps) {
+export function CalendarView({ events: allEvents, personFilter = false, people: activePeople = [] }: CalendarViewProps) {
   const [person, setPerson] = useState("");
-  // Everyone who has leave on the calendar, by name, with how many leave entries each has.
-  const people = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; count: number }>();
+  // Every active staff member and intern, with how many leave entries each has (0 when none).
+  // People who have left are not listed; their past leave still shows under Everyone.
+  const { staff, interns, totalLeave } = useMemo(() => {
+    const counts = new Map<string, number>();
+    let totalLeave = 0;
     for (const e of allEvents) {
       if (e.type !== "LEAVE" || !e.personId) continue;
-      const p = map.get(e.personId) ?? { id: e.personId, name: e.personName ?? "Employee", count: 0 };
-      p.count += 1;
-      map.set(e.personId, p);
+      counts.set(e.personId, (counts.get(e.personId) ?? 0) + 1);
+      totalLeave += 1;
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allEvents]);
+    const rows = activePeople.map((p) => ({ ...p, count: counts.get(p.id) ?? 0 })).sort((a, b) => a.name.localeCompare(b.name));
+    return { staff: rows.filter((p) => !p.intern), interns: rows.filter((p) => p.intern), totalLeave };
+  }, [allEvents, activePeople]);
   // Holidays, meetings and other events always show; the filter applies to people's leave.
   const events = useMemo(
     () => (person ? allEvents.filter((e) => e.type !== "LEAVE" || e.personId === person) : allEvents),
@@ -132,13 +136,22 @@ export function CalendarView({ events: allEvents, personFilter = false }: Calend
             </div>
           </div>
 
-          {personFilter && people.length > 0 && (
+          {personFilter && staff.length + interns.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
               <label htmlFor="calendar-person" className="text-xs text-gray-500">Leave shown for</label>
               <select id="calendar-person" value={person} onChange={(e) => setPerson(e.target.value)}
                 className="max-w-[16rem] rounded-lg border border-gray-800 bg-gray-900 px-2 py-1.5 text-sm text-white">
-                <option value="">Everyone ({people.reduce((t, p) => t + p.count, 0)})</option>
-                {people.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.count})</option>)}
+                <option value="">Everyone ({totalLeave})</option>
+                {staff.length > 0 && (
+                  <optgroup label={`Staff (${staff.length})`}>
+                    {staff.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.count})</option>)}
+                  </optgroup>
+                )}
+                {interns.length > 0 && (
+                  <optgroup label={`Interns (${interns.length})`}>
+                    {interns.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.count})</option>)}
+                  </optgroup>
+                )}
               </select>
               {person && (
                 <button type="button" onClick={() => setPerson("")} className="rounded-lg border border-gray-800 px-2.5 py-1 text-xs text-gray-400 hover:text-white">
