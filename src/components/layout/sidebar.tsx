@@ -75,6 +75,7 @@ const navigation: NavItem[] = [
   { name: "My Profile", href: "/profile",     icon: User, noAccountant: true as const },
   { name: "Employees",       adminName: "Staff Management",   href: "/employees", icon: Users,      adminOnly:     true as const },
   { name: "Intern Management", href: "/interns", icon: UserPlus, adminOnly: true as const },
+  { name: "Trainer Management", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
   {
     name: "Leave",
     adminName: "Leave Management",
@@ -129,7 +130,6 @@ const navigation: NavItem[] = [
   { name: "Off In Lieu", href: "/timesheet",  icon: ClipboardList, staffOnly:    true as const, hideForIntern: true as const },
   // Admin: one Timesheet page (intern clock-in days/hours, missing punches, Off In Lieu approvals)
   { name: "Timesheet", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
-  { name: "Trainer Management", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
   { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
   { name: "Woods Square Access", href: "/woods-square-access", icon: KeyRound, staffOnly: true as const, allowAccountant: true as const },
   {
