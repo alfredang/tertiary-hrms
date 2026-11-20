@@ -4,6 +4,7 @@ import {
   findMissedPunches,
   hoursBetween,
   isScheduledWorkday,
+  mustClockIn,
   sgtInstant,
   validateCorrection,
   weekStart,
@@ -108,5 +109,21 @@ describe("splitWorkWeek", () => {
   it("lists unticked days as off days", async () => {
     const { splitWorkWeek } = await import("../attendance-policy");
     expect(splitWorkWeek([1, 2, 4, 6])).toEqual({ working: ["Mon", "Tue", "Thu", "Sat"], off: ["Wed", "Fri", "Sun"] });
+  });
+});
+
+describe("mustClockIn (interns and accountants, Alfred 20 Nov 2026)", () => {
+  it("covers interns and non-admin accountants", () => {
+    expect(mustClockIn(["INTERN"])).toBe(true);
+    expect(mustClockIn(["ACCOUNTANT"])).toBe(true);
+    expect(mustClockIn(["STAFF", "ACCOUNTANT"])).toBe(true);
+  });
+  it("leaves out staff, admins and empty roles", () => {
+    expect(mustClockIn(["STAFF"])).toBe(false);
+    expect(mustClockIn(["ADMIN", "ACCOUNTANT"])).toBe(false);
+    expect(mustClockIn(["HR", "ACCOUNTANT"])).toBe(false);
+    expect(mustClockIn(["INTERN", "STAFF"])).toBe(false);
+    expect(mustClockIn([])).toBe(false);
+    expect(mustClockIn(null)).toBe(false);
   });
 });

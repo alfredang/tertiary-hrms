@@ -6,6 +6,17 @@
  * midnight ("2026-11-09T00:00:00Z" is 9 Nov SGT). Times are real instants.
  */
 
+/**
+ * Who must clock in and out every scheduled workday: interns (roles exactly ["INTERN"]) and
+ * accountants (an ACCOUNTANT role without ADMIN / HR / MANAGER) (Alfred, 20 Nov 2026). They get the
+ * missing clock-in reminders; everyone else is only reminded of a forgotten clock-out.
+ */
+export function mustClockIn(roles: readonly string[] | null | undefined): boolean {
+  if (!roles || roles.length === 0) return false;
+  if (roles.length === 1 && roles[0] === "INTERN") return true;
+  return roles.includes("ACCOUNTANT") && !roles.some((r) => r === "ADMIN" || r === "HR" || r === "MANAGER");
+}
+
 export type CorrectionKind = "CLOCK_IN" | "CLOCK_OUT" | "BOTH";
 export const CORRECTION_KINDS: CorrectionKind[] = ["CLOCK_IN", "CLOCK_OUT", "BOTH"];
 /** How far back a missing punch may be corrected. */

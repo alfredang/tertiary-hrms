@@ -13,6 +13,7 @@ import {
   addDays,
   findMissedPunches,
   hoursBetween,
+  mustClockIn,
   weekStart,
   ymd,
   type InternRef,
@@ -58,6 +59,36 @@ export async function getActiveInterns(): Promise<ActiveIntern[]> {
     startDate: r.startDate,
     endDate: r.endDate,
   }));
+}
+
+/**
+ * Everyone who must clock in every workday (`mustClockIn()`): active interns and accountants.
+ * Used by the missed-punch reminder and the admin roll-up.
+ */
+export async function getActiveClockInRequired(): Promise<ActiveIntern[]> {
+  const rows = await prisma.employee.findMany({
+    where: {
+      status: "ACTIVE",
+      user: { OR: [{ roles: { equals: ["INTERN"] } }, { roles: { has: "ACCOUNTANT" } }] },
+    },
+    select: {
+      id: true, name: true, employeeId: true, email: true, userId: true, workdays: true, startDate: true, endDate: true,
+      user: { select: { roles: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+  return rows
+    .filter((r) => mustClockIn(r.user?.roles))
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      employeeCode: r.employeeId,
+      email: r.email,
+      userId: r.userId,
+      workdays: r.workdays,
+      startDate: r.startDate,
+      endDate: r.endDate,
+    }));
 }
 
 /** `${employeeId}|YYYY-MM-DD` for every pending/approved correction in range (empty if the table is missing). */

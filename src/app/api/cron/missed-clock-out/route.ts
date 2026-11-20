@@ -4,14 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
 import { cronAuthError, escapeHtml, notifyAdmins, sgtToday, staffAlertCc } from "@/lib/admin-alerts";
 import { withCronRun } from "@/lib/cron-runs";
-import { getActiveInterns, getMissedPunches } from "@/lib/hr-insights";
+import { getActiveClockInRequired, getMissedPunches } from "@/lib/hr-insights";
 import { addDays } from "@/lib/attendance-policy";
 
 export const dynamic = "force-dynamic";
 
-// Interns must clock in and out every workday (AttendancePunch).
+// Interns and accountants must clock in and out every workday (AttendancePunch;
+// `mustClockIn()`, accountants added by Alfred, 20 Nov 2026).
 //
-// mode=reminder (default) — 21:00 SGT daily (Coolify "0 13 * * *"): every intern who
+// mode=reminder (default) — 21:00 SGT daily (Coolify "0 13 * * *"): every intern or accountant who
 //   clocked in today but not out, or did not clock in on a scheduled workday (not on
 //   leave, not a public holiday), gets an in-app notification + email asking them to
 //   clock out now or submit a missing-punch correction on /attendance.
@@ -42,7 +43,7 @@ const siteUrl = () => process.env.NEXT_PUBLIC_APP_URL || "";
 async function runReminder() {
   const today = sgtToday();
   const date = today.toISOString().slice(0, 10);
-  const interns = await getActiveInterns();
+  const interns = await getActiveClockInRequired();
   const missed = await getMissedPunches(interns, today, addDays(today, 1));
   const byId = new Map(interns.map((i) => [i.id, i]));
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" }, select: { name: true } });
@@ -77,7 +78,7 @@ async function runReminder() {
 <p>Hi ${escapeHtml(intern.name)},</p>
 <p>${escapeHtml(message)}</p>
 <p style="margin:20px 0;"><a href="${siteUrl()}/attendance" style="display:inline-block;background:#2563eb;color:#ffffff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:600;">Open Clock In/Out</a></p>
-<p style="color:#6b7280;font-size:12px;">All interns must clock in and clock out every workday. A missing punch is reviewed by an admin.</p>
+<p style="color:#6b7280;font-size:12px;">Interns and accountants must clock in and clock out every workday. A missing punch is reviewed by an admin.</p>
 <p>- ${escapeHtml(company)}</p>
 </div>`,
       });
@@ -103,7 +104,7 @@ async function runReminder() {
 
 async function runRollup() {
   const today = sgtToday();
-  const interns = await getActiveInterns();
+  const interns = await getActiveClockInRequired();
   const missed = await getMissedPunches(interns, addDays(today, -7), today);
   const byId = new Map(interns.map((i) => [i.id, i]));
 
@@ -119,20 +120,20 @@ async function runRollup() {
     });
   const noOut = missed.filter((m) => m.kind === "NO_CLOCK_OUT").length;
   const noIn = missed.length - noOut;
-  const message = `${noOut} missing clock-out(s) and ${noIn} missing clock-in(s) by interns in the last 7 days, with no correction filed.`;
+  const message = `${noOut} missing clock-out(s) and ${noIn} missing clock-in(s) by interns and accountants in the last 7 days, with no correction filed.`;
 
   const sent = await notifyAdmins({
-    title: "Intern missed punches",
+    title: "Missed punches",
     message,
     type: "ATTENDANCE_ROLLUP",
     link: "/timesheet/overview",
-    subject: `Intern missed punches: ${noOut} clock-out, ${noIn} clock-in (last 7 days)`,
+    subject: `Missed punches (interns and accountants): ${noOut} clock-out, ${noIn} clock-in (last 7 days)`,
     html: `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;max-width:640px;">
 <p>${escapeHtml(message)}</p>
 <table style="border-collapse:collapse;font-size:13px">${lines
       .map((l) => `<tr><td style="padding:3px 8px">${escapeHtml(l.date)}</td><td style="padding:3px 8px">${escapeHtml(l.who)}</td><td style="padding:3px 8px;color:#b45309">${l.what}</td></tr>`)
       .join("")}</table>
-<p style="margin-top:16px"><a href="${siteUrl()}/timesheet/overview" style="color:#2563eb">Review intern attendance and corrections</a></p>
+<p style="margin-top:16px"><a href="${siteUrl()}/timesheet/overview" style="color:#2563eb">Review attendance and corrections</a></p>
 </div>`,
   });
 

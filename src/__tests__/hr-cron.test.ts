@@ -10,7 +10,7 @@ const { mockPrisma, mockSendEmail, insights } = vi.hoisted(() => ({
   },
   mockSendEmail: vi.fn().mockResolvedValue(undefined),
   insights: {
-    getActiveInterns: vi.fn(),
+    getActiveClockInRequired: vi.fn(),
     getMissedPunches: vi.fn(),
     getLeaveOverview: vi.fn(),
     getInternAttendance: vi.fn(),
@@ -37,7 +37,7 @@ beforeEach(() => {
   mockPrisma.user.findMany.mockResolvedValue([{ id: "admin1" }, { id: "admin2" }]);
   mockPrisma.notification.createMany.mockResolvedValue({ count: 2 });
   mockPrisma.cronJobRun.create.mockResolvedValue({ id: "run1" });
-  insights.getActiveInterns.mockResolvedValue([intern]);
+  insights.getActiveClockInRequired.mockResolvedValue([intern]);
 });
 
 describe("Rule 5 — /api/cron/missed-clock-out", () => {

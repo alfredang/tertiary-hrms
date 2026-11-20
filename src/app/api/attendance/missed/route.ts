@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized } from "@/lib/mobile-api";
 import { todaySgt } from "@/lib/attendance";
-import { addDays } from "@/lib/attendance-policy";
+import { addDays, mustClockIn } from "@/lib/attendance-policy";
 import { getMissedPunches } from "@/lib/hr-insights";
-import { isInternRoles } from "@/lib/leave-policy";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/attendance/missed — the signed-in employee's uncorrected missed punches
- * in the last 14 days (today excluded). Interns must clock in on every scheduled
- * workday, so they also see missing clock-ins; everyone sees forgotten clock-outs.
+ * in the last 14 days (today excluded). Interns and accountants must clock in on every
+ * scheduled workday (`mustClockIn()`), so they also see missing clock-ins; everyone sees
+ * forgotten clock-outs. The `isIntern` key means "must clock in" (kept for the native apps).
  */
 export async function GET() {
   const ctx = await getMobileContext();
@@ -24,7 +24,7 @@ export async function GET() {
   });
   if (!e) return NextResponse.json({ isIntern: false, missed: [] });
 
-  const isIntern = isInternRoles(e.user?.roles);
+  const isIntern = mustClockIn(e.user?.roles);
   const today = todaySgt();
   const missed = await getMissedPunches([e], addDays(today, -14), today);
   return NextResponse.json({

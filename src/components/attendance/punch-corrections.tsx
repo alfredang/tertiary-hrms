@@ -124,7 +124,7 @@ export function MissingPunchPanel() {
         <div className="rounded-2xl border border-amber-800/60 bg-amber-950/20 p-4 space-y-2">
           <p className="flex items-center gap-2 text-sm font-medium text-amber-300">
             <AlertTriangle className="h-4 w-4" />
-            {isIntern ? "Interns must clock in and clock out every workday." : "You forgot to clock out."} Please fix:
+            {isIntern ? "Please clock in and clock out every workday." : "You forgot to clock out."} Please fix:
           </p>
           <ul className="space-y-1.5">
             {missed.map((m) => (
