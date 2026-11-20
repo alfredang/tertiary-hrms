@@ -115,17 +115,23 @@ describe("Rule 2 — AL beyond the available balance must be No Pay Leave", () =
   });
 });
 
-describe("Rule 3 — No Pay Leave capped at 21 days/year, prorated (21 × 2/12 = 3.5)", () => {
+describe("Rule 3 — No Pay Leave capped at 14 days/year, not prorated", () => {
   beforeEach(() => {
     state.leaveTypeCode = "NPL";
   });
 
-  it("rejects NPL beyond the prorated cap", async () => {
+  it("gives a Sep joiner the full 14 days (no proration): 5 days are accepted", async () => {
+    const res = await submitLeave(req(FIVE_DAYS));
+    expect(res.status).toBe(201);
+  });
+
+  it("rejects NPL beyond the 14-day cap", async () => {
+    state.nplRows = [{ days: 10, status: "APPROVED" }];
     const res = await submitLeave(req(FIVE_DAYS));
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.code).toBe("NPL_CAP_EXCEEDED");
-    expect(body.npl).toEqual({ cap: 3.5, used: 0, pending: 0, remaining: 3.5 });
+    expect(body.npl).toEqual({ cap: 14, used: 10, pending: 0, remaining: 4 });
   });
 
   it("accepts NPL within the cap even though the NPL balance row only holds 7 days", async () => {
@@ -135,7 +141,7 @@ describe("Rule 3 — No Pay Leave capped at 21 days/year, prorated (21 × 2/12 =
   });
 
   it("counts NPL already taken and pending against the cap", async () => {
-    state.nplRows = [{ days: 2, status: "APPROVED" }, { days: 1, status: "PENDING" }];
+    state.nplRows = [{ days: 12, status: "APPROVED" }, { days: 1.5, status: "PENDING" }];
     const res = await submitLeave(req(ONE_DAY));
     const body = await res.json();
     expect(res.status).toBe(400);

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // HR compliance agent — weekly, Monday 08:30 SGT (Coolify "30 0 * * 1").
 // Checks every active staff member and intern for: No Pay Leave nearing/over the
-// prorated 21-day cap, MC above the prorated entitlement (or any paid MC by an
+// 14-day yearly cap, MC above the prorated entitlement (or any paid MC by an
 // intern), patterned MC (Mondays/Fridays, many single-day MCs), annual leave beyond
 // entitlement, and interns with repeated missed clock-ins/outs (last 14 days).
 // The summary goes to the admins (Alfred Ang, Tan Soik Ching) as an in-app

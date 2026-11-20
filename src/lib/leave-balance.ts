@@ -23,7 +23,7 @@ export interface BalanceRowInput {
  * Days still available on one LeaveBalance row, the same rule the apps show:
  * AL via annualLeaveAmounts() (calendar-year proration, or the contract period's
  * pool for internships), MC prorated (interns have none),
- * OT-earned AL from `earned`, NPL from the prorated 21-day cap (not the row).
+ * OT-earned AL from `earned`, NPL from the flat 14-day yearly cap (not the row).
  */
 export function leaveBalanceAvailable(
   b: BalanceRowInput,

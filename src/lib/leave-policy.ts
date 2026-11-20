@@ -12,13 +12,14 @@
  *       joined last year, today 9 Nov → Jan…Oct → 10 months.
  *  2. AL default is 7 days/year. AL beyond what the employee has available must
  *     be applied for as No Pay Leave — the API rejects the excess with guidance.
- *  3. No Pay Leave is capped at 21 days/year, prorated the same way.
+ *  3. No Pay Leave is capped at 14 days/year for staff and interns alike, with NO
+ *     proration: the full 14 days are available from the first day (Alfred, 20 Nov 2026).
  *  4. Interns (roles exactly ["INTERN"]) have no paid MC — their sick leave is
  *     No Pay Leave.
  */
 
 export const AL_DEFAULT_DAYS = 7;
-export const NPL_ANNUAL_CAP_DAYS = 21;
+export const NPL_ANNUAL_CAP_DAYS = 14;
 /** Share of the NPL cap at which admins get a "nearing the cap" alert. */
 export const NPL_WARN_RATIO = 0.8;
 /**
@@ -133,16 +134,6 @@ export function applyLeaveCap(value: number, annualDays: number, leaveCap?: numb
   return Math.min(value, cap);
 }
 
-/** The prorated No Pay Leave cap for the months served so far this year. */
-export function nplCapToDate(
-  startDate: Date | string | null | undefined,
-  asOf: Date = new Date(),
-  endDate?: Date | string | null,
-  annualCap: number = NPL_ANNUAL_CAP_DAYS,
-): number {
-  return prorateByMonths(annualCap, monthsServedThisYear(startDate, asOf, endDate));
-}
-
 /** MC entitlement for the year before proration: interns get none. */
 export function mcAnnualEntitlement(annualDays: number, isIntern: boolean): number {
   return isIntern ? 0 : annualDays;
@@ -216,7 +207,7 @@ export function alExcessMessage(r: AlRequestResult, days: number, nplRemaining: 
 
 export function nplCapMessage(days: number, status: NplStatus): string {
   return (
-    `No Pay Leave is capped at ${NPL_ANNUAL_CAP_DAYS} days a year, prorated to ${status.cap} day(s) for the months you have served. ` +
+    `No Pay Leave is capped at ${status.cap} days a year. ` +
     `You have ${status.remaining} day(s) left (${status.used} taken, ${status.pending} pending), but this request is ${days} day(s).`
   );
 }

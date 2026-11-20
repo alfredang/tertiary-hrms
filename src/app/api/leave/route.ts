@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
       available = effectiveEntitlement + Number(balance.carriedOver) - Number(balance.used) - Number(balance.pending);
     }
 
-    // No Pay Leave: capped at 21 days/year prorated by months served (not the LeaveBalance row).
+    // No Pay Leave: capped at 14 days/year, not prorated (not the LeaveBalance row).
     if (isNPL) {
       const npl = await getNplStatus(employeeId, employee);
       if (!evaluateNplRequest(days, npl).ok) {

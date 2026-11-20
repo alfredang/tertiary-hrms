@@ -34,7 +34,7 @@ interface LeaveRequestFormProps {
   alEntitlementPeriodEnd?: string; // fixed internship end; absent for calendar-year AL
   defaultLeaveTypeCode?: string; // e.g. "MC" to pre-select Medical Leave
   isIntern?: boolean;        // interns have no paid MC — sick leave goes in as No Pay Leave
-  npl?: { cap: number; used: number; pending: number; remaining: number }; // prorated NPL cap status
+  npl?: { cap: number; used: number; pending: number; remaining: number }; // yearly NPL cap status
   nplAnnualCap?: number;
 }
 
@@ -48,7 +48,7 @@ export function LeaveRequestForm({
   defaultLeaveTypeCode,
   isIntern = false,
   npl = { cap: 0, used: 0, pending: 0, remaining: 0 },
-  nplAnnualCap = 21,
+  nplAnnualCap = 14,
 }: LeaveRequestFormProps) {
   const availableNow = Math.max(0, alRemaining);
 
@@ -468,13 +468,13 @@ export function LeaveRequestForm({
           </p>
         )}
         <div className="grid grid-cols-4 gap-2 text-center">
-          <div><p className="text-gray-500">NPL cap to date</p><p className="text-base font-bold text-white">{npl.cap}</p></div>
+          <div><p className="text-gray-500">NPL cap this year</p><p className="text-base font-bold text-white">{npl.cap}</p></div>
           <div><p className="text-gray-500">Taken</p><p className="text-base font-bold text-amber-400">{npl.used}</p></div>
           <div><p className="text-gray-500">Pending</p><p className="text-base font-bold text-purple-400">{npl.pending}</p></div>
           <div><p className="text-gray-500">Remaining</p><p className={`text-base font-bold ${nplExceeded ? "text-red-400" : "text-green-400"}`}>{npl.remaining}</p></div>
         </div>
         <p className="text-gray-500">
-          No Pay Leave is capped at {nplAnnualCap} days a year, prorated by the full months you have served this year.
+          You can take up to {nplAnnualCap} days of No Pay Leave a year.
         </p>
         {nplExceeded && (
           <p className="flex items-start gap-1.5 text-red-300">

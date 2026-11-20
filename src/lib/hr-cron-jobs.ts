@@ -31,7 +31,7 @@ export const HR_CRON_JOBS: BuiltInCronJob[] = [
     id: "hr-compliance",
     name: "HR Compliance Agent (Weekly)",
     description:
-      "Weekly check of every active staff member and intern: No Pay Leave nearing/over the prorated 21-day cap, MC above the prorated entitlement or paid MC by interns, MC patterns (Mondays/Fridays, frequent single-day MCs), annual leave beyond entitlement, and interns with repeated missed punches. Emails and notifies Alfred Ang and Tan Soik Ching with the findings.",
+      "Weekly check of every active staff member and intern: No Pay Leave nearing/over the 14-day yearly cap, MC above the prorated entitlement or paid MC by interns, MC patterns (Mondays/Fridays, frequent single-day MCs), annual leave beyond entitlement, and interns with repeated missed punches. Emails and notifies Alfred Ang and Tan Soik Ching with the findings.",
     schedule: "Mondays at 08:30 SGT",
     cron: "30 0 * * 1",
     method: "GET",

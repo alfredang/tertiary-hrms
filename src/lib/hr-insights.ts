@@ -5,7 +5,7 @@ import {
   isInternRoles,
   isMedicalLeaveCode,
   mcAnnualEntitlement,
-  nplCapToDate,
+  NPL_ANNUAL_CAP_DAYS,
   NPL_CODE,
 } from "@/lib/leave-policy";
 import {
@@ -250,7 +250,7 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
         pending: sum((r) => isMedicalLeaveCode(r.leaveType.code) && r.status === "PENDING"),
       },
       npl: {
-        cap: nplCapToDate(e.startDate, now, e.endDate),
+        cap: NPL_ANNUAL_CAP_DAYS,
         used: sum((r) => r.leaveType.code === NPL_CODE && r.status === "APPROVED"),
         pending: sum((r) => r.leaveType.code === NPL_CODE && r.status === "PENDING"),
       },

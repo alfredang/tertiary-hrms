@@ -251,14 +251,14 @@ export default async function LeavePage() {
         />
       )}
 
-      {/* No Pay Leave — 21 days/year, prorated by completed months served */}
+      {/* No Pay Leave — 14 days/year, not prorated */}
       {viewAs !== "admin" && npl && (
         <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <p className="text-sm font-medium text-white">No Pay Leave</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Capped at {NPL_ANNUAL_CAP_DAYS} days a year, prorated by the full months you have served ({npl.cap} day(s) so far).
+                Up to {npl.cap} days a year.
                 Annual leave beyond your balance must be taken as No Pay Leave.
               </p>
             </div>

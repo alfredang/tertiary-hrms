@@ -14,7 +14,6 @@ import {
   mcAnnualEntitlement,
   monthsEmployedInYear,
   monthsServedThisYear,
-  nplCapToDate,
   nplStatus,
   prorateByMonths,
 } from "@/lib/leave-policy";
@@ -127,13 +126,8 @@ describe("Rule 2 — AL default 7 days; excess AL must be No Pay Leave", () => {
   });
 });
 
-describe("Rule 3 — No Pay Leave cap: 21 days/year prorated by months served", () => {
-  it("cap is 21", () => expect(NPL_ANNUAL_CAP_DAYS).toBe(21));
-
-  it("21 × 2/12 = 3.5 for the Sep joiner on 9 Nov; 21 × 10/12 = 17.5 for existing staff", () => {
-    expect(nplCapToDate(new Date(2026, 8, 1), NOV_9)).toBe(3.5);
-    expect(nplCapToDate(new Date(2024, 0, 1), NOV_9)).toBe(17.5);
-  });
+describe("Rule 3 — No Pay Leave cap: 14 days/year, not prorated", () => {
+  it("cap is 14", () => expect(NPL_ANNUAL_CAP_DAYS).toBe(14));
 
   it("remaining = cap − taken − pending, never negative", () => {
     expect(nplStatus(3.5, 2, 1)).toEqual({ cap: 3.5, used: 2, pending: 1, remaining: 0.5 });

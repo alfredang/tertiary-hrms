@@ -180,7 +180,7 @@ export function AdminHrOverview({ people, interns, pending, findings, monthLabel
           </table>
         </div>
         <p className="text-xs text-gray-500">
-          Available AL and earned MC are prorated by completed months served this year; the No Pay Leave cap is 21 days a year, prorated the same way.
+          Available AL and earned MC are prorated by completed months served this year; the No Pay Leave cap is 14 days a year, not prorated.
         </p>
       </Section>
 

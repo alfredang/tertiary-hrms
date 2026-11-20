@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { isInternRoles, nplCapToDate, nplStatus, NPL_CODE, type NplStatus } from "@/lib/leave-policy";
+import { isInternRoles, NPL_ANNUAL_CAP_DAYS, nplStatus, NPL_CODE, type NplStatus } from "@/lib/leave-policy";
 
 /** The employee fields every leave-policy check needs. */
 export interface LeaveProfile {
@@ -56,15 +56,14 @@ export async function getNplUsage(
   return { used, pending };
 }
 
-/** Prorated NPL cap and what is left of it this year. */
+/** The yearly NPL cap (flat, not prorated) and what is left of it this year. */
 export async function getNplStatus(
   employeeId: string,
   profile?: LeaveProfile | null,
   asOf: Date = new Date(),
   excludeRequestId?: string,
 ): Promise<NplStatus> {
-  const p = profile ?? (await getLeaveProfile(employeeId));
-  const cap = nplCapToDate(p?.startDate, asOf, p?.endDate);
+  const cap = NPL_ANNUAL_CAP_DAYS;
   const { used, pending } = await getNplUsage(employeeId, asOf.getFullYear(), excludeRequestId);
   return nplStatus(cap, used, pending);
 }

@@ -75,15 +75,15 @@ export function buildFindings(
   });
 
   for (const p of people) {
-    // No Pay Leave against the prorated 21-day cap
+    // No Pay Leave against the yearly cap (flat, not prorated)
     const nplTotal = p.npl.used + p.npl.pending;
     if (nplTotal > 0) {
       if (nplTotal > p.npl.cap) {
         out.push({ ...who(p), severity: "high", category: "NPL",
-          message: `No Pay Leave ${nplTotal} day(s) (taken + pending) is over the prorated cap of ${p.npl.cap}.` });
+          message: `No Pay Leave ${nplTotal} day(s) (taken + pending) is over the yearly cap of ${p.npl.cap}.` });
       } else if (p.npl.cap > 0 && nplTotal >= p.npl.cap * t.nplWarnRatio) {
         out.push({ ...who(p), severity: "medium", category: "NPL",
-          message: `No Pay Leave ${nplTotal} of ${p.npl.cap} prorated day(s) used — nearing the cap.` });
+          message: `No Pay Leave ${nplTotal} of ${p.npl.cap} day(s) used — nearing the cap.` });
       }
     }
 
