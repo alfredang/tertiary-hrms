@@ -1,3 +1,4 @@
+import { sendAwayTodayAlert, sendBirthdayAlerts } from "@/lib/birthday-alerts";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
@@ -26,7 +27,8 @@ export async function GET(req: NextRequest) {
   try {
     const result = await withCronRun<Record<string, unknown>>(
       mode === "rollup" ? "missed-clock-out-rollup" : "missed-clock-out-reminder",
-      () => (mode === "rollup" ? runRollup() : runReminder()),
+      // The morning run also tells the admins whose birthday it is and who is on MC / leave / No Pay Leave today.
+      async () => (mode === "rollup" ? { ...(await runRollup()), ...(await sendBirthdayAlerts()), ...(await sendAwayTodayAlert()) } : runReminder()),
     );
     return NextResponse.json(result);
   } catch (err) {

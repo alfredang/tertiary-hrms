@@ -50,12 +50,13 @@ function Section({ id, title, icon: Icon, children, right }: { id?: string; titl
 export function AdminHrOverview({ people, interns, pending, findings, monthLabel, year, focusLabel }: Props) {
   const staff = people.filter((p) => !p.isIntern);
   const internPeople = people.filter((p) => p.isIntern);
-  const totalPending = pending.leave + pending.mc + pending.timeOff + pending.corrections + pending.expenses;
+  const totalPending = pending.leave + pending.mc + pending.timeOff + pending.corrections + pending.expenses + pending.payback;
   const missingOutCount = interns.reduce((s, i) => s + i.missingClockOuts.length, 0);
 
   const pendingItems = [
     { label: "Leave", value: pending.leave, href: "/leave/annual" },
     { label: "MC", value: pending.mc, href: "/leave/medical" },
+    { label: "Payback", value: pending.payback, href: "/leave/payback" },
     { label: "Time off", value: pending.timeOff, href: "/time-off" },
     { label: "Missing punches", value: pending.corrections, href: "/timesheet/overview" },
     { label: "Expense claims", value: pending.expenses, href: "/expenses" },

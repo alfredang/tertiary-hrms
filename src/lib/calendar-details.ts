@@ -7,6 +7,10 @@ export type CalendarDetail = { label: string; value: string };
 const sgDate = (d: Date) =>
   d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Singapore" });
 
+/** A @db.Date (UTC midnight) as "2 Nov 2026", or "Sat, 7 Nov 2026" with the weekday. */
+const utcDay = (d: Date, weekday = false) =>
+  d.toLocaleDateString("en-GB", { ...(weekday ? { weekday: "short" as const } : {}), day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
 const clean = (s?: string | null) => (s ?? "").replace(/\s+/g, " ").trim();
 
 /** "1 day", "0.5 day", "3 days". */
@@ -25,6 +29,8 @@ export function leaveDetails(r: {
   hasDocument?: boolean;
   /** Medical leave: say whether an MC was uploaded. */
   medical?: boolean;
+  /** No Pay Leave: approved paybacks (an off day worked instead), one line each. */
+  paybacks?: { nplDate: Date; workDate: Date; days: number }[];
 }): CalendarDetail[] {
   const from = sgDate(r.startDate);
   const to = sgDate(r.endDate);
@@ -39,6 +45,10 @@ export function leaveDetails(r: {
     { label: "Days", value: `${dayCount(r.days)}${half}` },
     { label: "Reason", value: clean(r.reason) || "No reason given" },
     ...(r.medical ? [{ label: "MC", value: r.hasDocument ? "Uploaded" : "Not uploaded" }] : []),
+    ...(r.paybacks ?? []).map((p) => ({
+      label: "Paid back",
+      value: `${utcDay(p.nplDate)}${p.days < 1 ? " (half day)" : ""}: worked ${utcDay(p.workDate, true)}`,
+    })),
   ];
 }
 

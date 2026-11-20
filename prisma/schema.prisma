@@ -120,6 +120,8 @@ model Employee {
   attendancePunches AttendancePunch[]
   accessRequests    AccessRequest[]
   timeOffRequests   TimeOffRequest[]  @relation("TimeOffRequest_employeeIdToEmployee")
+  nplPaybacks       NplPayback[]      @relation("NplPayback_employeeIdToEmployee")
+  approvedPaybacks  NplPayback[]      @relation("NplPayback_approverIdToEmployee")
   approvedTimeOffs  TimeOffRequest[]  @relation("TimeOffRequest_approverIdToEmployee")
 }
 
@@ -220,11 +222,44 @@ model LeaveRequest {
   approver         Employee?   @relation("LeaveRequest_approverIdToEmployee", fields: [approverId], references: [id])
   employee         Employee    @relation("LeaveRequest_employeeIdToEmployee", fields: [employeeId], references: [id])
   leaveType        LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  paybacks         NplPayback[]
 
   @@index([employeeId, startDate])
   @@index([status, startDate])
   @@index([leaveTypeId, status])
   @@index([createdAt])
+}
+
+/// Paying back a day of No Pay Leave by working on an off day (Alfred, 20 Nov 2026).
+/// Once approved, the day no longer counts toward the yearly No Pay Leave cap or the
+/// "No Pay Leave taken" figures. One row = one off day worked for one No Pay Leave day.
+model NplPayback {
+  id              String       @id @default(cuid())
+  employeeId      String
+  /// The approved No Pay Leave request being paid back.
+  leaveRequestId  String
+  /// The No Pay Leave day inside that request.
+  nplDate         DateTime     @db.Date
+  /// The off day worked instead.
+  workDate        DateTime     @db.Date
+  /// 1 = full day, 0.5 = half day.
+  days            Decimal      @default(1) @db.Decimal(3, 1)
+  note            String?
+  status          LeaveStatus  @default(PENDING)
+  approverId      String?
+  approvedAt      DateTime?
+  approvalComment String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  employee        Employee     @relation("NplPayback_employeeIdToEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  approver        Employee?    @relation("NplPayback_approverIdToEmployee", fields: [approverId], references: [id])
+  leaveRequest    LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, status])
+  @@index([leaveRequestId])
+  @@index([status])
 }
 
 /// A short, partial-day absence request (e.g. leaving for an exam or an

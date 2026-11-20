@@ -87,7 +87,8 @@ export function buildLeaveSummary(args: {
       {
         label: "No-pay leave taken",
         value: days(nplTaken),
-        hint: npl ? `${r2(npl.remaining)} of ${r2(npl.cap)} left` : undefined,
+        // Days paid back by working an off day are already taken off "taken".
+        hint: npl ? `${r2(npl.remaining)} of ${r2(npl.cap)} left${npl.paidBack ? `, ${r2(npl.paidBack)} paid back` : ""}` : undefined,
       },
     ],
     table: { columns: ["Leave type", "Taken", "Pending", "Balance"], rows: rows.map((r) => r.cells) },

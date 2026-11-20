@@ -54,3 +54,13 @@ describe("dayCount", () => {
     expect([dayCount(0.5), dayCount(1), dayCount(2)]).toEqual(["0.5 day", "1 day", "2 days"]);
   });
 });
+
+describe("leaveDetails with a payback", () => {
+  it("adds a Paid back line for a No Pay Leave day made up by working an off day", () => {
+    const lines = leaveDetails({
+      leaveTypeName: "No Pay Leave", startDate: new Date("2026-11-02T00:00:00Z"), endDate: new Date("2026-11-02T00:00:00Z"), days: 1,
+      paybacks: [{ nplDate: new Date("2026-11-02T00:00:00Z"), workDate: new Date("2026-11-07T00:00:00Z"), days: 1 }],
+    });
+    expect(lines.at(-1)).toEqual({ label: "Paid back", value: "2 Nov 2026: worked Sat, 7 Nov 2026" });
+  });
+});

@@ -128,7 +128,7 @@ function buildActionButtonsHtml(approveUrl: string, declineUrl: string): string 
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0;"><tr><td style="padding-right:10px;"><a href="${approveUrl}" style="display:inline-block;background:#16A34A;color:#ffffff;padding:11px 28px;border-radius:6px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;">Approve</a></td><td><a href="${declineUrl}" style="display:inline-block;background:#DC2626;color:#ffffff;padding:11px 28px;border-radius:6px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;">Decline</a></td></tr></table>`;
 }
 
-async function issueToken(kind: "LEAVE" | "EXPENSE" | "TIME_OFF", targetId: string): Promise<string> {
+async function issueToken(kind: "LEAVE" | "EXPENSE" | "TIME_OFF" | "NPL_PAYBACK", targetId: string): Promise<string> {
   const token = generateEndpointToken();
   const expiresAt = new Date(Date.now() + APPROVAL_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
   await prisma.approvalToken.create({
@@ -285,6 +285,54 @@ export async function sendTimeOffApprovalEmail(args: {
     siteUrl: base,
   });
 
+  const { to, cc } = await getApproverEmails();
+  await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc })));
+}
+
+/**
+ * No Pay Leave payback: the person worked an off day to make up a No Pay Leave day. Same
+ * recipients and one-click Approve / Decline links as every other approval request.
+ */
+export async function sendPaybackApprovalEmail(args: {
+  paybackId: string;
+  employeeId: string;
+  employeeName: string;
+  nplDate: string;
+  workDate: string;
+  days: number;
+  note?: string | null;
+  /** What approving does to the balance, e.g. "13 of 14 left → 14 of 14 left". */
+  balanceChange?: string | null;
+}): Promise<void> {
+  if (await isDemoEmployee(args.employeeId)) return; // demo / App Review: never email real approvers
+  const token = await issueToken("NPL_PAYBACK", args.paybackId);
+  const base = getBaseUrl();
+  const approveUrl = `${base}/api/public/payback-approval/respond?token=${token}&action=accept`;
+  const declineUrl = `${base}/api/public/payback-approval/respond?token=${token}&action=decline`;
+  const weekday = (d: string) =>
+    new Date(`${d.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+  const day = (d: string) => `${weekday(d)}, ${formatDateDisplay(d)}`;
+
+  const rows: Array<{ label: string; value: string; style?: RowStyle }> = [
+    { label: "No Pay Leave", value: day(args.nplDate), style: "accent" },
+    { label: "Worked on", value: `${day(args.workDate)} (off day)`, style: "bold" },
+    { label: "Pays back", value: args.days === 0.5 ? "Half day" : `${args.days} day${args.days === 1 ? "" : "s"}`, style: "pill" },
+  ];
+  if (args.balanceChange) rows.push({ label: "If approved", value: `No Pay Leave balance: ${args.balanceChange}` });
+  if (args.note) rows.push({ label: "Note", value: args.note });
+
+  const branding = await getCompanyBranding();
+  const html = buildNotificationEmailHtml({
+    companyName: branding.name,
+    headerTitle: "No Pay Leave Payback",
+    employeeName: args.employeeName,
+    introAction: "a No Pay Leave payback",
+    rows,
+    ctaLabel: "Please review and take action:",
+    buttonsHtml: buildActionButtonsHtml(approveUrl, declineUrl),
+    siteUrl: base,
+  });
+  const subject = `Approval for No Pay Leave payback from ${args.employeeName} — worked ${formatDateDisplay(args.workDate)}`;
   const { to, cc } = await getApproverEmails();
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc })));
 }

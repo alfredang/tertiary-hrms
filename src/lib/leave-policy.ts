@@ -14,6 +14,8 @@
  *     be applied for as No Pay Leave — the API rejects the excess with guidance.
  *  3. No Pay Leave is capped at 14 days/year for staff and interns alike, with NO
  *     proration: the full 14 days are available from the first day (Alfred, 20 Nov 2026).
+ *     A No Pay Leave day paid back by working an off day (approved payback) no longer
+ *     counts as taken (src/lib/npl-payback.ts).
  *  4. Interns (roles exactly ["INTERN"]) have no paid MC — their sick leave is
  *     No Pay Leave.
  */
@@ -181,13 +183,16 @@ export function evaluateAlRequest(input: AlRequestInput): AlRequestResult {
 
 export interface NplStatus {
   cap: number;
+  /** Approved No Pay Leave days, less the days paid back by working an off day. */
   used: number;
   pending: number;
   remaining: number;
+  /** Days paid back (approved payback), already taken off `used`. */
+  paidBack?: number;
 }
 
-export function nplStatus(cap: number, used: number, pending: number): NplStatus {
-  return { cap, used, pending, remaining: Math.max(0, cap - used - pending) };
+export function nplStatus(cap: number, used: number, pending: number, paidBack = 0): NplStatus {
+  return { cap, used, pending, remaining: Math.max(0, cap - used - pending), ...(paidBack > 0 ? { paidBack } : {}) };
 }
 
 export function evaluateNplRequest(days: number, status: NplStatus): { ok: boolean; remaining: number } {

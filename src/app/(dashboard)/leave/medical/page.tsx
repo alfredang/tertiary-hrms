@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasAdminAccess, prorateLeave } from "@/lib/utils";
-import { getLeaveProfile, type LeaveProfile } from "@/lib/leave-allowance";
-import { mcAnnualEntitlement } from "@/lib/leave-policy";
+import { getLeaveProfile, getNplStatus, type LeaveProfile } from "@/lib/leave-allowance";
+import { mcAnnualEntitlement, NPL_ANNUAL_CAP_DAYS, NPL_CODE } from "@/lib/leave-policy";
 import { LeaveList } from "@/components/leave/leave-list";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
@@ -48,6 +48,19 @@ async function getMcRequests(mcTypeId: string, employeeId?: string) {
       employee: {
         select: { id: true, name: true, department: { select: { name: true } } },
       },
+      leaveType: { select: { name: true, code: true } },
+      approver: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/** An intern's sick leave: No Pay Leave requests filed through "Request MC" (reason starts "Sick leave (MC)"). */
+async function getInternSickRequests(employeeId: string) {
+  return prisma.leaveRequest.findMany({
+    where: { employeeId, leaveType: { code: NPL_CODE }, reason: { startsWith: "Sick leave (MC)" } },
+    include: {
+      employee: { select: { id: true, name: true, department: { select: { name: true } } } },
       leaveType: { select: { name: true, code: true } },
       approver: { select: { name: true } },
     },
@@ -102,7 +115,18 @@ export default async function MedicalLeavePage() {
   const unpaidMcDays = isIntern ? totalDays : totalDays - paidMcDays;
   const isPartiallyPaid = !isIntern && unpaidMcDays > 0;
 
-  const [balance, requests] = await Promise.all([
+  // Interns (own view): no MC balance at all. Their sick leave is unpaid and comes out of the
+  // 14 No Pay Leave days a year, so the page shows that instead of an MC balance of 0.
+  const internView = isIntern && viewAs !== "admin" && !!currentEmployeeId;
+  const [internNpl, internSick] = internView
+    ? await Promise.all([getNplStatus(currentEmployeeId!, profile), getInternSickRequests(currentEmployeeId!)])
+    : [null, []];
+  const year = new Date().getFullYear();
+  const internSickTaken = internSick
+    .filter((r) => r.status === "APPROVED" && r.startDate.getUTCFullYear() === year)
+    .reduce((s, r) => s + Number(r.days), 0);
+
+  const [balance, mcRequests] = await Promise.all([
     mcType && currentEmployeeId
       ? getMcBalance(currentEmployeeId, mcType.id, profile)
       : Promise.resolve({ entitlement: 0, earned: 0, used: 0, pending: 0, remaining: 0 }),
@@ -110,6 +134,9 @@ export default async function MedicalLeavePage() {
       ? getMcRequests(mcType.id, filterByEmployeeId)
       : Promise.resolve([]),
   ]);
+
+  // An intern's own list also carries the sick leave filed as No Pay Leave.
+  const requests = internView ? [...internSick, ...mcRequests] : mcRequests;
 
   return (
     <div className="space-y-6">
@@ -123,7 +150,7 @@ export default async function MedicalLeavePage() {
             {viewAs === "admin"
               ? "Manage all employee medical leave requests"
               : isIntern
-                ? "Interns have no paid medical leave — sick leave is taken as No Pay Leave"
+                ? `Interns have no paid MC balance. Sick leave is unpaid: up to ${NPL_ANNUAL_CAP_DAYS} days a year, taken as No Pay Leave`
                 : isPartiallyPaid
                   ? `Medical leave — ${totalDays} days/year (${paidMcDays} paid + ${unpaidMcDays} unpaid)`
                   : `Paid medical leave — ${totalDays} days per year`}
@@ -147,8 +174,9 @@ export default async function MedicalLeavePage() {
               <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/50 border border-amber-800 text-amber-300">
                 Unpaid Leave
               </span>
-              <span className="text-xs text-gray-500">
-                Interns do not have paid medical leave. Request MC as usual — it is submitted as No Pay Leave with your certificate.
+              <span className="text-xs text-gray-500 allow-wrap">
+                No paid MC balance. Request MC as usual: it is submitted as No Pay Leave with your certificate, and counts
+                toward your {NPL_ANNUAL_CAP_DAYS} unpaid days a year.
               </span>
             </>
           ) : isPartiallyPaid ? (
@@ -168,8 +196,30 @@ export default async function MedicalLeavePage() {
         </div>
       )}
 
+      {/* Interns: no MC balance. Show the unpaid allowance instead. */}
+      {internView && internNpl && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+            <p className="text-xs sm:text-sm text-gray-400 mb-1">Paid MC Balance</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-400">None</p>
+            <p className="text-xs text-gray-500 mt-1">Interns have no paid MC</p>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+            <p className="text-xs sm:text-sm text-gray-400 mb-1">Unpaid MC Allowed</p>
+            <p className="text-2xl sm:text-3xl font-bold text-blue-400">{internNpl.cap}</p>
+            <p className="text-xs text-gray-500 mt-1">days a year, as No Pay Leave</p>
+          </div>
+          <BalanceCard label="Unpaid MC Taken" value={internSickTaken} color="text-amber-400" />
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+            <p className="text-xs sm:text-sm text-gray-400 mb-1">Unpaid Days Left</p>
+            <p className="text-2xl sm:text-3xl font-bold text-green-400">{internNpl.remaining}</p>
+            <p className="text-xs text-gray-500 mt-1">of {internNpl.cap}, shared with other No Pay Leave</p>
+          </div>
+        </div>
+      )}
+
       {/* Balance Summary - staff view only */}
-      {viewAs !== "admin" && (
+      {viewAs !== "admin" && !internView && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
             <p className="text-xs sm:text-sm text-gray-400 mb-1">Earned to Date</p>

@@ -291,3 +291,61 @@ export async function sendTimeOffDecisionEmail(requestId: string, decision: Deci
     console.error(`Time-off decision email failed for ${requestId}:`, err);
   }
 }
+
+/**
+ * No Pay Leave payback decision: to the requester, Cc both admins, with the leave summary so the
+ * restored No Pay Leave balance is visible. Fixed wording (not an editable template).
+ */
+export async function sendPaybackDecisionEmail(paybackId: string, decision: Decision, opts: DecisionOptions = {}): Promise<void> {
+  try {
+    const pb = await prisma.nplPayback.findUnique({
+      where: { id: paybackId },
+      include: { employee: { select: { userId: true, name: true, email: true, user: { select: { email: true } } } } },
+    });
+    if (!pb) return;
+    const day = (d: Date) =>
+      `${new Date(`${ymd(d)}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}, ${prettyDate(d)}`;
+    const amount = Number(pb.days) === 0.5 ? "Half day" : `${Number(pb.days)} day${Number(pb.days) === 1 ? "" : "s"}`;
+    const label = `No Pay Leave payback (worked ${prettyDate(pb.workDate)} for ${prettyDate(pb.nplDate)})`;
+    const approved = decision === "APPROVED";
+    await notifyRequester(pb.employee.userId, opts, approved
+      ? { title: "Payback Approved", message: `Your ${label} has been approved. That No Pay Leave day is back in your balance.`, type: "PAYBACK_APPROVED", link: "/leave/payback" }
+      : { title: "Payback Rejected", message: `Your ${label} was not approved.`, type: "PAYBACK_REJECTED", link: "/leave/payback" });
+    const to = (pb.employee.user?.email || pb.employee.email)?.trim();
+    if (!to || isDemoEmail(to)) return;
+    const [summary, branding] = await Promise.all([
+      loadLeaveSummary(pb.employeeId, pb.nplDate.getUTCFullYear()),
+      getCompanyBranding().catch(() => null),
+    ]);
+    const companyName = branding?.name || "TIA HRMS";
+    const comment = opts.comment?.trim();
+    const bodyText = approved
+      ? `Hi ${pb.employee.name},\n\nYour No Pay Leave payback has been approved by ${approverLabel(opts)}. The No Pay Leave on ${prettyDate(pb.nplDate)} no longer counts as taken, so it is back in your No Pay Leave balance.\n\n- ${companyName}`
+      : `Hi ${pb.employee.name},\n\nYour No Pay Leave payback was not approved by ${approverLabel(opts)}. Your No Pay Leave balance is unchanged.\n\nPlease contact your manager if you have questions.\n\n- ${companyName}`;
+    const html = buildDecisionEmailHtml({
+      companyName,
+      headerTitle: "No Pay Leave Payback",
+      decision,
+      bodyText,
+      rows: [
+        { label: "Status", value: approved ? "Approved" : "Not approved" },
+        { label: "No Pay Leave", value: day(pb.nplDate) },
+        { label: "Worked on", value: `${day(pb.workDate)} (off day)` },
+        { label: "Pays back", value: amount },
+        ...(pb.note ? [{ label: "Note", value: pb.note }] : []),
+        { label: approved ? "Approved by" : "Decided by", value: approverLabel(opts) },
+        ...(comment ? [{ label: approved ? "Note from approver" : "Reason given", value: comment }] : []),
+      ],
+      summary,
+      siteUrl: getBaseUrl(),
+    });
+    await sendEmail({
+      to,
+      cc: staffAlertCc(to),
+      subject: approved ? "Your No Pay Leave payback was approved" : "Your No Pay Leave payback was not approved",
+      html,
+    });
+  } catch (err) {
+    console.error(`Payback decision email failed for ${paybackId}:`, err);
+  }
+}

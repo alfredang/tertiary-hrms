@@ -7,6 +7,7 @@
  * Credentials live in CompanyCredential (env vars are a fallback):
  *   APNS_KEY_P8, APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID (default com.tertiaryinfotech.hrportal)
  *   FCM_SERVICE_ACCOUNT_JSON (the Firebase service-account key JSON)
+ * Only approval requests make a sound; every other push is silent (Alfred, 20 Nov 2026).
  * Best effort throughout: a push failure is logged and never thrown to the caller.
  */
 import crypto from "node:crypto";
@@ -24,6 +25,14 @@ export interface PushItem {
 
 /** Admin approval requests: the web link is the list page, but the apps open Approvals. */
 const APPROVAL_TYPES = new Set(["LEAVE_SUBMITTED", "TIME_OFF_SUBMITTED", "EXPENSE_SUBMITTED"]);
+/**
+ * Only approval requests make a sound; every other push (decisions, alerts, reminders, birthdays)
+ * arrives silently (Alfred, 20 Nov 2026).
+ */
+const SOUND_TYPES = new Set([...Array.from(APPROVAL_TYPES), "PAYBACK_SUBMITTED"]);
+export const pushHasSound = (type?: string | null): boolean => !!type && SOUND_TYPES.has(type);
+/** Android channel for silent pushes. The Android app must create it with no sound; until then Android uses its default channel. */
+export const ANDROID_SILENT_CHANNEL = "hrms_silent";
 const appLink = (item: PushItem) => (item.type && APPROVAL_TYPES.has(item.type) ? "/approvals" : item.link ?? "");
 
 const CRED_KEYS = ["APNS_KEY_P8", "APNS_KEY_ID", "APNS_TEAM_ID", "APNS_BUNDLE_ID", "FCM_SERVICE_ACCOUNT_JSON"] as const;
@@ -164,7 +173,8 @@ export async function sendPush(items: PushItem[]): Promise<{ sent: number; faile
             if (!creds.APNS_KEY_P8 || !creds.APNS_KEY_ID || !creds.APNS_TEAM_ID) continue;
             const host = d.environment === "sandbox" ? "api.sandbox.push.apple.com" : "api.push.apple.com";
             const payload = JSON.stringify({
-              aps: { alert: { title: item.title, body: item.body }, sound: "default", badge: unread.get(item.userId) ?? 0 },
+              // Silent pushes carry no "sound" key: the banner and badge still show.
+              aps: { alert: { title: item.title, body: item.body }, ...(pushHasSound(item.type) ? { sound: "default" } : {}), badge: unread.get(item.userId) ?? 0 },
               link: appLink(item),
             });
             ({ status, reason } = await apnsSend(
@@ -188,7 +198,13 @@ export async function sendPush(items: PushItem[]): Promise<{ sent: number; faile
                   token: d.token,
                   notification: { title: item.title, body: item.body },
                   data: { link: appLink(item) },
-                  android: { priority: "HIGH", notification: { channel_id: "hrms_alerts", sound: "default" } },
+                  // Approval requests: the alerts channel with sound. Everything else: the silent channel.
+                  android: pushHasSound(item.type)
+                    ? { priority: "HIGH", notification: { channel_id: "hrms_alerts", sound: "default" } }
+                    : {
+                        priority: "HIGH",
+                        notification: { channel_id: ANDROID_SILENT_CHANNEL, default_sound: false, default_vibrate_timings: false, notification_priority: "PRIORITY_LOW" },
+                      },
                 },
               }),
             });

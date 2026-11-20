@@ -35,6 +35,7 @@ export function NeedsAttention({ findings, pending }: { findings: Finding[]; pen
   const approvals = [
     { label: "Leave", value: pending.leave, href: "/leave/annual" },
     { label: "MC", value: pending.mc, href: "/leave/medical" },
+    { label: "Payback", value: pending.payback, href: "/leave/payback" },
     { label: "Time off", value: pending.timeOff, href: "/time-off" },
     { label: "Missing punches", value: pending.corrections, href: "/timesheet/overview" },
     { label: "Claims", value: pending.expenses, href: "/expenses" },

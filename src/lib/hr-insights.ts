@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getPaidBackDaysByEmployee } from "@/lib/npl-payback-store";
 import { prorateLeave } from "@/lib/utils";
 import {
   ALLOW_ADVANCE_AL,
@@ -184,7 +185,8 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
   const monthStart = new Date(Date.UTC(year, now.getMonth(), 1));
   const monthEnd = new Date(Date.UTC(year, now.getMonth() + 1, 1));
 
-  const [employees, requests, balances, types] = await Promise.all([
+  const [paidBackByEmployee, employees, requests, balances, types] = await Promise.all([
+    getPaidBackDaysByEmployee(year),
     prisma.employee.findMany({
       where: { status: "ACTIVE" },
       select: { id: true, name: true, employeeId: true, startDate: true, endDate: true, monthlyLeaveRate: true, user: { select: { roles: true } } },
@@ -251,7 +253,8 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
       },
       npl: {
         cap: NPL_ANNUAL_CAP_DAYS,
-        used: sum((r) => r.leaveType.code === NPL_CODE && r.status === "APPROVED"),
+        // Net of the days paid back by working an off day, the same figure the person sees.
+        used: Math.max(0, sum((r) => r.leaveType.code === NPL_CODE && r.status === "APPROVED") - (paidBackByEmployee.get(e.id) ?? 0)),
         pending: sum((r) => r.leaveType.code === NPL_CODE && r.status === "PENDING"),
       },
       mcLeaves: own
@@ -271,19 +274,22 @@ export interface PendingApprovals {
   timeOff: number;
   corrections: number;
   expenses: number;
+  /** No Pay Leave paybacks waiting for approval. */
+  payback: number;
 }
 
 export async function getPendingApprovals(): Promise<PendingApprovals> {
   const medical = await prisma.leaveType.findMany({ where: { code: { in: ["MC", "SL", "MEDICAL"] } }, select: { id: true } });
   const medicalIds = medical.map((m) => m.id);
-  const [leave, mc, timeOff, corrections, expenses] = await Promise.all([
+  const [leave, mc, timeOff, corrections, expenses, payback] = await Promise.all([
     prisma.leaveRequest.count({ where: { status: "PENDING", leaveTypeId: { notIn: medicalIds } } }),
     prisma.leaveRequest.count({ where: { status: "PENDING", leaveTypeId: { in: medicalIds } } }),
     prisma.timeOffRequest.count({ where: { status: "PENDING" } }),
     prisma.attendanceCorrection.count({ where: { status: "PENDING" } }).catch(() => 0),
     prisma.expenseClaim.count({ where: { status: "PENDING" } }),
+    prisma.nplPayback.count({ where: { status: "PENDING" } }).catch(() => 0),
   ]);
-  return { leave, mc, timeOff, corrections, expenses };
+  return { leave, mc, timeOff, corrections, expenses, payback };
 }
 
 // ── Dashboard KPIs ──────────────────────────────────────────────────────────

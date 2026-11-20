@@ -18,9 +18,9 @@ export const HR_CRON_JOBS: BuiltInCronJob[] = [
   },
   {
     id: "missed-clock-out-rollup",
-    name: "Intern Missed Punch Roll-up (Admins)",
+    name: "Intern Missed Punch Roll-up, Birthdays + Away Today (Admins)",
     description:
-      "Every morning, sends Alfred Ang and Tan Soik Ching one summary of every intern missed clock-in/clock-out in the last 7 days that has no correction filed (in-app notification + email). Silent when there are none.",
+      "Every morning, sends Alfred Ang and Tan Soik Ching one summary of every intern missed clock-in/clock-out in the last 7 days that has no correction filed (in-app notification + email). Silent when there are none. The same run notifies the admins (in-app + phone push) of each active staff member's and intern's birthday that day, and of who is on MC, leave or No Pay Leave today.",
     schedule: "Daily at 08:30 SGT",
     cron: "30 0 * * *",
     method: "GET",

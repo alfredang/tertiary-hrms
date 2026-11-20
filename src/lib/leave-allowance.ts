@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getPaidBackDays } from "@/lib/npl-payback-store";
 import { isInternRoles, NPL_ANNUAL_CAP_DAYS, nplStatus, NPL_CODE, type NplStatus } from "@/lib/leave-policy";
 
 /** The employee fields every leave-policy check needs. */
@@ -31,12 +32,13 @@ function yearRange(year: number) {
  * No Pay Leave taken (approved) and pending this year, summed from the requests
  * themselves rather than the LeaveBalance row, which reset flows can leave stale.
  * `excludeRequestId` drops a request being edited from the total.
+ * Days paid back by working an off day (approved payback) are taken off `used`.
  */
 export async function getNplUsage(
   employeeId: string,
   year: number = new Date().getFullYear(),
   excludeRequestId?: string,
-): Promise<{ used: number; pending: number }> {
+): Promise<{ used: number; pending: number; paidBack: number }> {
   const rows = await prisma.leaveRequest.findMany({
     where: {
       employeeId,
@@ -53,7 +55,8 @@ export async function getNplUsage(
     if (r.status === "APPROVED") used += Number(r.days);
     else pending += Number(r.days);
   }
-  return { used, pending };
+  const paidBack = Math.min(used, await getPaidBackDays(employeeId, year, excludeRequestId));
+  return { used: used - paidBack, pending, paidBack };
 }
 
 /** The yearly NPL cap (flat, not prorated) and what is left of it this year. */
@@ -64,6 +67,6 @@ export async function getNplStatus(
   excludeRequestId?: string,
 ): Promise<NplStatus> {
   const cap = NPL_ANNUAL_CAP_DAYS;
-  const { used, pending } = await getNplUsage(employeeId, asOf.getFullYear(), excludeRequestId);
-  return nplStatus(cap, used, pending);
+  const { used, pending, paidBack } = await getNplUsage(employeeId, asOf.getFullYear(), excludeRequestId);
+  return nplStatus(cap, used, pending, paidBack);
 }

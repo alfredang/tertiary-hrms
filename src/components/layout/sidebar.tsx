@@ -41,6 +41,7 @@ import {
   AlarmClock,
   GraduationCap,
   Scale,
+  RotateCcw,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -114,6 +115,8 @@ const navigationGroups: NavGroup[] = [
         children: [
           { name: "Annual Leave", href: "/leave/annual", icon: CalendarDays },
           { name: "Medical Leave", href: "/leave/medical", icon: Stethoscope },
+          // Pay back No Pay Leave by working an off day (staff and interns).
+          { name: "Payback", href: "/leave/payback", icon: RotateCcw },
         ],
       },
       { name: "Time Off", adminName: "Time Off Approvals", href: "/time-off", icon: Timer, noAccountant: true as const },

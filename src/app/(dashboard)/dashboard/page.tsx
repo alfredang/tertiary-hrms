@@ -42,7 +42,7 @@ async function getAdminDashboard() {
     return {
       kpis: {
         staff: workforce.staff, interns: workforce.interns, onLeaveToday: workforce.onLeaveToday,
-        pendingTotal: pending.leave + pending.mc + pending.timeOff + pending.corrections + pending.expenses,
+        pendingTotal: pending.leave + pending.mc + pending.timeOff + pending.corrections + pending.expenses + pending.payback,
         alertsTotal: new Set(findings.map((f) => `${f.employeeId}:${f.category}`)).size,
         alertsHigh: findings.filter((f) => f.severity === "high").length,
         leaveYtd: ytd("LEAVE"), mcYtd: ytd("MC"), nplYtd: ytd("NPL"),

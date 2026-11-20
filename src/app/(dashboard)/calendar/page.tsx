@@ -11,6 +11,7 @@ import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { birthdayEvents, calendarCategoryColor, categoryTitle, eventCategory, holidayTitle, leaveCategory, type CalendarCategory } from "@/lib/calendar-categories";
 import { isOffDay, timeOffReasonLabel } from "@/lib/time-off";
+import { paidBackSuffix } from "@/lib/npl-payback";
 import { leaveDetails, timeOffDetails, type CalendarDetail } from "@/lib/calendar-details";
 
 export const dynamic = 'force-dynamic';
@@ -66,7 +67,7 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
 
   // Each leave's type decides its colour. Admin view also attaches the person, so the calendar
   // can filter by individual.
-  const leaveInfo = new Map<string, { category: CalendarCategory; days: number; details: CalendarDetail[]; person?: { id: string; name: string } }>();
+  const leaveInfo = new Map<string, { category: CalendarCategory; days: number; titleSuffix: string; details: CalendarDetail[]; person?: { id: string; name: string } }>();
   const leaveRequestIds = leaveEvents.map((e) => e.leaveRequestId).filter((id): id is string => !!id);
   if (leaveRequestIds.length) {
     const requests = await prisma.leaveRequest.findMany({
@@ -77,16 +78,29 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
         leaveType: { select: { code: true, paid: true, name: true } }, employee: { select: { id: true, name: true } },
       },
     });
+    // No Pay Leave paid back by working an off day (approved payback): marked on the leave itself.
+    const paybacks = await prisma.nplPayback
+      .findMany({
+        where: { leaveRequestId: { in: leaveRequestIds }, status: "APPROVED" },
+        select: { leaveRequestId: true, nplDate: true, workDate: true, days: true },
+        orderBy: { nplDate: "asc" },
+      })
+      .catch(() => []);
     for (const r of requests) {
       const category = leaveCategory(r.leaveType);
+      const paid = paybacks.filter((p) => p.leaveRequestId === r.id).map((p) => ({ nplDate: p.nplDate, workDate: p.workDate, days: Number(p.days) }));
+      const paidBack = Math.min(Number(r.days), paid.reduce((s, p) => s + p.days, 0));
       leaveInfo.set(r.id, {
         category,
-        days: Number(r.days),
+        // Days still counted as leave: a paid-back No Pay Leave day is not counted in the month totals.
+        days: Number(r.days) - paidBack,
+        titleSuffix: paidBackSuffix(paidBack, Number(r.days)),
         // Shown when hovering the event: type, dates, days and the reason given (e.g. for an MC).
         details: leaveDetails({
           leaveTypeName: r.leaveType.name, startDate: r.startDate, endDate: r.endDate, days: Number(r.days),
           dayType: r.dayType, halfDayPosition: r.halfDayPosition, reason: r.reason,
           hasDocument: !!(r.documentUrl || r.driveWebViewLink), medical: category === "MEDICAL_LEAVE",
+          paybacks: paid,
         }),
         person: showAllLeaves ? r.employee ?? undefined : undefined,
       });
@@ -111,7 +125,7 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       const category: CalendarCategory = event.type === "LEAVE" ? leave?.category ?? "ANNUAL_LEAVE" : eventCategory(event.type);
       return {
         id: event.id,
-        title: event.type === "HOLIDAY" ? holidayTitle(event.title) : categoryTitle(category, event.title),
+        title: event.type === "HOLIDAY" ? holidayTitle(event.title) : categoryTitle(category, event.title) + (leave?.titleSuffix ?? ""),
         start: event.startDate,
         end: event.endDate,
         allDay: event.allDay,
