@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { isSignInBlocked } from "@/lib/account-status";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
@@ -87,7 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await checkPassword(user.password, credentials.password as string);
         if (!valid) return null;
 
-        if (user.employee?.status === "INACTIVE") return null;
+        if (isSignInBlocked(user.employee?.status)) return null;
 
         const roles = user.roles.length > 0 ? user.roles : ["STAFF" as Role];
         return {
@@ -153,8 +154,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.warn(`[auth/otp] OTP valid but user not found for ${normalizedEmail}`);
           return null;
         }
-        if (user.employee?.status === "INACTIVE") {
-          console.warn(`[auth/otp] OTP valid but employee INACTIVE for ${normalizedEmail}`);
+        if (isSignInBlocked(user.employee?.status)) {
+          console.warn(`[auth/otp] OTP valid but employee has left (sign-in blocked) for ${normalizedEmail}`);
           return null;
         }
 
@@ -179,7 +180,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             include: { employee: true },
           });
 
-          if (existingUser?.employee?.status === "INACTIVE") return false;
+          if (isSignInBlocked(existingUser?.employee?.status)) return false;
 
           if (!existingUser) {
             const newUser = await prisma.user.create({
@@ -233,6 +234,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             where: { email: token.email },
             include: { employee: true },
           });
+          // Someone who has left: end the session (null clears the session cookie).
+          if (dbUser && isSignInBlocked(dbUser.employee?.status)) return null;
           if (dbUser) {
             const roles = dbUser.roles.length > 0 ? dbUser.roles : ["STAFF" as Role];
             (token as any).role = getPrimaryRole(roles);

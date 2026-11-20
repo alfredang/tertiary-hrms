@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isSignInBlocked } from "@/lib/account-status";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
@@ -85,8 +86,8 @@ export async function POST(req: Request) {
       include: { employee: true },
     });
 
-    // Block inactive employees
-    if (user?.employee?.status === "INACTIVE") {
+    // Block people who have left (Inactive, Terminated, Resigned)
+    if (isSignInBlocked(user?.employee?.status)) {
       return NextResponse.json(
         { error: "Account is inactive. Please contact HR." },
         { status: 403 }
