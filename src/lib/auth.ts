@@ -175,12 +175,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
         try {
+          // Accounts are stored in lower case; match the Google address the same way.
+          user.email = user.email.toLowerCase().trim();
           const existingUser = await prisma.user.findUnique({
             where: { email: user.email },
             include: { employee: true },
           });
 
-          if (isSignInBlocked(existingUser?.employee?.status)) return false;
+          if (isSignInBlocked(existingUser?.employee?.status)) {
+            console.warn(`[auth/google] sign-in refused for ${user.email}: employee status ${existingUser?.employee?.status}`);
+            return false;
+          }
 
           if (!existingUser) {
             const newUser = await prisma.user.create({
@@ -206,7 +211,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           return true;
         } catch (error) {
-          console.error("Error during Google sign-in:", error);
+          console.error(`[auth/google] sign-in failed for ${user.email}:`, error);
           return false;
         }
       }
