@@ -236,6 +236,8 @@ Earlier additions (May 2026):
 - **One colour per activity**, defined once in `src/lib/calendar-categories.ts`: Public Holiday, Annual Leave, Medical Leave, No Pay Leave, Other Leave, Time Off, Meeting, Training and Company Event. Approved time off and intern Off Days appear on the calendar too, and the person filter covers both leave and time off
 - **Every Singapore public holiday** shown (the seeded `PublicHoliday` list plus admin-added holiday events), each holiday cell on a light grey background; the day page shows a public-holiday banner. The native apps get the same list from `/api/mobile/team-calendar`.
 - Approved leave/MC automatically synced as calendar events
+- **Hover details** — hovering an event opens a card with its details: leave type, dates, days, the reason given and whether an MC was uploaded; time off shows the time, hours and reason. Hovering "+N" lists the events that did not fit, and the day agenda shows the same lines (`src/lib/calendar-details.ts`)
+- **Type filter (admin view)** — a "Show" row of colour chips filters the calendar by Medical Leave, Annual Leave, No Pay Leave, Time Off and the other activity types (pick several; All clears). It combines with the person filter and doubles as the colour legend
 - **Leave visibility**: admin view shows all employees' leave; "Show as Staff" mode and staff role see only own leave
 - Day detail view with event cards showing title, type, and time
 - Add/edit/delete events with ownership enforcement

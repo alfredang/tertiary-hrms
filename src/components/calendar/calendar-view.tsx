@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ interface CalendarEvent {
   category: string;
   color: string;
   description?: string | null;
+  /** Detail lines for the hover card and the agenda: leave type, dates, days, reason… */
+  details?: { label: string; value: string }[];
   /** Leave events in the admin view: whose leave it is. */
   personId?: string;
   personName?: string;
@@ -82,6 +84,31 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
         : allEvents,
     [allEvents, person],
   );
+  // Admin view: show only the picked kinds of activity (MC, annual leave, no-pay leave, time off…).
+  // Nothing picked = everything. Day shading (holidays, off days) does not follow this filter.
+  const [kinds, setKinds] = useState<string[]>([]);
+  const toggleKind = (key: string) => setKinds((k) => (k.includes(key) ? k.filter((x) => x !== key) : [...k, key]));
+  const visible = useMemo(() => (kinds.length ? events.filter((e) => kinds.includes(e.category)) : events), [events, kinds]);
+  // Hover card: the event(s) under the mouse and where to draw the card.
+  const [hover, setHover] = useState<{ events: CalendarEvent[]; style: React.CSSProperties } | null>(null);
+  const showHover = (el: HTMLElement, list: CalendarEvent[]) => {
+    const r = el.getBoundingClientRect();
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - HOVER_WIDTH - 8));
+    // Below the chip, or above it when there is more room there.
+    const below = window.innerHeight - r.bottom >= r.top;
+    setHover({
+      events: list,
+      style: below
+        ? { left, top: r.bottom + 6, maxHeight: window.innerHeight - r.bottom - 14 }
+        : { left, bottom: window.innerHeight - r.top + 6, maxHeight: r.top - 14 },
+    });
+  };
+  useEffect(() => {
+    if (!hover) return;
+    const close = () => setHover(null);
+    window.addEventListener("scroll", close, true);
+    return () => window.removeEventListener("scroll", close, true);
+  }, [hover]);
   // Whose off days to shade: the viewer's own (staff / intern view) or the person picked in the admin filter.
   // With "Everyone" there is no single schedule, so nothing is shaded.
   const offDaysFor = personFilter ? activePeople.find((p) => p.id === person)?.workdays : ownWorkdays;
@@ -105,10 +132,10 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
     return { cells, monthName: first.toLocaleString("default", { month: "long" }), year: y };
   }, [currentDate]);
 
-  const eventsOn = (date: Date) => {
+  const eventsOn = (date: Date, list: CalendarEvent[] = visible) => {
     const noon = new Date(date);
     noon.setHours(12, 0, 0, 0);
-    return events
+    return list
       .filter((event) => {
         const s = new Date(event.start);
         const e = new Date(event.end);
@@ -196,6 +223,31 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
             </div>
           )}
 
+          {personFilter && (
+            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3 sm:px-6" role="group" aria-label="Filter by type">
+              <span className="mr-0.5 text-xs text-gray-500">Show</span>
+              <button type="button" onClick={() => setKinds([])} aria-pressed={kinds.length === 0}
+                className={cn("rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                  kinds.length === 0 ? "border-blue-600 bg-blue-600 text-on-color" : "border-gray-800 text-gray-400 hover:text-white")}>
+                All
+              </button>
+              {CALENDAR_CATEGORIES.map(({ key, label, color }) => {
+                const on = kinds.includes(key);
+                return (
+                  <button key={key} type="button" onClick={() => toggleKind(key)} aria-pressed={on}
+                    className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                      on ? "font-semibold text-white" : "border-gray-800 text-gray-400 hover:text-white",
+                      // With a filter on, the kinds left out are dimmed so the picked ones stand out.
+                      !on && kinds.length > 0 && "opacity-50 hover:opacity-100")}
+                    style={on ? { borderColor: color, backgroundColor: `${color}33`, boxShadow: `inset 0 0 0 1px ${color}` } : undefined}>
+                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {monthSummary && (
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6" aria-label={`Totals for ${monthName} ${year}`}>
               <span className="text-xs text-gray-500">{monthName} {year}</span>
@@ -223,11 +275,13 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
           <div className="grid grid-cols-7">
             {cells.map(({ date, inMonth }, i) => {
               const dayEvents = eventsOn(date);
-              const holidays = dayEvents.filter((e) => e.type === "HOLIDAY");
+              // Shading reads every event, so a holiday or off day stays grey whatever the type filter.
+              const allDayEvents = kinds.length ? eventsOn(date, events) : dayEvents;
+              const holidays = allDayEvents.filter((e) => e.type === "HOLIDAY");
               // Weekly off day (not one of the person's workdays) or an approved full-day Off Day.
               const isOff =
                 showOffDays &&
-                (!scheduled.includes(date.getDay() || 7) || dayEvents.some((e) => e.category === "TIME_OFF" && e.allDay));
+                (!scheduled.includes(date.getDay() || 7) || allDayEvents.some((e) => e.category === "TIME_OFF" && e.allDay));
               const isToday = sameDay(date, today);
               const isSelected = sameDay(date, selected);
               return (
@@ -238,7 +292,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                     setSelected(date);
                     if (!inMonth) setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
                   }}
-                  title={holidays.map((h) => h.title).join(", ") || (isOff ? "Off day" : undefined)}
+                  title={dayEvents.length === 0 ? holidays.map((h) => h.title).join(", ") || (isOff ? "Off day" : undefined) : undefined}
                   className={cn(
                     "flex h-[84px] flex-col items-stretch overflow-hidden border-b border-r border-gray-800 p-1 text-left transition-colors sm:h-[112px] sm:p-1.5",
                     (i + 1) % 7 === 0 && "border-r-0",
@@ -263,12 +317,18 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                         key={event.id}
                         className="calendar-event-chip truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight sm:text-xs"
                         style={chipStyle(event.color)}
+                        onMouseEnter={(e) => showHover(e.currentTarget, [event])}
+                        onMouseLeave={() => setHover(null)}
                       >
                         {event.title}
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
-                      <div className="px-1 text-center text-[10px] font-medium text-gray-400 sm:text-xs">
+                      <div
+                        className="px-1 text-center text-[10px] font-medium text-gray-400 sm:text-xs"
+                        onMouseEnter={(e) => showHover(e.currentTarget, dayEvents.slice(2))}
+                        onMouseLeave={() => setHover(null)}
+                      >
                         +{dayEvents.length - 2}
                       </div>
                     )}
@@ -278,9 +338,9 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
             })}
           </div>
 
-          {/* Legend */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 sm:px-6">
-            {CALENDAR_CATEGORIES.map(({ key, label, color }) => (
+          {/* Legend. In the admin view the type filter above is the legend. */}
+          <div className={cn("flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 sm:px-6", personFilter && !showOffDays && "hidden")}>
+            {!personFilter && CALENDAR_CATEGORIES.map(({ key, label, color }) => (
               <div key={key} className="flex items-center gap-1.5">
                 <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
                 <span className="text-xs text-gray-400">{label}</span>
@@ -331,7 +391,11 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                         ? " · All day"
                         : ` · ${new Date(event.start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
                     </p>
-                    {event.description && <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 allow-wrap">{event.description}</p>}
+                    {event.details?.length ? (
+                      <EventDetails details={event.details} />
+                    ) : (
+                      event.description && <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 allow-wrap">{event.description}</p>
+                    )}
                   </div>
                 </div>
               ))
@@ -339,7 +403,52 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
           </CardContent>
         </Card>
       </div>
+
+      {hover && (
+        <div
+          role="tooltip"
+          className="pointer-events-none fixed z-50 divide-y divide-gray-800 overflow-hidden rounded-xl border border-gray-800 bg-gray-900 shadow-xl"
+          style={{ width: HOVER_WIDTH, ...hover.style }}
+        >
+          {hover.events.map((event) => (
+            <div key={event.id} className="flex items-start gap-2.5 px-3 py-2.5">
+              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: safeHex(event.color) }} />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white allow-wrap">{event.title}</p>
+                <p className="text-xs text-gray-400">
+                  {calendarCategoryLabel(event.category)}
+                  {event.allDay ? " · All day" : ""}
+                </p>
+                {event.details?.length ? (
+                  <EventDetails details={event.details} />
+                ) : (
+                  event.description &&
+                  event.description !== calendarCategoryLabel(event.category) && (
+                    <p className="mt-1 text-xs text-gray-400 allow-wrap">{event.description}</p>
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+const HOVER_WIDTH = 300;
+
+/** Label / value lines under an event: type, dates, days, reason. */
+function EventDetails({ details }: { details: { label: string; value: string }[] }) {
+  return (
+    <dl className="mt-1 grid grid-cols-[auto,1fr] gap-x-2 gap-y-0.5 text-xs">
+      {details.map((d) => (
+        <div key={d.label} className="contents">
+          <dt className="text-gray-500">{d.label}</dt>
+          <dd className="text-gray-200 allow-wrap">{d.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

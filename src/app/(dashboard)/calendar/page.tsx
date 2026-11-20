@@ -11,6 +11,7 @@ import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { birthdayEvents, calendarCategoryColor, categoryTitle, eventCategory, holidayTitle, leaveCategory, type CalendarCategory } from "@/lib/calendar-categories";
 import { isOffDay, timeOffReasonLabel } from "@/lib/time-off";
+import { leaveDetails, timeOffDetails, type CalendarDetail } from "@/lib/calendar-details";
 
 export const dynamic = 'force-dynamic';
 
@@ -65,15 +66,30 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
 
   // Each leave's type decides its colour. Admin view also attaches the person, so the calendar
   // can filter by individual.
-  const leaveInfo = new Map<string, { category: CalendarCategory; days: number; person?: { id: string; name: string } }>();
+  const leaveInfo = new Map<string, { category: CalendarCategory; days: number; details: CalendarDetail[]; person?: { id: string; name: string } }>();
   const leaveRequestIds = leaveEvents.map((e) => e.leaveRequestId).filter((id): id is string => !!id);
   if (leaveRequestIds.length) {
     const requests = await prisma.leaveRequest.findMany({
       where: { id: { in: leaveRequestIds } },
-      select: { id: true, days: true, leaveType: { select: { code: true, paid: true } }, employee: { select: { id: true, name: true } } },
+      select: {
+        id: true, days: true, startDate: true, endDate: true, reason: true, dayType: true, halfDayPosition: true,
+        documentUrl: true, driveWebViewLink: true,
+        leaveType: { select: { code: true, paid: true, name: true } }, employee: { select: { id: true, name: true } },
+      },
     });
     for (const r of requests) {
-      leaveInfo.set(r.id, { category: leaveCategory(r.leaveType), days: Number(r.days), person: showAllLeaves ? r.employee ?? undefined : undefined });
+      const category = leaveCategory(r.leaveType);
+      leaveInfo.set(r.id, {
+        category,
+        days: Number(r.days),
+        // Shown when hovering the event: type, dates, days and the reason given (e.g. for an MC).
+        details: leaveDetails({
+          leaveTypeName: r.leaveType.name, startDate: r.startDate, endDate: r.endDate, days: Number(r.days),
+          dayType: r.dayType, halfDayPosition: r.halfDayPosition, reason: r.reason,
+          hasDocument: !!(r.documentUrl || r.driveWebViewLink), medical: category === "MEDICAL_LEAVE",
+        }),
+        person: showAllLeaves ? r.employee ?? undefined : undefined,
+      });
     }
   }
 
@@ -104,6 +120,7 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
         // Leave always takes its category colour; other events keep a colour chosen on the event.
         color: event.type === "LEAVE" ? calendarCategoryColor(category) : event.color || calendarCategoryColor(category),
         description: event.description,
+        details: leave?.details,
         personId: leave?.person?.id,
         personName: leave?.person?.name,
         // Days charged for the leave, for the person's month totals.
@@ -127,6 +144,10 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
         description: offDay
           ? "Full day off"
           : `${Number(t.hours)} h · ${timeOffReasonLabel(t.reason)}${t.reasonDetail ? ` — ${t.reasonDetail}` : ""}`,
+        details: timeOffDetails({
+          offDay, startTime: t.startTime, endTime: t.endTime, hours: Number(t.hours),
+          reasonLabel: timeOffReasonLabel(t.reason), reasonDetail: t.reasonDetail,
+        }) as CalendarDetail[] | undefined,
         personId: showAllLeaves ? t.employee.id : undefined,
         personName: showAllLeaves ? t.employee.name : undefined,
         days: undefined,
@@ -144,6 +165,7 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       category: "HOLIDAY" as CalendarCategory,
       color: calendarCategoryColor("HOLIDAY"),
       description: "Public holiday",
+      details: undefined,
       personId: undefined,
       personName: undefined,
       days: undefined,
@@ -205,7 +227,7 @@ export default async function CalendarPage() {
   // Admin view: every active staff member's and intern's birthday, last year to two years ahead.
   const thisYear = new Date().getFullYear();
   const birthdays = birthdayEvents(activeEmployees, [thisYear - 1, thisYear, thisYear + 1, thisYear + 2]).map((b) => ({
-    ...b, days: undefined, hours: undefined,
+    ...b, details: undefined, days: undefined, hours: undefined,
   }));
   const people = activeEmployees.map((e) => ({ id: e.id, name: e.name, intern: isInternRoles(e.user?.roles), workdays: e.workdays }));
 
