@@ -139,6 +139,7 @@ Earlier additions (May 2026):
 - HR management routes (`/payroll/generate`, `/settings`) restricted to ADMIN/HR/MANAGER via middleware
 - Dev quick-login buttons for testing (development mode only)
 - **Password change** — users can change their own password from Profile page
+- **My Profile layout** — the page opens on the person's photo, name, job title, status and employee ID (with the Edit button), then the Work Schedule card, then the detail cards (21 Nov 2026)
 - **Admin password reset** — admins can reset any employee's password to the default via employee edit sheet
 
 ### RBAC (Role-Based Access Control)

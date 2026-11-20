@@ -98,6 +98,8 @@ interface Props {
   employee: EmployeeWithRelations;
   departments: Department[];
   canEdit: boolean;
+  /** Drawn between the avatar/name header and the detail cards (My Profile puts the work schedule here). */
+  afterHeader?: React.ReactNode;
 }
 
 function formatDateValue(d: Date | string | null | undefined): string {
@@ -111,7 +113,7 @@ function hideEmail(email: string): string {
   return email.includes(".noemail@") ? "—" : email;
 }
 
-export function EmployeeDetailEditable({ employee, departments, canEdit }: Props) {
+export function EmployeeDetailEditable({ employee, departments, canEdit, afterHeader }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
@@ -320,6 +322,8 @@ export function EmployeeDetailEditable({ employee, departments, canEdit }: Props
           </div>
         )}
       </div>
+
+      {afterHeader}
 
       {error && (
         <div className="rounded-md border border-red-800 bg-red-950/40 px-4 py-2 text-sm text-red-300">
