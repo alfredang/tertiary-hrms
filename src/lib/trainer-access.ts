@@ -7,7 +7,7 @@ import { isDevAuthSkipped } from "@/lib/dev-auth";
  * records hold NRIC, phone and email, so access is opt-in per person.
  * TRAINER_ADMIN is deliberately NOT in auth.ts ROLE_PRIORITY — it never becomes the
  * primary role, so it does not change anyone's view mode. On /dashboard it adds a row of
- * trainer counts under the holder's own row (staff / intern view only).
+ * trainer counts under the holder's own row (every view except accountant).
  */
 import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 export { hasTrainerAdminAccess, TRAINER_ADMIN_ROLE } from "@/lib/trainer-access-client";

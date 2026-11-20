@@ -1,7 +1,7 @@
 # Dashboard rules (admin view)
 
 Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/SKILL.md): neat, KPI-first, interactive.
-- `/dashboard` (admin view) = 3 clickable KPI tiles: full-time staff, interns, pending approvals (Alfred, 20 Nov 2026) (`admin-kpis.tsx`) + "Needs attention" grouped by alert
+- `/dashboard` (admin view) = 3 clickable KPI tiles (plus the trainer row for TRAINER_ADMIN holders): full-time staff, interns, pending approvals (Alfred, 20 Nov 2026) (`admin-kpis.tsx`) + "Needs attention" grouped by alert
   category (`needs-attention.tsx`) + ONE chart (`leave-trend-chart.tsx`). Never list individual findings there.
 - Detail lives on `/dashboard/insights` (`#alerts`, `#approvals`, `#leave`, `#interns`, `?cat=<category>`).
 - Tiles and chart use the same `getMonthlyLeaveSeries()` numbers. Chart palette is validated (dataviz skill).
@@ -13,7 +13,7 @@ Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/
   - staff / intern view: own Annual Leave left, Medical Leave left, No Pay Leave taken of 14 (`StatsCards`; interns
     have no paid MC), plus Off In Lieu when there is any;
   - TRAINER_ADMIN holders: a second row of trainers, ACLP, non-ACLP (`TrainerKpiRow`, same counting as `/trainers`),
-    in the staff / intern view only. Not in the accountant view (finance only) or the admin view (three tiles).
+    under their own row in the admin, staff and intern views. Not in the accountant view (finance only).
   - Every tile row uses `kpi-tiles.tsx`; add a role's row there, not a new tile style.
 - `/dashboard/analytics` (`analytics-dashboard.tsx`, loader `src/lib/analytics.ts`, shared `bar-chart.tsx`): 12 months of
   bank revenue / expenses, leave and MC per person, headcount. One filter row drives every chart and tile. Same three

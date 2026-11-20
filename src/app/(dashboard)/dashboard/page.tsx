@@ -220,7 +220,7 @@ export default async function DashboardPage() {
   //   admin view      -> staff, interns, pending approvals
   //   accountant view -> pending claims, income, expenses
   //   staff / intern  -> own annual leave, medical leave, no pay leave
-  //   Trainer Admins  -> trainers, ACLP, non-ACLP, as a second row under their own
+  //   Trainer Admins  -> trainers, ACLP, non-ACLP, as a second row under their own (not in accountant view)
   // Admins pick the view; an accountant always gets the accountant view, with their own leave row under it.
   const isAdmin = hasAdminAccess(role);
   const isAccountant = !isAdmin && roles.includes("ACCOUNTANT");
@@ -230,9 +230,8 @@ export default async function DashboardPage() {
   const isAccountantView = viewAs === "accountant";
   const isStaffView = !isAdminView;
   const showOwnLeave = !isAdminView && (!isAccountantView || isAccountant);
-  // Trainer Management follows its own role. Not in the accountant view (finance only),
-  // and not in the admin view, which stays at three tiles.
-  const showTrainers = hasTrainerAdminAccess(roles) && !isAdminView && !isAccountantView;
+  // Trainer Management follows its own role, in every view except the accountant view (finance only).
+  const showTrainers = hasTrainerAdminAccess(roles) && !isAccountantView;
 
   // For non-admin views: filter recent activity by own employee ID
   const activityEmployeeId = isStaffView ? currentEmployeeId : undefined;
@@ -272,6 +271,7 @@ export default async function DashboardPage() {
         <>
           {/* KPI tiles — each opens its detail */}
           <AdminKpis {...adminDash.kpis} />
+          {trainers && <TrainerKpiRow {...trainers} title="Trainer Management" />}
           {/* Grouped alerts + the one chart */}
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
             <div className="xl:col-span-2"><NeedsAttention findings={adminDash.findings} pending={adminDash.pending} /></div>
@@ -283,7 +283,7 @@ export default async function DashboardPage() {
         <>
           {finance && <FinanceKpiRow {...finance} />}
           {(adminStats || staffStats) && <StatsCards adminStats={adminStats} staffStats={staffStats} />}
-          {trainers && <TrainerKpiRow {...trainers} title={staffStats ? "Trainer Management" : undefined} />}
+          {trainers && <TrainerKpiRow {...trainers} title={adminStats || staffStats ? "Trainer Management" : undefined} />}
         </>
       )}
 
