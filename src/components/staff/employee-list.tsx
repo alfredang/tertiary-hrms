@@ -20,6 +20,8 @@ interface EmployeeListProps {
   employees: (Employee & { department: Department | null; user: { roles: Role[] } })[];
   departments: Department[];
   isAdmin?: boolean;
+  /** Which page this is: Staff Management or Intern Management. Sets the labels and the Create button. */
+  kind?: "staff" | "intern";
 }
 
 const statusColors: Record<EmployeeStatus, string> = {
@@ -77,7 +79,8 @@ function formatDate(d: Date | string | null | undefined): string {
 
 const PAGE_SIZE = 20;
 
-export function EmployeeList({ employees, departments, isAdmin = true }: EmployeeListProps) {
+export function EmployeeList({ employees, departments, isAdmin = true, kind = "staff" }: EmployeeListProps) {
+  const noun = kind === "intern" ? "interns" : "staff";
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<string>("ACTIVE");
@@ -99,8 +102,11 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
     const matchesDepartment =
       departmentFilter === "all" || employee.departmentId === departmentFilter;
 
+    // "Active" includes people currently on leave; "Past" is everyone who has left.
+    const isCurrent = employee.status === "ACTIVE" || employee.status === "ON_LEAVE";
     const matchesStatus =
-      statusFilter === "all" || employee.status === statusFilter;
+      statusFilter === "all" ||
+      (statusFilter === "ACTIVE" ? isCurrent : statusFilter === "PAST" ? !isCurrent : employee.status === statusFilter);
 
     return matchesSearch && matchesDepartment && matchesStatus;
   }).sort((a, b) => a.employeeId.localeCompare(b.employeeId, undefined, { numeric: true }));
@@ -119,7 +125,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
             <div className="relative flex-1 sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search employees..."
+                placeholder={`Search ${noun}...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -128,10 +134,10 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
             <div className="flex gap-3">
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="All Roles" />
+                  <SelectValue placeholder="All job functions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="all">All job functions</SelectItem>
                   {departments.map((dept) => (
                     <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
@@ -144,8 +150,9 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PAST">Past (all who left)</SelectItem>
+                  <SelectItem value="all">Present and past</SelectItem>
                   <SelectItem value="ON_LEAVE">On Leave</SelectItem>
                   <SelectItem value="RESIGNED">Resigned</SelectItem>
                   <SelectItem value="TERMINATED">Terminated</SelectItem>
@@ -156,16 +163,10 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
           </div>
 
           <div className="flex items-center gap-2 justify-between sm:justify-end">
-            <Link href="/employees/new" className="flex-1 sm:flex-none">
+            <Link href={kind === "intern" ? "/employees/new-intern" : "/employees/new"} className="flex-1 sm:flex-none">
               <Button className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Staff
-              </Button>
-            </Link>
-            <Link href="/employees/new-intern" className="flex-1 sm:flex-none">
-              <Button variant="outline" className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Intern
+                {kind === "intern" ? "Create Intern" : "Create Staff"}
               </Button>
             </Link>
           </div>
@@ -247,7 +248,7 @@ export function EmployeeList({ employees, departments, isAdmin = true }: Employe
 
       {filteredEmployees.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-400">No employees found</p>
+          <p className="text-gray-400">No {noun} found</p>
         </div>
       )}
 

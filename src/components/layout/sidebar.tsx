@@ -12,6 +12,7 @@ import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 import {
   LayoutDashboard,
   Users,
+  UserPlus,
   User,
   Clock,
   Receipt,
@@ -73,6 +74,7 @@ const navigation: NavItem[] = [
   { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
   { name: "My Profile", href: "/profile",     icon: User, noAccountant: true as const },
   { name: "Employees",       adminName: "Staff Management",   href: "/employees", icon: Users,      adminOnly:     true as const },
+  { name: "Intern Management", href: "/interns", icon: UserPlus, adminOnly: true as const },
   {
     name: "Leave",
     adminName: "Leave Management",

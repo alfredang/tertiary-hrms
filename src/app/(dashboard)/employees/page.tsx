@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getViewMode } from "@/lib/view-mode";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
+import { isInternRoles } from "@/lib/leave-policy";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,13 +26,15 @@ async function getEmployees(viewAs: string, currentEmployeeId?: string) {
     return [];
   }
 
-  // Admin view: show all employees, sorted by employeeId (natural numeric order)
-  const employees = await prisma.employee.findMany({
+  // Admin view: every present and past staff member, sorted by employeeId (natural numeric order).
+  // Interns have their own page, /interns (Alfred, 20 Nov 2026).
+  const everyone = await prisma.employee.findMany({
     include: {
       department: true,
       user: { select: { roles: true } },
     },
   });
+  const employees = everyone.filter((e) => !isInternRoles(e.user?.roles));
 
   employees.sort((a, b) =>
     a.employeeId.localeCompare(b.employeeId, undefined, { numeric: true }),
@@ -78,14 +81,20 @@ export default async function EmployeesPage() {
     getDepartments(),
   ]);
 
+  const active = employees.filter((e) => e.status === "ACTIVE" || e.status === "ON_LEAVE").length;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Employees</h1>
-        <p className="text-sm sm:text-base text-gray-400 mt-1">{employees.length} team member{employees.length !== 1 ? "s" : ""}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">{viewAs === "admin" ? "Staff Management" : "Employees"}</h1>
+        <p className="text-sm sm:text-base text-gray-400 mt-1">
+          {viewAs === "admin"
+            ? `${active} active · ${employees.length - active} past`
+            : `${employees.length} team member${employees.length !== 1 ? "s" : ""}`}
+        </p>
       </div>
 
-      <EmployeeList employees={employees} departments={departments} isAdmin={viewAs === "admin"} />
+      <EmployeeList employees={employees} departments={departments} isAdmin={viewAs === "admin"} kind="staff" />
     </div>
   );
 }

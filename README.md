@@ -47,6 +47,7 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
+- **Staff and interns have separate pages** — Staff Management (`/employees`) lists present and past staff, and the new Intern Management (`/interns`) lists present and past interns. Both open on active people; the status filter has Active, Past and Present and past. The calendar's person filter lists every active staff member and intern.
 - **Analytics dashboard** (`/dashboard/analytics`, from the Analytics button on the admin dashboard) — the last 12 months of bank revenue and expenses, leave and MC per person, and headcount. Filters: period (3 / 6 / 12 months), All / Staff / Interns, a person, leave type, and expense category (click a category to leave it out). Every chart has a hover tooltip and a Table view; the tiles use the same filtered numbers.
 - **App API for the same features** — `GET /api/mobile/analytics` (approvers only) returns the analytics data for the iOS and Android apps, and `/api/mobile/team-calendar` marks each leave entry as staff or intern for approvers.
 - **Workforce breakdown** — three donut charts on the admin dashboard: gender, age group and ethnic group of active people, with a Staff / Interns / All control. Ethnic group is a new optional field on each person's page (Chinese, Malay, Indian, Eurasian, Others); it shows "Not recorded" until it is filled in.

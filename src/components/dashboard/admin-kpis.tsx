@@ -27,7 +27,7 @@ export interface AdminKpiData {
 export function AdminKpis(d: AdminKpiData) {
   const tiles: { label: string; value: string; sub: string; href: string; icon: typeof Users; attention?: boolean }[] = [
     { label: "Full-time staff", value: String(d.staff), sub: "Active staff", href: "/employees", icon: Users },
-    { label: "Interns", value: String(d.interns), sub: "Active interns", href: "/employees", icon: GraduationCap },
+    { label: "Interns", value: String(d.interns), sub: "Active interns", href: "/interns", icon: GraduationCap },
     { label: "Pending approvals", value: String(d.pendingTotal), sub: d.pendingTotal ? "Leave, MC, claims, punches" : "Nothing waiting", href: "/dashboard/insights#approvals", icon: Inbox, attention: d.pendingTotal > 0 },
   ];
   return (
