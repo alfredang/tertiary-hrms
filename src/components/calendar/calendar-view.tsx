@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CALENDAR_CATEGORIES, calendarCategoryLabel, isPersonCategory } from "@/lib/calendar-categories";
+import { CALENDAR_CATEGORIES, calendarCategoryColor, calendarCategoryLabel, isPersonCategory } from "@/lib/calendar-categories";
+import { personMonthSummary } from "@/lib/calendar-summary";
 
 interface CalendarEvent {
   id: string;
@@ -22,6 +23,10 @@ interface CalendarEvent {
   /** Leave events in the admin view: whose leave it is. */
   personId?: string;
   personName?: string;
+  /** Leave: days charged for the request. */
+  days?: number;
+  /** Time off: hours taken. */
+  hours?: number;
 }
 
 interface CalendarViewProps {
@@ -71,7 +76,10 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
   }, [allEvents, activePeople]);
   // Holidays, meetings and other events always show; the filter applies to people's leave and time off.
   const events = useMemo(
-    () => (person ? allEvents.filter((e) => !isPersonCategory(e.category) || e.personId === person) : allEvents),
+    () =>
+      person
+        ? allEvents.filter((e) => !(isPersonCategory(e.category) || e.category === "BIRTHDAY") || e.personId === person)
+        : allEvents,
     [allEvents, person],
   );
   // Whose off days to shade: the viewer's own (staff / intern view) or the person picked in the admin filter.
@@ -110,6 +118,27 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
       })
       .sort((a, b) => (a.type === "HOLIDAY" ? -1 : 0) - (b.type === "HOLIDAY" ? -1 : 0));
   };
+
+  // The picked person's leave and time off in the month shown.
+  const monthSummary = useMemo(() => {
+    if (!person) return null;
+    const holidayKeys = new Set(allEvents.filter((e) => e.type === "HOLIDAY").map((e) => dayKey(new Date(e.start))));
+    const s = personMonthSummary(allEvents, person, currentDate.getFullYear(), currentDate.getMonth(), holidayKeys);
+    const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+    return [
+      { label: "Annual Leave", value: days(s.annualLeaveDays), color: calendarCategoryColor("ANNUAL_LEAVE") },
+      { label: "Medical Leave", value: days(s.medicalLeaveDays), color: calendarCategoryColor("MEDICAL_LEAVE") },
+      { label: "No Pay Leave", value: days(s.noPayLeaveDays), color: calendarCategoryColor("NO_PAY_LEAVE") },
+      ...(s.otherLeaveDays > 0
+        ? [{ label: "Other Leave", value: days(s.otherLeaveDays), color: calendarCategoryColor("OTHER_LEAVE") }]
+        : []),
+      {
+        label: "Time Off",
+        value: `${s.timeOffHours} h${s.offDays > 0 ? ` + ${s.offDays} off ${s.offDays === 1 ? "day" : "days"}` : ""}`,
+        color: calendarCategoryColor("TIME_OFF"),
+      },
+    ];
+  }, [allEvents, person, currentDate]);
 
   const shiftMonth = (delta: number) => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1));
   const goToToday = () => {
@@ -164,6 +193,19 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                   Show everyone
                 </button>
               )}
+            </div>
+          )}
+
+          {monthSummary && (
+            <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6" aria-label={`Totals for ${monthName} ${year}`}>
+              <span className="text-xs text-gray-500">{monthName} {year}</span>
+              {monthSummary.map((t) => (
+                <span key={t.label} className="flex items-center gap-1.5 rounded-lg border border-gray-800 px-2.5 py-1 text-xs text-gray-400">
+                  <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: t.color }} />
+                  {t.label}
+                  <span className="font-semibold text-white">{t.value}</span>
+                </span>
+              ))}
             </div>
           )}
 

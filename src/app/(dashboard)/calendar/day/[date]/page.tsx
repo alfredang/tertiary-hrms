@@ -10,6 +10,8 @@ import { ArrowLeft, Calendar, Plus, Users } from "lucide-react";
 import { CalendarEventCard } from "@/components/calendar/calendar-event-card";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 
+import { holidayTitle } from "@/lib/calendar-categories";
+
 export const dynamic = "force-dynamic";
 
 function isValidDate(dateStr: string): boolean {
@@ -154,7 +156,7 @@ export default async function CalendarDayPage({
         where: { type: "HOLIDAY", startDate: { lte: new Date(`${date}T23:59:59.999Z`) }, endDate: { gte: new Date(`${date}T00:00:00.000Z`) } },
         select: { title: true },
       }),
-    ]).then(([ph, ev]) => Array.from(new Set([...ph.map((h) => h.name), ...ev.map((e) => e.title)]))),
+    ]).then(([ph, ev]) => Array.from(new Set([...ph.map((h) => h.name), ...ev.map((e) => e.title)].map(holidayTitle)))),
   ]);
 
   // Sort meetings first, then by start date

@@ -9,6 +9,7 @@ export type CalendarCategory =
   | "NO_PAY_LEAVE"
   | "OTHER_LEAVE"
   | "TIME_OFF"
+  | "BIRTHDAY"
   | "MEETING"
   | "TRAINING"
   | "COMPANY_EVENT";
@@ -21,6 +22,7 @@ export const CALENDAR_CATEGORIES: { key: CalendarCategory; label: string; color:
   { key: "NO_PAY_LEAVE", label: "No Pay Leave", color: "#64748b" },
   { key: "OTHER_LEAVE", label: "Other Leave", color: "#9a6b4f" },
   { key: "TIME_OFF", label: "Time Off", color: "#06b6d4" },
+  { key: "BIRTHDAY", label: "Birthday", color: "#d946ef" },
   { key: "MEETING", label: "Meeting", color: "#3b82f6" },
   { key: "TRAINING", label: "Training", color: "#a855f7" },
   { key: "COMPANY_EVENT", label: "Company Event", color: "#22c55e" },
@@ -57,4 +59,79 @@ export function leaveCategory(leaveType?: { code: string; paid: boolean } | null
 /** Category of a non-leave calendar event, from its stored type. */
 export function eventCategory(type: string): CalendarCategory {
   return BY_KEY.has(type as CalendarCategory) ? (type as CalendarCategory) : "COMPANY_EVENT";
+}
+
+/**
+ * Birthday events for the admin calendar (Alfred, 20 Nov 2026): one all-day "🎂 <name> birthday"
+ * per person per year. Only the day and month are used, so the age is never shown. The stored date
+ * is read in Singapore time; a 29 Feb birthday falls on 28 Feb in a non-leap year.
+ */
+export function birthdayEvents(
+  people: { id: string; name: string; dateOfBirth: Date | null }[],
+  years: number[],
+) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return people.flatMap((p) => {
+    if (!p.dateOfBirth) return [];
+    const sgt = new Date(p.dateOfBirth.getTime() + 8 * 3600 * 1000);
+    const month = sgt.getUTCMonth() + 1;
+    const day = sgt.getUTCDate();
+    return years.map((year) => {
+      const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+      const d = month === 2 && day === 29 && !leap ? 28 : day;
+      // SGT noon, so the browser places it on the right day.
+      const at = new Date(`${year}-${pad(month)}-${pad(d)}T12:00:00+08:00`);
+      return {
+        id: `bd-${p.id}-${year}`,
+        title: `🎂 ${p.name} birthday`,
+        start: at,
+        end: at,
+        allDay: true,
+        type: "BIRTHDAY",
+        category: "BIRTHDAY" as CalendarCategory,
+        color: calendarCategoryColor("BIRTHDAY"),
+        description: "Birthday",
+        personId: p.id,
+        personName: p.name,
+      };
+    });
+  });
+}
+
+/** Emoji per Singapore public holiday, matched on the holiday name (Alfred, 20 Nov 2026). */
+const HOLIDAY_EMOJI: [RegExp, string][] = [
+  [/chinese new year|lunar new year/i, "🧧"],
+  [/new year/i, "🎆"],
+  [/good friday/i, "✝️"],
+  [/easter/i, "🐣"],
+  [/hari raya puasa|aidilfitri|eid al-fitr/i, "🌙"],
+  [/hari raya haji|aidiladha|eid al-adha/i, "🕌"],
+  [/labou?r day|may day/i, "🛠️"],
+  [/vesak/i, "🪷"],
+  [/national day/i, "🇸🇬"],
+  [/deepavali|diwali/i, "🪔"],
+  [/christmas/i, "🎄"],
+  [/polling|election/i, "🗳️"],
+];
+
+/** Holiday title with its emoji in front: "🎄 Christmas Day". A title that already starts with an emoji is kept. */
+export function holidayTitle(name: string): string {
+  if ((name.codePointAt(0) ?? 0) >= 0x2000) return name;
+  const emoji = HOLIDAY_EMOJI.find(([re]) => re.test(name))?.[1] ?? "🎉";
+  return `${emoji} ${name}`;
+}
+
+/** Emoji per kind of leave and time off, so MC and leave read differently at a glance (Alfred, 20 Nov 2026). */
+const CATEGORY_EMOJI: Partial<Record<CalendarCategory, string>> = {
+  ANNUAL_LEAVE: "🏖️",
+  MEDICAL_LEAVE: "🤒",
+  NO_PAY_LEAVE: "💸",
+  OTHER_LEAVE: "📋",
+  TIME_OFF: "⏰",
+};
+
+/** Leave / time-off title with its category emoji in front: "🤒 DEEPA ARUMUGAM - Medical Leave". */
+export function categoryTitle(category: CalendarCategory, title: string): string {
+  const emoji = CATEGORY_EMOJI[category];
+  return !emoji || (title.codePointAt(0) ?? 0) >= 0x2000 ? title : `${emoji} ${title}`;
 }
