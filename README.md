@@ -93,6 +93,7 @@ Earlier additions (July 2026):
   - One-shot **Upload & Process Payroll** button: the PDF is archived to the shared CPF Google Drive folder first (a failed archive aborts the run), then the month's payslips are created/updated automatically for every matched employee; unmatched rows are listed with a fix hint instead of blocking.
   - Parsing runs on the **Claude Agent SDK under the company's Claude subscription** (OAuth token from `claude setup-token`, stored as `CLAUDE_API_KEY` in Settings → Credentials) — no pay-as-you-go API keys.
   - Claude auth failures are classified instead of masked: a token whose Claude organization has **disabled subscription access for Claude Code** (403 `oauth_not_allowed_for_organization`) is reported as such — re-issuing from the same org won't help, so generate the token from an account whose org allows Claude Code (e.g. a personal Pro/Max plan). Only a genuinely invalid/expired token gets the "expired" message; other SDK errors surface verbatim.
+- **Sidebar sections** — Dashboard, then **My Stuff** (My Profile, Calendar), **People**, **Processes**, **Finance**, **Documents** and **System**. Each heading folds its section (remembered per browser), and a section with nothing visible for the user's role is not drawn. Calendar is also in the avatar menu.
 - **Payroll Management sidebar dropdown** — expands into **Payroll** and **Upload CPF** (the latter admin-only).
 - **SOP library** (`/sop`) — the 46 standard operating procedures from Tertiary's TPQA Policy & Operations Manual (v4.0), stored in the `Sop` table and grouped by function (Operations, Learner Services, Assessment, Course Development & Quality, Trainers, Marketing, Finance, Funding & Grants, Governance & Compliance) with search; each SOP has numbered steps with owner and deadline and its source section. Seed: `npx tsx scripts/seed-sops.ts [--apply]` (source `src/lib/sop-data.ts`).
 
@@ -230,7 +231,8 @@ Earlier additions (May 2026):
 
 ### Calendar
 - **Personal planner** — each user's events are fully private (admins cannot see other employees' events)
-- Full calendar month view in the Planner app layout: weeks starting Monday, adjacent-month days greyed, tinted event chips with "+N", today circled, and an agenda for the selected day below the grid; color-coded event types (Holiday, Meeting, Training, Company Event, Leave)
+- Full calendar month view in the Planner app layout: weeks starting Monday, adjacent-month days greyed, tinted event chips with "+N", today circled, and an agenda for the selected day below the grid
+- **One colour per activity**, defined once in `src/lib/calendar-categories.ts`: Public Holiday, Annual Leave, Medical Leave, No Pay Leave, Other Leave, Time Off, Meeting, Training and Company Event. Approved time off and intern Off Days appear on the calendar too, and the person filter covers both leave and time off
 - **Every Singapore public holiday** shown (the seeded `PublicHoliday` list plus admin-added holiday events), each holiday cell on a light grey background; the day page shows a public-holiday banner. The native apps get the same list from `/api/mobile/team-calendar`.
 - Approved leave/MC automatically synced as calendar events
 - **Leave visibility**: admin view shows all employees' leave; "Show as Staff" mode and staff role see only own leave

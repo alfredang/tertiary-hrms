@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { LogOut, RefreshCw, User } from "lucide-react";
+import { Calendar, LogOut, RefreshCw, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
 import { NotificationBell } from "./notification-bell";
@@ -119,6 +119,10 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
               <DropdownMenuItem onClick={() => router.push("/profile")}>
                 <User className="mr-2 h-4 w-4" />
                 My Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/calendar")}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Calendar
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="sm:hidden">
                 <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">

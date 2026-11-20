@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -70,92 +70,135 @@ type NavItem = {
   children?: Child[];
 };
 
-const navigation: NavItem[] = [
-  { name: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
-  { name: "My Profile", href: "/profile",     icon: User, noAccountant: true as const },
-  { name: "Employees",       adminName: "Staff Management",   href: "/employees", icon: Users,      adminOnly:     true as const },
-  { name: "Intern Management", href: "/interns", icon: UserPlus, adminOnly: true as const },
-  { name: "Trainer Management", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
+type NavGroup = {
+  id: string;
+  /** Section heading. A group without one (Dashboard) is always shown and cannot be folded. */
+  label?: string;
+  items: NavItem[];
+};
+
+// Sidebar sections (Alfred, 20 Nov 2026). Each heading folds its section; rows keep the same
+// indentation as before. A section with nothing visible for the current role/view is not drawn.
+const navigationGroups: NavGroup[] = [
   {
-    name: "Leave",
-    adminName: "Leave Management",
-    href: "/leave",
-    icon: Clock,
-    noAccountant: true as const,
-    children: [
-      { name: "Annual Leave",  href: "/leave/annual",  icon: CalendarDays },
-      { name: "Medical Leave", href: "/leave/medical", icon: Stethoscope },
+    id: "home",
+    items: [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
+  },
+  {
+    id: "my-stuff",
+    label: "My Stuff",
+    items: [
+      { name: "My Profile", href: "/profile", icon: User, noAccountant: true as const },
+      { name: "Calendar", href: "/calendar", icon: Calendar, noAccountant: true as const },
     ],
   },
-  { name: "Time Off", adminName: "Time Off Approvals", href: "/time-off", icon: Timer, noAccountant: true as const },
-  { name: "Expense Claims",  adminName: "Claim Management",   href: "/expenses",  icon: Receipt,    noAccountant:  true as const },
   {
-    name: "Payroll",
-    adminName: "Payroll Management",
-    href: "/payroll",
-    icon: DollarSign,
-    hideForIntern: true as const,
-    children: [
-      { name: "Payroll", href: "/payroll", icon: DollarSign, exact: true as const },
+    id: "people",
+    label: "People",
+    items: [
+      { name: "Employees", adminName: "Staff Management", href: "/employees", icon: Users, adminOnly: true as const },
+      { name: "Intern Management", href: "/interns", icon: UserPlus, adminOnly: true as const },
+      { name: "Trainer Management", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
+    ],
+  },
+  {
+    id: "processes",
+    label: "Processes",
+    items: [
       {
-        name: "Upload CPF",
-        href: "/payroll/generate",
-        icon: ShieldCheck,
+        name: "Leave",
+        adminName: "Leave Management",
+        href: "/leave",
+        icon: Clock,
+        noAccountant: true as const,
+        children: [
+          { name: "Annual Leave", href: "/leave/annual", icon: CalendarDays },
+          { name: "Medical Leave", href: "/leave/medical", icon: Stethoscope },
+        ],
+      },
+      { name: "Time Off", adminName: "Time Off Approvals", href: "/time-off", icon: Timer, noAccountant: true as const },
+      { name: "Clock In/Out", href: "/attendance", icon: AlarmClock, staffOnly: true as const },
+      // Timesheets are for interns only. Staff log weekend / public-holiday work for Off In Lieu on the same page.
+      { name: "Timesheet", href: "/timesheet", icon: ClipboardList, staffOnly: true as const, internOnly: true as const },
+      { name: "Off In Lieu", href: "/timesheet", icon: ClipboardList, staffOnly: true as const, hideForIntern: true as const },
+      // Admin: one Timesheet page (intern clock-in days/hours, missing punches, Off In Lieu approvals)
+      { name: "Timesheet", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
+      { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
+      { name: "Woods Square Access", href: "/woods-square-access", icon: KeyRound, staffOnly: true as const, allowAccountant: true as const },
+    ],
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    items: [
+      {
+        name: "Payroll",
+        adminName: "Payroll Management",
+        href: "/payroll",
+        icon: DollarSign,
+        hideForIntern: true as const,
+        children: [
+          { name: "Payroll", href: "/payroll", icon: DollarSign, exact: true as const },
+          { name: "Upload CPF", href: "/payroll/generate", icon: ShieldCheck, adminOnly: true as const },
+        ],
+      },
+      { name: "Expense Claims", adminName: "Claim Management", href: "/expenses", icon: Receipt, noAccountant: true as const },
+      {
+        name: "Accounting",
+        href: "/accounting",
+        icon: Calculator,
+        financeOnly: true as const,
+        children: [
+          { name: "Expense Tracking", href: "/accounting/expense-tracking", icon: TrendingDown },
+          { name: "Income Tracking", href: "/accounting/income-tracking", icon: TrendingUp },
+          { name: "Bank Reconciliation", href: "/accounting/reconciliation", icon: Scale },
+          {
+            name: "Bank Statements",
+            href: "https://drive.google.com/drive/u/1/folders/1U6MCWuKZQ4wWZqn36AVHUeOD7a-URAaY",
+            icon: FolderOpen,
+            external: true,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    items: [{ name: "SOP", href: "/sop", icon: BookOpen }],
+  },
+  {
+    id: "system",
+    label: "System",
+    items: [
+      {
+        name: "Settings",
+        href: "/settings",
+        icon: Settings,
         adminOnly: true as const,
+        children: [
+          { name: "Company Info", href: "/settings/company", icon: Building2 },
+          { name: "Credentials", href: "/settings/credentials", icon: KeyRound },
+          {
+            name: "Email Templates",
+            href: "/settings/email-templates",
+            icon: Mail,
+            children: TEMPLATE_KEYS.map((k) => ({
+              name: TEMPLATES[k].label,
+              href: `/settings/email-templates/${k.toLowerCase().replace(/_/g, "-")}`,
+            })),
+          },
+          { name: "Leave Policy", href: "/settings/leave-policy", icon: FileSliders },
+          { name: "Webhooks", href: "/settings/webhooks", icon: Webhook },
+          { name: "Payslip Template", href: "/settings/payslip-template", icon: DollarSign },
+          { name: "Cron Jobs", href: "/settings/cron-jobs", icon: Clock },
+        ],
       },
-    ],
-  },
-  {
-    name: "Accounting",
-    href: "/accounting",
-    icon: Calculator,
-    financeOnly: true as const,
-    children: [
-      { name: "Expense Tracking", href: "/accounting/expense-tracking", icon: TrendingDown },
-      { name: "Income Tracking",  href: "/accounting/income-tracking",  icon: TrendingUp   },
-      { name: "Bank Reconciliation", href: "/accounting/reconciliation", icon: Scale },
-      {
-        name: "Bank Statements",
-        href: "https://drive.google.com/drive/u/1/folders/1U6MCWuKZQ4wWZqn36AVHUeOD7a-URAaY",
-        icon: FolderOpen,
-        external: true,
-      },
-    ],
-  },
-  { name: "Calendar",    href: "/calendar",    icon: Calendar,      noAccountant: true as const },
-  { name: "SOP",         href: "/sop",         icon: BookOpen },
-  { name: "Clock In/Out", href: "/attendance",  icon: AlarmClock,    staffOnly:    true as const },
-  // Timesheets are for interns only. Staff log weekend / public-holiday work for Off In Lieu on the same page.
-  { name: "Timesheet",  href: "/timesheet",   icon: ClipboardList, staffOnly:    true as const, internOnly: true as const },
-  { name: "Off In Lieu", href: "/timesheet",  icon: ClipboardList, staffOnly:    true as const, hideForIntern: true as const },
-  // Admin: one Timesheet page (intern clock-in days/hours, missing punches, Off In Lieu approvals)
-  { name: "Timesheet", href: "/timesheet/overview", icon: ClipboardList, adminOnly: true as const },
-  { name: "Woods Square Invite", href: "/woods-square", icon: Building2, adminOnly: true as const },
-  { name: "Woods Square Access", href: "/woods-square-access", icon: KeyRound, staffOnly: true as const, allowAccountant: true as const },
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-    adminOnly: true as const,
-    children: [
-      { name: "Company Info", href: "/settings/company",     icon: Building2 },
-      { name: "Credentials",  href: "/settings/credentials", icon: KeyRound },
-      {
-        name: "Email Templates",
-        href: "/settings/email-templates",
-        icon: Mail,
-        children: TEMPLATE_KEYS.map((k) => ({
-          name: TEMPLATES[k].label,
-          href: `/settings/email-templates/${k.toLowerCase().replace(/_/g, "-")}`,
-        })),
-      },
-      { name: "Leave Policy", href: "/settings/leave-policy", icon: FileSliders },
-      { name: "Webhooks", href: "/settings/webhooks", icon: Webhook },
-      { name: "Payslip Template", href: "/settings/payslip-template", icon: DollarSign },
-      { name: "Cron Jobs", href: "/settings/cron-jobs", icon: Clock },
     ],
   },
 ];
+
+const CLOSED_GROUPS_KEY = "sidebarClosedGroups";
 
 export function Sidebar({
   role,
@@ -179,6 +222,24 @@ export function Sidebar({
     const stored = localStorage.getItem("sidebarCollapsed") === "true";
     setCollapsed(stored);
   }, []);
+
+  // Sections the user folded, remembered per browser. Everything is open by default.
+  const [closedGroups, setClosedGroups] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(CLOSED_GROUPS_KEY) ?? "[]");
+      if (Array.isArray(stored)) setClosedGroups(stored.filter((g) => typeof g === "string"));
+    } catch {
+      // unreadable value: keep every section open
+    }
+  }, []);
+  const toggleGroup = (id: string) => {
+    setClosedGroups((prev) => {
+      const next = prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id];
+      localStorage.setItem(CLOSED_GROUPS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     document.documentElement.style.setProperty("--sidebar-w", collapsed ? "5rem" : "18rem");
@@ -209,6 +270,18 @@ export function Sidebar({
     ? viewAs === "intern"
     : actualRoles.length > 0 && actualRoles.every((r) => r.toUpperCase() === "INTERN");
 
+  const isVisible = (item: NavItem): boolean => {
+    // Trainer Management follows its own role, in every view.
+    if (item.trainerAdminOnly) return isTrainerAdmin;
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.financeOnly && !canSeeFinance) return false;
+    if (item.noAccountant && isAccountantView) return false;
+    if (item.hideForIntern && isInternView) return false;
+    if (item.internOnly && !isInternView) return false;
+    if (item.staffOnly && (isAdmin || (isAccountantView && !item.allowAccountant))) return false;
+    return true;
+  };
+
   return (
     <div className={cn("flex grow flex-col gap-y-5 pt-4", collapsed ? "px-2" : "px-6")}>
       {/* Logo + collapse toggle */}
@@ -238,23 +311,45 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-1">
-          {navigation.map((item) => {
-            if ("trainerAdminOnly" in item && item.trainerAdminOnly) {
-              if (!isTrainerAdmin) return null;
-              return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} isAdmin={isAdmin} />;
-            }
-            if ("adminOnly" in item && item.adminOnly && !isAdmin) return null;
-            if ("financeOnly" in item && item.financeOnly && !canSeeFinance) return null;
-            if ("noAccountant" in item && item.noAccountant && isAccountantView) return null;
-            if ("hideForIntern" in item && item.hideForIntern && isInternView) return null;
-            if ("internOnly" in item && item.internOnly && !isInternView) return null;
-            if (
-              "staffOnly" in item &&
-              item.staffOnly &&
-              (isAdmin || (isAccountantView && !("allowAccountant" in item && item.allowAccountant)))
-            )
-              return null;
-            return <TopLevelNavItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} isAdmin={isAdmin} />;
+          {navigationGroups.map((group, groupIndex) => {
+            const items = group.items.filter(isVisible);
+            if (items.length === 0) return null;
+            const open = !group.label || collapsed || !closedGroups.includes(group.id);
+            const holdsActive = items.some((i) => pathname === i.href || pathname.startsWith(i.href + "/"));
+            return (
+              <Fragment key={group.id}>
+                {group.label && !collapsed && (
+                  <li className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.id)}
+                      aria-expanded={open}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors hover:text-gray-200",
+                        // A folded section that holds the current page keeps a visible cue.
+                        !open && holdsActive ? "text-primary" : "text-gray-500",
+                      )}
+                    >
+                      <span>{group.label}</span>
+                      {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    </button>
+                  </li>
+                )}
+                {group.label && collapsed && groupIndex > 0 && (
+                  <li aria-hidden className="mx-2 my-1 border-t border-gray-800" />
+                )}
+                {open &&
+                  items.map((item) => (
+                    <TopLevelNavItem
+                      key={`${item.name}:${item.href}`}
+                      item={item}
+                      pathname={pathname}
+                      collapsed={collapsed}
+                      isAdmin={isAdmin}
+                    />
+                  ))}
+              </Fragment>
+            );
           })}
         </ul>
       </nav>

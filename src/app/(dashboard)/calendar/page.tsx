@@ -9,12 +9,14 @@ import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
+import { calendarCategoryColor, eventCategory, leaveCategory, type CalendarCategory } from "@/lib/calendar-categories";
+import { isOffDay, timeOffReasonLabel } from "@/lib/time-off";
 
 export const dynamic = 'force-dynamic';
 
 async function getCalendarEvents(userId: string, employeeId?: string, showAllLeaves = false) {
   // The four sources are independent, so they load together.
-  const [ownEvents, holidayEvents, leaveEvents, allPublicHolidays] = await Promise.all([
+  const [ownEvents, holidayEvents, leaveEvents, allPublicHolidays, timeOff] = await Promise.all([
     // 1. Personal events created by this user (meetings, training, company events)
     prisma.calendarEvent.findMany({
       where: {
@@ -48,16 +50,31 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       });
     })(),
     prisma.publicHoliday.findMany({ where: { countryCode: "SG" }, orderBy: { date: "asc" } }),
+    // 4. Approved time off (hourly, and intern off days) — admin view: everyone; staff view: own only
+    showAllLeaves || employeeId
+      ? prisma.timeOffRequest.findMany({
+          where: { status: "APPROVED", ...(showAllLeaves ? {} : { employeeId }) },
+          select: {
+            id: true, date: true, startTime: true, endTime: true, hours: true, reason: true, reasonDetail: true,
+            employee: { select: { id: true, name: true } },
+          },
+          orderBy: { date: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
-  // Admin view: attach the person to each leave, so the calendar can filter by individual.
-  const personByLeaveRequest = new Map<string, { id: string; name: string }>();
-  if (showAllLeaves) {
-    const ids = leaveEvents.map((e) => e.leaveRequestId).filter((id): id is string => !!id);
-    const requests = ids.length
-      ? await prisma.leaveRequest.findMany({ where: { id: { in: ids } }, select: { id: true, employee: { select: { id: true, name: true } } } })
-      : [];
-    for (const r of requests) if (r.employee) personByLeaveRequest.set(r.id, r.employee);
+  // Each leave's type decides its colour. Admin view also attaches the person, so the calendar
+  // can filter by individual.
+  const leaveInfo = new Map<string, { category: CalendarCategory; person?: { id: string; name: string } }>();
+  const leaveRequestIds = leaveEvents.map((e) => e.leaveRequestId).filter((id): id is string => !!id);
+  if (leaveRequestIds.length) {
+    const requests = await prisma.leaveRequest.findMany({
+      where: { id: { in: leaveRequestIds } },
+      select: { id: true, leaveType: { select: { code: true, paid: true } }, employee: { select: { id: true, name: true } } },
+    });
+    for (const r of requests) {
+      leaveInfo.set(r.id, { category: leaveCategory(r.leaveType), person: showAllLeaves ? r.employee ?? undefined : undefined });
+    }
   }
 
   // Deduplicate across all sources
@@ -73,18 +90,44 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
   const publicHolidays = allPublicHolidays.filter((ph) => !holidayDays.has(dayKey(ph.date)));
 
   return [
-    ...Array.from(eventMap.values()).map((event) => ({
-      id: event.id,
-      title: event.title,
-      start: event.startDate,
-      end: event.endDate,
-      allDay: event.allDay,
-      type: event.type,
-      color: event.color || getDefaultColor(event.type),
-      description: event.description,
-      personId: event.leaveRequestId ? personByLeaveRequest.get(event.leaveRequestId)?.id : undefined,
-      personName: event.leaveRequestId ? personByLeaveRequest.get(event.leaveRequestId)?.name : undefined,
-    })),
+    ...Array.from(eventMap.values()).map((event) => {
+      const leave = event.leaveRequestId ? leaveInfo.get(event.leaveRequestId) : undefined;
+      const category: CalendarCategory = event.type === "LEAVE" ? leave?.category ?? "ANNUAL_LEAVE" : eventCategory(event.type);
+      return {
+        id: event.id,
+        title: event.title,
+        start: event.startDate,
+        end: event.endDate,
+        allDay: event.allDay,
+        type: event.type,
+        category,
+        // Leave always takes its category colour; other events keep a colour chosen on the event.
+        color: event.type === "LEAVE" ? calendarCategoryColor(category) : event.color || calendarCategoryColor(category),
+        description: event.description,
+        personId: leave?.person?.id,
+        personName: leave?.person?.name,
+      };
+    }),
+    ...timeOff.map((t) => {
+      const offDay = isOffDay(t.reason);
+      const what = offDay ? "Off Day" : `Time Off ${t.startTime}–${t.endTime}`;
+      return {
+        id: `to-${t.id}`,
+        title: showAllLeaves ? `${t.employee.name} - ${what}` : what,
+        // @db.Date is UTC midnight; anchor at SGT noon so the browser places it on the right day.
+        start: new Date(`${dayKey(t.date)}T12:00:00+08:00`),
+        end: new Date(`${dayKey(t.date)}T12:00:00+08:00`),
+        allDay: offDay,
+        type: "TIME_OFF",
+        category: "TIME_OFF" as CalendarCategory,
+        color: calendarCategoryColor("TIME_OFF"),
+        description: offDay
+          ? "Full day off"
+          : `${Number(t.hours)} h · ${timeOffReasonLabel(t.reason)}${t.reasonDetail ? ` — ${t.reasonDetail}` : ""}`,
+        personId: showAllLeaves ? t.employee.id : undefined,
+        personName: showAllLeaves ? t.employee.name : undefined,
+      };
+    }),
     ...publicHolidays.map((ph) => ({
       id: `ph-${ph.id}`,
       title: ph.name,
@@ -93,23 +136,13 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
       end: new Date(`${dayKey(ph.date)}T12:00:00+08:00`),
       allDay: true,
       type: "HOLIDAY",
-      color: getDefaultColor("HOLIDAY"),
+      category: "HOLIDAY" as CalendarCategory,
+      color: calendarCategoryColor("HOLIDAY"),
       description: "Public holiday",
       personId: undefined,
       personName: undefined,
     })),
   ];
-}
-
-function getDefaultColor(type: string): string {
-  const colors: Record<string, string> = {
-    HOLIDAY: "#ef4444",
-    MEETING: "#3b82f6",
-    TRAINING: "#a855f7",
-    COMPANY_EVENT: "#22c55e",
-    LEAVE: "#f59e0b",
-  };
-  return colors[type] || "#6b7280";
 }
 
 export default async function CalendarPage() {
@@ -166,7 +199,7 @@ export default async function CalendarPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Calendar</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">
-            Events, holidays & leave schedule
+            Events, holidays, leave & time off
           </p>
         </div>
         <Link href="/calendar/new" className="w-full sm:w-auto">

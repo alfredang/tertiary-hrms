@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CALENDAR_CATEGORIES, calendarCategoryLabel, isPersonCategory } from "@/lib/calendar-categories";
 
 interface CalendarEvent {
   id: string;
@@ -14,6 +15,8 @@ interface CalendarEvent {
   end: Date;
   allDay: boolean;
   type: string;
+  /** Colour-coding category: annual / medical / no-pay leave, time off, holiday, meeting… */
+  category: string;
   color: string;
   description?: string | null;
   /** Leave events in the admin view: whose leave it is. */
@@ -28,14 +31,6 @@ interface CalendarViewProps {
   /** Admin view: every active staff member and intern, for the person filter. */
   people?: { id: string; name: string; intern: boolean }[];
 }
-
-const eventTypeLabels: Record<string, { label: string; color: string }> = {
-  HOLIDAY: { label: "Holiday", color: "bg-red-500" },
-  MEETING: { label: "Meeting", color: "bg-blue-500" },
-  TRAINING: { label: "Training", color: "bg-purple-500" },
-  COMPANY_EVENT: { label: "Company Event", color: "bg-green-500" },
-  LEAVE: { label: "Leave", color: "bg-amber-500" },
-};
 
 /** Monday-first, single-letter headers — the Planner app calendar layout (Alfred, 11 Nov 2026). */
 const WEEKDAYS = [
@@ -55,22 +50,22 @@ const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 
 export function CalendarView({ events: allEvents, personFilter = false, people: activePeople = [] }: CalendarViewProps) {
   const [person, setPerson] = useState("");
-  // Every active staff member and intern, with how many leave entries each has (0 when none).
+  // Every active staff member and intern, with how many leave and time-off entries each has (0 when none).
   // People who have left are not listed; their past leave still shows under Everyone.
   const { staff, interns, totalLeave } = useMemo(() => {
     const counts = new Map<string, number>();
     let totalLeave = 0;
     for (const e of allEvents) {
-      if (e.type !== "LEAVE" || !e.personId) continue;
+      if (!isPersonCategory(e.category) || !e.personId) continue;
       counts.set(e.personId, (counts.get(e.personId) ?? 0) + 1);
       totalLeave += 1;
     }
     const rows = activePeople.map((p) => ({ ...p, count: counts.get(p.id) ?? 0 })).sort((a, b) => a.name.localeCompare(b.name));
     return { staff: rows.filter((p) => !p.intern), interns: rows.filter((p) => p.intern), totalLeave };
   }, [allEvents, activePeople]);
-  // Holidays, meetings and other events always show; the filter applies to people's leave.
+  // Holidays, meetings and other events always show; the filter applies to people's leave and time off.
   const events = useMemo(
-    () => (person ? allEvents.filter((e) => e.type !== "LEAVE" || e.personId === person) : allEvents),
+    () => (person ? allEvents.filter((e) => !isPersonCategory(e.category) || e.personId === person) : allEvents),
     [allEvents, person],
   );
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -138,7 +133,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
 
           {personFilter && staff.length + interns.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
-              <label htmlFor="calendar-person" className="text-xs text-gray-500">Leave shown for</label>
+              <label htmlFor="calendar-person" className="text-xs text-gray-500">Leave & time off for</label>
               <select id="calendar-person" value={person} onChange={(e) => setPerson(e.target.value)}
                 className="max-w-[16rem] rounded-lg border border-gray-800 bg-gray-900 px-2 py-1.5 text-sm text-white">
                 <option value="">Everyone ({totalLeave})</option>
@@ -228,9 +223,9 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
 
           {/* Legend */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 sm:px-6">
-            {Object.entries(eventTypeLabels).map(([type, { label, color }]) => (
-              <div key={type} className="flex items-center gap-1.5">
-                <div className={cn("h-2.5 w-2.5 rounded-sm", color)} />
+            {CALENDAR_CATEGORIES.map(({ key, label, color }) => (
+              <div key={key} className="flex items-center gap-1.5">
+                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
                 <span className="text-xs text-gray-400">{label}</span>
               </div>
             ))}
@@ -268,7 +263,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                   <div className="min-w-0">
                     <p className="font-semibold text-white allow-wrap">{event.title}</p>
                     <p className="text-xs text-gray-400">
-                      {eventTypeLabels[event.type]?.label ?? event.type}
+                      {calendarCategoryLabel(event.category)}
                       {event.allDay
                         ? " · All day"
                         : ` · ${new Date(event.start).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
