@@ -9,6 +9,7 @@ export type CalendarCategory =
   | "NO_PAY_LEAVE"
   | "OTHER_LEAVE"
   | "TIME_OFF"
+  | "ATTENDANCE"
   | "BIRTHDAY"
   | "MEETING"
   | "TRAINING"
@@ -22,6 +23,8 @@ export const CALENDAR_CATEGORIES: { key: CalendarCategory; label: string; color:
   { key: "NO_PAY_LEAVE", label: "No Pay Leave", color: "#64748b" },
   { key: "OTHER_LEAVE", label: "Other Leave", color: "#9a6b4f" },
   { key: "TIME_OFF", label: "Time Off", color: "#06b6d4" },
+  // Interns' and accountants' clock-in / clock-out, one "✅ In 09:02 · Out 18:05" per day (Alfred, 20 Nov 2026).
+  { key: "ATTENDANCE", label: "Clock In/Out", color: "#84cc16" },
   { key: "BIRTHDAY", label: "Birthday", color: "#d946ef" },
   { key: "MEETING", label: "Meeting", color: "#3b82f6" },
   { key: "TRAINING", label: "Training", color: "#a855f7" },
@@ -133,6 +136,7 @@ const CATEGORY_EMOJI: Partial<Record<CalendarCategory, string>> = {
 /** The emoji shown in front of a leave / time-off title ("" for other categories). The apps use it too. */
 export function categoryEmoji(category: string): string {
   if (category === "BIRTHDAY") return "🎂";
+  if (category === "ATTENDANCE") return "✅";
   return CATEGORY_EMOJI[category as CalendarCategory] ?? "";
 }
 

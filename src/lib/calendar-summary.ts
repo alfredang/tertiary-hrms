@@ -22,6 +22,8 @@ export interface PersonMonthSummary {
   timeOffHours: number;
   /** Approved full-day Off Days (interns). */
   offDays: number;
+  /** Days with a clock-in (interns and accountants; Alfred, 20 Nov 2026). */
+  workingDays: number;
 }
 
 const key = (d: Date) =>
@@ -45,8 +47,9 @@ export function personMonthSummary(
   holidayKeys: ReadonlySet<string> = new Set(),
 ): PersonMonthSummary {
   const out: PersonMonthSummary = {
-    annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0,
+    annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0, workingDays: 0,
   };
+  const clockInDays = new Set<string>();
   const inMonth = (d: Date) => d.getFullYear() === year && d.getMonth() === month;
   const isWorking = (d: Date) => d.getDay() !== 0 && d.getDay() !== 6 && !holidayKeys.has(key(d));
 
@@ -57,6 +60,10 @@ export function personMonthSummary(
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
 
+    if (e.category === "ATTENDANCE") {
+      if (inMonth(start)) clockInDays.add(key(start));
+      continue;
+    }
     if (e.category === "TIME_OFF") {
       if (!inMonth(start)) continue;
       if (e.allDay) out.offDays += 1;
@@ -92,5 +99,6 @@ export function personMonthSummary(
   out.noPayLeaveDays = round2(out.noPayLeaveDays);
   out.otherLeaveDays = round2(out.otherLeaveDays);
   out.timeOffHours = round2(out.timeOffHours);
+  out.workingDays = clockInDays.size;
   return out;
 }

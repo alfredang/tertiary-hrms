@@ -100,7 +100,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { name: "Employees", adminName: "Staff Management", href: "/employees", icon: Users, adminOnly: true as const },
       { name: "Intern Management", href: "/interns", icon: UserPlus, adminOnly: true as const },
-      { name: "Trainer Admin", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
+      { name: "Trainers", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
     ],
   },
   {

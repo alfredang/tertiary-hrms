@@ -19,7 +19,7 @@ describe("personMonthSummary", () => {
       { category: "TIME_OFF", start: d(2026, 11, 20), end: d(2026, 11, 20), allDay: true, personId: "p1", hours: 0 },
     ];
     expect(personMonthSummary(events, "p1", 2026, 10)).toEqual({
-      annualLeaveDays: 2.5, medicalLeaveDays: 1, noPayLeaveDays: 2, otherLeaveDays: 1, timeOffHours: 3.5, offDays: 1,
+      annualLeaveDays: 2.5, medicalLeaveDays: 1, noPayLeaveDays: 2, otherLeaveDays: 1, timeOffHours: 3.5, offDays: 1, workingDays: 0,
     });
   });
 
@@ -31,7 +31,7 @@ describe("personMonthSummary", () => {
       { category: "TIME_OFF", start: d(2026, 12, 1), end: d(2026, 12, 1), allDay: false, personId: "p1", hours: 2 },
     ];
     expect(personMonthSummary(events, "p1", 2026, 10)).toEqual({
-      annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0,
+      annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0, workingDays: 0,
     });
   });
 
@@ -48,5 +48,23 @@ describe("personMonthSummary", () => {
     const holidays = new Set(["2026-11-02"]);
     expect(personMonthSummary(events, "p1", 2026, 9, holidays).medicalLeaveDays).toBe(1);
     expect(personMonthSummary(events, "p1", 2026, 10, holidays).medicalLeaveDays).toBe(1);
+  });
+});
+
+describe("personMonthSummary working days", () => {
+  it("counts each day with a clock-in once, only in the month and only for the person", async () => {
+    const { personMonthSummary } = await import("@/lib/calendar-summary");
+    const att = (id: string, at: string, personId = "p1") => ({ category: "ATTENDANCE", start: new Date(at), end: new Date(at), allDay: false, personId, id });
+    const s = personMonthSummary(
+      [
+        att("a", "2026-11-02T09:00:00"),
+        att("b", "2026-11-03T09:00:00"),
+        att("c", "2026-11-03T14:00:00"), // same day again
+        att("d", "2026-10-30T09:00:00"), // previous month
+        att("e", "2026-11-04T09:00:00", "p2"), // someone else
+      ],
+      "p1", 2026, 10,
+    );
+    expect(s.workingDays).toBe(2);
   });
 });

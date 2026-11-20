@@ -36,7 +36,7 @@ interface CalendarViewProps {
   /** Admin view: show the person filter for leave. */
   personFilter?: boolean;
   /** Admin view: every active staff member and intern, for the person filter. */
-  people?: { id: string; name: string; intern: boolean; workdays?: number[] }[];
+  people?: { id: string; name: string; intern: boolean; workdays?: number[]; clocksIn?: boolean }[];
   /** Staff / intern view: the viewer's own workdays (ISO 1 = Mon … 7 = Sun). The other days are their off days. */
   ownWorkdays?: number[];
 }
@@ -76,18 +76,22 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
     const rows = activePeople.map((p) => ({ ...p, count: counts.get(p.id) ?? 0 })).sort((a, b) => a.name.localeCompare(b.name));
     return { staff: rows.filter((p) => !p.intern), interns: rows.filter((p) => p.intern), totalLeave };
   }, [allEvents, activePeople]);
-  // Holidays, meetings and other events always show; the filter applies to people's leave and time off.
+  // Holidays, meetings and other events always show; the filter applies to people's leave, time off,
+  // birthdays and clock-ins. Clock-ins never show on the admin "Everyone" calendar, only once an intern
+  // or accountant is picked (Alfred, 20 Nov 2026).
   const events = useMemo(
     () =>
       person
-        ? allEvents.filter((e) => !(isPersonCategory(e.category) || e.category === "BIRTHDAY") || e.personId === person)
-        : allEvents,
-    [allEvents, person],
+        ? allEvents.filter((e) => !(isPersonCategory(e.category) || e.category === "BIRTHDAY" || e.category === "ATTENDANCE") || e.personId === person)
+        : personFilter
+          ? allEvents.filter((e) => e.category !== "ATTENDANCE")
+          : allEvents,
+    [allEvents, person, personFilter],
   );
+  const toggleKind = (key: string) => setKinds((k) => (k.includes(key) ? k.filter((x) => x !== key) : [...k, key]));
   // Admin view: show only the picked kinds of activity (MC, annual leave, no-pay leave, time off…).
   // Nothing picked = everything. Day shading (holidays, off days) does not follow this filter.
   const [kinds, setKinds] = useState<string[]>([]);
-  const toggleKind = (key: string) => setKinds((k) => (k.includes(key) ? k.filter((x) => x !== key) : [...k, key]));
   const visible = useMemo(() => (kinds.length ? events.filter((e) => kinds.includes(e.category)) : events), [events, kinds]);
   // Hover card: the event(s) under the mouse and where to draw the card.
   const [hover, setHover] = useState<{ events: CalendarEvent[]; style: React.CSSProperties } | null>(null);
@@ -146,6 +150,8 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
       .sort((a, b) => (a.type === "HOLIDAY" ? -1 : 0) - (b.type === "HOLIDAY" ? -1 : 0));
   };
 
+  // Interns and accountants clock in: their clock-ins and working days show once picked.
+  const pickedClocksIn = !!person && !!activePeople.find((p) => p.id === person)?.clocksIn;
   // The picked person's leave and time off in the month shown.
   const monthSummary = useMemo(() => {
     if (!person) return null;
@@ -153,6 +159,9 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
     const s = personMonthSummary(allEvents, person, currentDate.getFullYear(), currentDate.getMonth(), holidayKeys);
     const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
     return [
+      ...(pickedClocksIn
+        ? [{ label: "Working Days", value: days(s.workingDays), color: calendarCategoryColor("ATTENDANCE") }]
+        : []),
       { label: "Annual Leave", value: days(s.annualLeaveDays), color: calendarCategoryColor("ANNUAL_LEAVE") },
       { label: "Medical Leave", value: days(s.medicalLeaveDays), color: calendarCategoryColor("MEDICAL_LEAVE") },
       { label: "No Pay Leave", value: days(s.noPayLeaveDays), color: calendarCategoryColor("NO_PAY_LEAVE") },
@@ -165,7 +174,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
         color: calendarCategoryColor("TIME_OFF"),
       },
     ];
-  }, [allEvents, person, currentDate]);
+  }, [allEvents, person, currentDate, pickedClocksIn]);
 
   const shiftMonth = (delta: number) => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1));
   const goToToday = () => {
@@ -231,7 +240,7 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
                   kinds.length === 0 ? "border-blue-600 bg-blue-600 text-on-color" : "border-gray-800 text-gray-400 hover:text-white")}>
                 All
               </button>
-              {CALENDAR_CATEGORIES.map(({ key, label, color }) => {
+              {CALENDAR_CATEGORIES.filter((c) => c.key !== "ATTENDANCE" || pickedClocksIn).map(({ key, label, color }) => {
                 const on = kinds.includes(key);
                 return (
                   <button key={key} type="button" onClick={() => toggleKind(key)} aria-pressed={on}
@@ -340,7 +349,8 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
 
           {/* Legend. In the admin view the type filter above is the legend. */}
           <div className={cn("flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 sm:px-6", personFilter && !showOffDays && "hidden")}>
-            {!personFilter && CALENDAR_CATEGORIES.map(({ key, label, color }) => (
+            {/* Clock In/Out only for people who clock in (interns, accountants). */}
+            {!personFilter && CALENDAR_CATEGORIES.filter((c) => c.key !== "ATTENDANCE" || allEvents.some((e) => e.category === "ATTENDANCE")).map(({ key, label, color }) => (
               <div key={key} className="flex items-center gap-1.5">
                 <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
                 <span className="text-xs text-gray-400">{label}</span>

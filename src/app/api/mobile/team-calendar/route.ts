@@ -163,6 +163,7 @@ export async function GET(req: Request) {
     timeOff,
     birthdays,
     ownWorkdays: self?.workdays ?? null,
-    categories: CALENDAR_CATEGORIES.map((c) => ({ ...c, emoji: categoryEmoji(c.key) })),
+    // Clock-ins are web-only for now (no events of that kind are sent), so the shipped apps don't get the key.
+    categories: CALENDAR_CATEGORIES.filter((c) => c.key !== "ATTENDANCE").map((c) => ({ ...c, emoji: categoryEmoji(c.key) })),
   });
 }

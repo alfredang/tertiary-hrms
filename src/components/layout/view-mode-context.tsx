@@ -37,7 +37,14 @@ export function ViewModeProvider({
     (v: ViewMode) => {
       setViewState(v);
       document.cookie = `viewAs=${v};path=/;max-age=${60 * 60 * 24 * 365}`;
-      startTransition(() => router.push(v === "trainer" ? "/trainers" : "/dashboard"));
+      // refresh() is what makes the page follow the new view: push() alone reuses the
+      // router's cached copy of a page rendered for the previous view (always when
+      // already on /dashboard), so the sidebar changed but the page did not.
+      startTransition(() => {
+        const target = v === "trainer" ? "/trainers" : "/dashboard";
+        if (window.location.pathname !== target) router.push(target);
+        router.refresh();
+      });
     },
     [router],
   );

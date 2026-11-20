@@ -13,6 +13,8 @@ import { birthdayEvents, calendarCategoryColor, categoryTitle, eventCategory, ho
 import { isOffDay, timeOffReasonLabel } from "@/lib/time-off";
 import { paidBackSuffix } from "@/lib/npl-payback";
 import { leaveDetails, timeOffDetails, type CalendarDetail } from "@/lib/calendar-details";
+import { attendanceEvents } from "@/lib/calendar-attendance";
+import { mustClockIn } from "@/lib/attendance-policy";
 
 export const dynamic = 'force-dynamic';
 
@@ -188,6 +190,39 @@ async function getCalendarEvents(userId: string, employeeId?: string, showAllLea
   ];
 }
 
+/**
+ * Clock-in / clock-out days for the calendar (Alfred, 20 Nov 2026), only for people who must clock in
+ * (interns and accountants, `mustClockIn()`). Staff / intern view: the viewer's own days. Admin view:
+ * every active intern's and accountant's, shown only when that person is picked in the filter (never on
+ * the "Everyone" calendar). Last year on.
+ */
+async function getAttendancePunches(showAll: boolean, employeeId?: string) {
+  const since = new Date(Date.UTC(new Date().getUTCFullYear() - 1, 0, 1));
+  const select = {
+    id: true, date: true, clockIn: true, clockOut: true, pausedAt: true, breakSeconds: true,
+    employee: { select: { id: true, name: true } },
+  } as const;
+  if (showAll) {
+    const people = await prisma.employee.findMany({
+      where: { status: { in: ["ACTIVE", "ON_LEAVE"] }, user: { OR: [{ roles: { equals: ["INTERN"] } }, { roles: { has: "ACCOUNTANT" } }] } },
+      select: { id: true, user: { select: { roles: true } } },
+    });
+    const ids = people.filter((p) => mustClockIn(p.user?.roles)).map((p) => p.id);
+    if (!ids.length) return [];
+    return prisma.attendancePunch.findMany({
+      where: { employeeId: { in: ids }, date: { gte: since }, clockIn: { not: null } },
+      select, orderBy: { date: "asc" },
+    });
+  }
+  if (!employeeId) return [];
+  const me = await prisma.employee.findUnique({ where: { id: employeeId }, select: { user: { select: { roles: true } } } });
+  if (!mustClockIn(me?.user?.roles)) return [];
+  return prisma.attendancePunch.findMany({
+    where: { employeeId, date: { gte: since }, clockIn: { not: null } },
+    select, orderBy: { date: "asc" },
+  });
+}
+
 export default async function CalendarPage() {
   const [session, viewMode] = await Promise.all([auth(), getViewMode()]);
 
@@ -223,7 +258,7 @@ export default async function CalendarPage() {
 
   // Admin view: see all employees' leaves; Staff view: see only own leaves
   const showAllLeaves = viewAs === "admin";
-  const [events, activeEmployees, self] = await Promise.all([
+  const [events, activeEmployees, self, punches] = await Promise.all([
     getCalendarEvents(currentUserId, currentEmployeeId, showAllLeaves),
     // The person filter lists every active staff member and intern, with or without leave.
     showAllLeaves
@@ -237,13 +272,17 @@ export default async function CalendarPage() {
     !showAllLeaves && currentEmployeeId
       ? prisma.employee.findUnique({ where: { id: currentEmployeeId }, select: { workdays: true } })
       : Promise.resolve(null),
+    getAttendancePunches(showAllLeaves, currentEmployeeId),
   ]);
+  const attendance = attendanceEvents(punches, showAllLeaves);
   // Admin view: every active staff member's and intern's birthday, last year to two years ahead.
   const thisYear = new Date().getFullYear();
   const birthdays = birthdayEvents(activeEmployees, [thisYear - 1, thisYear, thisYear + 1, thisYear + 2]).map((b) => ({
     ...b, details: undefined, days: undefined, hours: undefined,
   }));
-  const people = activeEmployees.map((e) => ({ id: e.id, name: e.name, intern: isInternRoles(e.user?.roles), workdays: e.workdays }));
+  const people = activeEmployees.map((e) => ({
+    id: e.id, name: e.name, intern: isInternRoles(e.user?.roles), workdays: e.workdays, clocksIn: mustClockIn(e.user?.roles),
+  }));
 
   return (
     <div className="space-y-6">
@@ -262,7 +301,7 @@ export default async function CalendarPage() {
         </Link>
       </div>
 
-      <CalendarView events={[...events, ...birthdays]} personFilter={showAllLeaves} people={people} ownWorkdays={self?.workdays} />
+      <CalendarView events={[...events, ...attendance, ...birthdays]} personFilter={showAllLeaves} people={people} ownWorkdays={self?.workdays} />
     </div>
   );
 }
