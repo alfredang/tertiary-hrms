@@ -47,6 +47,7 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
+- **Dashboard matches the decision email** — the staff and intern dashboard shows the same four leave figures as the leave summary in the approval email (paid leave taken, annual leave balance, MC taken, no-pay leave taken), from the same calculation.
 - **Staff and interns have separate pages** — Staff Management (`/employees`) lists present and past staff, and the new Intern Management (`/interns`) lists present and past interns. Both open on active people; the status filter has Active, Past and Present and past. The calendar's person filter lists every active staff member and intern.
 - **Analytics dashboard** (`/dashboard/analytics`, from the Analytics button on the admin dashboard) — the last 12 months of bank revenue and expenses, leave and MC per person, and headcount. Filters: period (3 / 6 / 12 months), All / Staff / Interns, a person, leave type, and expense category (click a category to leave it out). Every chart has a hover tooltip and a Table view; the tiles use the same filtered numbers.
 - **App API for the same features** — `GET /api/mobile/analytics` (approvers only) returns the analytics data for the iOS and Android apps, and `/api/mobile/team-calendar` marks each leave entry as staff or intern for approvers.
@@ -156,7 +157,7 @@ Earlier additions (May 2026):
 ### Dashboard
 - Real-time overview of HR metrics with role-aware stats
 - **Admin view**: pending leave requests, pending MC, pending expense claims
-- **Staff view**: personal leave balance, MC balance, expense claims (YTD)
+- **Staff / intern view**: paid leave taken, annual leave balance, MC taken and no-pay leave taken (with days left of 14), the same figures as the leave summary in the decision email; Off In Lieu when there is any
 - Recent activity feed (expenses and leave requests), filtered by role
 - Quick action cards for common tasks
 

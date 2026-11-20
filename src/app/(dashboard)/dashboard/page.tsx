@@ -2,17 +2,15 @@ import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { prorateLeave, hasAdminAccess } from "@/lib/utils";
+import { hasAdminAccess } from "@/lib/utils";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { getViewMode } from "@/lib/view-mode";
 import type { Role } from "@prisma/client";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { getLeaveProfile, getNplUsage } from "@/lib/leave-allowance";
-import { mcAnnualEntitlement, nplStatus, NPL_ANNUAL_CAP_DAYS } from "@/lib/leave-policy";
-import { getAnnualLeaveBalance } from "@/lib/annual-leave";
-import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
+import { getLeaveProfile } from "@/lib/leave-allowance";
+import { loadLeaveSummary } from "@/lib/approval-summaries";
 import { getInternAttendance, getLeaveOverview, getMonthlyLeaveSeries, getPendingApprovals, getWorkforceSnapshot } from "@/lib/hr-insights";
 import { buildFindings } from "@/lib/hr-compliance";
 import { AdminKpis } from "@/components/dashboard/admin-kpis";
@@ -79,50 +77,19 @@ async function getAdminStats() {
   return { pendingLeaves, pendingMC, pendingClaims };
 }
 
+/**
+ * A staff member's or intern's own leave tiles. They come from loadLeaveSummary(), the same
+ * summary the decision email and the approval page show, so the dashboard can never disagree
+ * with the email. Off In Lieu is an extra tile, shown only when there is any.
+ */
 async function getStaffStats(employeeId: string) {
   const currentYear = new Date().getFullYear();
-
-  const [alType, mcType, alOtType] = await Promise.all([
-    prisma.leaveType.findUnique({ where: { code: "AL" } }),
-    prisma.leaveType.findUnique({ where: { code: "MC" } }),
-    prisma.leaveType.findUnique({ where: { code: "AL_OT" } }),
-  ]);
-
-  const [alBalance, mcBalance, otBalance, nplUsage, employee] = await Promise.all([
-    alType
-      ? getAnnualLeaveBalance(employeeId, alType.id)
-      : null,
-    mcType
-      ? prisma.leaveBalance.findUnique({
-          where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: mcType.id, year: currentYear } },
-        })
-      : null,
-    alOtType
-      ? prisma.leaveBalance.findUnique({
-          where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: alOtType.id, year: currentYear } },
-        })
-      : null,
-    getNplUsage(employeeId, currentYear),
+  const [summary, profile, otBalance] = await Promise.all([
+    loadLeaveSummary(employeeId, currentYear),
     getLeaveProfile(employeeId),
+    prisma.leaveBalance.findFirst({ where: { employeeId, year: currentYear, leaveType: { code: "AL_OT" } } }),
   ]);
-
-  // Fall back to leave type default if no balance record exists (same as leave page)
-  const alAllocation = alBalance ? Number(alBalance.entitlement) : (alType?.defaultDays ?? 0);
-  const alCarriedOver = alBalance ? Number(alBalance.carriedOver) : 0;
-  const alUsed = alBalance ? Number(alBalance.used) : 0;
-  const alPending = alBalance ? Number(alBalance.pending) : 0;
-  const leaveBalance = annualLeaveAmounts({ entitlement: alAllocation, used: alUsed, pending: alPending,
-    carriedOver: alCarriedOver, recordedEarned: Number(alBalance?.earned ?? 0), periodStart: alBalance?.periodStart, periodEnd: alBalance?.periodEnd }, employee).remaining;
-
-  // MC is prorated by completed months served, like AL; interns have no paid MC.
-  const mcYearly = mcAnnualEntitlement(mcBalance ? Number(mcBalance.entitlement) : (mcType?.defaultDays ?? 0), !!employee?.isIntern);
-  const mcAllocation = prorateLeave(mcYearly, employee?.startDate, null, false, new Date(), employee?.endDate);
-  const mcCarriedOver = mcBalance ? Number(mcBalance.carriedOver) : 0;
-  const mcUsed = mcBalance ? Number(mcBalance.used) : 0;
-  const mcPending = mcBalance ? Number(mcBalance.pending) : 0;
-  const mcBalanceVal = mcAllocation + mcCarriedOver - mcUsed - mcPending;
-  // No Pay Leave: flat yearly cap, never prorated.
-  const npl = nplStatus(NPL_ANNUAL_CAP_DAYS, nplUsage.used, nplUsage.pending);
+  if (!summary) return null;
 
   const otEarned = otBalance ? Number(otBalance.earned) : 0;
   const otUsed = otBalance ? Math.max(0, Number(otBalance.used)) : 0;
@@ -133,7 +100,7 @@ async function getStaffStats(employeeId: string) {
     ? { earned: otEarned, used: otUsed, autoDeducted: otAutoDeducted, remaining: otRemaining }
     : null;
 
-  return { leaveBalance, mcBalance: mcBalanceVal, npl, isIntern: !!employee?.isIntern, otStats };
+  return { leave: summary.stats, isIntern: !!profile?.isIntern, otStats };
 }
 
 async function getRecentActivity(employeeId?: string) {
@@ -219,7 +186,7 @@ export default async function DashboardPage() {
   // The dashboard follows the person's role (Alfred, 20 Nov 2026):
   //   admin view      -> staff, interns, pending approvals
   //   accountant view -> pending claims, income, expenses
-  //   staff / intern  -> own annual leave, medical leave, no pay leave
+  //   staff / intern  -> own paid leave taken, annual leave balance, MC taken, no-pay leave taken (as in the decision email)
   //   Trainer Admins  -> trainers, ACLP, non-ACLP, as a second row under their own (not in accountant view)
   // Admins pick the view; an accountant always gets the accountant view, with their own leave row under it.
   const isAdmin = hasAdminAccess(role);

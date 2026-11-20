@@ -10,8 +10,9 @@ Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/
   - accountant view (admin switched to it, or a real ACCOUNTANT): pending expense claims, this month's bank income and
     expenses with the year to date (`FinanceKpiRow`, loader `getFinanceKpis()` in `src/lib/dashboard-kpis.ts`), finance
     quick actions. A real accountant also gets their own leave row;
-  - staff / intern view: own Annual Leave left, Medical Leave left, No Pay Leave taken of 14 (`StatsCards`; interns
-    have no paid MC), plus Off In Lieu when there is any;
+  - staff / intern view: the same four figures as the decision email, from the same `loadLeaveSummary()` (paid leave
+    taken, annual leave balance, MC taken, no-pay leave taken with "N of 14 left"; `StatsCards`), plus Off In Lieu
+    when there is any. Never compute these a second way on the dashboard;
   - TRAINER_ADMIN holders: a second row of trainers, ACLP, non-ACLP (`TrainerKpiRow`, same counting as `/trainers`),
     under their own row in the admin, staff and intern views. Not in the accountant view (finance only).
   - Every tile row uses `kpi-tiles.tsx`; add a role's row there, not a new tile style.

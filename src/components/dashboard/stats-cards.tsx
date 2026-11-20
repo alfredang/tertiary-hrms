@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import { Clock, Stethoscope, Receipt, CalendarDays, CalendarOff, Briefcase } from "lucide-react";
+import { Clock, Stethoscope, Receipt, CalendarCheck, CalendarDays, CalendarOff, Briefcase } from "lucide-react";
 
 interface AdminStats {
   pendingLeaves: number;
@@ -18,13 +18,22 @@ interface OtStats {
 }
 
 interface StaffStats {
-  leaveBalance: number;
-  mcBalance: number;
-  /** No Pay Leave this year: flat cap, days approved and days still pending. */
-  npl: { cap: number; used: number; pending: number; remaining: number };
+  /**
+   * The four leave figures of the decision email, in its order: paid leave taken, annual leave
+   * balance, MC taken, no-pay leave taken. Built by buildLeaveSummary(); shown as given.
+   */
+  leave: { label: string; value: string; hint?: string }[];
   isIntern: boolean;
   otStats: OtStats | null;
 }
+
+/** Icon and colour for each leave tile, by its position in the summary. */
+const LEAVE_TILE_STYLE = [
+  { icon: CalendarCheck, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+  { icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+  { icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
+  { icon: CalendarOff, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+];
 
 interface StatsCardsProps {
   adminStats: AdminStats | null;
@@ -51,22 +60,11 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
       { title: "Pending Claims", value: String(adminStats.pendingClaims), icon: Receipt, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
     );
   } else if (staffStats) {
-    cards.push(
-      { title: "Annual Leave", value: String(staffStats.leaveBalance), sub: "Days left", href: "/leave", icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+    staffStats.leave.forEach((stat, i) => {
       // Interns have no paid MC: their sick leave is No Pay Leave.
-      staffStats.isIntern
-        ? { title: "Medical Leave", value: "0", sub: "Sick leave is No Pay Leave", href: "/leave", icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" }
-        : { title: "Medical Leave", value: String(staffStats.mcBalance), sub: "Days left", href: "/leave", icon: Stethoscope, iconBg: "bg-red-100", iconColor: "text-red-600" },
-      {
-        title: "No Pay Leave",
-        value: String(staffStats.npl.used),
-        sub: `Taken of ${staffStats.npl.cap} days this year${staffStats.npl.pending ? `, ${staffStats.npl.pending} pending` : ""}`,
-        href: "/leave",
-        icon: CalendarOff,
-        iconBg: "bg-amber-100",
-        iconColor: "text-amber-600",
-      },
-    );
+      const sub = stat.hint ?? (staffStats.isIntern && stat.label === "MC taken" ? "Sick leave is No Pay Leave" : undefined);
+      cards.push({ title: stat.label, value: stat.value, sub, href: "/leave", ...LEAVE_TILE_STYLE[i % LEAVE_TILE_STYLE.length] });
+    });
     if (staffStats.otStats) {
       cards.push({
         title: "Off In Lieu",
@@ -78,9 +76,11 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
     }
   }
 
-  const colClass = cards.length === 4
-    ? "grid-cols-2 lg:grid-cols-4"
-    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  const colClass = cards.length >= 5
+    ? "grid-cols-2 lg:grid-cols-5"
+    : cards.length === 4
+      ? "grid-cols-2 lg:grid-cols-4"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
 
   return (
     <div className={`grid gap-3 sm:gap-4 ${colClass}`}>
@@ -91,7 +91,7 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-gray-400">{card.title}</p>
-                  <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mt-1.5">{card.value}</p>
+                  <p className="text-2xl sm:text-3xl lg:text-3xl font-bold text-white mt-1.5">{card.value}</p>
                   {card.sub && <p className="mt-1 truncate text-xs text-gray-500">{card.sub}</p>}
                 </div>
                 <div className={`p-2.5 sm:p-3 rounded-xl flex-shrink-0 ${card.iconBg}`}>
