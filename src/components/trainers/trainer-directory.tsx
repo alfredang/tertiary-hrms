@@ -124,7 +124,7 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Trainer Management</h1>
+          <h1 className="text-2xl font-bold">Trainer Admin</h1>
           <p className="text-sm text-muted-foreground">
             {stats.total} trainers · {stats.applicants} applicants
             {lastImport && <> · last import {new Date(lastImport).toLocaleString("en-SG", { dateStyle: "medium", timeStyle: "short" })}</>}

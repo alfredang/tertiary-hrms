@@ -89,8 +89,9 @@ const navigationGroups: NavGroup[] = [
     id: "my-stuff",
     label: "My Stuff",
     items: [
-      { name: "My Profile", href: "/profile", icon: User, noAccountant: true as const },
-      { name: "Calendar", href: "/calendar", icon: Calendar, noAccountant: true as const },
+      // Shown in every view, the accountant view included (Alfred, 20 Nov 2026).
+      { name: "My Profile", href: "/profile", icon: User },
+      { name: "Calendar", href: "/calendar", icon: Calendar },
     ],
   },
   {
@@ -99,7 +100,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { name: "Employees", adminName: "Staff Management", href: "/employees", icon: Users, adminOnly: true as const },
       { name: "Intern Management", href: "/interns", icon: UserPlus, adminOnly: true as const },
-      { name: "Trainer Management", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
+      { name: "Trainer Admin", href: "/trainers", icon: GraduationCap, trainerAdminOnly: true as const },
     ],
   },
   {
@@ -258,7 +259,7 @@ export function Sidebar({
   };
 
   const isActualAdmin = role === "ADMIN" || role === "HR" || role === "MANAGER";
-  // Trainer Management is its own role (TRAINER_ADMIN), independent of the view mode.
+  // Trainer Admin is its own role (TRAINER_ADMIN), independent of the view mode.
   const isTrainerAdmin = hasTrainerAdminAccess(actualRoles);
   const isAdmin = isActualAdmin && viewAs === "admin";
   // Finance: admins respect viewAs; pure accountant role always sees finance
@@ -275,7 +276,7 @@ export function Sidebar({
     : actualRoles.length > 0 && actualRoles.every((r) => r.toUpperCase() === "INTERN");
 
   const isVisible = (item: NavItem): boolean => {
-    // Trainer Management follows its own role, in every view except the
+    // Trainer Admin follows its own role, in every view except the
     // accountant view, which is finance only (Alfred, 20 Nov 2026).
     if (item.trainerAdminOnly) return isTrainerAdmin && !isAccountantView;
     if (item.adminOnly && !isAdmin) return false;

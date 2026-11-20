@@ -197,7 +197,7 @@ export default async function DashboardPage() {
   const isAccountantView = viewAs === "accountant";
   const isStaffView = !isAdminView;
   const showOwnLeave = !isAdminView && (!isAccountantView || isAccountant);
-  // Trainer Management follows its own role, in every view except the accountant view (finance only).
+  // Trainer Admin follows its own role, in every view except the accountant view (finance only).
   const showTrainers = hasTrainerAdminAccess(roles) && !isAccountantView;
 
   // For non-admin views: filter recent activity by own employee ID
@@ -238,7 +238,7 @@ export default async function DashboardPage() {
         <>
           {/* KPI tiles — each opens its detail */}
           <AdminKpis {...adminDash.kpis} />
-          {trainers && <TrainerKpiRow {...trainers} title="Trainer Management" />}
+          {trainers && <TrainerKpiRow {...trainers} title="Trainer Admin" />}
           {/* Grouped alerts + the one chart */}
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
             <div className="xl:col-span-2"><NeedsAttention findings={adminDash.findings} pending={adminDash.pending} /></div>
@@ -250,7 +250,7 @@ export default async function DashboardPage() {
         <>
           {finance && <FinanceKpiRow {...finance} />}
           {(adminStats || staffStats) && <StatsCards adminStats={adminStats} staffStats={staffStats} />}
-          {trainers && <TrainerKpiRow {...trainers} title={adminStats || staffStats ? "Trainer Management" : undefined} />}
+          {trainers && <TrainerKpiRow {...trainers} title={adminStats || staffStats ? "Trainer Admin" : undefined} />}
         </>
       )}
 

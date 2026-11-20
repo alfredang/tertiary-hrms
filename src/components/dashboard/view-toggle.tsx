@@ -80,7 +80,7 @@ export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
             <DropdownMenuItem asChild className="cursor-pointer">
               <Link href="/trainers" className="flex items-center gap-2">
                 <BookUser className="h-4 w-4 text-gray-400" />
-                <span className="flex-1">Trainer Management</span>
+                <span className="flex-1">Trainer Admin</span>
               </Link>
             </DropdownMenuItem>
           </>

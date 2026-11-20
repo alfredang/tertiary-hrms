@@ -1,4 +1,4 @@
-# Trainer Management rules
+# Trainer Admin rules (`/trainers`, formerly "Trainer Management")
 
 Applies to `src/app/(dashboard)/trainers/**`, `src/app/api/trainers/**`, `src/app/api/agent/trainers/**`,
 `src/lib/trainer*.ts`, `scripts/trainers/**`.
