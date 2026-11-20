@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   const from = new Date(Date.UTC(year - 1, 11, 1));
   const to = new Date(Date.UTC(year + 1, 1, 1));
 
-  const [leave, holidays, publicHolidays] = await Promise.all([
+  const [leave, holidays, publicHolidays, roster] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: { status: "APPROVED", startDate: { lt: to }, endDate: { gte: from } },
       select: {
@@ -56,6 +56,15 @@ export async function GET(req: Request) {
       where: { countryCode: "SG", date: { lt: to, gte: from } },
       orderBy: { date: "asc" },
     }),
+    // Approvers filter the calendar by person: every active staff member and intern, with or
+    // without leave, and nobody who has left (same list as the web calendar).
+    ctx.isAdmin
+      ? prisma.employee.findMany({
+          where: { status: { in: ["ACTIVE", "ON_LEAVE"] } },
+          select: { id: true, name: true, user: { select: { roles: true } } },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve(null),
   ]);
 
   const dayKey = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
@@ -90,6 +99,7 @@ export async function GET(req: Request) {
     year,
     canSeeTypes: ctx.isAdmin,
     entries,
+    people: roster ? roster.map((e) => ({ id: e.id, name: e.name, intern: isInternRoles(e.user?.roles) })) : null,
     holidays: allHolidays,
   });
 }

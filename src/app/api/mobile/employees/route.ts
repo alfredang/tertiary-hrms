@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, iso } from "@/lib/mobile-api";
+import { isInternRoles } from "@/lib/leave-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export async function GET() {
 
   const employees = await prisma.employee.findMany({
     where: { status: "ACTIVE" },
-    include: { department: { select: { name: true } } },
+    include: { department: { select: { name: true } }, user: { select: { roles: true } } },
     orderBy: { name: "asc" },
   });
 
@@ -30,6 +31,8 @@ export async function GET() {
       phone: ctx.isAdmin ? e.phone : null,
       employmentType: ctx.isAdmin ? e.employmentType : null,
       startDate: ctx.isAdmin ? iso(e.startDate) : null,
+      // Approvers see staff and interns as two lists (web: Staff Management / Intern Management).
+      intern: ctx.isAdmin ? isInternRoles(e.user?.roles) : null,
     })),
   });
 }
