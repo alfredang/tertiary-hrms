@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { canonicalRedirect } from "@/lib/canonical-host";
+import { upgradeRequired } from "@/lib/mobile-app-version";
 
 // Middleware only checks for the *presence* of a session cookie, not its
 // validity. Validating the JWT in middleware required a second NextAuth
@@ -24,13 +25,20 @@ function hasSessionCookie(req: NextRequest): boolean {
   return false;
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   if (isDevAuthSkipped()) return NextResponse.next();
 
   const moved = canonicalRedirect(req);
   if (moved) return moved;
 
   const { pathname } = req.nextUrl;
+
+  // Force update: an app older than the store's version gets 426 on its data calls
+  // (src/lib/mobile-app-version.ts). Sign-in and /api/public stay open.
+  if (pathname.startsWith("/api/mobile/")) {
+    const upgrade = await upgradeRequired(req.headers);
+    if (upgrade) return NextResponse.json(upgrade, { status: 426 });
+  }
 
   const publicRoutes = [
     "/login",
