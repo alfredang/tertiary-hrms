@@ -17,6 +17,22 @@ export interface FinanceKpis {
   expensesYtd: number;
   monthLabel: string;
   year: number;
+  /** Bank credits / debits this month (counts); the mobile accountant Home (22 Nov 2026). */
+  incomeCountMonth?: number;
+  expenseCountMonth?: number;
+  /** Bank statement imports: how many, the last bank date they cover (yyyy-mm-dd) and when the last one was imported. */
+  statementImports?: number;
+  statementLatestDate?: string | null;
+  statementLastImportedAt?: string | null;
+  /** Latest bank reconciliation run; `toReview` = its unreviewed lines that are not a match. */
+  reconciliation?: {
+    status: string;
+    periodStart: string;
+    periodEnd: string;
+    matched: number;
+    toReview: number;
+    createdAt: string;
+  } | null;
 }
 
 /** First day of the current month and year in Singapore, as the UTC dates a `@db.Date` column holds. */
@@ -48,7 +64,7 @@ export function splitByDirection(rows: DirectionSum[]): { income: number; expens
 
 export async function getFinanceKpis(now: Date = new Date()): Promise<FinanceKpis> {
   const { year, monthStart, nextMonthStart, yearStart } = singaporePeriod(now);
-  const [claims, month, ytd] = await Promise.all([
+  const [claims, month, ytd, monthCounts, imports, latestTxn, lastRun] = await Promise.all([
     prisma.expenseClaim.aggregate({ where: { status: "PENDING" }, _count: true, _sum: { amount: true } }),
     prisma.bankTransaction.groupBy({
       by: ["direction"], where: { paymentDate: { gte: monthStart, lt: nextMonthStart } }, _sum: { amount: true },
@@ -56,7 +72,28 @@ export async function getFinanceKpis(now: Date = new Date()): Promise<FinanceKpi
     prisma.bankTransaction.groupBy({
       by: ["direction"], where: { paymentDate: { gte: yearStart, lt: nextMonthStart } }, _sum: { amount: true },
     }),
+    prisma.bankTransaction.groupBy({
+      by: ["direction"], where: { paymentDate: { gte: monthStart, lt: nextMonthStart } }, _count: { _all: true },
+    }),
+    prisma.bankTransaction.groupBy({ by: ["importBatchId"], _max: { createdAt: true } }),
+    prisma.bankTransaction.aggregate({ _max: { paymentDate: true } }),
+    prisma.bankReconciliation.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { id: true, status: true, periodStart: true, periodEnd: true, matchedCount: true, createdAt: true },
+    }),
   ]);
+  const toReview = lastRun
+    ? await prisma.bankReconciliationItem.count({
+        where: { reconciliationId: lastRun.id, status: { not: "MATCHED" }, reviewed: false },
+      })
+    : 0;
+  const counted = (dir: string) =>
+    (monthCounts as { direction: string; _count: { _all: number } }[]).find((r) => r.direction === dir)?._count._all ?? 0;
+  const lastImport = imports.reduce<Date | null>((latest, b) => {
+    const at = b._max.createdAt;
+    return at && (!latest || at > latest) ? at : latest;
+  }, null);
+  const ymd = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : null);
   const m = splitByDirection(month as DirectionSum[]);
   const y = splitByDirection(ytd as DirectionSum[]);
   return {
@@ -66,6 +103,22 @@ export async function getFinanceKpis(now: Date = new Date()): Promise<FinanceKpi
     expensesMonth: m.expenses, expensesYtd: y.expenses,
     monthLabel: now.toLocaleDateString("en-SG", { month: "short", timeZone: "Asia/Singapore" }),
     year,
+    incomeCountMonth: counted("CREDIT"),
+    expenseCountMonth: (monthCounts as { direction: string; _count: { _all: number } }[])
+      .filter((r) => r.direction !== "CREDIT").reduce((t, r) => t + r._count._all, 0),
+    statementImports: imports.length,
+    statementLatestDate: ymd(latestTxn._max.paymentDate),
+    statementLastImportedAt: lastImport ? lastImport.toISOString() : null,
+    reconciliation: lastRun
+      ? {
+          status: lastRun.status,
+          periodStart: ymd(lastRun.periodStart)!,
+          periodEnd: ymd(lastRun.periodEnd)!,
+          matched: lastRun.matchedCount,
+          toReview,
+          createdAt: lastRun.createdAt.toISOString(),
+        }
+      : null,
   };
 }
 
