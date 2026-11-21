@@ -8,7 +8,9 @@ import { getFinanceKpis, getTrainerKpis } from "@/lib/dashboard-kpis";
 export const dynamic = "force-dynamic";
 
 // GET /api/mobile/summary — the home dashboard snapshot.
-export async function GET() {
+// Optional ?view=accountant: an admin previewing the accountant Home (app View As, 22 Nov 2026)
+// also gets the finance tiles, as the web dashboard does in the accountant view.
+export async function GET(req: Request) {
   const ctx = await getMobileContext();
   if (!ctx) return unauthorized();
 
@@ -62,9 +64,12 @@ export async function GET() {
   // - leaveSummary: the signed-in person's own leave tiles, the same summary as the decision email.
   // - financeKpis: accountants (not admins), pending claims and this month's bank income / expenses.
   // - trainerKpis: Trainer Admins, trainer counts (all / ACLP / non-ACLP).
-  const isAccountant = !ctx.isAdmin && ctx.roles.includes("ACCOUNTANT");
+  const view = new URL(req.url).searchParams.get("view");
+  const isAccountant = ctx.isAdmin ? view === "accountant" : ctx.roles.includes("ACCOUNTANT");
   const [leaveSummary, financeKpis, trainerKpis] = await Promise.all([
-    ctx.employeeId ? loadLeaveSummary(ctx.employeeId, year).then((s) => s?.stats ?? null) : Promise.resolve(null),
+    // Admins apply no leave or MC for themselves (Alfred, 22 Nov 2026): no balance tiles in the admin
+    // view, only when an admin previews the staff or intern Home with ?view=staff|intern.
+    ctx.employeeId && (!ctx.isAdmin || view === "staff" || view === "intern") ? loadLeaveSummary(ctx.employeeId, year).then((s) => s?.stats ?? null) : Promise.resolve(null),
     isAccountant ? getFinanceKpis().catch(() => null) : Promise.resolve(null),
     ctx.canManageTrainers ? getTrainerKpis().catch(() => null) : Promise.resolve(null),
   ]);
