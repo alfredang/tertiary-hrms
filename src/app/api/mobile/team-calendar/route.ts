@@ -13,8 +13,9 @@ export const dynamic = "force-dynamic";
  * GET /api/mobile/team-calendar?year=YYYY — approved leave across the company,
  * so the mobile app can show who is out and when.
  *
- * Privacy: a leave *type* is health-adjacent (medical leave discloses illness),
- * so a regular employee sees only that a colleague is away. Approvers
+ * Privacy (Alfred, 22 Nov 2026, replaces "colleagues shown as away"): a staff member or intern
+ * sees only their OWN leave, MC, No Pay Leave and time off, plus the public holidays; only the
+ * approvers see everyone. Accountants have no leave, so they get the holidays only. Approvers
  * (ADMIN/HR/MANAGER — the roles that already read this on the web) additionally
  * see the type, and everyone always sees full detail of their OWN leave. The
  * masking happens here on the server: the client is never sent what it may not
@@ -41,9 +42,21 @@ export async function GET(req: Request) {
   const from = new Date(Date.UTC(year - 1, 11, 1));
   const to = new Date(Date.UTC(year + 1, 1, 1));
 
+  // Whose leave and time off this caller may see: approvers everyone, others only their own.
+  const isAccountant = !ctx.isAdmin && ctx.roles.includes("ACCOUNTANT");
+  const ownOnly = !ctx.isAdmin;
+  const canSeeOwn = !!ctx.employeeId && !isAccountant;
+
   const [leave, holidays, publicHolidays, roster] = await Promise.all([
-    prisma.leaveRequest.findMany({
-      where: { status: "APPROVED", startDate: { lt: to }, endDate: { gte: from } },
+    !ctx.isAdmin && !canSeeOwn
+      ? Promise.resolve([])
+      : prisma.leaveRequest.findMany({
+      where: {
+        status: "APPROVED",
+        startDate: { lt: to },
+        endDate: { gte: from },
+        ...(ownOnly ? { employeeId: ctx.employeeId } : {}),
+      },
       select: {
         id: true,
         startDate: true,
@@ -81,7 +94,7 @@ export async function GET(req: Request) {
 
   // Approved time off and intern Off Days: approvers see everyone's, others only their own.
   const [timeOffRows, self] = await Promise.all([
-    ctx.isAdmin || ctx.employeeId
+    ctx.isAdmin || canSeeOwn
       ? prisma.timeOffRequest.findMany({
           where: {
             status: "APPROVED",

@@ -89,9 +89,9 @@ const navigationGroups: NavGroup[] = [
     id: "my-stuff",
     label: "My Stuff",
     items: [
-      // Shown in every view, the accountant view included (Alfred, 20 Nov 2026).
       { name: "My Profile", href: "/profile", icon: User },
-      { name: "Calendar", href: "/calendar", icon: Calendar },
+      // Not for accountants or the Trainer Admin view: they have no leave or MC (Alfred, 22 Nov 2026).
+      { name: "Calendar", href: "/calendar", icon: Calendar, noAccountant: true as const },
     ],
   },
   {
@@ -206,7 +206,7 @@ const navigationGroups: NavGroup[] = [
 const CLOSED_GROUPS_KEY = "sidebarClosedGroups";
 
 /** The sidebar of the Trainer Admin view. */
-const TRAINER_VIEW_HREFS = ["/dashboard", "/profile", "/calendar", "/trainers", "/sop"];
+const TRAINER_VIEW_HREFS = ["/dashboard", "/profile", "/trainers", "/sop"];
 
 export function Sidebar({
   role,
@@ -269,7 +269,7 @@ export function Sidebar({
   const canSeeFinance = isActualAdmin
     ? viewAs === "admin" || viewAs === "accountant"
     : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT");
-  // Accountant view hides calendar (they use staff view for personal calendar)
+  // Accountant view hides the calendar and the leave pages (no leave or MC; Alfred, 22 Nov 2026).
   const isAccountantView = isActualAdmin
     ? viewAs === "accountant"
     : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT") && !isActualAdmin;

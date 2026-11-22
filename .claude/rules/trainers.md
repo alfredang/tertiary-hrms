@@ -9,7 +9,7 @@ Applies to `src/app/(dashboard)/trainers/**`, `src/app/api/trainers/**`, `src/ap
 - Holders (9 Nov 2026): Alfred Ang (E0001), Tan Soik Ching (E0002), Deepa Arumugam (E10001), Ang See Siang (E0014).
 - **Trainer Admin view (Alfred, 20 Nov 2026)**: an admin holding TRAINER_ADMIN can pick **View As → Trainer Admin**
   (view mode `trainer` in `src/lib/view-mode.ts` / `view-mode-context.tsx`). It lands on `/trainers`; the sidebar shows
-  only Dashboard, My Stuff, People → Trainers and SOP (`TRAINER_VIEW_HREFS`); the dashboard shows the trainer row
+  only Dashboard, My Profile, People → Trainers and SOP (no Calendar, Alfred, 22 Nov 2026) (`TRAINER_VIEW_HREFS`); the dashboard shows the trainer row
   only. Non-admin holders have no View As menu and keep the sidebar link in their staff view.
 - The sidebar link (People → Trainers; label renamed from "Trainer Admin" 21 Nov 2026, the role name is unchanged) shows, for an admin, in the admin view and the Trainer Admin view only (not staff, intern or accountant; Alfred, 21 Nov 2026, replaces the 20 Nov rule).
   The dashboard trainer row follows the same rule. A holder who is not an admin has no View As menu and keeps the link.

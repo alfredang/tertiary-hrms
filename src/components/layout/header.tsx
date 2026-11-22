@@ -50,6 +50,11 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const showAdminFeatures = isAdmin && viewAs === "admin";
+  // Accountants and the Trainer Admin view have no calendar (no leave or MC; Alfred, 22 Nov 2026).
+  const roles: string[] = session?.user?.roles ?? [];
+  const showCalendar = isAdmin
+    ? viewAs !== "accountant" && viewAs !== "trainer"
+    : !roles.includes("ACCOUNTANT") && viewAs !== "trainer";
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -125,10 +130,12 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
                 <User className="mr-2 h-4 w-4" />
                 My Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/calendar")}>
-                <Calendar className="mr-2 h-4 w-4" />
-                Calendar
-              </DropdownMenuItem>
+              {showCalendar && (
+                <DropdownMenuItem onClick={() => router.push("/calendar")}>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Calendar
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild className="sm:hidden">
                 <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
                   <AppleLogo className="mr-2 h-4 w-4" />
