@@ -5,11 +5,13 @@ import { isInternRoles } from "@/lib/leave-policy";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/mobile/employees — company directory.
-// Basic colleague fields for everyone; richer fields for admins/HR/managers.
+// GET /api/mobile/employees — company directory, admins (ADMIN / HR / MANAGER) only.
+// Only admins see the full team (Alfred, 22 Nov 2026), as on the web where Staff / Interns are
+// admin-only; the apps give everyone else an SOP tab instead of Team. Old apps are force-updated.
 export async function GET() {
   const ctx = await getMobileContext();
   if (!ctx) return unauthorized();
+  if (!ctx.isAdmin) return NextResponse.json({ error: "Only admins can see the staff list." }, { status: 403 });
 
   const employees = await prisma.employee.findMany({
     where: { status: "ACTIVE" },
