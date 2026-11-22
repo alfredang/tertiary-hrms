@@ -80,7 +80,7 @@ async function sendViaSmtp(login: SmtpLogin, to: string, code: string) {
   const info = await transport.sendMail({ from: `${companyName} <${from || user}>`, to, subject, html: htmlBody });
   console.log(`[send-otp] SMTP email sent to ${to} from ${from || user}`);
   // Keep the sending mailbox's copy out of its inbox (runs in the background).
-  if (info?.messageId) void removeSenderInboxCopy({ rfc822MessageId: info.messageId });
+  if (info?.messageId) void removeSenderInboxCopy({ rfc822MessageId: info.messageId, to });
 }
 
 // ── Gmail OAuth send ─────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ async function sendViaGmailOAuth(to: string, code: string, creds: GmailCreds, fr
       const sent = await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } });
       console.log(`[send-otp] Gmail OAuth email sent to ${to} from ${fromAddress}`);
       // Gmail files the sender's copy under SENT + INBOX; keep it out of the inbox.
-      if (sent.data.id) void removeSenderInboxCopy({ gmailId: sent.data.id });
+      if (sent.data.id) void removeSenderInboxCopy({ gmailId: sent.data.id, to });
       return;
     } catch (err: any) {
       lastErr = err;

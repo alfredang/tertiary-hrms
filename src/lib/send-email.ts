@@ -86,11 +86,18 @@ async function getGmailClient() {
  * the RFC 822 Message-ID header for mail sent over SMTP. Best effort: it never
  * throws, because the email itself was already delivered.
  */
-export async function removeSenderInboxCopy(ref: { gmailId?: string; rfc822MessageId?: string }) {
+export async function removeSenderInboxCopy(ref: { gmailId?: string; rfc822MessageId?: string; to?: string }) {
   try {
     const gmailAuth = await getGmailClient();
     if (!gmailAuth) return;
     const gmail = google.gmail({ version: "v1", auth: gmailAuth.client });
+
+    // Mail TO the connected mailbox itself (e.g. Alfred's own sign-in code, sent through his Gmail as
+    // the sales alias) has one copy, which is the recipient's: leave it in the inbox (22 Nov 2026).
+    if (ref.to) {
+      const me = (await gmail.users.getProfile({ userId: "me" })).data.emailAddress ?? "";
+      if (me && me.trim().toLowerCase() === ref.to.trim().toLowerCase()) return;
+    }
 
     let id = ref.gmailId;
     if (!id && ref.rfc822MessageId) {
