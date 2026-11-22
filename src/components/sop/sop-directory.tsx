@@ -1,69 +1,111 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, ListChecks, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { filterSops, groupSopsByCategory, type SopListItem } from "@/lib/sop-utils";
 
+// Filter bar in the same style as the Trainers directory: search + Category dropdown in one card,
+// result count and "Clear filters" underneath. Search and category live in the URL (?q=, ?cat=).
 export function SopDirectory({ items }: { items: SopListItem[] }) {
-  const [q, setQ] = useState("");
-  const [category, setCategory] = useState<string | null>(null);
+  const sp = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const allGroups = useMemo(() => groupSopsByCategory(items), [items]);
+  const [q, setQ] = useState(sp.get("q") ?? "");
+  const [category, setCategory] = useState<string>(() => {
+    const c = sp.get("cat") ?? "";
+    return allGroups.some((g) => g.category === c) ? c : "";
+  });
+
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (category) p.set("cat", category);
+    const qs = p.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [q, category, pathname, router]);
+
   const matches = useMemo(() => filterSops(items, q), [items, q]);
   const groups = useMemo(
     () => groupSopsByCategory(category ? matches.filter((m) => m.category === category) : matches),
     [matches, category],
   );
   const shown = groups.reduce((n, g) => n + g.items.length, 0);
-  const filtering = q.trim().length > 0 || category !== null;
+  const filtering = q.trim().length > 0 || category !== "";
 
   return (
     <div className="space-y-5">
-      <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search procedures, e.g. refund, attendance, appeal, TPG, SkillsFuture Credit"
-            className="pl-9 pr-9"
-            aria-label="Search SOPs"
-          />
-          {q && (
+      <Card className="space-y-2 p-3">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search procedures, e.g. refund, attendance, appeal, TPG, SkillsFuture Credit"
+              className="pl-9 pr-9"
+              aria-label="Search SOPs"
+            />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {/* Counts follow the current search. */}
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="h-10 min-w-0 rounded-md border bg-background px-3 text-sm sm:w-64"
+            aria-label="Category"
+          >
+            <option value="">All categories ({matches.length})</option>
+            {allGroups.map((g) => (
+              <option key={g.category} value={g.category}>
+                {g.category} ({matches.filter((m) => m.category === g.category).length})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 px-1 text-sm">
+          <span className="text-muted-foreground">
+            {filtering ? `${shown} of ${items.length}` : items.length} {items.length === 1 ? "procedure" : "procedures"}
+          </span>
+          {category && (
             <button
               type="button"
-              onClick={() => setQ("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-              aria-label="Clear search"
+              onClick={() => setCategory("")}
+              aria-label={`Remove ${category}`}
+              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:border-primary/60"
             >
-              <X className="h-4 w-4" />
+              {category} <X className="h-3 w-3" />
+            </button>
+          )}
+          {filtering && (
+            <button
+              type="button"
+              onClick={() => {
+                setQ("");
+                setCategory("");
+              }}
+              className="ml-auto inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              <X className="h-3.5 w-3.5" /> Clear filters
             </button>
           )}
         </div>
-
-        {/* One compact row of category filters; counts are for the current search. */}
-        <div className="flex flex-wrap gap-1.5">
-          <CategoryChip label="All" count={matches.length} active={category === null} onClick={() => setCategory(null)} />
-          {allGroups.map((g) => (
-            <CategoryChip
-              key={g.category}
-              label={g.category}
-              count={matches.filter((m) => m.category === g.category).length}
-              active={category === g.category}
-              onClick={() => setCategory(category === g.category ? null : g.category)}
-            />
-          ))}
-        </div>
-
-        {filtering && (
-          <p className="text-xs text-gray-500">
-            {shown} of {items.length} procedures
-          </p>
-        )}
-      </div>
+      </Card>
 
       {groups.length === 0 ? (
         <div className="rounded-xl border border-gray-800 px-4 py-12 text-center text-sm text-gray-400">
@@ -114,25 +156,5 @@ export function SopDirectory({ items }: { items: SopListItem[] }) {
         </div>
       )}
     </div>
-  );
-}
-
-function CategoryChip({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      disabled={count === 0 && !active}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-gray-700 text-gray-300 hover:border-primary/60 hover:text-white",
-      )}
-    >
-      {label}
-      <span className={cn("tabular-nums", active ? "opacity-80" : "text-gray-500")}>{count}</span>
-    </button>
   );
 }

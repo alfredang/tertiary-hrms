@@ -38,6 +38,7 @@ Applies to `src/app/(dashboard)/trainers/**`, `src/app/api/trainers/**`, `src/ap
 - Finance background (evidence list), IBF Fit and Proper declaration form on file (detected from the folder files),
   professional certifications (PMP, CCAR-F, CFA…), skills (Articulate, Python…), courses taught, last class.
 - The directory opens on ACLP trainers, sorted A–Z; ACLP / Non-ACLP / All control (`?aclp=non|all`), also set by the three KPI tiles (Alfred, 20 Nov 2026).
+- The list shows 30 trainers per page with First · Back · page numbers · Next · End (`Pager`, `PAGE_SIZE`; Alfred, 22 Nov 2026; replaces "Show more"). The page is kept in the URL (`?page=`) and goes back to 1 when a search, filter or sort changes.
 - Applicants from email have status `Applicant`/`Contacted`; the directory hides them by default.
 
 ## Privacy

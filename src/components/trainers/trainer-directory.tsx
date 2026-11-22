@@ -17,7 +17,8 @@ import {
   type TrainerListItem,
 } from "@/lib/trainers";
 
-const PAGE = 60;
+/** Trainers per page (Alfred, 22 Nov 2026: numbered pages instead of "Show more"). */
+const PAGE_SIZE = 30;
 type Sort = "recent" | "name" | "classes";
 
 type AclpFilter = "aclp" | "non" | "all";
@@ -42,7 +43,18 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
     (sp.get("status") as TrainerFilters["status"]) || "trainers",
   );
   const [sort, setSort] = useState<Sort>((sp.get("sort") as Sort) || "name");
-  const [limit, setLimit] = useState(PAGE);
+  // The page is in the URL too, so Back from a profile returns to the same page.
+  const [page, setPage] = useState(Math.max(1, Number.parseInt(sp.get("page") ?? "1", 10) || 1));
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  // A changed search, filter or sort starts again at page 1 (not on first load, which keeps ?page=).
+  const filterKey = JSON.stringify([q, aclp, certs, tags, finance, ibfFit, status, sort]);
+  const lastFilterKey = useRef(filterKey);
+  useEffect(() => {
+    if (lastFilterKey.current === filterKey) return;
+    lastFilterKey.current = filterKey;
+    setPage(1);
+  }, [filterKey]);
 
   useEffect(() => {
     const p = new URLSearchParams();
@@ -54,10 +66,10 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
     if (ibfFit) p.set("ibfFit", "1");
     if (status !== "trainers") p.set("status", status);
     if (sort !== "name") p.set("sort", sort);
+    if (page > 1) p.set("page", String(page));
     const qs = p.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    setLimit(PAGE);
-  }, [q, aclp, certs, tags, finance, ibfFit, status, sort, pathname, router]);
+  }, [q, aclp, certs, tags, finance, ibfFit, status, sort, page, pathname, router]);
 
   const results = useMemo(() => {
     const list = filterTrainers(trainers, { q, certs, tags, finance, ibfFit, status }).filter(
@@ -68,6 +80,10 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
     if (sort === "classes") return [...list].sort((a, b) => b.classesCount - a.classesCount || byName(a, b));
     return [...list].sort((a, b) => (b.lastClassDate ?? "").localeCompare(a.lastClassDate ?? "") || b.classesCount - a.classesCount || byName(a, b));
   }, [trainers, q, aclp, certs, tags, finance, ibfFit, status, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages); // a stale ?page= past the end shows the last page
+  const pageRows = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const pool = useMemo(() => trainers.filter((t) => !isApplicant(t)), [trainers]);
   const stats = useMemo(
@@ -218,7 +234,7 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
         </div>
       </Card>
 
-      <Card className="overflow-x-auto">
+      <Card ref={tableRef} className="overflow-x-auto scroll-mt-20">
         <table className="w-full text-sm">
           <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground border-b whitespace-nowrap">
             <tr>
@@ -231,7 +247,7 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
             </tr>
           </thead>
           <tbody>
-            {results.slice(0, limit).map((t) => {
+            {pageRows.map((t) => {
               const expertise = orderByMatch([...t.certifications, ...t.skills], [...tags, q]);
               const badges = [...t.trainingCerts];
               const shown = expertise.slice(0, Math.max(1, 3 - badges.length));
@@ -279,12 +295,16 @@ export function TrainerDirectory({ trainers, lastImport }: { trainers: TrainerLi
             )}
           </tbody>
         </table>
-        {results.length > limit && (
-          <div className="p-3 text-center border-t">
-            <Button variant="outline" size="sm" onClick={() => setLimit(limit + PAGE)}>
-              Show more ({results.length - limit} more)
-            </Button>
-          </div>
+        {totalPages > 1 && (
+          <Pager
+            page={currentPage}
+            totalPages={totalPages}
+            total={results.length}
+            onPage={(n) => {
+              setPage(n);
+              tableRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+            }}
+          />
         )}
       </Card>
     </div>
@@ -302,6 +322,36 @@ type Tone = keyof typeof TONES;
 
 export function Tag({ children, tone = "default" }: { children: React.ReactNode; tone?: Tone }) {
   return <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium", TONES[tone])}>{children}</span>;
+}
+
+/** First · Back · up to five page numbers · Next · End. */
+function Pager({ page, totalPages, total, onPage }: { page: number; totalPages: number; total: number; onPage: (n: number) => void }) {
+  const first = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const last = Math.min(totalPages, first + 4);
+  const numbers = Array.from({ length: last - first + 1 }, (_, i) => first + i);
+  const from = (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(total, page * PAGE_SIZE);
+  return (
+    <nav aria-label="Trainer pages" className="flex flex-wrap items-center justify-between gap-3 border-t p-3">
+      <p className="text-xs text-muted-foreground">
+        Showing {from}–{to} of {total}
+      </p>
+      <div className="flex flex-wrap items-center gap-1">
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(1)}>First</Button>
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>Back</Button>
+        {first > 1 && <span className="px-1 text-muted-foreground select-none">…</span>}
+        {numbers.map((n) => (
+          <Button key={n} variant={n === page ? "default" : "outline"} size="sm" className="min-w-9"
+            aria-current={n === page ? "page" : undefined} onClick={() => onPage(n)}>
+            {n}
+          </Button>
+        ))}
+        {last < totalPages && <span className="px-1 text-muted-foreground select-none">…</span>}
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>Next</Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPage(totalPages)}>End</Button>
+      </div>
+    </nav>
+  );
 }
 
 /** Expertise with the items matching the active search / filters first, so the reason a trainer matched is visible. */
