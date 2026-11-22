@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { canViewAs } from "@/lib/view-as-policy";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -27,12 +28,14 @@ export function MobileBottomNav() {
   useEffect(() => {
     const read = () => {
       const cookie = document.cookie.split("; ").find((c) => c.startsWith("viewAs="));
-      setViewAs(cookie ? cookie.split("=")[1] : "admin");
+      // Only Alfred may view as any role; others keep their own view (or the Trainer Admin view).
+      const v = cookie ? cookie.split("=")[1] : "admin";
+      setViewAs(canViewAs(session?.user?.email) || v === "trainer" ? v : "admin");
     };
     read();
     const interval = setInterval(read, 500);
     return () => clearInterval(interval);
-  }, []);
+  }, [session?.user?.email]);
 
   const canSeeFinance = isActualAdmin
     ? viewAs === "admin" || viewAs === "accountant"

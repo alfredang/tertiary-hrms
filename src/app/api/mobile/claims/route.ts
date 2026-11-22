@@ -1,3 +1,4 @@
+import { linkWithRequest } from "@/lib/notification-relevance";
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
@@ -176,7 +177,8 @@ export async function POST(req: NextRequest) {
         title: "New expense claim",
         message: `${claim.employee.name} claimed $${Number(claim.amount).toFixed(2)} for ${claim.category.name}.`,
         type: "EXPENSE_SUBMITTED",
-        link: "/expenses",
+        link: linkWithRequest("/expenses", claim.id),
+        alsoAccountants: true,
       });
     }
 

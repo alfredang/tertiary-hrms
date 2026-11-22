@@ -1,3 +1,4 @@
+import { COMPANY_EMAIL_REQUIRED_MESSAGE, isLoginEmailAllowed } from "@/lib/login-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { google } from "googleapis";
@@ -196,13 +197,18 @@ export async function POST(req: NextRequest) {
   try {
     const userExists = await prisma.user.findUnique({
       where: { email: normalizedEmail },
-      select: { id: true },
+      select: { id: true, employee: { select: { employmentType: true } } },
     });
     if (!userExists) {
       return NextResponse.json(
         { success: false, error: "No account found for this email. Please contact HR." },
         { status: 404 }
       );
+    }
+
+    // Company email only, except part-time staff and interns: no code is sent to a refused address.
+    if (!isLoginEmailAllowed(normalizedEmail, userExists.employee?.employmentType)) {
+      return NextResponse.json({ success: false, error: COMPANY_EMAIL_REQUIRED_MESSAGE }, { status: 403 });
     }
 
     await prisma.otpCode.updateMany({

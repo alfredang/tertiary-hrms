@@ -5,11 +5,16 @@ PreToolUse  Bash   - blocks destructive Prisma commands (the local DATABASE_URL 
                      migrate reset, --force-reset, --accept-data-loss; previews every `prisma db push`
                      and blocks it when the SQL diff drops/alters existing columns, tables or enum values.
                    - blocks `git add/commit` of PII paths (.trainers/, .bank_statements/, .env*, uploads/).
-                   - before `git push`: tsc --noEmit + vitest must pass.
+                   - before `git push`: tsc --noEmit + vitest must pass, and the login-email guardrail must hold.
 PostToolUse Edit/Write
                    - edits to business-logic files (leave, MC, NPL, attendance, payroll/CPF, accounting,
                      trainers, auth/roles) run the related vitest tests; failures are fed back to Claude.
                    - prisma/schema.prisma edits run `prisma validate` and print the additive-only rule.
+                   - LOGIN GUARDRAIL (Alfred, 22 Nov 2026): staff sign in only with @tertiaryinfotech.com; personal
+                     email only for PART_TIME staff and interns (src/lib/login-policy.ts). Every sign-in path must
+                     keep calling isLoginEmailAllowed; an edit that removes a call is reported back as a failure.
+                   - ROLE GUARDRAIL (22 Nov 2026): elevated roles only for the people in src/lib/role-policy.ts (everyone
+                     else STAFF or INTERN); sign-in paths keep effectiveRoles, role writes keep disallowedRoles.
 Exit code 2 = block (PreToolUse) / report failure back to Claude (PostToolUse).
 """
 import json, os, re, subprocess, sys
@@ -85,6 +90,14 @@ def pre_bash(cmd):
         if leaked:
             block("HRMS guard: `git add` would stage PII files:\n  " + "\n  ".join(leaked[:10]))
     if starts(r"git\s+push\b"):
+        bad = role_guard_problems()
+        if bad:
+            block("HRMS guard: blocked push — ROLE GUARDRAIL broken (elevated roles only for src/lib/role-policy.ts):\n  "
+                  + "\n  ".join(bad))
+        bad = login_guard_problems()
+        if bad:
+            block("HRMS guard: blocked push — LOGIN GUARDRAIL broken (company email for staff on every sign-in path):\n  "
+                  + "\n  ".join(bad))
         code, out = run("npx tsc --noEmit", timeout=600)
         if code != 0:
             block("HRMS guard: blocked push — TypeScript errors:\n" + out[-3000:])
@@ -93,8 +106,70 @@ def pre_bash(cmd):
             block("HRMS guard: blocked push — unit tests (leave/MC/NPL proration, CPF, payroll, attendance, trainers) failed:\n" + out[-3000:])
 
 
+# Sign-in paths that must enforce the company-email rule, and how many calls each must keep.
+LOGIN_GUARD = {
+    "src/lib/auth.ts": 4,                          # password + email-code authorize, Google signIn, jwt refresh
+    "src/app/api/auth/google-mobile/route.ts": 1,  # Google sign-in from the phone apps
+    "src/app/api/auth/send-otp/route.ts": 1,       # no code to a refused address
+}
+
+
+# Role guardrail (Alfred, 22 Nov 2026): elevated roles only for the people in src/lib/role-policy.ts.
+ROLE_GUARD = {
+    "src/lib/auth.ts": ("effectiveRoles(", 4),
+    "src/app/api/auth/google-mobile/route.ts": ("effectiveRoles(", 1),
+    "src/app/api/employees/route.ts": ("disallowedRoles(", 1),
+    "src/app/api/employees/[id]/route.ts": ("disallowedRoles(", 1),
+}
+
+
+def role_guard_problems():
+    problems = []
+    if not os.path.exists(os.path.join(ROOT, "src/lib/role-policy.ts")):
+        problems.append("src/lib/role-policy.ts is missing")
+    for rel, (call, need) in ROLE_GUARD.items():
+        f = os.path.join(ROOT, rel)
+        n = open(f).read().count(call) if os.path.exists(f) else 0
+        if n < need:
+            problems.append(f"{rel}: {n} call(s) to {call[:-1]}, needs {need}")
+    return problems
+
+
+def login_guard_problems():
+    problems = []
+    policy = os.path.join(ROOT, "src/lib/login-policy.ts")
+    if not os.path.exists(policy) or 'COMPANY_EMAIL_DOMAIN = "tertiaryinfotech.com"' not in open(policy).read():
+        problems.append("src/lib/login-policy.ts must keep COMPANY_EMAIL_DOMAIN = \"tertiaryinfotech.com\"")
+    for rel, need in LOGIN_GUARD.items():
+        f = os.path.join(ROOT, rel)
+        n = len(re.findall(r"isLoginEmailAllowed\(", open(f).read())) if os.path.exists(f) else 0
+        if n < need:
+            problems.append(f"{rel}: {n} call(s) to isLoginEmailAllowed, needs {need}")
+    return problems
+
+
 def post_edit(path):
     rel = os.path.relpath(os.path.abspath(path), ROOT) if path else ""
+    if rel in ROLE_GUARD or rel == "src/lib/role-policy.ts":
+        bad = role_guard_problems()
+        if bad:
+            print("HRMS guard: ROLE GUARDRAIL broken. Elevated roles (ADMIN/HR/MANAGER/ACCOUNTANT/TRAINER_ADMIN) only for the "
+                  "people in src/lib/role-policy.ts, everyone else STAFF or INTERN:\n  " + "\n  ".join(bad), file=sys.stderr)
+            sys.exit(2)
+        code, out = run("npx vitest run src/lib/__tests__/role-policy.test.ts", timeout=300)
+        if code != 0:
+            print("HRMS guard: role-policy tests FAILED:\n" + out[-2500:], file=sys.stderr)
+            sys.exit(2)
+    if rel in LOGIN_GUARD or rel == "src/lib/login-policy.ts":
+        bad = login_guard_problems()
+        if bad:
+            print("HRMS guard: LOGIN GUARDRAIL broken. Staff sign in only with @tertiaryinfotech.com (personal email only "
+                  "for part-time staff and interns), on every sign-in path:\n  " + "\n  ".join(bad), file=sys.stderr)
+            sys.exit(2)
+        code, out = run("npx vitest run src/lib/__tests__/login-policy.test.ts", timeout=300)
+        if code != 0:
+            print("HRMS guard: login-policy tests FAILED:\n" + out[-2500:], file=sys.stderr)
+            sys.exit(2)
     if rel == "prisma/schema.prisma":
         code, out = run("npx prisma validate", timeout=120)
         if code != 0:

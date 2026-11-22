@@ -36,8 +36,9 @@ export async function sendFinanceAlert(alert: FinanceAlert): Promise<FinanceAler
   const recipients = financeAlertRecipients();
   let notified = 0;
   try {
+    // The alert recipients plus every accountant (role ACCOUNTANT), in-app and on the phone (22 Nov 2026).
     const users = await prisma.user.findMany({
-      where: { email: { in: recipients, mode: "insensitive" } },
+      where: { OR: [{ email: { in: recipients, mode: "insensitive" } }, { roles: { has: "ACCOUNTANT" } }] },
       select: { id: true },
     });
     if (users.length) {
@@ -80,4 +81,60 @@ ${bodyHtml}
 <p style="margin-top:20px"><a href="${escapeHtml(link)}" style="background:#2563eb;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none">Open in HRMS</a></p>
 <p style="color:#6b7280;font-size:12px;margin-top:24px">Automated message from the HRMS finance agents. QuickBooks is accessed read-only.</p>
 </body></html>`;
+}
+
+/** What an accountant still has to clear (the daily "Finance to clear" alert). */
+export interface FinanceToClear {
+  claimsPending: number;
+  claimsToPay: number;
+  debitsNotInQuickBooks: number;
+  reconciliationToReview: number;
+}
+
+export async function financeToClear(): Promise<FinanceToClear> {
+  const lastRun = await prisma.bankReconciliation.findFirst({ orderBy: { createdAt: "desc" }, select: { id: true } });
+  const [claimsPending, claimsToPay, debitsNotInQuickBooks, reconciliationToReview] = await Promise.all([
+    prisma.expenseClaim.count({ where: { status: "PENDING" } }),
+    prisma.expenseClaim.count({ where: { status: "APPROVED" } }),
+    // Bank debits (expenses) not yet created in QuickBooks or settled.
+    prisma.bankTransaction.count({ where: { direction: "DEBIT", status: { notIn: ["QB Created", "Settled"] } } }),
+    lastRun
+      ? prisma.bankReconciliationItem.count({ where: { reconciliationId: lastRun.id, status: { not: "MATCHED" }, reviewed: false } })
+      : Promise.resolve(0),
+  ]);
+  return { claimsPending, claimsToPay, debitsNotInQuickBooks, reconciliationToReview };
+}
+
+export function financeToClearMessage(t: FinanceToClear): string | null {
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const parts = [
+    t.reconciliationToReview > 0 && `${plural(t.reconciliationToReview, "bank reconciliation line", "bank reconciliation lines")} to review`,
+    t.debitsNotInQuickBooks > 0 && `${plural(t.debitsNotInQuickBooks, "bank expense", "bank expenses")} not yet in QuickBooks`,
+    t.claimsToPay > 0 && `${plural(t.claimsToPay, "approved claim", "approved claims")} to pay`,
+    t.claimsPending > 0 && `${plural(t.claimsPending, "claim", "claims")} waiting for approval`,
+  ].filter(Boolean) as string[];
+  return parts.length ? parts.join(" · ") + "." : null;
+}
+
+/**
+ * Daily (with the 07:00 QuickBooks check): one "Finance to clear" notice to each accountant when
+ * anything is outstanding. In-app + phone push only, no email. Best effort, never throws.
+ */
+export async function notifyAccountantsToClear(): Promise<{ notified: number; message: string | null }> {
+  try {
+    const t = await financeToClear();
+    const message = financeToClearMessage(t);
+    if (!message) return { notified: 0, message: null };
+    const users = await prisma.user.findMany({ where: { roles: { has: "ACCOUNTANT" } }, select: { id: true } });
+    if (!users.length) return { notified: 0, message };
+    const link = t.reconciliationToReview > 0 ? "/accounting/reconciliation"
+      : t.debitsNotInQuickBooks > 0 ? "/accounting/expense-tracking" : "/expenses";
+    const r = await prisma.notification.createMany({
+      data: users.map((u) => ({ userId: u.id, title: "Finance to clear", message, type: "FINANCE_TO_CLEAR", link })),
+    });
+    return { notified: r.count, message };
+  } catch (err) {
+    console.error("[finance-alerts] to-clear failed:", err instanceof Error ? err.message : err);
+    return { notified: 0, message: null };
+  }
 }

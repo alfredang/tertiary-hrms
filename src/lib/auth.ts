@@ -1,5 +1,7 @@
 import NextAuth from "next-auth";
 import { isSignInBlocked } from "@/lib/account-status";
+import { isLoginEmailAllowed } from "@/lib/login-policy";
+import { effectiveRoles } from "@/lib/role-policy";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
@@ -89,8 +91,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!valid) return null;
 
         if (isSignInBlocked(user.employee?.status)) return null;
+        // Staff sign in with their company address; personal email only for part-time staff and interns.
+        if (!isLoginEmailAllowed(user.email, user.employee?.employmentType)) return null;
 
-        const roles = user.roles.length > 0 ? user.roles : ["STAFF" as Role];
+        const roles = effectiveRoles(user.email, user.roles); // only allowed roles (role-policy.ts)
         return {
           id: user.id,
           email: user.email,
@@ -158,8 +162,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.warn(`[auth/otp] OTP valid but employee has left (sign-in blocked) for ${normalizedEmail}`);
           return null;
         }
+        if (!isLoginEmailAllowed(user.email, user.employee?.employmentType)) {
+          console.warn(`[auth/otp] sign-in refused for ${normalizedEmail}: personal email on a full-time account`);
+          return null;
+        }
 
-        const roles = user.roles.length > 0 ? user.roles : ["STAFF" as Role];
+        const roles = effectiveRoles(user.email, user.roles); // only allowed roles (role-policy.ts)
         return {
           id: user.id,
           email: user.email,
@@ -186,6 +194,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             console.warn(`[auth/google] sign-in refused for ${user.email}: employee status ${existingUser?.employee?.status}`);
             return false;
           }
+          // Also refuses a new account on a personal address (no employee record yet).
+          if (!isLoginEmailAllowed(user.email, existingUser?.employee?.employmentType)) {
+            console.warn(`[auth/google] sign-in refused for ${user.email}: company email required`);
+            return false;
+          }
 
           if (!existingUser) {
             const newUser = await prisma.user.create({
@@ -202,7 +215,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             user.roles = ["STAFF"];
             user.employeeId = undefined;
           } else {
-            const roles = existingUser.roles.length > 0 ? existingUser.roles : ["STAFF" as Role];
+            const roles = effectiveRoles(existingUser.email, existingUser.roles);
             user.id = existingUser.id;
             user.role = getPrimaryRole(roles);
             user.roles = roles;
@@ -241,8 +254,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
           // Someone who has left: end the session (null clears the session cookie).
           if (dbUser && isSignInBlocked(dbUser.employee?.status)) return null;
+          // A personal address that is no longer allowed (e.g. changed to full time): end the session.
+          if (dbUser && !isLoginEmailAllowed(dbUser.email, dbUser.employee?.employmentType)) return null;
           if (dbUser) {
-            const roles = dbUser.roles.length > 0 ? dbUser.roles : ["STAFF" as Role];
+            const roles = effectiveRoles(dbUser.email, dbUser.roles);
             (token as any).role = getPrimaryRole(roles);
             (token as any).roles = roles;
             (token as any).employeeId = dbUser.employee?.id;

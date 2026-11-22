@@ -47,6 +47,13 @@ A Next.js web application served over HTTPS, installable as a PWA on any device.
 
 ## What's New
 
+- **Company email for staff, enforced** (22 Nov 2026) — staff sign in only with an `@tertiaryinfotech.com` address; part-time staff (employment type Part time) and interns may use a personal email (`src/lib/login-policy.ts`). Every sign-in path checks it (password, email code, Google on the web and in the apps), no code is emailed to a refused address, and an open session ends at its next refresh.
+- **Elevated roles are named** (22 Nov 2026) — only the people in `src/lib/role-policy.ts` may hold Admin, HR, Manager, Accountant or Trainer Admin (Alfred Ang: all; Tan Soik Ching: Admin and Trainer Admin; Jasmine Sho: Accountant; Deepa Arumugam: Trainer Admin). Everyone else is Staff or Intern. Role writes are refused, and sign-in keeps only allowed roles, so a role written straight into the database grants nothing.
+- **Guardrail hooks** — `.claude/hooks/hrms_guard.py` fails any edit, and blocks any push, that removes the company-email or role checks from a sign-in path or a role write.
+- **View As is Alfred's only** (`src/lib/view-as-policy.ts`); Trainer Admins (Deepa, Tan Soik Ching) get a **My view / Trainer Admin** switch instead.
+- **Relevant notifications only** — `/api/notifications` (web bell and both apps) drops decided approval requests (each request alert carries `?request=<id>`), keeps only the newest roll-up of each kind and today's "away today" / birthdays, removes repeats and anything older than 30 days (`src/lib/notification-relevance.ts`).
+- **Alerts per role** — admins: every leave, MC, time-off, claim and payback request; accountants: new expense claims, the weekly bank reconciliation and a daily 07:00 **Finance to clear** notice (claims to approve or pay, bank expenses not yet in QuickBooks, reconciliation lines to review); interns: missed clock-in / clock-out; staff: each approval decision.
+- **Finance details for the apps** — `GET /api/mobile/finance/transactions?direction=CREDIT|DEBIT&month=YYYY-MM` and `GET /api/mobile/finance/statements` (admin / accountant) feed the accountant Home's Income, Expenses and Bank statements screens.
 - **Dashboard matches the decision email** — the staff and intern dashboard shows the same four leave figures as the leave summary in the approval email (paid leave taken, annual leave balance, MC taken, no-pay leave taken), from the same calculation.
 - **Staff and interns have separate pages** — Staff Management (`/employees`) lists present and past staff, and the new Intern Management (`/interns`) lists present and past interns. Both open on active people; the status filter has Active, Past and Present and past. The calendar's person filter lists every active staff member and intern.
 - **Analytics dashboard** (`/dashboard/analytics`, from the Analytics button on the admin dashboard) — the last 12 months of bank revenue and expenses, leave and MC per person, and headcount. Filters: period (3 / 6 / 12 months), All / Staff / Interns, a person, leave type, and expense category (click a category to leave it out). Every chart has a hover tooltip and a Table view; the tiles use the same filtered numbers.
@@ -132,6 +139,7 @@ Earlier additions (May 2026):
 - **Credentials login** (email/password) with bcrypt password hashing
 - **Google OAuth** social login via NextAuth v5 (Auth.js)
 - Role-based access control: **Admin**, **HR**, **Manager**, **Staff**
+- **Company email only for staff** — personal email only for Part time staff and interns (`src/lib/login-policy.ts`)
 - Admin/Staff **view toggle** — admins can switch between management and personal views
 - JWT-based sessions with automatic role and employee data refresh
 - Middleware-protected routes with `needsSetup` redirect for new OAuth users

@@ -24,14 +24,20 @@ const ALL_ROLES = [
 
 interface ViewToggleProps {
   userRoles?: string[];
+  /** Every role this person holds (Alfred only, src/lib/view-as-policy.ts). Otherwise just My view / Trainer Admin. */
+  full?: boolean;
 }
 
-export function ViewToggle({ userRoles = [] }: ViewToggleProps) {
+export function ViewToggle({ userRoles = [], full = false }: ViewToggleProps) {
   const { viewMode: currentView, setViewMode } = useViewMode();
   const assignedLower = userRoles.map((r) => r.toLowerCase());
-  const ROLES = ALL_ROLES.filter((r) =>
-    r.value === "trainer" ? hasTrainerAdminAccess(userRoles) : assignedLower.includes(r.value),
-  );
+  const ROLES: readonly { value: ViewMode; label: string; icon: typeof Eye }[] = full
+    ? ALL_ROLES.filter((r) =>
+        r.value === "trainer" ? hasTrainerAdminAccess(userRoles) : assignedLower.includes(r.value),
+      )
+    : hasTrainerAdminAccess(userRoles)
+      ? [{ value: "admin", label: "My view", icon: User }, ALL_ROLES[4]]
+      : [];
 
   // setViewMode flips the sidebar/header instantly and refreshes server
   // components (the main-content overlay shows the loading state).

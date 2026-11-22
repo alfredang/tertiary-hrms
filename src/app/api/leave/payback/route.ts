@@ -1,3 +1,4 @@
+import { linkWithRequest } from "@/lib/notification-relevance";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
         title: "New No Pay Leave payback",
         message: `${name} worked ${prettyDay(workDate)} to pay back ${dayCountLabel(days).toLowerCase()} of No Pay Leave on ${prettyDay(nplDate)}.`,
         type: "PAYBACK_SUBMITTED",
-        link: "/leave/payback",
+        link: linkWithRequest("/leave/payback", created.id),
       });
     }
 

@@ -1,3 +1,4 @@
+import { linkWithRequest } from "@/lib/notification-relevance";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized } from "@/lib/mobile-api";
@@ -133,7 +134,7 @@ export async function POST(req: Request) {
         title: "Missing Punch Correction",
         message: `${emp?.name ?? "An employee"} submitted a missing ${what} for ${date}: ${created.reason}`,
         type: "ATTENDANCE_CORRECTION_SUBMITTED",
-        link: "/timesheet/overview",
+        link: linkWithRequest("/timesheet/overview", created.id),
       })),
     });
   } catch {

@@ -1,3 +1,4 @@
+import { linkWithRequest } from "@/lib/notification-relevance";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -160,7 +161,7 @@ export async function POST(req: Request) {
           ? `${created.employee.name} requested an Off Day on ${String(date).slice(0, 10)}${detail}.`
           : `${created.employee.name} requested ${hours}h time off on ${String(date).slice(0, 10)} (${timeOffReasonLabel(reason)})${detail}.`,
         type: "TIME_OFF_SUBMITTED",
-        link: "/time-off",
+        link: linkWithRequest("/time-off", created.id),
       });
     }
 

@@ -23,6 +23,14 @@ const ADMIN_TYPES = new Set([
   "ATTENDANCE_ROLLUP",
   "ATTENDANCE_CORRECTION_SUBMITTED",
   "HR_COMPLIANCE",
+  // Approval requests, who is away today, and finance alerts (22 Nov 2026)
+  "TIME_OFF_SUBMITTED",
+  "EXPENSE_SUBMITTED",
+  "PAYBACK_SUBMITTED",
+  "AWAY_TODAY",
+  "BIRTHDAY",
+  "QUICKBOOKS_HEALTH",
+  "BANK_RECONCILIATION",
 ]);
 const EMPLOYEE_TYPES = new Set([
   "LEAVE_APPROVED",
@@ -36,6 +44,22 @@ const EMPLOYEE_TYPES = new Set([
   "ATTENDANCE_MISSED",
   "ATTENDANCE_CORRECTION_APPROVED",
   "ATTENDANCE_CORRECTION_REJECTED",
+  // Decisions on time off, claims and paybacks; timesheet reminders (22 Nov 2026)
+  "TIME_OFF_APPROVED",
+  "TIME_OFF_REJECTED",
+  "EXPENSE_APPROVED",
+  "EXPENSE_REJECTED",
+  "PAYBACK_APPROVED",
+  "PAYBACK_REJECTED",
+  "TIMESHEET_REMINDER",
+]);
+/** Accountant view: their own decisions plus claims to process and what is left to clear. */
+const ACCOUNTANT_TYPES = new Set([
+  ...Array.from(EMPLOYEE_TYPES),
+  "EXPENSE_SUBMITTED",
+  "BANK_RECONCILIATION",
+  "QUICKBOOKS_HEALTH",
+  "FINANCE_TO_CLEAR",
 ]);
 
 const typeIcon: Record<string, React.ReactNode> = {
@@ -55,6 +79,8 @@ const typeIcon: Record<string, React.ReactNode> = {
   ATTENDANCE_CORRECTION_APPROVED: <CalendarCheck className="h-4 w-4 text-green-400" />,
   ATTENDANCE_CORRECTION_REJECTED: <CalendarX className="h-4 w-4 text-red-400" />,
   HR_COMPLIANCE: <AlertTriangle className="h-4 w-4 text-red-400" />,
+  FINANCE_TO_CLEAR: <AlertTriangle className="h-4 w-4 text-amber-400" />,
+  BANK_RECONCILIATION: <AlertTriangle className="h-4 w-4 text-amber-400" />,
 };
 
 function timeAgo(dateStr: string): string {
@@ -84,7 +110,8 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
 
   const isAdminView = viewAs === "admin";
   const visible = notifications.filter((n) =>
-    isAdminView ? ADMIN_TYPES.has(n.type) : EMPLOYEE_TYPES.has(n.type)
+    isAdminView ? ADMIN_TYPES.has(n.type) || n.type === "FINANCE_TO_CLEAR"
+      : viewAs === "accountant" ? ACCOUNTANT_TYPES.has(n.type) : EMPLOYEE_TYPES.has(n.type)
   );
   const unread = visible.filter((n) => !n.read).length;
 

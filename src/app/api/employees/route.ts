@@ -1,3 +1,4 @@
+import { disallowedRoles, roleRefusalMessage } from "@/lib/role-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -33,6 +34,9 @@ export async function POST(req: NextRequest) {
 
     const { personalInfo, employmentInfo, salaryInfo, role } = validation.data;
     const effectiveRole = role ?? "STAFF";
+    // Elevated roles only for the people named in src/lib/role-policy.ts (Alfred, 22 Nov 2026).
+    const badRoles = disallowedRoles(personalInfo.email, [effectiveRole]);
+    if (badRoles.length) return NextResponse.json({ error: roleRefusalMessage(badRoles) }, { status: 400 });
 
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({

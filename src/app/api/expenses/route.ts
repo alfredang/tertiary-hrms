@@ -1,3 +1,4 @@
+import { linkWithRequest } from "@/lib/notification-relevance";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -125,7 +126,8 @@ export async function POST(req: NextRequest) {
         title: "New expense claim",
         message: `${expenseClaim.employee.name} claimed $${Number(expenseClaim.amount).toFixed(2)} for ${expenseClaim.category.name}.`,
         type: "EXPENSE_SUBMITTED",
-        link: "/expenses",
+        link: linkWithRequest("/expenses", expenseClaim.id),
+        alsoAccountants: true,
       });
     }
 

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { isSignInBlocked } from "@/lib/account-status";
+import { COMPANY_EMAIL_REQUIRED_MESSAGE, isLoginEmailAllowed } from "@/lib/login-policy";
+import { effectiveRoles } from "@/lib/role-policy";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
@@ -94,6 +96,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // Company email only, except part-time staff and interns (also stops a new account on a personal address).
+    if (!isLoginEmailAllowed(email, user?.employee?.employmentType)) {
+      return NextResponse.json({ error: COMPANY_EMAIL_REQUIRED_MESSAGE }, { status: 403 });
+    }
+
     if (!user) {
       // Create new user with STAFF role
       user = await prisma.user.create({
@@ -137,7 +144,8 @@ export async function POST(req: Request) {
     }
 
     const ROLE_PRIORITY = ["ADMIN", "HR", "MANAGER", "ACCOUNTANT", "STAFF", "INTERN"] as const;
-    const primaryRole = ROLE_PRIORITY.find((r) => user!.roles.includes(r as never)) ?? "STAFF";
+    const roles = effectiveRoles(user.email, user.roles); // only allowed roles (role-policy.ts)
+    const primaryRole = ROLE_PRIORITY.find((r) => roles.includes(r as never)) ?? "STAFF";
 
     // Set the session cookie
     const isSecure = process.env.AUTH_URL?.startsWith("https://") ?? false;
@@ -150,7 +158,7 @@ export async function POST(req: Request) {
         sub: user.id,
         email: user.email,
         role: primaryRole,
-        roles: user.roles,
+        roles,
         employeeId: user.employee?.id,
         needsSetup: !user.employee?.id,
         name: user.employee?.name || user.email,
@@ -175,7 +183,7 @@ export async function POST(req: Request) {
         id: user.id,
         email: user.email,
         role: primaryRole,
-        roles: user.roles,
+        roles,
         employeeId: user.employee?.id,
         needsSetup: !user.employee?.id,
       },

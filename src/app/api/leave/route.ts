@@ -1,3 +1,4 @@
+import { linkWithRequest } from "@/lib/notification-relevance";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -385,7 +386,7 @@ export async function POST(req: NextRequest) {
         const typeName = leaveRequest.leaveType?.name ?? "leave";
         let msg = `${leaveRequest.employee?.name ?? "A staff member"} submitted a ${typeName} request for ${Number(leaveRequest.days)} day(s).`;
         if (deficitDays > 0) msg += ` ⚠ ${deficitDays} day(s) deficit.`;
-        await notifyApprovers({ title: `New ${typeName} request`, message: msg, type: "LEAVE_SUBMITTED", link: "/leave" });
+        await notifyApprovers({ title: `New ${typeName} request`, message: msg, type: "LEAVE_SUBMITTED", link: linkWithRequest("/leave", leaveRequest.id) });
       }
     } catch {
       // Non-critical

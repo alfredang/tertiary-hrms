@@ -1,3 +1,4 @@
+import { disallowedRoles, roleRefusalMessage } from "@/lib/role-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -66,6 +67,12 @@ export async function PATCH(
         { error: "Employee not found" },
         { status: 404 }
       );
+    }
+
+    // Elevated roles only for the people named in src/lib/role-policy.ts (Alfred, 22 Nov 2026).
+    if (roles) {
+      const bad = disallowedRoles(personalInfo?.email ?? employee.user?.email ?? employee.email, roles);
+      if (bad.length) return NextResponse.json({ error: roleRefusalMessage(bad) }, { status: 400 });
     }
 
     // 5. Prevent self-deactivation (locking yourself out)

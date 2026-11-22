@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { Calendar, LogOut, RefreshCw, User } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ViewToggle } from "@/components/dashboard/view-toggle";
+import { canViewAs } from "@/lib/view-as-policy";
+import { hasTrainerAdminAccess } from "@/lib/trainer-access-client";
 import { NotificationBell } from "./notification-bell";
 import { useViewModeOptional } from "./view-mode-context";
 import { APP_STORE_URL, PLAY_STORE_URL, AppleLogo, GooglePlayLogo, StoreLinks } from "@/components/store-badges";
@@ -92,7 +94,10 @@ export function Header({ isAdmin = false, fallbackName, fallbackEmail, avatarUrl
           >
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
-          {isAdmin && <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} />}
+          {/* View As: every role for Alfred; My view / Trainer Admin for Trainer Admins (22 Nov 2026). */}
+          {((isAdmin && canViewAs(displayEmail)) || hasTrainerAdminAccess(session?.user?.roles)) && (
+            <ViewToggle userRoles={session?.user?.roles ?? [session?.user?.role ?? "ADMIN"]} full={canViewAs(displayEmail)} />
+          )}
           <NotificationBell viewAs={viewAs} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

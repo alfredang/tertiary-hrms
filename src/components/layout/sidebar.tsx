@@ -273,9 +273,9 @@ export function Sidebar({
   const isAccountantView = isActualAdmin
     ? viewAs === "accountant"
     : actualRoles.some((r) => r.toUpperCase() === "ACCOUNTANT") && !isActualAdmin;
-  // Trainer Admin view (Alfred, 20 Nov 2026): an admin holding TRAINER_ADMIN who picked it in View As.
-  // Shows only Dashboard, My Stuff, People → Trainer Admin and Documents.
-  const isTrainerView = isActualAdmin && isTrainerAdmin && viewAs === "trainer";
+  // Trainer Admin view (Alfred, 20 Nov 2026; every TRAINER_ADMIN holder since 22 Nov 2026, e.g. Deepa):
+  // shows only Dashboard, My Stuff, People → Trainer Admin and Documents.
+  const isTrainerView = isTrainerAdmin && viewAs === "trainer";
   // Intern view: admins respect viewAs; pure intern role always sees intern view
   const isInternView = isActualAdmin
     ? viewAs === "intern"

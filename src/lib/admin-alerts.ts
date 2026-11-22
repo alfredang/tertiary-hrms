@@ -87,11 +87,17 @@ export async function notifyAdmins(args: {
 /**
  * In-app notification (and so a phone push) to the HRMS admins when a staff member submits
  * something that needs approval: leave of any type incl. MC / NPL, time off, expense claims.
- * Admins = users holding the ADMIN role (Alfred Ang, Tan Soik Ching). Best effort, never throws.
+ * Admins = users holding the ADMIN role (Alfred Ang, Tan Soik Ching); `alsoAccountants` adds role ACCOUNTANT.
+ * The link carries the request id (`linkWithRequest`) so the alert drops out once it is decided. Best effort, never throws.
  */
-export async function notifyApprovers(args: { title: string; message: string; type: string; link: string }): Promise<number> {
+export async function notifyApprovers(args: {
+  title: string; message: string; type: string; link: string;
+  /** Also the accountants (role ACCOUNTANT), e.g. a new expense claim they will process (22 Nov 2026). */
+  alsoAccountants?: boolean;
+}): Promise<number> {
   try {
-    const admins = await prisma.user.findMany({ where: { roles: { has: "ADMIN" } }, select: { id: true } });
+    const roles = args.alsoAccountants ? (["ADMIN", "ACCOUNTANT"] as const) : (["ADMIN"] as const);
+    const admins = await prisma.user.findMany({ where: { roles: { hasSome: [...roles] } }, select: { id: true } });
     if (admins.length === 0) return 0;
     const r = await prisma.notification.createMany({
       data: admins.map((u) => ({ userId: u.id, title: args.title, message: args.message, type: args.type, link: args.link })),
