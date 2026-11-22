@@ -61,6 +61,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
             authorization: {
               params: {
+                // Staff sign in with the company account (22 Nov 2026): Google lists only
+                // tertiaryinfotech.com accounts. login-policy.ts still checks every address.
+                hd: "tertiaryinfotech.com",
                 prompt: "select_account",
                 access_type: "offline",
                 response_type: "code",
