@@ -5,6 +5,7 @@ import { getCompanyBranding } from "@/lib/company-settings";
 import { timeOffReasonLabel, isOffDay } from "@/lib/time-off";
 import { leaveDaysInMonth, round2, type ReportMonth, type SummaryEmployeeRow } from "@/lib/leave-summary";
 import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
+import { isInternRoles } from "@/lib/leave-policy";
 
 /**
  * Monthly leave + MC summary of every active staff member and intern. Shared by
@@ -89,8 +90,9 @@ export async function buildLeaveSummary(month: ReportMonth) {
   let timeOffPending = 0;
 
   const rows = employees.map((e) => {
-    const category: "STAFF" | "INTERN" =
-      e.employmentType === "INTERN" || e.user.roles.includes("INTERN") ? "INTERN" : "STAFF";
+    // Same rule as every other screen (isInternRoles): an intern holds the INTERN role and
+    // nothing else. A director who also carries INTERN (to test the intern screens) is staff.
+    const category: "STAFF" | "INTERN" = isInternRoles(e.user.roles) ? "INTERN" : "STAFF";
 
     const leaveTaken: Record<string, { approved: number; pending: number }> = {};
     const requests = leaveRequests
