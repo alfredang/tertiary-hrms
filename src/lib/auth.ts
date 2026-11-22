@@ -252,6 +252,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             where: { email: token.email },
             include: { employee: true },
           });
+          // The account's email was changed or the account removed: end the session, so it cannot
+          // keep acting under an address that no longer exists (22 Nov 2026).
+          if (!dbUser) return null;
           // Someone who has left: end the session (null clears the session cookie).
           if (dbUser && isSignInBlocked(dbUser.employee?.status)) return null;
           // A personal address that is no longer allowed (e.g. changed to full time): end the session.
