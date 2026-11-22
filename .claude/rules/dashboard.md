@@ -9,7 +9,7 @@ Follow the user-level skill `admin-dashboard` (~/.claude/skills/admin-dashboard/
   - admin view: staff, interns, pending approvals (`admin-kpis.tsx`);
   - accountant view (admin switched to it, or a real ACCOUNTANT): pending expense claims, this month's bank income and
     expenses with the year to date (`FinanceKpiRow`, loader `getFinanceKpis()` in `src/lib/dashboard-kpis.ts`), finance
-    quick actions. A real accountant also gets their own leave row;
+    quick actions. Accountants have no leave or MC, so no leave row, no Leave pages (redirected home) and no leave tiles in the app (Alfred, 22 Nov 2026);
   - staff / intern view: the same four figures as the decision email, from the same `loadLeaveSummary()` (paid leave
     taken, annual leave balance, MC taken, no-pay leave taken with "N of 14 left"; `StatsCards`), plus Off In Lieu
     when there is any. Never compute these a second way on the dashboard;

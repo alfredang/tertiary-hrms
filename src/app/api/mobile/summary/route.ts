@@ -69,7 +69,7 @@ export async function GET(req: Request) {
   const [leaveSummary, financeKpis, trainerKpis] = await Promise.all([
     // Admins apply no leave or MC for themselves (Alfred, 22 Nov 2026): no balance tiles in the admin
     // view, only when an admin previews the staff or intern Home with ?view=staff|intern.
-    ctx.employeeId && (!ctx.isAdmin || view === "staff" || view === "intern") ? loadLeaveSummary(ctx.employeeId, year).then((s) => s?.stats ?? null) : Promise.resolve(null),
+    ctx.employeeId && !isAccountant && (!ctx.isAdmin || view === "staff" || view === "intern") ? loadLeaveSummary(ctx.employeeId, year).then((s) => s?.stats ?? null) : Promise.resolve(null),
     isAccountant ? getFinanceKpis().catch(() => null) : Promise.resolve(null),
     ctx.canManageTrainers ? getTrainerKpis().catch(() => null) : Promise.resolve(null),
   ]);

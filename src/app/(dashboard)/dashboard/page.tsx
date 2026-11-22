@@ -198,7 +198,8 @@ export default async function DashboardPage() {
   const isAccountantView = viewAs === "accountant";
   const isTrainerView = viewAs === "trainer" && hasTrainerAdminAccess(roles);
   const isStaffView = !isAdminView;
-  const showOwnLeave = !isAdminView && !isTrainerView && (!isAccountantView || isAccountant);
+  // Accountants apply for no leave or MC (Alfred, 22 Nov 2026), so no leave row in the accountant view.
+  const showOwnLeave = !isAdminView && !isTrainerView && !isAccountantView;
   // The trainer row shows where the sidebar's Trainers link does (Alfred, 21 Nov 2026): for an
   // admin, the admin and Trainer Admin views only; a holder who is not an admin keeps it, except
   // a real accountant (finance only).
