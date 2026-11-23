@@ -1,7 +1,10 @@
 // Database side of No Pay Leave payback (rules: src/lib/npl-payback.ts).
 import { prisma } from "@/lib/prisma";
 import { NPL_CODE } from "@/lib/leave-policy";
-import { dateOnly, nplDaysOfRequest, ymd, type NplDay } from "@/lib/npl-payback";
+import { dateOnly, nplDaysOfRequest, paybackNoticeMessage, PAYBACK_NOTICE_TITLE, ymd, type NplDay } from "@/lib/npl-payback";
+import { linkWithRequest, MAX_AGE_DAYS, missingRequestNotices } from "@/lib/notification-relevance";
+import { DEMO_EMPLOYEE_CODES } from "@/lib/demo-accounts";
+import { isDemoEmail } from "@/lib/demo-guard";
 
 function yearRange(year: number) {
   return { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) };
@@ -143,4 +146,49 @@ export async function decidePayback(
         : { status: "REJECTED", approverId: opts.approverId ?? null, rejectedAt: now, rejectionReason: comment },
   });
   return res.count > 0;
+}
+
+/**
+ * Every pending payback has a notice in this approver's list (Alfred, 23 Nov 2026: two payback
+ * emails arrived but only one notice). Recreates a missing PAYBACK_SUBMITTED notice, dated when
+ * the request was made, so the bell and both apps can act on it. Called by GET /api/notifications
+ * for approvers. Never throws.
+ */
+export async function ensurePaybackNotices(userId: string): Promise<number> {
+  try {
+    const since = new Date(Date.now() - MAX_AGE_DAYS * 86_400_000);
+    const pending = await prisma.nplPayback.findMany({
+      where: { status: "PENDING", createdAt: { gte: since } },
+      include: { employee: { select: { name: true, employeeId: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 100,
+    });
+    const real = pending.filter((p) => !DEMO_EMPLOYEE_CODES.includes(p.employee.employeeId) && !isDemoEmail(p.employee.email));
+    if (real.length === 0) return 0;
+    const existing = await prisma.notification.findMany({
+      where: { userId, type: "PAYBACK_SUBMITTED", createdAt: { gte: since } },
+      select: { link: true, message: true },
+    });
+    const wanted = real.map((p) => ({
+      id: p.id,
+      createdAt: p.createdAt,
+      message: paybackNoticeMessage(p.employee.name, p.workDate, p.nplDate, Number(p.days)),
+    }));
+    const missing = missingRequestNotices(wanted, existing);
+    if (missing.length === 0) return 0;
+    const r = await prisma.notification.createMany({
+      data: missing.map((m) => ({
+        userId,
+        title: PAYBACK_NOTICE_TITLE,
+        message: m.message,
+        type: "PAYBACK_SUBMITTED",
+        link: linkWithRequest("/leave/payback", m.id),
+        createdAt: m.createdAt,
+      })),
+    });
+    return r.count;
+  } catch (err) {
+    console.error("[ensurePaybackNotices]", err instanceof Error ? err.message : err);
+    return 0;
+  }
 }

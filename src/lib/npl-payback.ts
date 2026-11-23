@@ -21,6 +21,12 @@ export function dayCountLabel(days: number): string {
   return days === 0.5 ? "Half day" : `${days} ${days === 1 ? "day" : "days"}`;
 }
 
+/** The approvers' notice for a new payback request (POST /api/leave/payback and the notice repair). */
+export const PAYBACK_NOTICE_TITLE = "New No Pay Leave payback";
+export function paybackNoticeMessage(name: string, workDate: Date | string, nplDate: Date | string, days: number): string {
+  return `${name} worked ${prettyDay(workDate)} to pay back ${dayCountLabel(days).toLowerCase()} of No Pay Leave on ${prettyDay(nplDate)}.`;
+}
+
 export interface NplDay {
   /** YYYY-MM-DD */
   date: string;

@@ -336,3 +336,38 @@ export async function sendPaybackApprovalEmail(args: {
   const { to, cc } = await getApproverEmails();
   await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc })));
 }
+
+/**
+ * The requester cancelled a payback that was waiting for approval: tell the same approvers, so the
+ * approval email already in their inbox is not acted on (Alfred, 23 Nov 2026: FEMINA JASMIN
+ * cancelled one 11 seconds after submitting; the email stayed and its notice vanished).
+ */
+export async function sendPaybackCancelledEmail(args: {
+  employeeId: string;
+  employeeName: string;
+  nplDate: string;
+  workDate: string;
+  days: number;
+}): Promise<void> {
+  if (await isDemoEmployee(args.employeeId)) return;
+  const branding = await getCompanyBranding();
+  const day = (d: string) =>
+    `${new Date(`${d.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}, ${formatDateDisplay(d)}`;
+  const rows = [
+    ["No Pay Leave", day(args.nplDate)],
+    ["Worked on", `${day(args.workDate)} (off day)`],
+    ["Pays back", args.days === 0.5 ? "Half day" : `${args.days} day${args.days === 1 ? "" : "s"}`],
+  ]
+    .map(([l, v]) => `<tr><td style="padding:8px 16px;font-size:13.5px;color:#6B7280;width:130px;">${esc(l)}</td><td style="padding:8px 16px;font-size:13.5px;color:#111827;">${esc(v)}</td></tr>`)
+    .join("");
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:24px 16px;background:#E8ECF3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:6px;overflow:hidden;">
+<div style="background:#1B3A6B;padding:22px 32px;"><div style="font-size:11px;font-weight:600;letter-spacing:0.10em;text-transform:uppercase;color:rgba(255,255,255,0.55);">${esc(branding.name)}</div>
+<div style="font-size:16px;font-weight:700;color:#fff;margin-top:2px;">No Pay Leave Payback &mdash; Cancelled</div></div>
+<div style="padding:24px 32px;"><p style="font-size:14.5px;color:#111827;margin:0 0 16px;"><strong>${esc(args.employeeName)}</strong> cancelled this No Pay Leave payback request. <strong>No action is needed</strong>; the Approve / Decline links in the earlier email no longer do anything.</p>
+<table style="width:100%;border-collapse:collapse;border:1px solid #E5E9F0;">${rows}</table></div></div></body></html>`;
+  const subject = `Cancelled: No Pay Leave payback from ${args.employeeName} — worked ${formatDateDisplay(args.workDate)}`;
+  const { to, cc } = await getApproverEmails();
+  await Promise.all(to.map((recipient) => sendEmail({ to: recipient, subject, html, cc })));
+}
