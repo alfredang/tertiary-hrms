@@ -73,6 +73,7 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
       cards.push({
         title: "Off In Lieu",
         value: String(staffStats.otStats.remaining),
+        href: "/leave/annual",
         icon: Briefcase,
         iconBg: staffStats.otStats.remaining < 0 ? "bg-red-600" : "bg-emerald-600",
         iconColor: "text-on-color",
