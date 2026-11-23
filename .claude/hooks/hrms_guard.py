@@ -20,6 +20,10 @@ Exit code 2 = block (PreToolUse) / report failure back to Claude (PostToolUse).
 import json, os, re, subprocess, sys
 
 ROOT = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Windows: a lowercase drive letter ("c:\...") makes vitest load two copies of itself
+# ("failed to find the runner" / "No test suite found"), so normalise it.
+if re.match(r"^[a-z]:", ROOT):
+    ROOT = ROOT[0].upper() + ROOT[1:]
 
 BUSINESS = re.compile(
     r"^src/(lib/(utils|cpf-calculator|cpf-submission|leave[\w-]*|time-off[\w-]*|attendance[\w-]*|payroll[\w-]*|"
@@ -34,7 +38,8 @@ DESTRUCTIVE_SQL = re.compile(r"^\s*(DROP\s|ALTER\s+TABLE\s+\S+\s+(DROP|ALTER\s+C
 def run(cmd, timeout=600):
     # Hooks can start with a bare PATH (no Homebrew), and "npx: command not found" then reads as a failed check.
     env = dict(os.environ, PATH="/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", "/usr/bin:/bin"))
-    p = subprocess.run(cmd, cwd=ROOT, shell=True, capture_output=True, text=True, timeout=timeout, env=env)
+    p = subprocess.run(cmd, cwd=ROOT, shell=True, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=timeout, env=env)
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 
@@ -69,7 +74,16 @@ def pre_bash(cmd):
         block("HRMS guard: blocked. The local DATABASE_URL is the PRODUCTION database; reset/force-reset/accept-data-loss "
               "would destroy live HR and payroll data. Make the schema change additive instead.")
     if re.search(r"prisma\s+db\s+push|npm\s+run\s+db:push", c):
-        code, out = run('set -a; [ -f .env ] && . ./.env; set +a; npx prisma migrate diff --from-url "$DATABASE_URL" '
+        # Read DATABASE_URL in Python: the command runs under cmd.exe on Windows, where
+        # `set -a; . ./.env` (POSIX) fails and the preview never runs.
+        db_url = os.environ.get("DATABASE_URL", "")
+        env_file = os.path.join(ROOT, ".env")
+        if not db_url and os.path.exists(env_file):
+            for line in open(env_file, encoding="utf-8", errors="replace"):
+                m = re.match(r'\s*DATABASE_URL\s*=\s*"?([^"\r\n]+)"?', line)
+                if m:
+                    db_url = m.group(1).strip()
+        code, out = run(f'npx prisma migrate diff --from-url "{db_url}" '
                         '--to-schema-datamodel prisma/schema.prisma --script', timeout=180)
         if code != 0:
             block("HRMS guard: could not preview the schema diff before db push:\n" + out[-1500:])
