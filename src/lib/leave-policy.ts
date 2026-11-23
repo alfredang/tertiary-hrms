@@ -181,6 +181,51 @@ export function evaluateAlRequest(input: AlRequestInput): AlRequestResult {
   return { ok: excessDays === 0, otDaysUsed: otUsed, advanceDays, excessDays, coverable };
 }
 
+export interface AlNplSplit {
+  al: { startDate: string; endDate: string; days: number; halfDayPosition: "first" | null };
+  npl: { startDate: string; endDate: string; days: number };
+}
+
+/**
+ * Split an AL request that runs past what annual leave covers into an AL part (the first working
+ * days, up to `coverable`) and a No Pay Leave part (the rest of the range). The API recomputes AL
+ * days from the AL dates, so the AL part always ends on a whole working day; a half day on the
+ * last day stays with the NPL part. Dates are "YYYY-MM-DD". Returns null when there is nothing
+ * to split (no excess, or AL can't cover even one day).
+ */
+export function splitAlExcess(input: {
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  coverable: number;
+  halfDayPosition: "first" | "last" | null;
+  holidays?: readonly string[];
+}): AlNplSplit | null {
+  const { startDate, endDate, totalDays, coverable, halfDayPosition } = input;
+  if (coverable >= totalDays || startDate >= endDate) return null;
+  const holidays = new Set(input.holidays ?? []);
+  const working: string[] = [];
+  for (let d = new Date(`${startDate}T00:00:00Z`), i = 0; i < 400; d = new Date(d.getTime() + 86400000), i++) {
+    const key = d.toISOString().slice(0, 10);
+    if (key > endDate) break;
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6 && !holidays.has(key)) working.push(key);
+  }
+  let alCount = 0;
+  let alDays = 0;
+  for (let i = 0; i < working.length - 1; i++) {
+    const charge = halfDayPosition === "first" && i === 0 ? 0.5 : 1;
+    if (alDays + charge > coverable) break;
+    alDays += charge;
+    alCount++;
+  }
+  if (alCount === 0) return null;
+  return {
+    al: { startDate, endDate: working[alCount - 1], days: alDays, halfDayPosition: halfDayPosition === "first" ? "first" : null },
+    npl: { startDate: working[alCount], endDate, days: Math.max(0, totalDays - alDays) },
+  };
+}
+
 export interface NplStatus {
   cap: number;
   /** Approved No Pay Leave days, less the days paid back by working an off day. */

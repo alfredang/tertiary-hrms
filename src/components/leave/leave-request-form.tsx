@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar, Send, Upload, X, Info, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { calculateWorkingDays } from "@/lib/utils";
+import { splitAlExcess } from "@/lib/leave-policy";
 
 interface LeaveType {
   id: string;
@@ -107,7 +108,16 @@ export function LeaveRequestForm({
   // Days not yet earned (advance + deficit) — OT can cover any of this
   const nonEarnedDays = isAL ? Math.max(0, daysNum - availableNow) : 0;
   // Policy: AL beyond what the balance (+ advance + Off In Lieu) covers must be No Pay Leave.
-  const alExcess = deficitDays > 0;
+  // The part annual leave covers goes in as AL; the rest goes in as a No Pay Leave request
+  // (paid back later from the Payback page). Blocked only if it can't be split or NPL can't take it.
+  const alSplit = isAL && deficitDays > 0 && nplType && startDate && endDate
+    ? splitAlExcess({
+        startDate, endDate, totalDays: daysNum, coverable: daysNum - deficitDays,
+        halfDayPosition: isMultiDay ? halfDayPosition : null, holidays: publicHolidays,
+      })
+    : null;
+  const splitNplOverCap = !!alSplit && alSplit.npl.days > npl.remaining;
+  const alExcess = deficitDays > 0 && (!alSplit || splitNplOverCap);
   const nplExceeded = submitAsNpl && daysNum > npl.remaining;
 
   // Fetch public holidays when the start or end year changes
@@ -187,26 +197,59 @@ export function LeaveRequestForm({
       const submitTypeId = internSick && nplType ? nplType.id : leaveTypeId;
       const submitReason = internSick ? `Sick leave (MC)${reason ? ` — ${reason}` : ""}` : reason;
 
-      const res = await fetch("/api/leave", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          leaveTypeId: submitTypeId,
-          startDate,
-          endDate,
-          days: daysNum,
-          dayType: isSingleDay ? dayType : "FULL_DAY",
-          halfDayPosition: isMultiDay ? halfDayPosition : null,
-          reason: submitReason,
-          documentUrl,
-          documentFileName,
-          otDaysUsed: effectiveOtUsed,
-          useAdvance: isAL && useAdvance,
-        }),
-      });
+      const post = async (body: Record<string, unknown>) => {
+        const res = await fetch("/api/leave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to submit leave request");
+      };
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to submit leave request");
+      if (alSplit && nplType) {
+        // AL part: only the Off In Lieu it actually needs beyond the AL cover.
+        const otForAlPart = Math.min(effectiveOtUsed, Math.max(0, alSplit.al.days - alCover));
+        await post({
+          leaveTypeId, startDate: alSplit.al.startDate, endDate: alSplit.al.endDate, days: alSplit.al.days,
+          dayType: "FULL_DAY", halfDayPosition: alSplit.al.halfDayPosition, reason,
+          documentUrl, documentFileName, otDaysUsed: otForAlPart, useAdvance,
+        });
+        try {
+          await post({
+            leaveTypeId: nplType.id, startDate: alSplit.npl.startDate, endDate: alSplit.npl.endDate, days: alSplit.npl.days,
+            dayType: "FULL_DAY", halfDayPosition: null,
+            reason: `Beyond annual leave balance (rest of leave ${startDate} to ${endDate})${reason ? ` — ${reason}` : ""}`,
+          });
+        } catch (err) {
+          throw new Error(
+            `Your annual leave (${alSplit.al.startDate} to ${alSplit.al.endDate}) was submitted, but the No Pay Leave part ` +
+            `(${alSplit.npl.startDate} to ${alSplit.npl.endDate}) was not: ${err instanceof Error ? err.message : "unknown error"}. ` +
+            `Please apply for those days as No Pay Leave.`,
+          );
+        }
+        toast({
+          title: "Leave requests submitted",
+          description: `${alSplit.al.days} day(s) Annual Leave and ${alSplit.npl.days} day(s) No Pay Leave are pending approval.`,
+        });
+        router.push("/leave");
+        router.refresh();
+        return;
+      }
+
+      await post({
+        leaveTypeId: submitTypeId,
+        startDate,
+        endDate,
+        days: daysNum,
+        dayType: isSingleDay ? dayType : "FULL_DAY",
+        halfDayPosition: isMultiDay ? halfDayPosition : null,
+        reason: submitReason,
+        documentUrl,
+        documentFileName,
+        otDaysUsed: effectiveOtUsed,
+        useAdvance: isAL && useAdvance,
+      });
 
       toast({ title: "Leave request submitted", description: "Your request is pending approval." });
       router.push("/leave");
@@ -290,7 +333,7 @@ export function LeaveRequestForm({
               </p>
               {(advanceDays > 0 || deficitDays > 0) && (
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  {[advanceDays > 0 && `${advanceDays} advance`, deficitDays > 0 && `${deficitDays} over — needs No Pay Leave`].filter(Boolean).join(" + ")}
+                  {[advanceDays > 0 && `${advanceDays} advance`, deficitDays > 0 && (alSplit && !splitNplOverCap ? `${alSplit.npl.days} as No Pay Leave` : `${deficitDays} over — needs No Pay Leave`)].filter(Boolean).join(" + ")}
                 </p>
               )}
             </div>
@@ -424,11 +467,21 @@ export function LeaveRequestForm({
               <div className="flex items-start gap-1.5 text-red-300 pt-1">
                 <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
                 <div className="space-y-2">
-                  <span className="block">
-                    {deficitDays.toFixed(1)} day(s) exceed the annual leave you have available. Leave beyond your entitlement
-                    must be taken as No Pay Leave: shorten this request to {Math.max(0, daysNum - deficitDays).toFixed(1)} day(s)
-                    and apply for the rest as No Pay Leave ({npl.remaining} day(s) left this year), or apply for the whole period as No Pay Leave.
-                  </span>
+                  {alSplit && !splitNplOverCap ? (
+                    <span className="block">
+                      Annual leave covers {alSplit.al.days} day(s) ({alSplit.al.startDate} to {alSplit.al.endDate}). The
+                      remaining <strong>{alSplit.npl.days} day(s)</strong> ({alSplit.npl.startDate} to {alSplit.npl.endDate}) are
+                      not covered by annual leave and will be submitted as <strong>No Pay Leave</strong> ({npl.remaining} day(s)
+                      left this year). You can pay these days back later by working a weekend or public holiday and requesting
+                      it on the Payback page.
+                    </span>
+                  ) : (
+                    <span className="block">
+                      {deficitDays.toFixed(1)} day(s) exceed the annual leave you have available. Leave beyond your entitlement
+                      must be taken as No Pay Leave
+                      {splitNplOverCap ? `, but you only have ${npl.remaining} No Pay Leave day(s) left this year — shorten this request or speak to HR` : ": shorten this request and apply for the rest as No Pay Leave, or apply for the whole period as No Pay Leave"}.
+                    </span>
+                  )}
                   {nplType && (
                     <button
                       type="button"
@@ -611,7 +664,7 @@ export function LeaveRequestForm({
               disabled={isLoading || !leaveTypeId || !startDate || !endDate || !days || parseFloat(days) < 0.5 || (isOT && parseFloat(days) > otBalance) || alExcess || nplExceeded || (internSick && !nplType)}
             >
               <Send className="h-4 w-4 mr-2" />
-              {isLoading ? "Submitting..." : alExcess ? "Exceeds AL — use No Pay Leave" : internSick ? "Submit as No Pay Leave" : "Submit Request"}
+              {isLoading ? "Submitting..." : alExcess ? "Exceeds AL — use No Pay Leave" : alSplit ? "Submit Request (AL + No Pay Leave)" : internSick ? "Submit as No Pay Leave" : "Submit Request"}
             </Button>
           </div>
         </CardContent>

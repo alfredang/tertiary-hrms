@@ -16,6 +16,7 @@ import {
   monthsServedThisYear,
   nplStatus,
   prorateByMonths,
+  splitAlExcess,
 } from "@/lib/leave-policy";
 import { computeAlFullEntitlement, computeYearlyEntitlement, prorateLeave } from "@/lib/utils";
 
@@ -170,4 +171,35 @@ describe("MC pattern helpers", () => {
   ];
   it("counts Monday-start / Friday-end MCs", () => expect(countWeekendAdjacentMcs(mcs)).toBe(2));
   it("counts single-day MCs", () => expect(countSingleDayMcs(mcs)).toBe(2));
+});
+
+describe("splitAlExcess", () => {
+  it("puts the covered working days in AL and the rest in No Pay Leave", () => {
+    // 11–31 Dec 2026: 14 working days (Christmas skipped); AL covers 8.
+    const s = splitAlExcess({ startDate: "2026-12-11", endDate: "2026-12-31", totalDays: 14, coverable: 8, halfDayPosition: null, holidays: ["2026-12-25"] });
+    expect(s).toEqual({
+      al: { startDate: "2026-12-11", endDate: "2026-12-22", days: 8, halfDayPosition: null },
+      npl: { startDate: "2026-12-23", endDate: "2026-12-31", days: 6 },
+    });
+  });
+
+  it("keeps the AL part on whole days when coverage ends on a half", () => {
+    const s = splitAlExcess({ startDate: "2026-12-07", endDate: "2026-12-11", totalDays: 5, coverable: 2.5, halfDayPosition: null });
+    expect(s?.al).toMatchObject({ endDate: "2026-12-08", days: 2 });
+    expect(s?.npl).toMatchObject({ startDate: "2026-12-09", days: 3 });
+  });
+
+  it("carries a first-day half into AL and a last-day half into NPL", () => {
+    const first = splitAlExcess({ startDate: "2026-12-07", endDate: "2026-12-11", totalDays: 4.5, coverable: 2.5, halfDayPosition: "first" });
+    expect(first?.al).toEqual({ startDate: "2026-12-07", endDate: "2026-12-09", days: 2.5, halfDayPosition: "first" });
+    expect(first?.npl.days).toBe(2);
+    const last = splitAlExcess({ startDate: "2026-12-07", endDate: "2026-12-11", totalDays: 4.5, coverable: 2, halfDayPosition: "last" });
+    expect(last?.al).toMatchObject({ days: 2, halfDayPosition: null });
+    expect(last?.npl).toEqual({ startDate: "2026-12-09", endDate: "2026-12-11", days: 2.5 });
+  });
+
+  it("returns null when there is nothing to split", () => {
+    expect(splitAlExcess({ startDate: "2026-12-07", endDate: "2026-12-11", totalDays: 5, coverable: 5, halfDayPosition: null })).toBeNull();
+    expect(splitAlExcess({ startDate: "2026-12-07", endDate: "2026-12-11", totalDays: 5, coverable: 0.5, halfDayPosition: null })).toBeNull();
+  });
 });
