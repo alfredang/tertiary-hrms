@@ -142,21 +142,13 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
   const remaining = leaveBalance.proRated + leaveBalance.carriedOver - leaveBalance.taken - (isContract ? leaveBalance.pending ?? 0 : 0);
 
 
-  // Deficit threshold: the yearly entitlement prorated over the months employed this year
-  const fullEntitlement = leaveBalance.fullEntitlement ?? yearlyEntitlement;
-  const reservedDays = leaveBalance.taken + (isContract ? leaveBalance.pending ?? 0 : 0);
-  const advanceAl = remaining < 0 && reservedDays <= fullEntitlement + leaveBalance.carriedOver;
-  const trueDeficit = remaining < 0 && reservedDays > fullEntitlement + leaveBalance.carriedOver;
-  const remainingColor = remaining < 0
-    ? (trueDeficit ? "text-red-400" : "text-amber-400")
-    : "text-green-400";
-  const remainingLabel = remaining < 0
-    ? (trueDeficit ? "Remaining (Deficit)" : "Remaining (Advance)")
-    : "Remaining Balance";
+  // No advance AL (hard rule, 24 Nov 2026): a negative figure is only ever leave taken before the rule.
+  const remainingColor = remaining < 0 ? "text-red-400" : "text-green-400";
+  const remainingLabel = remaining < 0 ? "AL Balance (prorated, over)" : "AL Balance (prorated)";
 
   const cards = [
     { label: remainingLabel, value: remaining, color: remainingColor, clickable: true },
-    { label: "Earned to Date", value: leaveBalance.proRated, color: "text-cyan-400", clickable: true },
+    { label: "Earned to Date (prorated)", value: leaveBalance.proRated, color: "text-cyan-400", clickable: true },
     { label: isContract ? "Internship Entitlement" : "Yearly Entitlement", value: yearlyEntitlement, color: "text-blue-400", clickable: false },
     { label: "Leave(s) Taken", value: leaveBalance.taken, color: "text-amber-400", clickable: false },
     { label: "Leave(s) Rejected", value: leaveBalance.rejected, color: "text-red-400", clickable: false },
@@ -218,7 +210,7 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
                   <p className="text-cyan-400 font-bold text-base">{leaveBalance.proRated} days</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">{remaining < 0 ? (trueDeficit ? "Deficit" : "Advance") : "Remaining"}</p>
+                  <p className="text-gray-400">{remaining < 0 ? "Over" : "Balance"}</p>
                   <p className={`font-bold text-base ${remainingColor}`}>{remaining} days</p>
                 </div>
               </div>
@@ -258,24 +250,19 @@ export function LeaveBalanceCards({ leaveBalance, employeeStartDate, employeeEnd
 
               <p className="text-xs text-gray-500">
                 {isContract
-                  ? `${yearlyEntitlement} days over your full internship, accrued over its monthly periods and rounded down to the half day. The same entitlement continues into January without resetting. Advance leave can use the remaining internship entitlement.`
-                  : `Accrues as ${yearlyEntitlement} days × completed months served ÷ 12, rounded down to the half day. A month counts once it is complete. Leave beyond your balance must be taken as No Pay Leave.`}
+                  ? `Prorated: ${yearlyEntitlement} days a year × completed months of your internship ÷ 12, rounded down to a whole day.`
+                  : `Prorated: ${yearlyEntitlement} days a year × completed months worked ÷ 12, rounded down to a whole day. A month counts once it is complete. Annual leave resets on 1 January; unused days carry forward for one year only.`}
+                {" "}You can apply for annual leave only up to this prorated balance. With no annual leave left, apply for No Pay Leave.
               </p>
               {retainedEarned > 0 && (
                 <p className="text-xs text-gray-500">
                   Includes {retainedEarned} day(s) retained from your previous leave allocation. Your total internship entitlement remains {yearlyEntitlement} days.
                 </p>
               )}
-              {advanceAl && (
-                <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-300">
-                  You have used days in advance of monthly accrual. Your balance will normalise as you continue earning leave each month.
-                </div>
-              )}
-              {trueDeficit && (
+              {remaining < 0 && (
                 <div className="bg-red-950/20 border border-red-800/40 rounded-lg p-2.5 text-xs text-red-300">
-                  {isContract
-                    ? "Approved and pending leave exceed your internship entitlement. Review pending requests or apply for the excess as No Pay Leave."
-                    : "Your leave usage has exceeded your full entitlement. The deficit will be offset by future OT earnings."}
+                  Leave taken before the current rules is more than your prorated balance. No more annual leave can be
+                  applied for until your balance is above zero; apply for No Pay Leave instead.
                 </div>
               )}
             </div>

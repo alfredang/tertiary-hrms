@@ -106,12 +106,11 @@ describe("Rule 2 — AL beyond the available balance must be No Pay Leave", () =
     );
   });
 
-  it("with advance AL on, allows up to the full-year entitlement (Sep–Dec = 4 months → 2 days) but no more", async () => {
+  it("refuses advance AL even when asked: AL never goes negative (1 day earned, 2 asked → 1 needs NPL)", async () => {
     const two = await submitLeave(req({ ...ONE_DAY, endDate: "2026-11-17", useAdvance: true }));
-    expect(two.status).toBe(201);
-    const five = await submitLeave(req({ ...FIVE_DAYS, useAdvance: true }));
-    expect(five.status).toBe(400);
-    expect((await five.json()).excessDays).toBe(3);
+    expect(two.status).toBe(400);
+    expect(await two.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", excessDays: 1, suggestedLeaveTypeCode: "NPL" });
+    expect(mockPrisma.leaveRequest.create).not.toHaveBeenCalled();
   });
 });
 
@@ -162,30 +161,37 @@ describe("Configured internship AL pool", () => {
     mockPrisma.leaveBalance.findUnique.mockResolvedValue({ year: 2026, earned: 3, used: 1, pending: 0, autoDeducted: 0 });
   });
 
-  it("reports 7 days needing NPL for the 14-day Dec–Jan request, after 3 advance and 2 OIL days", async () => {
+  it("reports 10 days needing NPL for the 14-day Dec–Jan request: 2 earned + 2 OIL, no advance", async () => {
     const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2027-01-01", useAdvance: true, otDaysUsed: 2 }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", alAvailable: 7, excessDays: 7 });
+    expect(await res.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", alAvailable: 4, excessDays: 10 });
     expect(mockPrisma.leaveRequest.create).not.toHaveBeenCalled();
   });
 
-  it("reserves only 5 AL days and 2 OIL days for a covered 7-working-day request", async () => {
-    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2026-12-21", useAdvance: true, otDaysUsed: 2 }));
+  it("reserves only 2 AL days and 2 OIL days for a covered 4-working-day request", async () => {
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2026-12-16", otDaysUsed: 2 }));
     expect(res.status).toBe(201);
     expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
-      days: 7, balanceDays: 5, balanceYear: 2026, otDaysUsed: 2,
+      days: 4, balanceDays: 2, balanceYear: 2026, otDaysUsed: 2,
     }) }));
     expect(mockPrisma.leaveBalance.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { employeeId_leaveTypeId_year: { employeeId: "emp1", leaveTypeId: "lt", year: 2026 } },
-      data: { pending: { increment: 5 } },
+      data: { pending: { increment: 2 } },
     }));
+  });
+
+  it("refuses AL ahead of accrual on a contract pool (2 earned left, 3 asked)", async () => {
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-14", endDate: "2026-12-16", useAdvance: true }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", alAvailable: 2, excessDays: 1 });
   });
 
   it("continues to reserve against the 2026 ledger for a request submitted in January", async () => {
     vi.setSystemTime(new Date("2027-01-04T10:00:00Z"));
-    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2027-01-04", endDate: "2027-01-08", useAdvance: true }));
+    // 4 Jan 2027: 9 of 11 contract months complete → 7 × 9/11 = 5.5 earned, 2 used → 3.5 left.
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2027-01-04", endDate: "2027-01-06" }));
     expect(res.status).toBe(201);
-    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ balanceYear: 2026, balanceDays: 5 }) }));
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ balanceYear: 2026, balanceDays: 3 }) }));
     expect(mockPrisma.leaveBalance.create).not.toHaveBeenCalled();
   });
 

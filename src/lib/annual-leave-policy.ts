@@ -1,5 +1,5 @@
 import { prorateLeave, computeAlFullEntitlement } from "./utils";
-import { floorToHalf } from "./leave-policy";
+import { prorateByMonths } from "./leave-policy";
 
 type DateValue = Date | string;
 export interface AnnualLeaveAllocation {
@@ -49,12 +49,21 @@ export function contractAccrualPeriods(startValue: DateValue, endValue: DateValu
   throw new Error("Annual leave entitlement period is too long");
 }
 
-/** A fixed contract total accrues over its monthly periods, without a January reset. */
+/**
+ * A contract ledger holds an annual rate (e.g. 7 days) that accrues over the contract's monthly
+ * periods without a January reset: rate × completed months / 12, rounded down to a whole day
+ * (Alfred, 24 Nov 2026: 9 months worked → 7 × 9 / 12 = 5.25 → 5).
+ */
 export function contractLeaveEarned(total: number, start: DateValue, end: DateValue, asOf: Date = new Date()): number {
   const periods = contractAccrualPeriods(start, end);
   const today = leaveDate(asOf);
   const complete = periods.filter((p) => p.until <= today).length;
-  return Math.min(total, floorToHalf(total * complete / periods.length));
+  return prorateByMonths(total, complete);
+}
+
+/** What a contract ledger will have earned by the contract end (every period complete). */
+export function contractLeaveFull(total: number, start: DateValue, end: DateValue): number {
+  return prorateByMonths(total, contractAccrualPeriods(start, end).length);
 }
 
 /** Shared by the form, server validation, dashboards and mobile balances. */
@@ -67,7 +76,7 @@ export function annualLeaveAmounts(balance: AnnualLeaveAllocation, employee?: Le
     ))
     : prorateLeave(balance.entitlement, employee?.startDate, employee?.monthlyLeaveRate, true, asOf, employee?.endDate);
   const fullEntitlement = isContract
-    ? balance.entitlement
+    ? Math.max(earned, contractLeaveFull(balance.entitlement, balance.periodStart!, balance.periodEnd!))
     : computeAlFullEntitlement(employee?.startDate, employee?.monthlyLeaveRate, balance.entitlement, employee?.endDate, asOf.getFullYear());
   const deductions = balance.used + balance.pending;
   return {

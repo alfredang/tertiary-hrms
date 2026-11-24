@@ -234,16 +234,12 @@ export async function PATCH(
       const entitlement = Number(balance.entitlement);
       const amounts = annualLeaveAmounts({ entitlement, used: Number(balance.used), pending: pendingWithoutOld,
         carriedOver: Number(balance.carriedOver), recordedEarned: Number(balance.earned), periodStart: balance.periodStart, periodEnd: balance.periodEnd }, employee);
-      const earnedAvailable = amounts.remaining;
-      const fullAvailable = amounts.fullAvailable;
       const otHeld = Number(leaveRequest.otDaysUsed);
       const alCheck = evaluateAlRequest({
         days: newDays,
-        earnedAvailable,
-        fullAvailable,
+        earnedAvailable: amounts.remaining,
         otAvailable: otHeld,
         otRequested: otHeld,
-        useAdvance: true,
       });
       // Edits that don't lengthen the request stay allowed, so a pending pre-policy
       // request (recorded with a deficit) can still have its reason/dates tidied.
@@ -289,7 +285,8 @@ export async function PATCH(
       }
     }
 
-    const contractAl = !!balance.periodStart && isAL;
+    // Every AL request keeps its AL part in balanceDays (days less Off In Lieu).
+    const contractAl = isAL;
     const oldOtDays = Number(leaveRequest.otDaysUsed);
     const newOtDays = contractAl ? Math.min(oldOtDays, newDays) : oldOtDays;
     const newBalanceDays = contractAl ? newDays - newOtDays : newDays;

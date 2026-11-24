@@ -95,7 +95,7 @@ describe("roundToHalf — floor to nearest 0.5", () => {
 
 // ---- prorateLeave — deterministic with fake timers ----
 // Policy (Nov 2026): entitlement × COMPLETED months served this year / 12,
-// rounded down to 0.5. A month counts once complete, measured from the join
+// rounded down to a whole day (24 Nov 2026). A month counts once complete, measured from the join
 // date (1 Jan for earlier joiners); the month in progress counts as 0.
 
 describe("prorateLeave — March 15, 2026", () => {
@@ -169,20 +169,20 @@ describe("prorateLeave — December 15, 2026 (end of year)", () => {
     vi.useRealTimers();
   });
 
-  it("should give existing employee Jan–Nov completed → 14 * 11/12 = 12.83 → 12.5", () => {
+  it("should give existing employee Jan–Nov completed → 14 * 11/12 = 12.83 → 12", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 11, 15));
-    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(12.5);
+    expect(prorateLeave(14, new Date("2020-06-15"))).toBe(12);
   });
 
-  it("should give new hire Jan 2 → 11 completed months → 12.5", () => {
+  it("should give new hire Jan 2 → 11 completed months → 12", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 11, 15));
-    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(12.5);
+    expect(prorateLeave(14, new Date(2026, 0, 2))).toBe(12);
   });
 
   it("earned-to-date peaks at 11/12 within the year: December only completes on 1 Jan, when the new year starts at 0", () => {
-    expect(prorateLeave(14, new Date("2020-06-15"), null, false, new Date(2026, 11, 31))).toBe(12.5);
+    expect(prorateLeave(14, new Date("2020-06-15"), null, false, new Date(2026, 11, 31))).toBe(12);
     expect(prorateLeave(14, new Date("2020-06-15"), null, false, new Date(2027, 0, 1))).toBe(0);
   });
 });

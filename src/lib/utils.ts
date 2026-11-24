@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { applyLeaveCap, monthsEmployedInYear, monthsServedThisYear, prorateByMonths } from "./leave-policy";
+import { AL_DEFAULT_DAYS, applyLeaveCap, monthsEmployedInYear, monthsServedThisYear, prorateByMonths } from "./leave-policy";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -170,12 +170,12 @@ export function hasAdminAccess(role: string | null | undefined): boolean {
 
 /**
  * Yearly AL entitlement — flat value from company policy (configurable via leave settings).
- * The defaultDays parameter should come from the AL LeaveType record (default 7).
+ * The defaultDays parameter should come from the AL LeaveType record (staff 7, interns 3).
  */
 export function computeYearlyEntitlement(
   _startDate: Date,
   _forYear: number = new Date().getFullYear(),
-  defaultDays: number = 7,
+  defaultDays: number = AL_DEFAULT_DAYS,
 ): number {
   return defaultDays;
 }
@@ -189,7 +189,7 @@ export function computeYearlyEntitlement(
 export function computeAlFullEntitlement(
   startDate: Date | string | null | undefined,
   monthlyLeaveRate?: number | null,
-  annualDays: number = 7,
+  annualDays: number = AL_DEFAULT_DAYS,
   endDate?: Date | string | null,
   year: number = new Date().getFullYear(),
 ): number {

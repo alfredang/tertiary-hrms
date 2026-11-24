@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getPaidBackDaysByEmployee } from "@/lib/npl-payback-store";
 import { prorateLeave } from "@/lib/utils";
 import {
-  ALLOW_ADVANCE_AL,
   isInternRoles,
   isMedicalLeaveCode,
   mcAnnualEntitlement,
@@ -275,7 +274,7 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
         carried: alBal ? Number(alBal.carriedOver) : 0,
         used: alAmounts.isContract ? Number(alBal!.used) : sum((r) => r.leaveType.code === "AL" && r.status === "APPROVED"),
         pending: alAmounts.isContract ? Number(alBal!.pending) : sum((r) => r.leaveType.code === "AL" && r.status === "PENDING"),
-        allowed: ALLOW_ADVANCE_AL ? Math.max(alEarned, alFull) : alEarned,
+        allowed: alEarned,
       },
       mc: {
         earned: mcEarned,

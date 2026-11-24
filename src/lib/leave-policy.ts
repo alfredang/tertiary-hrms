@@ -4,14 +4,20 @@
  *
  * Rules (user policy, Nov 2026):
  *  1. AL and MC are prorated strictly by COMPLETED months served this year:
- *     entitlement × monthsServed / 12, rounded DOWN to the nearest half day.
+ *     entitlement × monthsServed / 12, rounded DOWN to a whole day (Alfred, 24 Nov 2026:
+ *     7 days, 9 months worked → 7 × 9 / 12 = 5.25 → 5). Only No Pay Leave is not prorated.
  *     A month counts once it is complete, measured from the join date (or 1 Jan
  *     for anyone who joined before this year). A partial month counts as 0.
  *       joined 1 Sep, today 9 Nov → Sep + Oct served → 2 months.
  *       joined 20 Sep, today 9 Nov → 20 Sep–19 Oct served → 1 month.
  *       joined last year, today 9 Nov → Jan…Oct → 10 months.
- *  2. AL default is 7 days/year. AL beyond what the employee has available must
- *     be applied for as No Pay Leave — the API rejects the excess with guidance.
+ *  2. AL is 7 days/year for staff, 3 for interns (Femina Jasmin and Amanda Halim: 7), set on
+ *     each person's LeaveBalance.entitlement (Alfred, 24 Nov 2026). AL resets on 1 January;
+ *     unused AL carries forward one year only (src/lib/al-rollover.ts). HARD RULE (Alfred, 24 Nov 2026): annual leave can never
+ *     go negative. Staff and interns may take only the prorated AL earned to date (plus
+ *     carried-over days and Off In Lieu); there is no advance AL and no switch to allow it.
+ *     With no AL left they can only apply for No Pay Leave. Enforced at submission
+ *     (evaluateAlRequest) and again at approval (alApprovalShortfall), on every path.
  *  3. No Pay Leave is capped at 14 days/year for staff and interns alike, with NO
  *     proration: the full 14 days are available from the first day (Alfred, 20 Nov 2026).
  *     A No Pay Leave day paid back by working an off day (approved payback) no longer
@@ -20,17 +26,13 @@
  *     No Pay Leave.
  */
 
+/** Staff AL days a year (LeaveType AL defaultDays). */
 export const AL_DEFAULT_DAYS = 7;
+/** Intern AL days a year (LeaveType AL internDefaultDays). */
+export const AL_INTERN_DEFAULT_DAYS = 3;
 export const NPL_ANNUAL_CAP_DAYS = 14;
 /** Share of the NPL cap at which admins get a "nearing the cap" alert. */
 export const NPL_WARN_RATIO = 0.8;
-/**
- * Keep the opt-in "Use advance annual leave" toggle (commit 56a8dea): an employee
- * may borrow AL they will still earn by the end of this year/contract. Days
- * beyond the full-year entitlement are never allowed as AL — they must be NPL.
- * Set false to limit AL strictly to the balance earned to date.
- */
-export const ALLOW_ADVANCE_AL = true;
 
 export const MEDICAL_LEAVE_CODES = ["MC", "SL", "MEDICAL"] as const;
 export const NPL_CODE = "NPL";
@@ -124,10 +126,19 @@ export function monthsEmployedInYear(
   return Math.min(12, completedMonthsBetween(effectiveStart, until));
 }
 
-/** entitlement × months / 12, rounded down to the nearest half day. */
+/** Round DOWN to a whole day — the AL proration rule (Alfred, 24 Nov 2026). */
+export function floorToWhole(value: number): number {
+  return Math.floor(value + 1e-9);
+}
+
+/**
+ * Prorated AL and MC: annual days × completed months worked / 12, rounded DOWN to a whole day
+ * (Alfred, 24 Nov 2026). e.g. AL 7 days, 9 months → 5.25 → 5; MC 14 days, 9 months → 10.5 → 10.
+ * Staff and interns, calendar-year and contract ledgers alike. No Pay Leave is never prorated.
+ */
 export function prorateByMonths(annualDays: number, months: number): number {
   if (annualDays <= 0 || months <= 0) return 0;
-  return floorToHalf((annualDays * Math.min(12, months)) / 12);
+  return Math.min(annualDays, floorToWhole((annualDays * Math.min(12, months)) / 12));
 }
 
 /** Per-employee AL cap (Employee.monthlyLeaveRate = contract leave days) — only ever lowers the entitlement. */
@@ -145,40 +156,44 @@ export function mcAnnualEntitlement(annualDays: number, isIntern: boolean): numb
 
 export interface AlRequestInput {
   days: number;
-  /** Earned to date + carried over − used − pending (may be negative). */
+  /** Prorated AL earned to date + carried over − used − pending (may be negative). */
   earnedAvailable: number;
-  /** Full-year entitlement + carried over − used − pending. */
-  fullAvailable: number;
   /** Off In Lieu days available. */
   otAvailable: number;
   /** Off In Lieu days the employee asked to use. */
   otRequested: number;
-  useAdvance: boolean;
-  allowAdvance?: boolean;
 }
 
 export interface AlRequestResult {
   ok: boolean;
   otDaysUsed: number;
-  advanceDays: number;
   /** Days AL cannot cover — must be applied for as No Pay Leave. */
   excessDays: number;
-  /** Max days this request could be as AL (balance + advance + OIL). */
+  /** Max days this request could be as AL (earned balance + OIL). */
   coverable: number;
 }
 
-/** Decide how an AL request is covered. Anything uncovered is excess → NPL. */
+/**
+ * Decide how an AL request is covered: the prorated balance earned to date (never below 0)
+ * plus Off In Lieu. HARD RULE: nothing else — no advance on AL still to be earned. Anything
+ * uncovered is excess and must be applied for as No Pay Leave.
+ */
 export function evaluateAlRequest(input: AlRequestInput): AlRequestResult {
-  const allowAdvance = input.allowAdvance ?? ALLOW_ADVANCE_AL;
   const earned = Math.max(0, input.earnedAvailable);
-  const alCover = allowAdvance && input.useAdvance ? Math.max(earned, input.fullAvailable, 0) : earned;
   const otUsed = Math.max(0, Math.min(input.otRequested, input.otAvailable, input.days));
-  const coverable = alCover + otUsed;
+  const coverable = earned + otUsed;
   const excessDays = Math.max(0, input.days - coverable);
-  // OIL covers non-earned days first, so advance is what's left after OIL.
-  const beyondEarned = Math.max(0, Math.min(input.days, coverable) - earned);
-  const advanceDays = Math.max(0, beyondEarned - otUsed);
-  return { ok: excessDays === 0, otDaysUsed: otUsed, advanceDays, excessDays, coverable };
+  return { ok: excessDays === 0, otDaysUsed: otUsed, excessDays, coverable };
+}
+
+/**
+ * Approval-time check of the same hard rule: days of AL this approval would take beyond the
+ * prorated balance earned to date (0 = fine). `earned` is the prorated entitlement earned to
+ * date, `usedBefore` the AL already approved, `alDays` the AL days of this request (OIL excluded).
+ */
+export function alApprovalShortfall(input: { earned: number; carriedOver: number; usedBefore: number; alDays: number }): number {
+  const left = Math.max(0, input.earned + input.carriedOver - input.usedBefore);
+  return Math.max(0, input.alDays - left);
 }
 
 export interface AlNplSplit {

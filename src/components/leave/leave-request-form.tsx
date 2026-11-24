@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Send, Upload, X, Info, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { Calendar, Send, Upload, X, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { calculateWorkingDays } from "@/lib/utils";
 import { splitAlExcess } from "@/lib/leave-policy";
@@ -30,7 +30,8 @@ interface LeaveRequestFormProps {
   leaveTypes: LeaveType[];
   otBalance?: number;
   alRemaining?: number;      // AL balance available now: accrued to today + carried over - used - pending
-  alFullAvailable?: number;  // full-year entitlement minus used/pending
+  /** @deprecated advance AL was removed (24 Nov 2026); ignored. */
+  alFullAvailable?: number;
   alPersonalEntitlement?: number; // total days entitled this year (for display)
   alEntitlementPeriodEnd?: string; // fixed internship end; absent for calendar-year AL
   defaultLeaveTypeCode?: string; // e.g. "MC" to pre-select Medical Leave
@@ -43,9 +44,6 @@ export function LeaveRequestForm({
   leaveTypes,
   otBalance = 0,
   alRemaining = 0,
-  alFullAvailable = 0,
-  alPersonalEntitlement = 7,
-  alEntitlementPeriodEnd,
   defaultLeaveTypeCode,
   isIntern = false,
   npl = { cap: 0, used: 0, pending: 0, remaining: 0 },
@@ -71,7 +69,6 @@ export function LeaveRequestForm({
   const [breakdown, setBreakdown] = useState<{ calendarDays: number; weekendDays: number; holidayDays: number } | null>(null);
   const [useOt, setUseOt] = useState(false);
   const [otDaysToUse, setOtDaysToUse] = useState(0);
-  const [useAdvance, setUseAdvance] = useState(false);
 
   const selectedLeaveType = leaveTypes.find((t) => t.id === leaveTypeId);
   const isMC = selectedLeaveType?.code === "MC" || selectedLeaveType?.code === "SL";
@@ -88,26 +85,19 @@ export function LeaveRequestForm({
 
   const daysNum = parseFloat(days) || 0;
 
-  // Days still to be earned this year (full-year entitlement − earned so far) that can be borrowed
-  const advanceAvailable = Math.max(0, alFullAvailable - availableNow);
-  // What annual leave itself covers: the earned balance, plus the rest of the year if advance is on
-  const alCover = useAdvance ? availableNow + advanceAvailable : availableNow;
-  // Deficit: beyond what annual leave covers (full-year entitlement with advance, earned balance without)
+  // HARD RULE (24 Nov 2026): AL covers only the prorated balance earned to date (+ Off In Lieu);
+  // there is no advance AL. Whatever that does not cover must be No Pay Leave.
+  const alCover = Math.max(0, availableNow);
   const deficitBeforeOt = isAL ? Math.max(0, daysNum - alCover) : 0;
   const effectiveOtUsed = useOt ? Math.min(otDaysToUse, otBalance, daysNum) : 0;
-  // Off In Lieu covers the deficit first, then any advance — so each OIL day is subtracted once.
-  const otForDeficit = Math.min(effectiveOtUsed, deficitBeforeOt);
-  const otForAdvance = effectiveOtUsed - otForDeficit;
-  // Advance AL: within full entitlement but ahead of accrual (after OT offset)
-  const advanceBeforeOt = isAL && useAdvance ? Math.max(0, Math.min(daysNum, alCover) - availableNow) : 0;
-  const advanceDays = Math.max(0, advanceBeforeOt - otForAdvance);
-  const deficitDays = isAL ? Math.max(0, deficitBeforeOt - otForDeficit) : 0;
-  // Use the same applied credits as the breakdown, so toggling advance updates the forecast.
-  const balanceAfterRequest = alRemaining - daysNum + advanceDays + effectiveOtUsed;
-  const fullyWithinEntitlement = isAL && daysNum <= alCover;
-  // Days not yet earned (advance + deficit) — OT can cover any of this
-  const nonEarnedDays = isAL ? Math.max(0, daysNum - availableNow) : 0;
-  // Policy: AL beyond what the balance (+ advance + Off In Lieu) covers must be No Pay Leave.
+  const deficitDays = isAL ? Math.max(0, deficitBeforeOt - Math.min(effectiveOtUsed, deficitBeforeOt)) : 0;
+  // AL actually charged by what gets submitted: never more than the balance, so never negative.
+  const alDaysCharged = isAL ? Math.min(Math.max(0, daysNum - effectiveOtUsed), alCover) : 0;
+  const balanceAfterRequest = alRemaining - alDaysCharged;
+  const fullyWithinEntitlement = isAL && deficitDays === 0;
+  // Days the earned balance does not cover — Off In Lieu can cover any of this
+  const nonEarnedDays = isAL ? Math.max(0, daysNum - alCover) : 0;
+  // Policy: AL beyond what the balance (+ Off In Lieu) covers must be No Pay Leave.
   // The part annual leave covers goes in as AL; the rest goes in as a No Pay Leave request
   // (paid back later from the Payback page). Blocked only if it can't be split or NPL can't take it.
   const alSplit = isAL && deficitDays > 0 && nplType && startDate && endDate
@@ -166,10 +156,9 @@ export function LeaveRequestForm({
   // Auto-fill OT slider when toggle turns on
   useEffect(() => {
     if (!useOt) { setOtDaysToUse(0); return; }
-    // Cover deficit first; if none, cover the advance (non-earned) portion
-    const target = deficitBeforeOt > 0 ? deficitBeforeOt : nonEarnedDays;
-    setOtDaysToUse(Math.min(target, otBalance));
-  }, [useOt, deficitBeforeOt, nonEarnedDays, otBalance]);
+    // Cover the days the earned AL balance does not
+    setOtDaysToUse(Math.min(deficitBeforeOt, otBalance));
+  }, [useOt, deficitBeforeOt, otBalance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,7 +202,7 @@ export function LeaveRequestForm({
         await post({
           leaveTypeId, startDate: alSplit.al.startDate, endDate: alSplit.al.endDate, days: alSplit.al.days,
           dayType: "FULL_DAY", halfDayPosition: alSplit.al.halfDayPosition, reason,
-          documentUrl, documentFileName, otDaysUsed: otForAlPart, useAdvance,
+          documentUrl, documentFileName, otDaysUsed: otForAlPart,
         });
         try {
           await post({
@@ -248,7 +237,6 @@ export function LeaveRequestForm({
         documentUrl,
         documentFileName,
         otDaysUsed: effectiveOtUsed,
-        useAdvance: isAL && useAdvance,
       });
 
       toast({ title: "Leave request submitted", description: "Your request is pending approval." });
@@ -331,9 +319,9 @@ export function LeaveRequestForm({
               <p className={`text-base font-bold ${balanceAfterRequest < 0 ? "text-red-400" : "text-cyan-400"}`}>
                 {balanceAfterRequest}
               </p>
-              {(advanceDays > 0 || deficitDays > 0) && (
+              {deficitDays > 0 && (
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  {[advanceDays > 0 && `${advanceDays} advance`, deficitDays > 0 && (alSplit && !splitNplOverCap ? `${alSplit.npl.days} as No Pay Leave` : `${deficitDays} over — needs No Pay Leave`)].filter(Boolean).join(" + ")}
+                  {alSplit && !splitNplOverCap ? `${alSplit.npl.days} as No Pay Leave` : `${deficitDays} over — needs No Pay Leave`}
                 </p>
               )}
             </div>
@@ -344,31 +332,6 @@ export function LeaveRequestForm({
           </div>
         </div>
 
-        {/* Advance AL toggle — borrow from what's still to be earned this year */}
-        {isAL && advanceAvailable > 0 && daysNum > availableNow && (
-          <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
-            <div>
-              <p className="text-sm text-white font-medium">Use advance annual leave</p>
-              <p className="text-xs text-gray-500">
-                Borrow up to {advanceAvailable} day(s) within your {alEntitlementPeriodEnd
-                  ? `internship entitlement, ending ${new Date(`${alEntitlementPeriodEnd}T00:00:00Z`).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`
-                  : "entitlement for this year"}.
-                {!useAdvance && " If off, days beyond your balance must be taken as No Pay Leave."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setUseAdvance(!useAdvance)}
-              role="switch"
-              aria-label="Use advance annual leave"
-              aria-checked={useAdvance}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${useAdvance ? "bg-amber-500" : "bg-gray-700"}`}
-            >
-              <span className={`inline-block h-3 w-3 transform rounded-full bg-on-color transition-transform ${useAdvance ? "translate-x-5" : "translate-x-1"}`} />
-            </button>
-          </div>
-        )}
-
         {/* OT Toggle — show whenever AL is selected and OT balance exists */}
         {isAL && otBalance > 0 && nonEarnedDays > 0 && (
           <div className="flex items-center justify-between bg-gray-900 rounded-lg px-3 py-2.5">
@@ -376,9 +339,7 @@ export function LeaveRequestForm({
               <p className="text-sm text-white font-medium">Use Off In Lieu days for this request</p>
               <p className="text-xs text-gray-500">
                 {otBalance} Off In Lieu day(s) available
-                {deficitBeforeOt > 0
-                  ? ` — cover the ${deficitBeforeOt} day(s) your AL balance can't`
-                  : ` — cover advance leave ahead of accrual`}
+                {` — cover the ${deficitBeforeOt} day(s) your AL balance can't`}
               </p>
             </div>
             <button
@@ -421,7 +382,6 @@ export function LeaveRequestForm({
         {daysNum > 0 && (
           <div className={`rounded-lg p-3 border space-y-1.5 text-xs ${
             deficitDays > 0 ? "bg-red-950/20 border-red-800/40"
-            : advanceDays > 0 ? "bg-amber-950/20 border-amber-800/40"
             : "bg-green-950/20 border-green-800/40"
           }`}>
             {/* Earned portion */}
@@ -429,13 +389,6 @@ export function LeaveRequestForm({
               <div className="flex justify-between">
                 <span className="text-gray-400">From your remaining balance:</span>
                 <span className="text-white font-medium">{Math.min(availableNow, daysNum).toFixed(1)} day(s)</span>
-              </div>
-            )}
-            {/* Advance portion (within entitlement, not yet accrued) */}
-            {advanceDays > 0 && (
-              <div className="flex justify-between">
-                <span className="text-amber-400 font-medium">Advance (within entitlement):</span>
-                <span className="text-amber-400 font-bold">{advanceDays.toFixed(1)} day(s)</span>
               </div>
             )}
             {/* OT used portion */}
@@ -454,15 +407,6 @@ export function LeaveRequestForm({
             )}
 
             {/* Notes */}
-            {advanceDays > 0 && deficitDays === 0 && (
-              <div className="flex items-start gap-1.5 text-amber-300 pt-1">
-                <Clock className="h-3 w-3 mt-0.5 shrink-0" />
-                <span>
-                  {advanceDays.toFixed(1)} day(s) are within your {alPersonalEntitlement}-day entitlement but not yet accrued.
-                  These will be earned over your remaining service months.
-                </span>
-              </div>
-            )}
             {deficitDays > 0 && (
               <div className="flex items-start gap-1.5 text-red-300 pt-1">
                 <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
@@ -494,7 +438,7 @@ export function LeaveRequestForm({
                 </div>
               </div>
             )}
-            {fullyWithinEntitlement && advanceDays === 0 && deficitDays === 0 && (
+            {fullyWithinEntitlement && (
               <div className="flex items-center gap-1.5 text-green-300 pt-1">
                 <CheckCircle2 className="h-3 w-3 shrink-0" />
                 <span>

@@ -24,6 +24,25 @@ export async function getLeaveProfile(employeeId: string): Promise<LeaveProfile 
   };
 }
 
+/**
+ * Yearly entitlement for a balance row created on demand: the person's own figure from the year
+ * before (e.g. Femina and Amanda keep 7 AL a year), else the leave type's default — interns use
+ * internDefaultDays when set (AL: 3), staff defaultDays (AL: 7).
+ */
+export async function newBalanceEntitlement(
+  employeeId: string,
+  leaveType: { id: string; defaultDays: number; internDefaultDays: number },
+  year: number,
+  isIntern: boolean,
+): Promise<number> {
+  const prev = await prisma.leaveBalance.findUnique({
+    where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: leaveType.id, year: year - 1 } },
+    select: { entitlement: true, periodStart: true },
+  });
+  if (prev && !prev.periodStart) return Number(prev.entitlement);
+  return isIntern && leaveType.internDefaultDays > 0 ? leaveType.internDefaultDays : leaveType.defaultDays;
+}
+
 function yearRange(year: number) {
   return { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) };
 }

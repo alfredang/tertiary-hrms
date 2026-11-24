@@ -1,10 +1,13 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { rollOverAnnualLeave } from "@/lib/al-rollover";
 
+/**
+ * Manual AL year-end rollover (the same code also runs automatically every day in January from
+ * the 08:30 SGT roll-up cron). Body: { fromYear, dryRun? }. Carry forward is one year only.
+ */
 export async function POST(request: Request) {
-  // Auth check
   if (!isDevAuthSkipped()) {
     const session = await auth();
     if (!session?.user) {
@@ -15,7 +18,7 @@ export async function POST(request: Request) {
     }
   }
 
-  let body: { fromYear?: number };
+  let body: { fromYear?: number; dryRun?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -27,92 +30,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid fromYear" }, { status: 400 });
   }
 
-  const targetYear = fromYear + 1;
-
   try {
-    // Get all active employees
-    const employees = await prisma.employee.findMany({
-      where: { status: "ACTIVE" },
-      select: { id: true, name: true, employeeId: true },
-    });
-
-    const summary: Array<{
-      employee: string;
-      employeeId: string;
-      leaveType: string;
-      unused: number;
-      carried: number;
-      warning?: string;
-    }> = [];
-
-    for (const emp of employees) {
-      const balances = await prisma.leaveBalance.findMany({
-        where: { employeeId: emp.id, year: fromYear },
-        include: { leaveType: true },
-      });
-
-      for (const bal of balances) {
-        // Fixed internship allocations keep one ledger across New Year.
-        if (bal.periodStart || bal.periodEnd) continue;
-        if (!bal.leaveType.carryOver) continue;
-
-        const entitlement = Number(bal.entitlement);
-        const used = Number(bal.used);
-        const pending = Number(bal.pending);
-        // Only carry forward fresh entitlement remainder — carriedOver days expire after 1 year
-        const freshUnused = Math.max(0, entitlement - used);
-        const maxCarry = bal.leaveType.maxCarryOver;
-        const carryAmount = maxCarry > 0 ? Math.min(freshUnused, maxCarry) : freshUnused;
-
-        let warning: string | undefined;
-        if (pending > 0) {
-          warning = `${pending} days still pending`;
-        }
-
-        summary.push({
-          employee: emp.name,
-          employeeId: emp.employeeId,
-          leaveType: bal.leaveType.code,
-          unused: freshUnused,
-          carried: carryAmount,
-          warning,
-        });
-
-        if (carryAmount > 0) {
-          await prisma.leaveBalance.upsert({
-            where: {
-              employeeId_leaveTypeId_year: {
-                employeeId: emp.id,
-                leaveTypeId: bal.leaveTypeId,
-                year: targetYear,
-              },
-            },
-            create: {
-              employeeId: emp.id,
-              leaveTypeId: bal.leaveTypeId,
-              year: targetYear,
-              entitlement: bal.leaveType.defaultDays,
-              used: 0,
-              pending: 0,
-              carriedOver: carryAmount,
-            },
-            update: {
-              carriedOver: carryAmount,
-            },
-          });
-        }
-      }
-    }
-
-    const totalCarried = summary.reduce((sum, r) => sum + r.carried, 0);
-
+    const r = await rollOverAnnualLeave(fromYear, { apply: !body.dryRun });
     return NextResponse.json({
       success: true,
-      fromYear,
-      targetYear,
-      totalCarried,
-      employeesProcessed: employees.length,
-      summary,
+      fromYear: r.fromYear,
+      targetYear: r.toYear,
+      applied: r.apply,
+      totalCarried: r.rows.reduce((t, x) => t + x.carried, 0),
+      employeesProcessed: r.rows.length,
+      summary: r.rows,
     });
   } catch (error) {
     console.error("Rollover error:", error);

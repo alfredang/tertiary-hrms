@@ -45,7 +45,10 @@ export function buildLeaveSummary(args: {
   const { balances, profile, npl, year } = args;
   let paidTaken = 0;
   let alBalance: number | null = null;
+  let al = { yearly: 0, earned: 0, taken: 0, pending: 0, carried: 0 };
   let mcTaken = 0;
+  let mcBalance: number | null = null;
+  let mc = { yearly: 0, earned: 0, pending: 0 };
   const rows: { order: number; cells: string[] }[] = [];
   let sawNpl = false;
 
@@ -53,7 +56,7 @@ export function buildLeaveSummary(args: {
     const code = b.leaveType.code;
     const used = Number(b.used ?? 0);
     const pending = Number(b.pending ?? 0);
-    const { available } = leaveBalanceAvailable(b, profile, npl, args.asOf);
+    const { available, proRated } = leaveBalanceAvailable(b, profile, npl, args.asOf);
 
     if (code === NPL_CODE) {
       sawNpl = true;
@@ -63,8 +66,17 @@ export function buildLeaveSummary(args: {
       continue;
     }
     if (b.leaveType.paid) paidTaken += used;
-    if (code === "AL") alBalance = available;
-    if (isMedicalLeaveCode(code)) mcTaken += used;
+    if (code === "AL") {
+      alBalance = available;
+      al = { yearly: Number(b.entitlement ?? 0) || b.leaveType.defaultDays, earned: proRated ?? 0, taken: used, pending,
+        carried: Number(b.carriedOver ?? 0) };
+    }
+    if (isMedicalLeaveCode(code)) {
+      mcTaken += used;
+      mcBalance = (mcBalance ?? 0) + available;
+      mc = { yearly: mc.yearly + (Number(b.entitlement ?? 0) || b.leaveType.defaultDays), earned: mc.earned + (proRated ?? 0),
+        pending: mc.pending + pending };
+    }
 
     const core = code === "AL" || isMedicalLeaveCode(code);
     const hasActivity = used > 0 || pending > 0 || (code === "AL_OT" && Number(b.earned ?? 0) > 0);
@@ -80,19 +92,35 @@ export function buildLeaveSummary(args: {
   const nplTaken = npl?.used ?? 0;
   return {
     heading: `${args.employeeName}: leave summary ${year}`,
+    // Balances first, each saying how it is worked out (Alfred, 24 Nov 2026): AL and MC are
+    // prorated (yearly days × completed months / 12, whole days); No Pay Leave is a flat 14 a year.
     stats: [
-      { label: "Paid leave taken", value: days(paidTaken) },
-      { label: "Annual leave balance", value: alBalance == null ? "-" : days(alBalance) },
-      { label: "MC taken", value: days(mcTaken) },
       {
-        label: "No-pay leave taken",
-        value: days(nplTaken),
-        // Days paid back by working an off day are already taken off "taken".
-        hint: npl ? `${r2(npl.remaining)} of ${r2(npl.cap)} left${npl.paidBack ? `, ${r2(npl.paidBack)} paid back` : ""}` : undefined,
+        label: "Annual leave balance (prorated)",
+        value: alBalance == null ? "-" : days(alBalance),
+        hint: alBalance == null ? undefined
+          : `${r2(al.earned)} of ${r2(al.yearly)}/yr earned${al.carried ? ` + ${r2(al.carried)} carried` : ""} · ${r2(al.taken)} taken${al.pending ? ` · ${r2(al.pending)} pending` : ""}`,
       },
+      profile?.isIntern
+        ? { label: "MC balance (prorated)", value: "None", hint: "Interns: sick leave is No Pay Leave" }
+        : {
+          label: "MC balance (prorated)",
+          value: mcBalance == null ? "-" : days(mcBalance),
+          hint: mcBalance == null ? undefined
+            : `${r2(mc.earned)} of ${r2(mc.yearly)}/yr earned · ${r2(mcTaken)} taken${mc.pending ? ` · ${r2(mc.pending)} pending` : ""}`,
+        },
+      {
+        label: "No Pay Leave balance",
+        value: npl ? days(npl.remaining) : "-",
+        // Days paid back by working an off day are already taken off "taken".
+        hint: npl ? `${r2(npl.cap)}/yr, not prorated · ${r2(nplTaken)} taken${npl.paidBack ? `, ${r2(npl.paidBack)} paid back` : ""}` : undefined,
+      },
+      { label: "Paid leave taken", value: days(paidTaken) },
     ],
     table: { columns: ["Leave type", "Taken", "Pending", "Balance"], rows: rows.map((r) => r.cells) },
-    note: "Paid leave taken includes MC. Taken includes this decision. Balance = prorated entitlement + carried over − taken − pending.",
+    note: "Annual leave and MC are prorated: yearly days × completed months worked ÷ 12, rounded down to a whole day; " +
+      "annual leave resets on 1 January and unused days carry forward for one year. No Pay Leave is a flat 14 days a year, not prorated. " +
+      "Paid leave taken includes MC. Taken includes this decision. Balance = prorated entitlement + carried over − taken − pending.",
   };
 }
 

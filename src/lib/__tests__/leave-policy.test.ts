@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   AL_DEFAULT_DAYS,
+  AL_INTERN_DEFAULT_DAYS,
   NPL_ANNUAL_CAP_DAYS,
+  alApprovalShortfall,
   applyLeaveCap,
   completedMonthsBetween,
   countSingleDayMcs,
@@ -60,7 +62,7 @@ describe("Rule 1 — months served this year (completed months only)", () => {
   });
 });
 
-describe("Rule 1 — AL and MC prorated strictly: entitlement × months / 12, down to 0.5", () => {
+describe("Rule 1 — AL and MC prorated strictly: entitlement × months / 12, down to a whole day", () => {
   it("AL 7 × 2/12 = 1.17 → 1 for the Sep joiner on 9 Nov", () => {
     expect(prorateLeave(7, new Date(2026, 8, 1), null, true, NOV_9)).toBe(1);
   });
@@ -73,8 +75,8 @@ describe("Rule 1 — AL and MC prorated strictly: entitlement × months / 12, do
     expect(prorateLeave(14, new Date(2026, 8, 1), 12, false, NOV_9)).toBe(2);
   });
 
-  it("existing staff on 9 Nov: AL 7 × 10/12 = 5.83 → 5.5", () => {
-    expect(prorateLeave(7, new Date(2024, 0, 1), null, true, NOV_9)).toBe(5.5);
+  it("existing staff on 9 Nov: AL 7 × 10/12 = 5.83 → 5 (whole days)", () => {
+    expect(prorateLeave(7, new Date(2024, 0, 1), null, true, NOV_9)).toBe(5);
   });
 
   it("the per-employee leave-days cap only lowers AL", () => {
@@ -95,35 +97,47 @@ describe("Rule 1 — AL and MC prorated strictly: entitlement × months / 12, do
   });
 });
 
-describe("Rule 2 — AL default 7 days; excess AL must be No Pay Leave", () => {
-  it("company AL default is 7 days/year", () => {
+describe("Rule 2 — AL 7 staff / 3 interns; excess AL must be No Pay Leave", () => {
+  it("company AL: staff 7 days/year, interns 3 (Alfred, 24 Nov 2026)", () => {
     expect(AL_DEFAULT_DAYS).toBe(7);
+    expect(AL_INTERN_DEFAULT_DAYS).toBe(3);
     expect(computeYearlyEntitlement(new Date())).toBe(7);
   });
 
-  it("flags days beyond the earned balance as excess (advance off)", () => {
-    const r = evaluateAlRequest({ days: 5, earnedAvailable: 1, fullAvailable: 2, otAvailable: 0, otRequested: 0, useAdvance: false });
+  it("flags days beyond the earned balance as excess", () => {
+    const r = evaluateAlRequest({ days: 5, earnedAvailable: 1, otAvailable: 0, otRequested: 0 });
     expect(r).toMatchObject({ ok: false, excessDays: 4, coverable: 1 });
   });
 
-  it("Off In Lieu and advance AL reduce the excess; beyond them it's still NPL", () => {
-    const r = evaluateAlRequest({ days: 5, earnedAvailable: 1, fullAvailable: 2, otAvailable: 1, otRequested: 3, useAdvance: true });
-    expect(r).toMatchObject({ ok: false, otDaysUsed: 1, excessDays: 2, coverable: 3 });
+  it("Off In Lieu reduces the excess; beyond it it's still NPL", () => {
+    const r = evaluateAlRequest({ days: 5, earnedAvailable: 1, otAvailable: 1, otRequested: 3 });
+    expect(r).toMatchObject({ ok: false, otDaysUsed: 1, excessDays: 3, coverable: 2 });
   });
 
-  it("is ok when fully covered, reporting the advance part", () => {
-    const r = evaluateAlRequest({ days: 2, earnedAvailable: 1, fullAvailable: 2, otAvailable: 0, otRequested: 0, useAdvance: true });
-    expect(r).toMatchObject({ ok: true, excessDays: 0, advanceDays: 1 });
+  it("is ok when the earned balance covers it", () => {
+    const r = evaluateAlRequest({ days: 2, earnedAvailable: 2, otAvailable: 0, otRequested: 0 });
+    expect(r).toMatchObject({ ok: true, excessDays: 0, coverable: 2 });
   });
 
-  it("advance can be switched off company-wide", () => {
-    const r = evaluateAlRequest({ days: 2, earnedAvailable: 1, fullAvailable: 2, otAvailable: 0, otRequested: 0, useAdvance: true, allowAdvance: false });
-    expect(r.ok).toBe(false);
+  it("HARD RULE: no AL left → no AL at all, only No Pay Leave (Alfred, 24 Nov 2026)", () => {
+    expect(evaluateAlRequest({ days: 0.5, earnedAvailable: 0, otAvailable: 0, otRequested: 0 })).toMatchObject({ ok: false, excessDays: 0.5 });
+    // A balance already below zero never counts as cover.
+    expect(evaluateAlRequest({ days: 1, earnedAvailable: -2, otAvailable: 0, otRequested: 0 })).toMatchObject({ ok: false, excessDays: 1 });
   });
 
-  it("a negative earned balance never counts as cover", () => {
-    const r = evaluateAlRequest({ days: 1, earnedAvailable: -2, fullAvailable: -1, otAvailable: 0, otRequested: 0, useAdvance: false });
-    expect(r).toMatchObject({ ok: false, excessDays: 1 });
+  it("HARD RULE at approval: approving never takes AL below zero", () => {
+    expect(alApprovalShortfall({ earned: 5, carriedOver: 0, usedBefore: 3, alDays: 2 })).toBe(0);
+    expect(alApprovalShortfall({ earned: 5, carriedOver: 0, usedBefore: 3, alDays: 3 })).toBe(1);
+    expect(alApprovalShortfall({ earned: 4, carriedOver: 0, usedBefore: 5.5, alDays: 1 })).toBe(1);
+    expect(alApprovalShortfall({ earned: 4, carriedOver: 2, usedBefore: 5, alDays: 1 })).toBe(0);
+  });
+
+  it("AL prorates to a whole day: 7 days × 9 months / 12 = 5.25 → 5 (Alfred, 24 Nov 2026)", () => {
+    expect(prorateByMonths(7, 9)).toBe(5);
+    expect(prorateByMonths(7, 10)).toBe(5);
+    expect(prorateByMonths(7, 11)).toBe(6);
+    expect(prorateByMonths(7, 12)).toBe(7);
+    expect(prorateByMonths(7, 1)).toBe(0);
   });
 });
 
