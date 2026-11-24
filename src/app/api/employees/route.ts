@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
       const currentYear = new Date().getFullYear();
       for (const lt of leaveTypes) {
         // Interns use internDefaultDays when set; staff use defaultDays.
-        // Part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026).
+        // Part-time staff have no AL, MC, No Pay Leave or compassionate leave (Alfred, 24 Nov 2026).
         const partTime = effectiveRole !== "INTERN" && employmentInfo?.employmentType === "PART_TIME";
         const entitlement = partTime && partTimeHasNoLeave(lt.code)
           ? 0

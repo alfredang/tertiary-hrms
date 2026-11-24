@@ -231,9 +231,9 @@ describe("Rule 4 — interns have no paid MC", () => {
     }) }));
   });
 
-  it("refuses AL, MC and No Pay Leave from part-time staff (Alfred, 24 Nov 2026)", async () => {
+  it("refuses AL, MC, No Pay Leave and compassionate leave from part-time staff (Alfred, 24 Nov 2026)", async () => {
     state.employmentType = "PART_TIME";
-    for (const code of ["AL", "MC", "NPL"]) {
+    for (const code of ["AL", "MC", "NPL", "CL"]) {
       state.leaveTypeCode = code;
       const res = await submitLeave(req(ONE_DAY));
       expect(res.status).toBe(400);

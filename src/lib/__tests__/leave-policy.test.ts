@@ -144,7 +144,7 @@ describe("Rule 2 — AL 7 staff / 3 interns; excess AL must be No Pay Leave", ()
   });
 });
 
-describe("Rule 5 — part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026)", () => {
+describe("Rule 5 — part-time staff have no AL, MC, No Pay Leave or compassionate leave (Alfred, 24 Nov 2026)", () => {
   it("caps No Pay Leave at 0 for part-time staff, 14 for everyone else", () => {
     expect(nplAnnualCap(true)).toBe(0);
     expect(nplAnnualCap(false)).toBe(14);
@@ -152,9 +152,9 @@ describe("Rule 5 — part-time staff have no AL, MC or No Pay Leave (Alfred, 24 
     expect(isPartTimeEmployment("FULL_TIME")).toBe(false);
   });
 
-  it("blocks AL, every MC code and NPL, but not compassionate leave", () => {
-    for (const c of ["AL", "MC", "SL", "MEDICAL", "NPL"]) expect(partTimeHasNoLeave(c)).toBe(true);
-    expect(partTimeHasNoLeave("CL")).toBe(false);
+  it("blocks AL, every MC code, NPL and compassionate leave; not Off In Lieu", () => {
+    for (const c of ["AL", "MC", "SL", "MEDICAL", "NPL", "CL"]) expect(partTimeHasNoLeave(c)).toBe(true);
+    expect(partTimeHasNoLeave("AL_OT")).toBe(false);
   });
 });
 

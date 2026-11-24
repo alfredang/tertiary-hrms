@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
     const isMedical = isMedicalLeaveCode(leaveType?.code);
     const isNPL = leaveType?.code === NPL_CODE;
 
-    // Part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026).
+    // Part-time staff have no AL, MC, No Pay Leave or compassionate leave (Alfred, 24 Nov 2026).
     if (employee?.isPartTime && partTimeHasNoLeave(leaveType?.code)) {
       return NextResponse.json({ error: PART_TIME_NO_LEAVE_MESSAGE, code: "PART_TIME_NO_LEAVE" }, { status: 400 });
     }

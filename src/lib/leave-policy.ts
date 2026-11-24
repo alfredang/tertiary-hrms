@@ -22,8 +22,8 @@
  *     proration: the full 14 days are available from the first day (Alfred, 20 Nov 2026).
  *     A No Pay Leave day paid back by working an off day (approved payback) no longer
  *     counts as taken (src/lib/npl-payback.ts).
- *  5. Part-time staff (Employee.employmentType PART_TIME) have no annual leave, no MC and no
- *     No Pay Leave: all three are 0 (Alfred, 24 Nov 2026). Compassionate leave is unchanged.
+ *  5. Part-time staff (Employee.employmentType PART_TIME) have no annual leave, no MC, no
+ *     No Pay Leave and no compassionate leave: all are 0 (Alfred, 24 Nov 2026).
  *  4. Interns (roles exactly ["INTERN"]) have no paid MC — their sick leave is
  *     No Pay Leave.
  */
@@ -34,7 +34,7 @@ export const AL_DEFAULT_DAYS = 7;
 export const AL_INTERN_DEFAULT_DAYS = 3;
 export const NPL_ANNUAL_CAP_DAYS = 14;
 
-/** Part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026). */
+/** Part-time staff have no AL, MC, No Pay Leave or compassionate leave (Alfred, 24 Nov 2026). */
 export function isPartTimeEmployment(employmentType: string | null | undefined): boolean {
   return employmentType === "PART_TIME";
 }
@@ -44,13 +44,13 @@ export function nplAnnualCap(isPartTime: boolean | undefined): number {
   return isPartTime ? 0 : NPL_ANNUAL_CAP_DAYS;
 }
 
-/** Leave types a part-time staff member cannot apply for. */
+/** Leave types a part-time staff member cannot apply for: AL, MC, No Pay Leave, compassionate. */
 export function partTimeHasNoLeave(code: string | null | undefined): boolean {
-  return code === "AL" || code === NPL_CODE || isMedicalLeaveCode(code);
+  return code === "AL" || code === NPL_CODE || code === "CL" || isMedicalLeaveCode(code);
 }
 
 export const PART_TIME_NO_LEAVE_MESSAGE =
-  "Part-time staff have no annual leave, MC or No Pay Leave. Please speak to HR about time away from work.";
+  "Part-time staff have no annual leave, MC, No Pay Leave or compassionate leave. Please speak to HR about time away from work.";
 /** Share of the NPL cap at which admins get a "nearing the cap" alert. */
 export const NPL_WARN_RATIO = 0.8;
 
