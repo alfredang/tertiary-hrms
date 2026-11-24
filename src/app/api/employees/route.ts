@@ -2,6 +2,7 @@ import { disallowedRoles, roleRefusalMessage } from "@/lib/role-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { partTimeHasNoLeave } from "@/lib/leave-policy";
 import { createEmployeeSchema } from "@/lib/validations/employee";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
@@ -150,9 +151,12 @@ export async function POST(req: NextRequest) {
       const leaveTypes = await tx.leaveType.findMany();
       const currentYear = new Date().getFullYear();
       for (const lt of leaveTypes) {
-        // Interns use internDefaultDays when set; staff use defaultDays
-        const entitlement =
-          effectiveRole === "INTERN" && lt.internDefaultDays > 0
+        // Interns use internDefaultDays when set; staff use defaultDays.
+        // Part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026).
+        const partTime = effectiveRole !== "INTERN" && employmentInfo?.employmentType === "PART_TIME";
+        const entitlement = partTime && partTimeHasNoLeave(lt.code)
+          ? 0
+          : effectiveRole === "INTERN" && lt.internDefaultDays > 0
             ? lt.internDefaultDays
             : lt.defaultDays;
         await tx.leaveBalance.create({

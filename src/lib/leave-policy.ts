@@ -22,6 +22,8 @@
  *     proration: the full 14 days are available from the first day (Alfred, 20 Nov 2026).
  *     A No Pay Leave day paid back by working an off day (approved payback) no longer
  *     counts as taken (src/lib/npl-payback.ts).
+ *  5. Part-time staff (Employee.employmentType PART_TIME) have no annual leave, no MC and no
+ *     No Pay Leave: all three are 0 (Alfred, 24 Nov 2026). Compassionate leave is unchanged.
  *  4. Interns (roles exactly ["INTERN"]) have no paid MC — their sick leave is
  *     No Pay Leave.
  */
@@ -31,6 +33,24 @@ export const AL_DEFAULT_DAYS = 7;
 /** Intern AL days a year (LeaveType AL internDefaultDays). */
 export const AL_INTERN_DEFAULT_DAYS = 3;
 export const NPL_ANNUAL_CAP_DAYS = 14;
+
+/** Part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026). */
+export function isPartTimeEmployment(employmentType: string | null | undefined): boolean {
+  return employmentType === "PART_TIME";
+}
+
+/** Yearly No Pay Leave cap for a person: 14, or 0 for part-time staff. */
+export function nplAnnualCap(isPartTime: boolean | undefined): number {
+  return isPartTime ? 0 : NPL_ANNUAL_CAP_DAYS;
+}
+
+/** Leave types a part-time staff member cannot apply for. */
+export function partTimeHasNoLeave(code: string | null | undefined): boolean {
+  return code === "AL" || code === NPL_CODE || isMedicalLeaveCode(code);
+}
+
+export const PART_TIME_NO_LEAVE_MESSAGE =
+  "Part-time staff have no annual leave, MC or No Pay Leave. Please speak to HR about time away from work.";
 /** Share of the NPL cap at which admins get a "nearing the cap" alert. */
 export const NPL_WARN_RATIO = 0.8;
 

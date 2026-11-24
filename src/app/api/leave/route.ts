@@ -21,6 +21,8 @@ import {
   mcAnnualEntitlement,
   nplCapMessage,
   NPL_CODE,
+  PART_TIME_NO_LEAVE_MESSAGE,
+  partTimeHasNoLeave,
 } from "@/lib/leave-policy";
 import { getLeaveProfile, getNplStatus, newBalanceEntitlement } from "@/lib/leave-allowance";
 import { isDemoEmployee } from "@/lib/demo-guard";
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { leaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason, documentUrl, documentFileName, otDaysUsed } = validation.data;
+    const { leaveTypeId: requestedLeaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason: requestedReason, documentUrl, documentFileName, otDaysUsed } = validation.data;
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -118,20 +120,30 @@ export async function POST(req: NextRequest) {
       days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
-    const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
+    const requestedType = await prisma.leaveType.findUnique({ where: { id: requestedLeaveTypeId } });
     const employee = await getLeaveProfile(employeeId);
+
+    // Interns have no MC (0 days): an MC from an intern is filed as No Pay Leave automatically,
+    // the same as the web form does — for the apps too (Alfred, 24 Nov 2026).
+    const internSick = isMedicalLeaveCode(requestedType?.code) && !!employee?.isIntern;
+    const leaveType = internSick ? await prisma.leaveType.findUnique({ where: { code: NPL_CODE } }) : requestedType;
+    if (internSick && !leaveType) {
+      return NextResponse.json(
+        { error: INTERN_MC_MESSAGE, code: "INTERN_MC_NOT_PAID", suggestedLeaveTypeCode: NPL_CODE },
+        { status: 400 }
+      );
+    }
+    const leaveTypeId = leaveType?.id ?? requestedLeaveTypeId;
+    const reason = internSick ? `Sick leave (MC)${requestedReason ? ` — ${requestedReason}` : ""}` : requestedReason;
 
     const isAL = leaveType?.code === "AL";
     const isOT = leaveType?.code === "AL_OT";
     const isMedical = isMedicalLeaveCode(leaveType?.code);
     const isNPL = leaveType?.code === NPL_CODE;
 
-    // Interns have no paid MC — their sick leave is No Pay Leave.
-    if (isMedical && employee?.isIntern) {
-      return NextResponse.json(
-        { error: INTERN_MC_MESSAGE, code: "INTERN_MC_NOT_PAID", suggestedLeaveTypeCode: NPL_CODE },
-        { status: 400 }
-      );
+    // Part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026).
+    if (employee?.isPartTime && partTimeHasNoLeave(leaveType?.code)) {
+      return NextResponse.json({ error: PART_TIME_NO_LEAVE_MESSAGE, code: "PART_TIME_NO_LEAVE" }, { status: 400 });
     }
 
     const effectiveDayType = isAL ? (isSingleDay ? dayType : "FULL_DAY") : "FULL_DAY";
@@ -205,7 +217,7 @@ export async function POST(req: NextRequest) {
           employeeId,
           leaveTypeId,
           year: currentYear,
-          entitlement: await newBalanceEntitlement(employeeId, leaveType, currentYear, !!employee?.isIntern),
+          entitlement: await newBalanceEntitlement(employeeId, leaveType, currentYear, employee),
           used: 0,
           pending: 0,
           carriedOver: 0,
@@ -411,7 +423,8 @@ export async function POST(req: NextRequest) {
       console.error(`Failed to send leave approval email for ${leaveRequest.id}:`, err);
     }
 
-    return NextResponse.json(leaveRequest, { status: 201 });
+    // convertedToNpl: an intern's MC was filed as No Pay Leave (additive field for the apps).
+    return NextResponse.json(internSick ? { ...leaveRequest, convertedToNpl: true } : leaveRequest, { status: 201 });
   } catch (error) {
     console.error("Error creating leave request:", error);
     const msg = error instanceof Error ? error.message : String(error);

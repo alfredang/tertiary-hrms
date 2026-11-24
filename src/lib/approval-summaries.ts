@@ -68,13 +68,13 @@ export function buildLeaveSummary(args: {
     if (b.leaveType.paid) paidTaken += used;
     if (code === "AL") {
       alBalance = available;
-      al = { yearly: Number(b.entitlement ?? 0) || b.leaveType.defaultDays, earned: proRated ?? 0, taken: used, pending,
+      al = { yearly: Number(b.entitlement ?? 0), earned: proRated ?? 0, taken: used, pending,
         carried: Number(b.carriedOver ?? 0) };
     }
     if (isMedicalLeaveCode(code)) {
       mcTaken += used;
       mcBalance = (mcBalance ?? 0) + available;
-      mc = { yearly: mc.yearly + (Number(b.entitlement ?? 0) || b.leaveType.defaultDays), earned: mc.earned + (proRated ?? 0),
+      mc = { yearly: mc.yearly + Number(b.entitlement ?? 0), earned: mc.earned + (proRated ?? 0),
         pending: mc.pending + pending };
     }
 

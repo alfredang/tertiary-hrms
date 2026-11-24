@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   AL_DEFAULT_DAYS,
   AL_INTERN_DEFAULT_DAYS,
+  isPartTimeEmployment,
+  nplAnnualCap,
+  partTimeHasNoLeave,
   NPL_ANNUAL_CAP_DAYS,
   alApprovalShortfall,
   applyLeaveCap,
@@ -138,6 +141,20 @@ describe("Rule 2 — AL 7 staff / 3 interns; excess AL must be No Pay Leave", ()
     expect(prorateByMonths(7, 11)).toBe(6);
     expect(prorateByMonths(7, 12)).toBe(7);
     expect(prorateByMonths(7, 1)).toBe(0);
+  });
+});
+
+describe("Rule 5 — part-time staff have no AL, MC or No Pay Leave (Alfred, 24 Nov 2026)", () => {
+  it("caps No Pay Leave at 0 for part-time staff, 14 for everyone else", () => {
+    expect(nplAnnualCap(true)).toBe(0);
+    expect(nplAnnualCap(false)).toBe(14);
+    expect(isPartTimeEmployment("PART_TIME")).toBe(true);
+    expect(isPartTimeEmployment("FULL_TIME")).toBe(false);
+  });
+
+  it("blocks AL, every MC code and NPL, but not compassionate leave", () => {
+    for (const c of ["AL", "MC", "SL", "MEDICAL", "NPL"]) expect(partTimeHasNoLeave(c)).toBe(true);
+    expect(partTimeHasNoLeave("CL")).toBe(false);
   });
 });
 

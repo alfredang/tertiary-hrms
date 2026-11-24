@@ -43,7 +43,7 @@ export function leaveBalanceAvailable(
     available = n(b.earned) - used - n(b.autoDeducted) - pending;
   } else if (code === "AL") {
     const amounts = annualLeaveAmounts(
-      { entitlement: entitlement || b.leaveType.defaultDays, carriedOver, used, pending,
+      { entitlement, carriedOver, used, pending,
         recordedEarned: n(b.earned), periodStart: b.periodStart, periodEnd: b.periodEnd },
       profile,
       asOf,

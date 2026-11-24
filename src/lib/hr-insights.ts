@@ -5,7 +5,8 @@ import {
   isInternRoles,
   isMedicalLeaveCode,
   mcAnnualEntitlement,
-  NPL_ANNUAL_CAP_DAYS,
+  isPartTimeEmployment,
+  nplAnnualCap,
   NPL_CODE,
 } from "@/lib/leave-policy";
 import {
@@ -219,7 +220,7 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
     getPaidBackDaysByEmployee(year),
     prisma.employee.findMany({
       where: { status: "ACTIVE" },
-      select: { id: true, name: true, employeeId: true, startDate: true, endDate: true, monthlyLeaveRate: true, user: { select: { roles: true } } },
+      select: { id: true, name: true, employeeId: true, startDate: true, endDate: true, monthlyLeaveRate: true, employmentType: true, user: { select: { roles: true } } },
       orderBy: { name: "asc" },
     }),
     prisma.leaveRequest.findMany({
@@ -282,7 +283,7 @@ export async function getLeaveOverview(now: Date = new Date()): Promise<PersonOv
         pending: sum((r) => isMedicalLeaveCode(r.leaveType.code) && r.status === "PENDING"),
       },
       npl: {
-        cap: NPL_ANNUAL_CAP_DAYS,
+        cap: nplAnnualCap(isPartTimeEmployment(e.employmentType)),
         // Net of the days paid back by working an off day, the same figure the person sees.
         used: Math.max(0, sum((r) => r.leaveType.code === NPL_CODE && r.status === "APPROVED") - (paidBackByEmployee.get(e.id) ?? 0)),
         pending: sum((r) => r.leaveType.code === NPL_CODE && r.status === "PENDING"),

@@ -10,6 +10,7 @@ const { mockPrisma, mockAuth, state } = vi.hoisted(() => {
     startDate: new Date("2026-09-01T00:00:00.000Z"),
     balance: { entitlement: 7, used: 0, pending: 0, carriedOver: 0, earned: 0, autoDeducted: 0 },
     nplRows: [] as Array<{ days: number; status: string }>,
+    employmentType: "FULL_TIME" as string,
   };
   return {
     state,
@@ -57,6 +58,7 @@ beforeEach(() => {
   state.startDate = new Date("2026-09-01T00:00:00.000Z");
   state.balance = { entitlement: 7, used: 0, pending: 0, carriedOver: 0, earned: 0, autoDeducted: 0 };
   state.nplRows = [];
+  state.employmentType = "FULL_TIME";
 
   mockAuth.mockResolvedValue({ user: { id: "u1", role: "STAFF", employeeId: "emp1" } });
   mockPrisma.publicHoliday.findMany.mockResolvedValue([]);
@@ -67,6 +69,7 @@ beforeEach(() => {
     startDate: state.startDate,
     endDate: null,
     monthlyLeaveRate: null,
+    employmentType: state.employmentType,
     user: { roles: state.roles },
   }));
   mockPrisma.leaveRequest.findMany.mockImplementation(async (args: { where?: { leaveType?: { code?: string } } }) =>
@@ -215,13 +218,28 @@ describe("Rule 4 — interns have no paid MC", () => {
     state.balance = { ...state.balance, entitlement: 14 };
   });
 
-  it("rejects an MC from an intern (roles exactly [INTERN]) and points to NPL", async () => {
+  it("files an MC from an intern (roles exactly [INTERN]) as No Pay Leave automatically", async () => {
     state.roles = ["INTERN"];
-    const res = await submitLeave(req(ONE_DAY));
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.code).toBe("INTERN_MC_NOT_PAID");
-    expect(body.suggestedLeaveTypeCode).toBe("NPL");
+    mockPrisma.leaveType.findUnique.mockImplementation(async (args: { where: { code?: string } }) => args.where.code === "NPL"
+      ? { id: "npl", code: "NPL", name: "No Pay Leave", defaultDays: 14 }
+      : { id: "lt", code: "MC", name: "Medical Leave", defaultDays: 14 });
+    const res = await submitLeave(req({ ...ONE_DAY, reason: "fever" }));
+    expect(res.status).toBe(201);
+    expect((await res.json()).convertedToNpl).toBe(true);
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      leaveTypeId: "npl", days: 1, reason: "Sick leave (MC) — fever",
+    }) }));
+  });
+
+  it("refuses AL, MC and No Pay Leave from part-time staff (Alfred, 24 Nov 2026)", async () => {
+    state.employmentType = "PART_TIME";
+    for (const code of ["AL", "MC", "NPL"]) {
+      state.leaveTypeCode = code;
+      const res = await submitLeave(req(ONE_DAY));
+      expect(res.status).toBe(400);
+      expect((await res.json()).code).toBe("PART_TIME_NO_LEAVE");
+    }
+    expect(mockPrisma.leaveRequest.create).not.toHaveBeenCalled();
   });
 
   it("does not treat an admin who also holds INTERN as an intern", async () => {
