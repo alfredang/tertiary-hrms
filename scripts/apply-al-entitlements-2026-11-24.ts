@@ -13,9 +13,9 @@ config({ path: ".env", quiet: true });
 
 const STAFF_DAYS = 7;
 const INTERN_DAYS = 3;
-// Own yearly days: Amanda, Femina 7; Jyoti Chopra 18; Tan Woei Ming, Ang See Siang, Deepa Arumugam,
-// Choy Woon Chao (Danny) 12.
-const OWN_DAYS: Record<string, number> = { I0002: 7, I0004: 7, E0005: 18, E0010: 12, E0014: 12, E10001: 12, E10000: 12 };
+// Own yearly days: Amanda, Femina 7; Alfred Ang, Tan Soik Ching, Jyoti Chopra 18; Tan Woei Ming,
+// Ang See Siang, Deepa Arumugam, Choy Woon Chao (Danny) 12. Part-time staff: 0.
+const OWN_DAYS: Record<string, number> = { I0002: 7, I0004: 7, E0001: 18, E0002: 18, E0005: 18, E0010: 12, E0014: 12, E10001: 12, E10000: 12 };
 
 async function main() {
   const { prisma } = await import("../src/lib/prisma");
@@ -28,7 +28,7 @@ async function main() {
   console.log(`AL type: defaultDays ${al.defaultDays} → ${STAFF_DAYS}, internDefaultDays ${al.internDefaultDays} → ${INTERN_DAYS}`);
   const employees = await prisma.employee.findMany({
     where: { status: "ACTIVE" },
-    select: { id: true, employeeId: true, name: true, startDate: true, endDate: true, monthlyLeaveRate: true, user: { select: { roles: true } },
+    select: { id: true, employeeId: true, name: true, startDate: true, endDate: true, monthlyLeaveRate: true, employmentType: true, user: { select: { roles: true } },
       leaveBalances: { where: { leaveTypeId: al.id, OR: [{ year }, { periodStart: { not: null } }] } } },
     orderBy: { employeeId: "asc" },
   });
@@ -36,7 +36,7 @@ async function main() {
   const rows: string[] = [];
   for (const e of employees) {
     const intern = isInternRoles(e.user?.roles);
-    const days = OWN_DAYS[e.employeeId] ?? (intern ? INTERN_DAYS : STAFF_DAYS);
+    const days = e.employmentType === "PART_TIME" ? 0 : OWN_DAYS[e.employeeId] ?? (intern ? INTERN_DAYS : STAFF_DAYS);
     const b = e.leaveBalances[0];
     const profile = { startDate: e.startDate, endDate: e.endDate, monthlyLeaveRate: e.monthlyLeaveRate != null ? Number(e.monthlyLeaveRate) : null };
     const amt = (ent: number, contract: boolean) => b ? annualLeaveAmounts({ entitlement: ent, used: Number(b.used), pending: Number(b.pending),
