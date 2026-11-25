@@ -8,6 +8,12 @@ import { Plus, FolderOpen } from "lucide-react";
 import { buildFolderWebUrl, getEmployeeSubfolderId } from "@/lib/drive";
 import { hasAdminAccess } from "@/lib/utils";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import {
+  canViewCpfSubmissions,
+  cpfDownloadPath,
+  cpfFileForPayslip,
+  listCpfSubmissionFiles,
+} from "@/lib/cpf-submission-files";
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +43,7 @@ export default async function PayrollPage() {
   const viewMode = await getViewMode();
 
   let role = "STAFF";
+  let roles: string[] = [];
   let currentEmployeeId: string | undefined;
 
   if (isDevAuthSkipped()) {
@@ -51,6 +58,7 @@ export default async function PayrollPage() {
       return null;
     }
     role = session.user.role;
+    roles = session.user.roles ?? [];
     currentEmployeeId = session.user.employeeId;
   }
 
@@ -71,6 +79,21 @@ export default async function PayrollPage() {
   }
 
   const payslips = await getPayslips(filterByEmployeeId);
+
+  // Finance view: each payslip links to the CPF statement it was generated from.
+  // Never in the staff view — the statement lists everyone's NRIC and wages.
+  const cpfLinks: Record<string, { path: string; name: string }> = {};
+  if (isFinanceView && (isDevAuthSkipped() || canViewCpfSubmissions(role, roles))) {
+    try {
+      const files = await listCpfSubmissionFiles();
+      for (const p of payslips) {
+        const f = cpfFileForPayslip(p, files);
+        if (f) cpfLinks[p.id] = { path: cpfDownloadPath(f.id), name: f.name };
+      }
+    } catch (err) {
+      console.error("CPF statement lookup for payroll failed:", err);
+    }
+  }
 
   let payrollFolderUrl: string | null = null;
   if (!isFinanceView && currentEmployeeId) {
@@ -114,7 +137,7 @@ export default async function PayrollPage() {
         )}
       </div>
 
-      <PayrollList payslips={payslips} isHR={isFinanceView} />
+      <PayrollList payslips={payslips} isHR={isFinanceView} cpfLinks={cpfLinks} />
     </div>
   );
 }

@@ -24,6 +24,8 @@ const BodySchema = z.object({
   rows: z.array(RowSchema).min(1),
   /** Overwrite payslips that already exist for the period. */
   overwrite: z.boolean().optional().default(false),
+  /** Drive id of the archived statement (parse route), stored on each payslip. */
+  cpfSubmissionFileId: z.string().regex(/^[A-Za-z0-9_-]{10,}$/).nullish(),
 });
 
 async function isAuthorized(): Promise<boolean> {
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    const { month, year, rows, overwrite } = parsed.data;
+    const { month, year, rows, overwrite, cpfSubmissionFileId } = parsed.data;
 
     const payPeriodStart = new Date(year, month - 1, 1);
     const payPeriodEnd = new Date(year, month, 0);
@@ -106,6 +108,13 @@ export async function POST(req: NextRequest) {
           totalDeductions,
           netSalary,
           status: "GENERATED" as const,
+          cpfSubmissionFileId: cpfSubmissionFileId ?? null,
+          // Figures as filed with the CPF Board: the month-end rule never touches it.
+          source: "CPF",
+          unpaidLeaveDays: 0,
+          unpaidLeaveDeduction: 0,
+          paybackDays: 0,
+          paybackAmount: 0,
         };
 
         const existing = await prisma.payslip.findUnique({

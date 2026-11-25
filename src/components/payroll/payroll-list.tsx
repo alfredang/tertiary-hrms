@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, Calendar, Download, Pencil, X, RefreshCw, Loader2, Mail } from "lucide-react";
+import { Search, Calendar, Download, Pencil, X, RefreshCw, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { PayslipStatus } from "@prisma/client";
@@ -43,6 +43,8 @@ interface Payslip {
 interface PayrollListProps {
   payslips: Payslip[];
   isHR: boolean;
+  /** payslip id → download path of the CPF statement it was built from (admin/accountant only). */
+  cpfLinks?: Record<string, { path: string; name: string }>;
 }
 
 const statusColors: Record<PayslipStatus, string> = {
@@ -60,7 +62,7 @@ function formatPayPeriod(date: Date): string {
 
 const PAGE_SIZE = 50;
 
-export function PayrollList({ payslips, isHR }: PayrollListProps) {
+export function PayrollList({ payslips, isHR, cpfLinks = {} }: PayrollListProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [editing, setEditing] = useState<Payslip | null>(null);
@@ -245,6 +247,14 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
                   <Download className="h-3 w-3 mr-1" />
                   Download Payslip
                 </Button>
+                {cpfLinks[payslip.id] && (
+                  <a href={cpfLinks[payslip.id].path} download={cpfLinks[payslip.id].name} className="block">
+                    <Button variant="outline" size="sm" className="w-full h-8 text-xs">
+                      <ShieldCheck className="h-3 w-3 mr-1" />
+                      CPF Statement
+                    </Button>
+                  </a>
+                )}
               </div>
             ))}
             {filteredPayslips.length === 0 && (
@@ -300,6 +310,18 @@ export function PayrollList({ payslips, isHR }: PayrollListProps) {
                           <Download className="h-4 w-4 mr-1" />
                           Payslip
                         </Button>
+                        {cpfLinks[payslip.id] && (
+                          <a
+                            href={cpfLinks[payslip.id].path}
+                            download={cpfLinks[payslip.id].name}
+                            title={`CPF statement: ${cpfLinks[payslip.id].name}`}
+                          >
+                            <Button variant="outline" size="sm" className="h-8 px-3 text-sm">
+                              <ShieldCheck className="h-4 w-4 mr-1" />
+                              CPF
+                            </Button>
+                          </a>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"

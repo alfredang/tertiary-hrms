@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { calculatePayroll, prorateMonthlySalary } from "@/lib/cpf-calculator";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
+import { refreshBaseSalaryPayslip } from "@/lib/payroll-month-end";
 
 // Update salary info for a staff (non-intern) employee.
 // Accepts partial fields; keeps existing values for anything not supplied.
-// On save, regenerates the current-month payslip and replaces the Drive PDF.
+// On save, re-works the current month's base-salary payslip, if there is one (never a CPF one).
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -64,82 +63,11 @@ export async function PUT(
     update: next,
   });
 
-  // Auto-regenerate current-month payslip if employee is active for this period
+  // Payslip rule (Alfred, 26 Nov 2026; src/lib/payroll-month-end.ts): a salary change re-works the
+  // current month's payslip only if it was made from base salary (with leave, paybacks and, for
+  // interns, no CPF). It never touches a CPF-statement payslip and never creates one mid-month:
+  // the month-end run makes it once the month is over.
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const payPeriodStart = new Date(year, month - 1, 1);
-  const payPeriodEnd = new Date(year, month, 0);
-  const paymentDate = new Date(year, month - 1, 28);
-
-  const startedBefore = employee.startDate ? new Date(employee.startDate) <= payPeriodEnd : true;
-  const endedAfter = employee.endDate ? new Date(employee.endDate) >= payPeriodStart : true;
-  if (!startedBefore || !endedAfter || !employee.dateOfBirth) {
-    return NextResponse.json({ ok: true, payslipUpdated: false });
-  }
-
-  let proratedBasic = next.basicSalary;
-  let proratedAllow = next.allowances;
-  if (employee.startDate) {
-    const startD = new Date(employee.startDate);
-    const endD = employee.endDate ? new Date(employee.endDate) : new Date(8640000000000000);
-    if (startD > payPeriodStart || endD < payPeriodEnd) {
-      proratedBasic = prorateMonthlySalary(next.basicSalary, startD, endD, payPeriodStart, payPeriodEnd).amount;
-      proratedAllow = prorateMonthlySalary(next.allowances, startD, endD, payPeriodStart, payPeriodEnd).amount;
-    }
-  }
-
-  const payroll = calculatePayroll(
-    proratedBasic,
-    proratedAllow,
-    employee.dateOfBirth,
-    0, 0, 0, 0,
-    { cpfApplicable: next.cpfApplicable },
-  );
-
-  const existingPayslip = await prisma.payslip.findUnique({
-    where: {
-      employeeId_payPeriodStart_payPeriodEnd: {
-        employeeId: id, payPeriodStart, payPeriodEnd,
-      },
-    },
-  });
-
-  let payslipId: string;
-  const data = {
-    paymentDate,
-    basicSalary: payroll.basicSalary,
-    allowances: payroll.allowances,
-    overtime: 0, bonus: 0,
-    grossSalary: payroll.grossSalary,
-    cpfEmployee: payroll.cpfEmployee,
-    cpfEmployer: payroll.cpfEmployer,
-    incomeTax: 0,
-    otherDeductions: 0,
-    totalDeductions: payroll.totalDeductions,
-    netSalary: payroll.netSalary,
-    status: "GENERATED" as const,
-  };
-  if (existingPayslip) {
-    const updated = await prisma.payslip.update({ where: { id: existingPayslip.id }, data });
-    payslipId = updated.id;
-  } else {
-    const created = await prisma.payslip.create({
-      data: {
-        id: `ps_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        employeeId: id,
-        payPeriodStart, payPeriodEnd,
-        ...data,
-      },
-    });
-    payslipId = created.id;
-  }
-
-  try {
-    await uploadPayslipToDrive(payslipId);
-  } catch (err) {
-    console.error(`Drive upload failed for staff payslip ${payslipId}:`, err);
-  }
-
-  return NextResponse.json({ ok: true, payslipUpdated: true, payslipId });
+  const refresh = await refreshBaseSalaryPayslip(id, now.getMonth() + 1, now.getFullYear());
+  return NextResponse.json({ ok: true, ...refresh });
 }

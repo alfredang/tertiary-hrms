@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
     // is written — the filed statement must be on record, so a failed archive
     // stops the run.
     let driveWebViewLink: string | null = null;
+    let driveFileId: string | null = null;
     try {
       const uploaded = await uploadPdfToFolder(
         CPF_SUBMISSION_FOLDER_ID,
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
         { replaceByName: true },
       );
       driveWebViewLink = uploaded.webViewLink;
+      driveFileId = uploaded.id;
     } catch (err) {
       console.error("CPF statement Drive upload failed:", err);
       return NextResponse.json(
@@ -132,6 +134,8 @@ export async function POST(req: NextRequest) {
       },
       rows,
       driveWebViewLink,
+      // Recorded on every payslip written from this statement (apply route).
+      driveFileId,
     });
   } catch (error) {
     console.error("Error parsing CPF submission:", error);

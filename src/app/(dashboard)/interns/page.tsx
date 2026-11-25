@@ -6,6 +6,7 @@ import { getViewMode } from "@/lib/view-mode";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { isInternRoles } from "@/lib/leave-policy";
+import { latestPaySummaries } from "@/lib/pay-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function InternsPage() {
   ]);
   const interns = everyone.filter((e) => isInternRoles(e.user?.roles));
   const active = interns.filter((e) => e.status === "ACTIVE" || e.status === "ON_LEAVE").length;
+  const pay = await latestPaySummaries(interns.map((e) => e.id));
 
   return (
     <div className="space-y-6">
@@ -31,7 +33,7 @@ export default async function InternsPage() {
         <p className="text-sm sm:text-base text-gray-400 mt-1">{active} active · {interns.length - active} past</p>
       </div>
 
-      <EmployeeList employees={interns} departments={departments} isAdmin kind="intern" />
+      <EmployeeList employees={interns} departments={departments} isAdmin kind="intern" pay={pay} />
     </div>
   );
 }

@@ -22,17 +22,25 @@ interface PayslipData {
   remarks?: string | null;
   titleTemplate?: string | null;
   headerNote?: string | null;
+  /** Interns have no CPF: the payslip says so instead of showing CPF figures. */
+  intern?: boolean;
   earnings: {
     basicSalary: number;
     allowances: number;
     overtime: number;
     bonus: number;
+    /** Approved paybacks (off days worked) added back this month. */
+    paybackDays?: number;
+    paybackAmount?: number;
     gross: number;
   };
   deductions: {
     cpfEmployee: number;
     incomeTax: number;
     other: number;
+    /** Unpaid days taken this month: No Pay Leave (and MC for interns). */
+    unpaidLeaveDays?: number;
+    unpaidLeaveAmount?: number;
     total: number;
   };
   cpf: {
@@ -48,6 +56,12 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function formatDays(days: number, amount?: number): string {
+  const label = `${days} day${days === 1 ? "" : "s"}`;
+  // Show the day rate so the line explains itself: "5 days × 45.45".
+  return amount && days ? `${label} × ${formatCurrency(amount / days)}` : label;
 }
 
 function formatDate(date: Date): string {
@@ -144,9 +158,15 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
     head: [["Earnings", "Amount (SGD)"]],
     body: [
       ["Basic Salary", formatCurrency(data.earnings.basicSalary)],
-      ["Allowances", formatCurrency(data.earnings.allowances)],
+      [data.intern ? "Monthly Allowance (flat)" : "Allowances", formatCurrency(data.earnings.allowances)],
       ["Overtime", formatCurrency(data.earnings.overtime)],
       ["Bonus", formatCurrency(data.earnings.bonus)],
+      ...(data.earnings.paybackDays
+        ? [[
+            `Add back: payback, off days worked (${formatDays(data.earnings.paybackDays, data.earnings.paybackAmount)})`,
+            `+ ${formatCurrency(data.earnings.paybackAmount ?? 0)}`,
+          ]]
+        : []),
       [
         { content: "Gross Salary", styles: { fontStyle: "bold" } },
         {
@@ -170,7 +190,15 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
     startY: deductionsY,
     head: [["Deductions", "Amount (SGD)"]],
     body: [
-      ["CPF (Employee)", formatCurrency(data.deductions.cpfEmployee)],
+      data.intern
+        ? ["CPF (Employee): none, interns have no CPF", formatCurrency(0)]
+        : ["CPF (Employee)", formatCurrency(data.deductions.cpfEmployee)],
+      ...(data.deductions.unpaidLeaveDays
+        ? [[
+            `${data.intern ? "MC / No Pay Leave" : "No Pay Leave"} (${formatDays(data.deductions.unpaidLeaveDays, data.deductions.unpaidLeaveAmount)})`,
+            `- ${formatCurrency(data.deductions.unpaidLeaveAmount ?? 0)}`,
+          ]]
+        : []),
       ["Income Tax", formatCurrency(data.deductions.incomeTax)],
       ["Other Deductions", formatCurrency(data.deductions.other)],
       [
@@ -195,17 +223,19 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
   autoTable(doc, {
     startY: cpfY,
     head: [["CPF Contributions", "Amount (SGD)"]],
-    body: [
-      ["Employee Contribution (20%)", formatCurrency(data.cpf.employee)],
-      ["Employer Contribution (17%)", formatCurrency(data.cpf.employer)],
-      [
-        { content: "Total CPF", styles: { fontStyle: "bold" } },
-        {
-          content: formatCurrency(data.cpf.total),
-          styles: { fontStyle: "bold" },
-        },
-      ],
-    ],
+    body: data.intern
+      ? [["No CPF: interns are not CPF members (employee 0.00, employer 0.00)", formatCurrency(0)]]
+      : [
+          ["Employee Contribution", formatCurrency(data.cpf.employee)],
+          ["Employer Contribution", formatCurrency(data.cpf.employer)],
+          [
+            { content: "Total CPF", styles: { fontStyle: "bold" } },
+            {
+              content: formatCurrency(data.cpf.total),
+              styles: { fontStyle: "bold" },
+            },
+          ],
+        ],
     theme: "grid",
     headStyles: { fillColor: [59, 130, 246], fontSize: 10 },
     styles: { fontSize: 9 },

@@ -6,6 +6,7 @@ import { getViewMode } from "@/lib/view-mode";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
 import { isInternRoles } from "@/lib/leave-policy";
+import { latestPaySummaries } from "@/lib/pay-summary";
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +83,8 @@ export default async function EmployeesPage() {
   ]);
 
   const active = employees.filter((e) => e.status === "ACTIVE" || e.status === "ON_LEAVE").length;
+  // Pay figures are for the admin view only.
+  const pay = viewAs === "admin" ? await latestPaySummaries(employees.map((e) => e.id)) : undefined;
 
   return (
     <div className="space-y-6">
@@ -94,7 +97,7 @@ export default async function EmployeesPage() {
         </p>
       </div>
 
-      <EmployeeList employees={employees} departments={departments} isAdmin={viewAs === "admin"} kind="staff" />
+      <EmployeeList employees={employees} departments={departments} isAdmin={viewAs === "admin"} kind="staff" pay={pay} />
     </div>
   );
 }

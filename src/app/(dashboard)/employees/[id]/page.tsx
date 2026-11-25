@@ -14,6 +14,8 @@ import { AdminOtLogPanel } from "@/components/employees/admin-ot-log-panel";
 import { LeaveBalanceEditDialog } from "@/components/employees/leave-balance-edit-dialog";
 import { ResetPasswordButton } from "@/components/employees/reset-password-button";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { LatestPayslipCard } from "@/components/employees/latest-payslip-card";
+import { latestPaySummaries } from "@/lib/pay-summary";
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +117,7 @@ export default async function EmployeeDetailPage({
 
   // Admins can edit any record regardless of which view they're in
   const canEdit = isAdmin;
+  const latestPay = isAdmin ? (await latestPaySummaries([employee.id]))[employee.id] : undefined;
 
   return (
     <div className="space-y-6">
@@ -152,6 +155,9 @@ export default async function EmployeeDetailPage({
             hasSalaryInfo={!!employee.salaryInfo}
           />
         )}
+
+        {/* Latest payslip: gross, CPF breakdown (interns: none), unpaid leave, take-home. Admin only. */}
+        {isAdmin && <LatestPayslipCard summary={latestPay} intern={employee.employmentType === "INTERN"} />}
 
         {/* Managers — admin can add / remove via the card */}
         <ManagersCard

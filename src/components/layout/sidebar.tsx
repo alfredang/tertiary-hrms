@@ -42,6 +42,7 @@ import {
   GraduationCap,
   Scale,
   RotateCcw,
+  FileText,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -53,6 +54,7 @@ type Child = {
   children?: Grandchild[];
   external?: boolean;
   adminOnly?: true;
+  financeOnly?: true; // admin view, accountant view, or a real ACCOUNTANT
   exact?: true; // match the route exactly instead of by prefix
 };
 type NavItem = {
@@ -163,6 +165,7 @@ const navigationGroups: NavGroup[] = [
         children: [
           { name: "Payroll", href: "/payroll", icon: DollarSign, exact: true as const },
           { name: "Upload CPF", href: "/payroll/generate", icon: ShieldCheck, adminOnly: true as const },
+          { name: "CPF Submissions", href: "/payroll/cpf-submissions", icon: FileText, financeOnly: true as const },
         ],
       },
     ],
@@ -360,6 +363,7 @@ export function Sidebar({
                       pathname={pathname}
                       collapsed={collapsed}
                       isAdmin={isAdmin}
+                      canSeeFinance={canSeeFinance}
                     />
                   ))}
               </Fragment>
@@ -386,15 +390,19 @@ function TopLevelNavItem({
   pathname,
   collapsed,
   isAdmin,
+  canSeeFinance,
 }: {
   item: NavItem;
   pathname: string;
   collapsed: boolean;
   isAdmin: boolean;
+  canSeeFinance: boolean;
 }) {
   // Children may be admin-gated (e.g. Upload CPF). Drop hidden ones up front so
   // the expand chevron disappears too when nothing is left to show.
-  const visibleChildren = item.children?.filter((c) => !c.adminOnly || isAdmin);
+  const visibleChildren = item.children?.filter(
+    (c) => (!c.adminOnly || isAdmin) && (!c.financeOnly || canSeeFinance),
+  );
   const children = visibleChildren && visibleChildren.length > 0 ? visibleChildren : undefined;
   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
   const [manuallyOpen, setManuallyOpen] = useState<boolean | null>(null);

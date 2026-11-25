@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { CpfSubmissionUpload } from "@/components/payroll/cpf-submission-upload";
+import { CpfSubmissionHistory } from "@/components/payroll/cpf-submission-history";
 import { DollarSign, Loader2, Upload, FileSpreadsheet, X } from "lucide-react";
 
 const MONTHS = [
@@ -35,6 +36,8 @@ interface GenerateResult {
   created: number;
   skipped: number;
   errors: number;
+  staffNotOnCpf?: string[];
+  problems?: string[];
 }
 
 export default function ProcessPayrollPage() {
@@ -45,6 +48,7 @@ export default function ProcessPayrollPage() {
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [generateResult, setGenerateResult] = useState<GenerateResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [cpfListKey, setCpfListKey] = useState(0);
 
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
@@ -195,7 +199,8 @@ export default function ProcessPayrollPage() {
       </Card>
 
       {/* CPF Submission PDF */}
-      <CpfSubmissionUpload />
+      <CpfSubmissionUpload onProcessed={() => setCpfListKey((k) => k + 1)} />
+      <CpfSubmissionHistory refreshKey={cpfListKey} />
 
       {/* Excel Upload */}
       <Card className="bg-gray-950 border-gray-800">
@@ -311,8 +316,10 @@ export default function ProcessPayrollPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-400">
-            Auto-generate payslips using each employee&apos;s salary info and CPF rates.
-            This will skip employees who already have a payslip for this period.
+            Payslips come from the CPF statement when it is uploaded. If no CPF statement is
+            uploaded by the end of the month, payslips are made from each person&apos;s base
+            salary (this also runs by itself on the 1st). Interns have no CPF, so they are always
+            paid from base salary. People who already have a payslip are skipped.
           </p>
 
           <Button
@@ -351,6 +358,18 @@ export default function ProcessPayrollPage() {
                   <p className="text-red-400 font-bold text-lg">{generateResult.errors}</p>
                 </div>
               </div>
+              {!!generateResult.staffNotOnCpf?.length && (
+                <p className="text-xs text-amber-400">
+                  Not on the CPF statement (no payslip made): {generateResult.staffNotOnCpf.join(", ")}
+                </p>
+              )}
+              {!!generateResult.problems?.length && (
+                <div className="text-xs text-red-400 space-y-1">
+                  {generateResult.problems.map((p, i) => (
+                    <p key={i}>{p}</p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

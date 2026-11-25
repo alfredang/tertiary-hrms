@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { calculatePayroll, prorateMonthlySalary } from "@/lib/cpf-calculator";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
+import { refreshBaseSalaryPayslip } from "@/lib/payroll-month-end";
 
 export async function PUT(
   req: NextRequest,
@@ -63,98 +62,11 @@ export async function PUT(
     },
   });
 
-  // Auto-generate / refresh the current-month payslip.
-  // Skip if intern isn't active during this period (hasn't started, or already ended).
+  // Payslip rule (Alfred, 26 Nov 2026; src/lib/payroll-month-end.ts): a salary change re-works the
+  // current month's payslip only if it was made from base salary (with leave, paybacks and, for
+  // interns, no CPF). It never touches a CPF-statement payslip and never creates one mid-month:
+  // the month-end run makes it once the month is over.
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const payPeriodStart = new Date(year, month - 1, 1);
-  const payPeriodEnd = new Date(year, month, 0);
-  const paymentDate = new Date(year, month - 1, 28);
-
-  const startedBefore = employee.startDate ? new Date(employee.startDate) <= payPeriodEnd : true;
-  const endedAfter = employee.endDate ? new Date(employee.endDate) >= payPeriodStart : true;
-  if (!startedBefore || !endedAfter || !employee.dateOfBirth) {
-    return NextResponse.json({ ok: true, payslipUpdated: false });
-  }
-
-  // Prorate allowance if intern started mid-month or ends mid-month.
-  let proratedAllowance = allowance;
-  if (employee.startDate) {
-    const startD = new Date(employee.startDate);
-    const endD = employee.endDate ? new Date(employee.endDate) : new Date(8640000000000000);
-    if (startD > payPeriodStart || endD < payPeriodEnd) {
-      proratedAllowance = prorateMonthlySalary(
-        allowance, startD, endD, payPeriodStart, payPeriodEnd,
-      ).amount;
-    }
-  }
-
-  // Compute payroll with cpfApplicable=false so CPF rows are 0.
-  const payroll = calculatePayroll(
-    0,
-    proratedAllowance,
-    employee.dateOfBirth,
-    0, 0, 0, 0,
-    { cpfApplicable: false },
-  );
-
-  const existing = await prisma.payslip.findUnique({
-    where: {
-      employeeId_payPeriodStart_payPeriodEnd: {
-        employeeId: id, payPeriodStart, payPeriodEnd,
-      },
-    },
-  });
-
-  let payslipId: string;
-  if (existing) {
-    const updated = await prisma.payslip.update({
-      where: { id: existing.id },
-      data: {
-        paymentDate,
-        basicSalary: 0,
-        allowances: payroll.allowances,
-        overtime: 0, bonus: 0,
-        grossSalary: payroll.grossSalary,
-        cpfEmployee: 0,
-        cpfEmployer: 0,
-        incomeTax: 0,
-        otherDeductions: 0,
-        totalDeductions: 0,
-        netSalary: payroll.netSalary,
-        status: "GENERATED",
-      },
-    });
-    payslipId = updated.id;
-  } else {
-    const created = await prisma.payslip.create({
-      data: {
-        id: `ps_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        employeeId: id,
-        payPeriodStart, payPeriodEnd, paymentDate,
-        basicSalary: 0,
-        allowances: payroll.allowances,
-        overtime: 0, bonus: 0,
-        grossSalary: payroll.grossSalary,
-        cpfEmployee: 0,
-        cpfEmployer: 0,
-        incomeTax: 0,
-        otherDeductions: 0,
-        totalDeductions: 0,
-        netSalary: payroll.netSalary,
-        status: "GENERATED",
-      },
-    });
-    payslipId = created.id;
-  }
-
-  // Upload to Drive (best-effort)
-  try {
-    await uploadPayslipToDrive(payslipId);
-  } catch (err) {
-    console.error(`Drive upload failed for intern payslip ${payslipId}:`, err);
-  }
-
-  return NextResponse.json({ ok: true, payslipUpdated: true, payslipId });
+  const refresh = await refreshBaseSalaryPayslip(id, now.getMonth() + 1, now.getFullYear());
+  return NextResponse.json({ ok: true, ...refresh });
 }

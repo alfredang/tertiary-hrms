@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
 import { getCompanyBranding } from "@/lib/company-settings";
+import { isInternEmployee } from "@/lib/leave-policy";
 import { getEmployeeSubfolderId, uploadPdfToFolder } from "@/lib/drive";
 
 function renderPayslipRemarks(template: string | null | undefined, payslip: any): string | null {
@@ -45,9 +46,10 @@ export function payslipFileName(
 export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> {
   const payslip = await prisma.payslip.findUnique({
     where: { id: payslipId },
-    include: { employee: { include: { department: true } } },
+    include: { employee: { include: { department: true, user: { select: { roles: true } } } } },
   });
   if (!payslip) throw new Error("Payslip not found");
+  const intern = isInternEmployee({ employmentType: payslip.employee.employmentType, roles: payslip.employee.user?.roles });
   const company = await getCompanyBranding();
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
   const remarks = renderPayslipRemarks(
@@ -68,17 +70,22 @@ export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> 
     headerNote: (settings as any)?.payslipHeaderNote ?? null,
     payPeriod: { start: payslip.payPeriodStart, end: payslip.payPeriodEnd },
     paymentDate: payslip.paymentDate,
+    intern,
     earnings: {
       basicSalary: Number(payslip.basicSalary),
       allowances: Number(payslip.allowances),
       overtime: Number(payslip.overtime),
       bonus: Number(payslip.bonus),
+      paybackDays: Number(payslip.paybackDays),
+      paybackAmount: Number(payslip.paybackAmount),
       gross: Number(payslip.grossSalary),
     },
     deductions: {
       cpfEmployee: Number(payslip.cpfEmployee),
       incomeTax: Number(payslip.incomeTax),
       other: Number(payslip.otherDeductions),
+      unpaidLeaveDays: Number(payslip.unpaidLeaveDays),
+      unpaidLeaveAmount: Number(payslip.unpaidLeaveDeduction),
       total: Number(payslip.totalDeductions),
     },
     cpf: {

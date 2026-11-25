@@ -52,6 +52,7 @@ interface ParseResult {
   counts: { total: number; matched: number; unmatched: number; existing: number };
   rows: ParsedRow[];
   driveWebViewLink: string | null;
+  driveFileId: string | null;
 }
 
 interface ApplyResult {
@@ -75,7 +76,8 @@ interface ProcessOutcome {
 const money = (n: number) =>
   n.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function CpfSubmissionUpload() {
+/** `onProcessed` fires after a statement is archived and applied (e.g. to refresh the CPF list). */
+export function CpfSubmissionUpload({ onProcessed }: { onProcessed?: () => void } = {}) {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +134,7 @@ export function CpfSubmissionUpload() {
           month: parsed.month,
           year: parsed.year,
           overwrite: true,
+          cpfSubmissionFileId: parsed.driveFileId,
           rows: matched.map((r) => ({
             employeeId: r.employeeId,
             name: r.name,
@@ -160,6 +163,7 @@ export function CpfSubmissionUpload() {
         description: `${MONTHS[parsed.month - 1]} ${parsed.year}: ${apply.created} created, ${apply.updated} updated${unmatched.length ? `, ${unmatched.length} unmatched` : ""}`,
       });
       router.refresh();
+      onProcessed?.();
     } catch (error) {
       toast({
         title: "Error",
