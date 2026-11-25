@@ -16,7 +16,7 @@ const bal = (code: string, name: string, paid: boolean, o: Partial<Record<"entit
 });
 
 describe("buildLeaveSummary", () => {
-  it("counts annual leave taken (AL only), AL balance and NPL taken", () => {
+  it("totals paid leave, AL balance and NPL taken", () => {
     const s = buildLeaveSummary({
       employeeName: "ANG SEE SIANG",
       year: 2026,
@@ -30,13 +30,27 @@ describe("buildLeaveSummary", () => {
       npl: { cap: 17.5, used: 3, pending: 1, remaining: 13.5 },
       asOf: new Date("2026-11-12T00:00:00Z"),
     });
-    expect(s.stats[0]).toMatchObject({ label: "Annual leave taken", value: "5 days" });
-    expect(s.stats[2]).toMatchObject({ label: "MC taken", value: "2 days" });
-    expect(s.stats[3]).toMatchObject({ label: "No-pay leave taken", value: "3 days", hint: "13.5 of 17.5 left" });
+    // 12 Nov: 10 complete months → AL 14 × 10/12 = 11.67 → 11 earned, 5 taken → 6; MC the same → 11 − 2 = 9.
+    expect(s.stats[0]).toMatchObject({ label: "Annual leave balance (prorated)", value: "6 days", hint: "11 of 14/yr earned · 5 taken" });
+    expect(s.stats[1]).toMatchObject({ label: "MC balance (prorated)", value: "9 days", hint: "11 of 14/yr earned · 2 taken" });
+    expect(s.stats[2]).toMatchObject({ label: "No Pay Leave balance", value: "13.5 days", hint: "17.5/yr, not prorated · 3 taken" });
+    expect(s.stats[3]).toMatchObject({ label: "Paid leave taken", value: "7 days" });
     expect(s.table!.rows.map((r) => r[0])).toEqual(["Annual Leave", "Medical Leave", "No Pay Leave"]);
     // NPL figures come from the requests (npl status), not the stale balance row
     expect(s.table!.rows[2]).toEqual(["No Pay Leave", "3 days", "1 day", "13.5 days"]);
-    expect(s.stats[1].value).toMatch(/days?$/);
+  });
+
+  it("interns: MC balance is None (sick leave is No Pay Leave)", () => {
+    const s = buildLeaveSummary({
+      employeeName: "INTERN", year: 2026,
+      balances: [bal("AL", "Annual Leave", true, { entitlement: 3, used: 0 }), bal("MC", "Medical Leave", true, { entitlement: 14 })],
+      profile: { startDate: new Date("2026-01-01"), endDate: null, monthlyLeaveRate: null, isIntern: true },
+      npl: { cap: 14, used: 0, pending: 0, remaining: 14 },
+      asOf: new Date("2026-11-12T00:00:00Z"),
+    });
+    expect(s.stats[0]).toMatchObject({ value: "2 days" }); // 3 × 10/12 = 2.5 → 2
+    expect(s.stats[1]).toMatchObject({ label: "MC balance (prorated)", value: "None" });
+    expect(s.stats[2]).toMatchObject({ value: "14 days", hint: "14/yr, not prorated · 0 taken" });
   });
 });
 

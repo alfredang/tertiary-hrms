@@ -10,6 +10,7 @@ const { mockPrisma, mockAuth, state } = vi.hoisted(() => {
     startDate: new Date("2026-09-01T00:00:00.000Z"),
     balance: { entitlement: 7, used: 0, pending: 0, carriedOver: 0, earned: 0, autoDeducted: 0 },
     nplRows: [] as Array<{ days: number; status: string }>,
+    employmentType: "FULL_TIME" as string,
   };
   return {
     state,
@@ -57,6 +58,7 @@ beforeEach(() => {
   state.startDate = new Date("2026-09-01T00:00:00.000Z");
   state.balance = { entitlement: 7, used: 0, pending: 0, carriedOver: 0, earned: 0, autoDeducted: 0 };
   state.nplRows = [];
+  state.employmentType = "FULL_TIME";
 
   mockAuth.mockResolvedValue({ user: { id: "u1", role: "STAFF", employeeId: "emp1" } });
   mockPrisma.publicHoliday.findMany.mockResolvedValue([]);
@@ -67,6 +69,7 @@ beforeEach(() => {
     startDate: state.startDate,
     endDate: null,
     monthlyLeaveRate: null,
+    employmentType: state.employmentType,
     user: { roles: state.roles },
   }));
   mockPrisma.leaveRequest.findMany.mockImplementation(async (args: { where?: { leaveType?: { code?: string } } }) =>
@@ -106,12 +109,11 @@ describe("Rule 2 — AL beyond the available balance must be No Pay Leave", () =
     );
   });
 
-  it("with advance AL on, allows up to the full-year entitlement (Sep–Dec = 4 months → 2 days) but no more", async () => {
+  it("refuses advance AL even when asked: AL never goes negative (1 day earned, 2 asked → 1 needs NPL)", async () => {
     const two = await submitLeave(req({ ...ONE_DAY, endDate: "2026-11-17", useAdvance: true }));
-    expect(two.status).toBe(201);
-    const five = await submitLeave(req({ ...FIVE_DAYS, useAdvance: true }));
-    expect(five.status).toBe(400);
-    expect((await five.json()).excessDays).toBe(3);
+    expect(two.status).toBe(400);
+    expect(await two.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", excessDays: 1, suggestedLeaveTypeCode: "NPL" });
+    expect(mockPrisma.leaveRequest.create).not.toHaveBeenCalled();
   });
 });
 
@@ -162,30 +164,37 @@ describe("Configured internship AL pool", () => {
     mockPrisma.leaveBalance.findUnique.mockResolvedValue({ year: 2026, earned: 3, used: 1, pending: 0, autoDeducted: 0 });
   });
 
-  it("reports 7 days needing NPL for the 14-day Dec–Jan request, after 3 advance and 2 OIL days", async () => {
+  it("reports 10 days needing NPL for the 14-day Dec–Jan request: 2 earned + 2 OIL, no advance", async () => {
     const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2027-01-01", useAdvance: true, otDaysUsed: 2 }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", alAvailable: 7, excessDays: 7 });
+    expect(await res.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", alAvailable: 4, excessDays: 10 });
     expect(mockPrisma.leaveRequest.create).not.toHaveBeenCalled();
   });
 
-  it("reserves only 5 AL days and 2 OIL days for a covered 7-working-day request", async () => {
-    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2026-12-21", useAdvance: true, otDaysUsed: 2 }));
+  it("reserves only 2 AL days and 2 OIL days for a covered 4-working-day request", async () => {
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-11", endDate: "2026-12-16", otDaysUsed: 2 }));
     expect(res.status).toBe(201);
     expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
-      days: 7, balanceDays: 5, balanceYear: 2026, otDaysUsed: 2,
+      days: 4, balanceDays: 2, balanceYear: 2026, otDaysUsed: 2,
     }) }));
     expect(mockPrisma.leaveBalance.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { employeeId_leaveTypeId_year: { employeeId: "emp1", leaveTypeId: "lt", year: 2026 } },
-      data: { pending: { increment: 5 } },
+      data: { pending: { increment: 2 } },
     }));
+  });
+
+  it("refuses AL ahead of accrual on a contract pool (2 earned left, 3 asked)", async () => {
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2026-12-14", endDate: "2026-12-16", useAdvance: true }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "AL_EXCEEDS_BALANCE", alAvailable: 2, excessDays: 1 });
   });
 
   it("continues to reserve against the 2026 ledger for a request submitted in January", async () => {
     vi.setSystemTime(new Date("2027-01-04T10:00:00Z"));
-    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2027-01-04", endDate: "2027-01-08", useAdvance: true }));
+    // 4 Jan 2027: 9 of 11 contract months complete → 7 × 9/11 = 5.5 earned, 2 used → 3.5 left.
+    const res = await submitLeave(req({ leaveTypeId: "lt", startDate: "2027-01-04", endDate: "2027-01-06" }));
     expect(res.status).toBe(201);
-    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ balanceYear: 2026, balanceDays: 5 }) }));
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ balanceYear: 2026, balanceDays: 3 }) }));
     expect(mockPrisma.leaveBalance.create).not.toHaveBeenCalled();
   });
 
@@ -209,13 +218,28 @@ describe("Rule 4 — interns have no paid MC", () => {
     state.balance = { ...state.balance, entitlement: 14 };
   });
 
-  it("rejects an MC from an intern (roles exactly [INTERN]) and points to NPL", async () => {
+  it("files an MC from an intern (roles exactly [INTERN]) as No Pay Leave automatically", async () => {
     state.roles = ["INTERN"];
-    const res = await submitLeave(req(ONE_DAY));
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.code).toBe("INTERN_MC_NOT_PAID");
-    expect(body.suggestedLeaveTypeCode).toBe("NPL");
+    mockPrisma.leaveType.findUnique.mockImplementation(async (args: { where: { code?: string } }) => args.where.code === "NPL"
+      ? { id: "npl", code: "NPL", name: "No Pay Leave", defaultDays: 14 }
+      : { id: "lt", code: "MC", name: "Medical Leave", defaultDays: 14 });
+    const res = await submitLeave(req({ ...ONE_DAY, reason: "fever" }));
+    expect(res.status).toBe(201);
+    expect((await res.json()).convertedToNpl).toBe(true);
+    expect(mockPrisma.leaveRequest.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      leaveTypeId: "npl", days: 1, reason: "Sick leave (MC) — fever",
+    }) }));
+  });
+
+  it("refuses AL, MC, No Pay Leave and compassionate leave from part-time staff (Alfred, 24 Nov 2026)", async () => {
+    state.employmentType = "PART_TIME";
+    for (const code of ["AL", "MC", "NPL", "CL"]) {
+      state.leaveTypeCode = code;
+      const res = await submitLeave(req(ONE_DAY));
+      expect(res.status).toBe(400);
+      expect((await res.json()).code).toBe("PART_TIME_NO_LEAVE");
+    }
+    expect(mockPrisma.leaveRequest.create).not.toHaveBeenCalled();
   });
 
   it("does not treat an admin who also holds INTERN as an intern", async () => {

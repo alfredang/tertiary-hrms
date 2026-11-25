@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/send-email";
 import { cronAuthError, escapeHtml, notifyAdmins, sgtToday, staffAlertCc } from "@/lib/admin-alerts";
 import { withCronRun } from "@/lib/cron-runs";
+import { januaryAlRollover } from "@/lib/al-rollover";
 import { getActiveClockInRequired, getMissedPunches } from "@/lib/hr-insights";
 import { addDays } from "@/lib/attendance-policy";
 
@@ -28,8 +29,11 @@ export async function GET(req: NextRequest) {
   try {
     const result = await withCronRun<Record<string, unknown>>(
       mode === "rollup" ? "missed-clock-out-rollup" : "missed-clock-out-reminder",
-      // The morning run also tells the admins whose birthday it is and who is on MC / leave / No Pay Leave today.
-      async () => (mode === "rollup" ? { ...(await runRollup()), ...(await sendBirthdayAlerts()), ...(await sendAwayTodayAlert()) } : runReminder()),
+      // The morning run also tells the admins whose birthday it is and who is on MC / leave / No Pay Leave today,
+      // and every day in January resets AL for the new year with a one-year carry forward (src/lib/al-rollover.ts).
+      async () => (mode === "rollup"
+        ? { ...(await runRollup()), ...(await sendBirthdayAlerts()), ...(await sendAwayTodayAlert()), ...(await januaryAlRollover()) }
+        : runReminder()),
     );
     return NextResponse.json(result);
   } catch (err) {

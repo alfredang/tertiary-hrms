@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { pickRelevant, requestIdFromLink, REQUEST_TYPES, type RequestType } from "@/lib/notification-relevance";
+import { pickRelevant, requestAction, requestIdFromLink, REQUEST_TYPES, type RequestType } from "@/lib/notification-relevance";
+import { hasAdminAccess } from "@/lib/utils";
+import { ensurePaybackNotices } from "@/lib/npl-payback-store";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const approver = hasAdminAccess(session.user.role);
+  // Approvers: a pending payback whose notice is missing gets it back (23 Nov 2026).
+  if (approver) await ensurePaybackNotices(session.user.id);
 
   // Only what is still relevant (src/lib/notification-relevance.ts): no decided requests, no
   // superseded roll-ups, no repeats, nothing older than 30 days. The web bell then filters by view.
@@ -36,5 +41,9 @@ export async function GET() {
     ATTENDANCE_CORRECTION_SUBMITTED: correction,
   };
 
-  return NextResponse.json(pickRelevant(rows, (type, id) => sets[type].has(id)));
+  // Approvers can act on a request notice itself: `action` names the request (web bell and both
+  // apps show Approve / Reject on it). Others get `action: null`.
+  return NextResponse.json(
+    pickRelevant(rows, (type, id) => sets[type].has(id)).map((n) => ({ ...n, action: approver ? requestAction(n) : null })),
+  );
 }

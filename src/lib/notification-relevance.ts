@@ -88,3 +88,51 @@ export function pickRelevant<T extends NotificationRow>(
   }
   return out;
 }
+
+/**
+ * What an approver can do straight from a request notice (Alfred, 23 Nov 2026: "the notice should
+ * not be just info only"). GET /api/notifications adds it to every request notice for an approver,
+ * and the web bell and both phone apps show Approve / Reject on the notice itself.
+ */
+export type RequestActionKind = "leave" | "timeOff" | "expense" | "payback" | "correction";
+export interface RequestAction { kind: RequestActionKind; requestId: string }
+
+const ACTION_KIND: Record<RequestType, RequestActionKind> = {
+  LEAVE_SUBMITTED: "leave",
+  TIME_OFF_SUBMITTED: "timeOff",
+  EXPENSE_SUBMITTED: "expense",
+  PAYBACK_SUBMITTED: "payback",
+  ATTENDANCE_CORRECTION_SUBMITTED: "correction",
+};
+
+export function requestAction(n: { type: string; link: string | null }): RequestAction | null {
+  if (!(REQUEST_TYPES as readonly string[]).includes(n.type)) return null;
+  const requestId = requestIdFromLink(n.link);
+  return requestId ? { kind: ACTION_KIND[n.type as RequestType], requestId } : null;
+}
+
+/** The existing web route that approves or rejects a request (the routes enforce the role). */
+export function requestActionCall(a: RequestAction, approve: boolean, note?: string): { path: string; body: Record<string, unknown> } {
+  const id = encodeURIComponent(a.requestId);
+  const text = note?.trim() || undefined;
+  if (a.kind === "correction") {
+    return { path: `/api/attendance/corrections/${id}`, body: { action: approve ? "approve" : "reject", ...(text ? { comment: text } : {}) } };
+  }
+  const base = { leave: "/api/leave", timeOff: "/api/time-off", expense: "/api/expenses", payback: "/api/leave/payback" }[a.kind];
+  const body = text ? (approve ? { approvalComment: text } : { reason: text }) : {};
+  return { path: `${base}/${id}/${approve ? "approve" : "reject"}`, body };
+}
+
+/**
+ * Pending requests that have no request notice for this user yet (`existing` = links and messages
+ * of the user's recent notices of that type). A notice matches on the request id in its link, or,
+ * for an older notice without an id, on the same message.
+ */
+export function missingRequestNotices<T extends { id: string; message: string }>(
+  pending: T[],
+  existing: { link: string | null; message: string }[],
+): T[] {
+  const ids = new Set(existing.map((n) => requestIdFromLink(n.link)).filter((v): v is string => !!v));
+  const messages = new Set(existing.map((n) => n.message));
+  return pending.filter((p) => !ids.has(p.id) && !messages.has(p.message));
+}

@@ -19,8 +19,9 @@ interface OtStats {
 
 interface StaffStats {
   /**
-   * The four leave figures of the decision email, in its order: annual leave taken, annual leave
-   * balance, MC taken, no-pay leave taken. Built by buildLeaveSummary(); shown as given.
+   * The four leave figures of the decision email, in its order: annual leave balance (prorated),
+   * MC balance (prorated), No Pay Leave balance (flat 14), paid leave taken. Built by
+   * buildLeaveSummary(); shown as given.
    */
   leave: { label: string; value: string; hint?: string }[];
   isIntern: boolean;
@@ -33,10 +34,10 @@ interface StaffStats {
  * (a 100 tint turns dark in the light theme and the 600 icon disappears into it).
  */
 const LEAVE_TILE_STYLE = [
-  { icon: CalendarCheck, iconBg: "bg-emerald-600", iconColor: "text-on-color" },
-  { icon: CalendarDays, iconBg: "bg-blue-600", iconColor: "text-on-color" },
-  { icon: Stethoscope, iconBg: "bg-red-600", iconColor: "text-on-color" },
-  { icon: CalendarOff, iconBg: "bg-amber-600", iconColor: "text-on-color" },
+  { icon: CalendarDays, iconBg: "bg-blue-600", iconColor: "text-on-color", href: "/leave/annual" },
+  { icon: Stethoscope, iconBg: "bg-red-600", iconColor: "text-on-color", href: "/leave/medical" },
+  { icon: CalendarOff, iconBg: "bg-amber-600", iconColor: "text-on-color", href: "/leave" },
+  { icon: CalendarCheck, iconBg: "bg-emerald-600", iconColor: "text-on-color", href: "/leave" },
 ];
 
 interface StatsCardsProps {
@@ -65,9 +66,7 @@ export function StatsCards({ adminStats, staffStats }: StatsCardsProps) {
     );
   } else if (staffStats) {
     staffStats.leave.forEach((stat, i) => {
-      // Interns have no paid MC: their sick leave is No Pay Leave.
-      const sub = stat.hint ?? (staffStats.isIntern && stat.label === "MC taken" ? "Sick leave is No Pay Leave" : undefined);
-      cards.push({ title: stat.label, value: stat.value, sub, href: "/leave", ...LEAVE_TILE_STYLE[i % LEAVE_TILE_STYLE.length] });
+      cards.push({ title: stat.label, value: stat.value, sub: stat.hint, ...LEAVE_TILE_STYLE[i % LEAVE_TILE_STYLE.length] });
     });
     if (staffStats.otStats) {
       cards.push({

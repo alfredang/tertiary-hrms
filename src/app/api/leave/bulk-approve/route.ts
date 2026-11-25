@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { alApprovalBlock } from "@/lib/al-approval-guard";
 import { sendLeaveDecisionEmail } from "@/lib/decision-email";
 
 // Bulk-approve multiple PENDING leave requests in one shot.
@@ -41,6 +42,12 @@ export async function POST(req: NextRequest) {
       }
       if (leaveRequest.status !== "PENDING") {
         results.skipped.push({ id, reason: `status is ${leaveRequest.status}` });
+        continue;
+      }
+      // HARD RULE: approving may never take annual leave below zero.
+      const alBlock = await alApprovalBlock(leaveRequest);
+      if (alBlock) {
+        results.skipped.push({ id, reason: alBlock.error });
         continue;
       }
 

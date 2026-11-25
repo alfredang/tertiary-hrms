@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { LeaveRequestForm } from "@/components/leave/leave-request-form";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { getLeaveProfile, getNplStatus, type LeaveProfile } from "@/lib/leave-allowance";
-import { NPL_ANNUAL_CAP_DAYS, type NplStatus } from "@/lib/leave-policy";
+import type { NplStatus } from "@/lib/leave-policy";
 import { getAnnualLeaveBalance } from "@/lib/annual-leave";
 import { annualLeaveAmounts } from "@/lib/annual-leave-policy";
 
@@ -94,7 +94,7 @@ export default async function LeaveRequestPage({
         defaultLeaveTypeCode={params.type}
         isIntern={profile?.isIntern ?? false}
         npl={npl}
-        nplAnnualCap={NPL_ANNUAL_CAP_DAYS}
+        nplAnnualCap={npl.cap}
       />
     </div>
   );

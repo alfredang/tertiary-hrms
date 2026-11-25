@@ -21,8 +21,10 @@ import {
   mcAnnualEntitlement,
   nplCapMessage,
   NPL_CODE,
+  PART_TIME_NO_LEAVE_MESSAGE,
+  partTimeHasNoLeave,
 } from "@/lib/leave-policy";
-import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
+import { getLeaveProfile, getNplStatus, newBalanceEntitlement } from "@/lib/leave-allowance";
 import { isDemoEmployee } from "@/lib/demo-guard";
 import { getAnnualLeaveBalance } from "@/lib/annual-leave";
 import { annualLeaveAmounts, withinAnnualLeavePeriod } from "@/lib/annual-leave-policy";
@@ -39,7 +41,8 @@ const leaveRequestSchema = z.object({
   documentFileName: z.string().optional(),
   otDaysUsed: z.number().min(0).default(0),
   // AL only: borrow from the rest of the year's entitlement. Off → unearned days are deficit.
-  useAdvance: z.boolean().default(false),
+  /** Ignored: advance AL was removed (hard rule, 24 Nov 2026). Accepted so older app builds still submit. */
+  useAdvance: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -76,7 +79,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { leaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason, documentUrl, documentFileName, otDaysUsed, useAdvance } = validation.data;
+    const { leaveTypeId: requestedLeaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason: requestedReason, documentUrl, documentFileName, otDaysUsed } = validation.data;
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -117,20 +120,30 @@ export async function POST(req: NextRequest) {
       days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
-    const leaveType = await prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
+    const requestedType = await prisma.leaveType.findUnique({ where: { id: requestedLeaveTypeId } });
     const employee = await getLeaveProfile(employeeId);
+
+    // Interns have no MC (0 days): an MC from an intern is filed as No Pay Leave automatically,
+    // the same as the web form does — for the apps too (Alfred, 24 Nov 2026).
+    const internSick = isMedicalLeaveCode(requestedType?.code) && !!employee?.isIntern;
+    const leaveType = internSick ? await prisma.leaveType.findUnique({ where: { code: NPL_CODE } }) : requestedType;
+    if (internSick && !leaveType) {
+      return NextResponse.json(
+        { error: INTERN_MC_MESSAGE, code: "INTERN_MC_NOT_PAID", suggestedLeaveTypeCode: NPL_CODE },
+        { status: 400 }
+      );
+    }
+    const leaveTypeId = leaveType?.id ?? requestedLeaveTypeId;
+    const reason = internSick ? `Sick leave (MC)${requestedReason ? ` — ${requestedReason}` : ""}` : requestedReason;
 
     const isAL = leaveType?.code === "AL";
     const isOT = leaveType?.code === "AL_OT";
     const isMedical = isMedicalLeaveCode(leaveType?.code);
     const isNPL = leaveType?.code === NPL_CODE;
 
-    // Interns have no paid MC — their sick leave is No Pay Leave.
-    if (isMedical && employee?.isIntern) {
-      return NextResponse.json(
-        { error: INTERN_MC_MESSAGE, code: "INTERN_MC_NOT_PAID", suggestedLeaveTypeCode: NPL_CODE },
-        { status: 400 }
-      );
+    // Part-time staff have no AL, MC, No Pay Leave or compassionate leave (Alfred, 24 Nov 2026).
+    if (employee?.isPartTime && partTimeHasNoLeave(leaveType?.code)) {
+      return NextResponse.json({ error: PART_TIME_NO_LEAVE_MESSAGE, code: "PART_TIME_NO_LEAVE" }, { status: 400 });
     }
 
     const effectiveDayType = isAL ? (isSingleDay ? dayType : "FULL_DAY") : "FULL_DAY";
@@ -204,8 +217,7 @@ export async function POST(req: NextRequest) {
           employeeId,
           leaveTypeId,
           year: currentYear,
-          // Interns get the leave type's intern days (AL: 5) when set; staff the default (AL: 7).
-          entitlement: employee?.isIntern && leaveType.internDefaultDays > 0 ? leaveType.internDefaultDays : leaveType.defaultDays,
+          entitlement: await newBalanceEntitlement(employeeId, leaveType, currentYear, employee),
           used: 0,
           pending: 0,
           carriedOver: 0,
@@ -269,7 +281,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // AL is covered by the earned balance, Off In Lieu and (opt-in) advance AL. Anything
+    // AL is covered by the prorated balance earned to date and Off In Lieu only. Anything
     // beyond that must be taken as No Pay Leave — reject with guidance, no deficit.
     let resolvedOtDaysUsed = 0;
     const deficitDays = 0;
@@ -287,14 +299,12 @@ export async function POST(req: NextRequest) {
             : 0;
         }
       }
-      const fullAvailable = alAmounts!.fullAvailable;
+      // HARD RULE: AL only up to the prorated balance earned to date (+ OIL); never advance.
       const alCheck = evaluateAlRequest({
         days,
         earnedAvailable: available,
-        fullAvailable,
         otAvailable,
         otRequested: otDaysUsed,
-        useAdvance,
       });
       if (!alCheck.ok) {
         const npl = await getNplStatus(employeeId, employee);
@@ -318,7 +328,9 @@ export async function POST(req: NextRequest) {
       data: {
         id: `lr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         employeeId,
-        ...(alAmounts?.isContract ? { balanceYear: balance.year ?? currentYear, balanceDays: days - resolvedOtDaysUsed } : {}),
+        // Every AL request records its AL part (days less Off In Lieu), so OIL days are never
+        // charged to the AL balance as well — AL must never go negative (hard rule, 24 Nov 2026).
+        ...(isAL ? { balanceYear: balance.year ?? currentYear, balanceDays: days - resolvedOtDaysUsed } : {}),
         leaveTypeId,
         startDate: start,
         endDate: end,
@@ -366,7 +378,7 @@ export async function POST(req: NextRequest) {
     // Update AL balance pending
     await prisma.leaveBalance.update({
       where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: balance.year ?? currentYear } },
-      data: { pending: { increment: alAmounts?.isContract ? days - resolvedOtDaysUsed : days } },
+      data: { pending: { increment: isAL ? days - resolvedOtDaysUsed : days } },
     });
 
     // Update OT balance pending if OT days were used
@@ -411,7 +423,8 @@ export async function POST(req: NextRequest) {
       console.error(`Failed to send leave approval email for ${leaveRequest.id}:`, err);
     }
 
-    return NextResponse.json(leaveRequest, { status: 201 });
+    // convertedToNpl: an intern's MC was filed as No Pay Leave (additive field for the apps).
+    return NextResponse.json(internSick ? { ...leaveRequest, convertedToNpl: true } : leaveRequest, { status: 201 });
   } catch (error) {
     console.error("Error creating leave request:", error);
     const msg = error instanceof Error ? error.message : String(error);

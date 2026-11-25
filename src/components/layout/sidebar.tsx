@@ -137,18 +137,6 @@ const navigationGroups: NavGroup[] = [
     label: "Finance",
     items: [
       {
-        name: "Payroll",
-        adminName: "Payroll Management",
-        href: "/payroll",
-        icon: DollarSign,
-        hideForIntern: true as const,
-        children: [
-          { name: "Payroll", href: "/payroll", icon: DollarSign, exact: true as const },
-          { name: "Upload CPF", href: "/payroll/generate", icon: ShieldCheck, adminOnly: true as const },
-        ],
-      },
-      { name: "Expense Claims", adminName: "Claim Management", href: "/expenses", icon: Receipt, noAccountant: true as const },
-      {
         name: "Accounting",
         href: "/accounting",
         icon: Calculator,
@@ -163,6 +151,18 @@ const navigationGroups: NavGroup[] = [
             icon: FolderOpen,
             external: true,
           },
+        ],
+      },
+      { name: "Expense Claims", adminName: "Claim Management", href: "/expenses", icon: Receipt, noAccountant: true as const },
+      {
+        name: "Payroll",
+        adminName: "Payroll Management",
+        href: "/payroll",
+        icon: DollarSign,
+        hideForIntern: true as const,
+        children: [
+          { name: "Payroll", href: "/payroll", icon: DollarSign, exact: true as const },
+          { name: "Upload CPF", href: "/payroll/generate", icon: ShieldCheck, adminOnly: true as const },
         ],
       },
     ],

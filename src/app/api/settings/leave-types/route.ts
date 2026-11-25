@@ -41,7 +41,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
+  const before = await prisma.leaveType.findUnique({ where: { id } });
+  if (!before) return NextResponse.json({ error: "Leave type not found" }, { status: 404 });
   const updated = await prisma.leaveType.update({ where: { id }, data });
+  // Only rows still on the old default move to the new one: a person given their own yearly
+  // figure (e.g. Femina and Amanda, 7 AL a year) keeps it (Alfred, 24 Nov 2026).
+  const oldStaffDays = before.defaultDays;
+  const oldInternDays = before.internDefaultDays > 0 ? before.internDefaultDays : before.defaultDays;
 
   // Immediately propagate entitlement changes to all active employees' current-year balances
   if (typeof defaultDays === "number" || typeof internDefaultDays === "number") {
@@ -54,6 +60,8 @@ export async function PATCH(req: NextRequest) {
       where: {
         leaveTypeId: id,
         year: currentYear,
+        periodStart: null,
+        entitlement: oldStaffDays,
         employee: {
           status: "ACTIVE",
           employmentType: { not: "INTERN" },
@@ -67,6 +75,8 @@ export async function PATCH(req: NextRequest) {
       where: {
         leaveTypeId: id,
         year: currentYear,
+        periodStart: null,
+        entitlement: oldInternDays,
         employee: {
           status: "ACTIVE",
           employmentType: "INTERN",

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { alApprovalBlock } from "@/lib/al-approval-guard";
 import { approvalResultPage, type ResultSummary } from "@/lib/approval-result";
 import { loadLeaveSummary } from "@/lib/approval-summaries";
 import { sendLeaveDecisionEmail } from "@/lib/decision-email";
@@ -79,6 +80,15 @@ async function decide(token: string | null, action: string | null): Promise<Resp
       `This request is currently ${leave.status}. No further action required.`,
       await summaryFor(tokenRow.targetId),
     );
+  }
+
+  // HARD RULE: approving may never take annual leave below zero. The token is left unused so
+  // the approver can still decline from the same email.
+  if (action === "accept") {
+    const alBlock = await alApprovalBlock(leave);
+    if (alBlock) {
+      return htmlResponse("error", "Cannot approve", alBlock.error, await summaryFor(tokenRow.targetId));
+    }
   }
 
   const newStatus = action === "accept" ? "APPROVED" : "REJECTED";

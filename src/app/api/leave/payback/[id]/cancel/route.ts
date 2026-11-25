@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasAdminAccess } from "@/lib/utils";
+import { sendPaybackCancelledEmail } from "@/lib/approval-email";
 
 // The requester cancels their own pending payback. An admin may cancel any pending one, and may
 // also withdraw an approved one (the No Pay Leave day then counts as taken again).
@@ -11,7 +12,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
-    const payback = await prisma.nplPayback.findUnique({ where: { id }, include: { employee: { select: { userId: true } } } });
+    const payback = await prisma.nplPayback.findUnique({ where: { id }, include: { employee: { select: { userId: true, name: true } } } });
     if (!payback) return NextResponse.json({ error: "Payback request not found" }, { status: 404 });
 
     const isOwner = payback.employeeId === session.user.employeeId;
@@ -25,6 +26,21 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
     const res = await prisma.nplPayback.updateMany({ where: { id, status: payback.status }, data: { status: "CANCELLED" } });
     if (res.count === 0) return NextResponse.json({ error: "This payback has just been changed. Refresh and try again." }, { status: 409 });
+
+    // A pending request the approvers were emailed about: tell them it is gone (23 Nov 2026).
+    if (!withdrawing) {
+      try {
+        await sendPaybackCancelledEmail({
+          employeeId: payback.employeeId,
+          employeeName: payback.employee.name,
+          nplDate: payback.nplDate.toISOString().slice(0, 10),
+          workDate: payback.workDate.toISOString().slice(0, 10),
+          days: Number(payback.days),
+        });
+      } catch (err) {
+        console.error("Failed to send payback cancelled email:", err);
+      }
+    }
 
     if (withdrawing && !isOwner) {
       try {

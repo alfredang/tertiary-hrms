@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendLeaveDecisionEmail } from "@/lib/decision-email";
+import { alApprovalBlock } from "@/lib/al-approval-guard";
 
 export async function POST(
   req: NextRequest,
@@ -34,6 +35,10 @@ export async function POST(
     if (leaveRequest.status !== "PENDING") {
       return NextResponse.json({ error: "Leave request is not pending" }, { status: 400 });
     }
+
+    // HARD RULE: approving may never take annual leave below zero.
+    const alBlock = await alApprovalBlock(leaveRequest);
+    if (alBlock) return NextResponse.json(alBlock, { status: 400 });
 
     const currentYear = leaveRequest.balanceDays != null ? leaveRequest.createdAt.getFullYear() : new Date().getFullYear();
     const otDaysUsed = Number(leaveRequest.otDaysUsed);

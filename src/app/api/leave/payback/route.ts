@@ -8,7 +8,7 @@ import { isDemoEmployee } from "@/lib/demo-guard";
 import { notifyApprovers } from "@/lib/admin-alerts";
 import { sendPaybackApprovalEmail } from "@/lib/approval-email";
 import { getNplStatus } from "@/lib/leave-allowance";
-import { dateOnly, dayCountLabel, paybackProblem, prettyDay } from "@/lib/npl-payback";
+import { dateOnly, paybackNoticeMessage, paybackProblem, PAYBACK_NOTICE_TITLE } from "@/lib/npl-payback";
 import { getNplDays, holidayKeys, workDateUsage } from "@/lib/npl-payback-store";
 
 export const dynamic = "force-dynamic";
@@ -94,8 +94,8 @@ export async function POST(req: Request) {
     const name = employee?.name ?? "Staff";
     if (!(await isDemoEmployee(employeeId))) {
       await notifyApprovers({
-        title: "New No Pay Leave payback",
-        message: `${name} worked ${prettyDay(workDate)} to pay back ${dayCountLabel(days).toLowerCase()} of No Pay Leave on ${prettyDay(nplDate)}.`,
+        title: PAYBACK_NOTICE_TITLE,
+        message: paybackNoticeMessage(name, workDate, nplDate, days),
         type: "PAYBACK_SUBMITTED",
         link: linkWithRequest("/leave/payback", created.id),
       });

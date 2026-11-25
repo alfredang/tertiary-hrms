@@ -222,17 +222,17 @@ export default async function MedicalLeavePage() {
       {viewAs !== "admin" && !internView && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-gray-950 border border-gray-800 rounded-xl p-4">
-            <p className="text-xs sm:text-sm text-gray-400 mb-1">Earned to Date</p>
+            <p className="text-xs sm:text-sm text-gray-400 mb-1">Earned to Date (prorated)</p>
             <p className="text-2xl sm:text-3xl font-bold text-blue-400">{balance.earned}</p>
             <p className="text-xs text-gray-500 mt-1">
-              of {balance.entitlement} days/year, prorated by completed months served
+              of {balance.entitlement} days/year × completed months ÷ 12, rounded down
               {isPartiallyPaid ? ` · ${paidMcDays} paid · ${unpaidMcDays} unpaid` : ""}
             </p>
           </div>
           <BalanceCard label="MC Taken" value={balance.used} color="text-amber-400" />
           <BalanceCard label="Pending" value={balance.pending} color="text-purple-400" />
           <BalanceCard
-            label="Remaining"
+            label="MC Balance (prorated)"
             value={balance.remaining}
             color={balance.remaining < 0 ? "text-red-400" : "text-green-400"}
           />

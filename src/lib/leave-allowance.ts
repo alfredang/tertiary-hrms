@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getPaidBackDays } from "@/lib/npl-payback-store";
-import { isInternRoles, NPL_ANNUAL_CAP_DAYS, nplStatus, NPL_CODE, type NplStatus } from "@/lib/leave-policy";
+import { isInternRoles, isPartTimeEmployment, nplAnnualCap, nplStatus, NPL_CODE, partTimeHasNoLeave, type NplStatus } from "@/lib/leave-policy";
 
 /** The employee fields every leave-policy check needs. */
 export interface LeaveProfile {
@@ -8,12 +8,14 @@ export interface LeaveProfile {
   endDate: Date | null;
   monthlyLeaveRate: number | null;
   isIntern: boolean;
+  /** Part-time staff: no AL, MC, No Pay Leave or compassionate leave. */
+  isPartTime?: boolean;
 }
 
 export async function getLeaveProfile(employeeId: string): Promise<LeaveProfile | null> {
   const e = await prisma.employee.findUnique({
     where: { id: employeeId },
-    select: { startDate: true, endDate: true, monthlyLeaveRate: true, user: { select: { roles: true } } },
+    select: { startDate: true, endDate: true, monthlyLeaveRate: true, employmentType: true, user: { select: { roles: true } } },
   });
   if (!e) return null;
   return {
@@ -21,7 +23,29 @@ export async function getLeaveProfile(employeeId: string): Promise<LeaveProfile 
     endDate: e.endDate,
     monthlyLeaveRate: e.monthlyLeaveRate != null ? Number(e.monthlyLeaveRate) : null,
     isIntern: isInternRoles(e.user?.roles),
+    isPartTime: isPartTimeEmployment(e.employmentType),
   };
+}
+
+/**
+ * Yearly entitlement for a balance row created on demand: the person's own figure from the year
+ * before (e.g. Femina and Amanda keep 7 AL a year), else the leave type's default — interns use
+ * internDefaultDays when set (AL: 3), staff defaultDays (AL: 7). Part-time staff: 0 AL, MC, NPL, CL.
+ */
+export async function newBalanceEntitlement(
+  employeeId: string,
+  leaveType: { id: string; code: string; defaultDays: number; internDefaultDays: number },
+  year: number,
+  profile: Pick<LeaveProfile, "isIntern" | "isPartTime"> | null | undefined,
+): Promise<number> {
+  if (profile?.isPartTime && partTimeHasNoLeave(leaveType.code)) return 0;
+  const isIntern = !!profile?.isIntern;
+  const prev = await prisma.leaveBalance.findUnique({
+    where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId: leaveType.id, year: year - 1 } },
+    select: { entitlement: true, periodStart: true },
+  });
+  if (prev && !prev.periodStart) return Number(prev.entitlement);
+  return isIntern && leaveType.internDefaultDays > 0 ? leaveType.internDefaultDays : leaveType.defaultDays;
 }
 
 function yearRange(year: number) {
@@ -59,14 +83,15 @@ export async function getNplUsage(
   return { used: used - paidBack, pending, paidBack };
 }
 
-/** The yearly NPL cap (flat, not prorated) and what is left of it this year. */
+/** The yearly NPL cap (flat 14, not prorated; 0 for part-time staff) and what is left of it this year. */
 export async function getNplStatus(
   employeeId: string,
   profile?: LeaveProfile | null,
   asOf: Date = new Date(),
   excludeRequestId?: string,
 ): Promise<NplStatus> {
-  const cap = NPL_ANNUAL_CAP_DAYS;
+  const p = profile ?? await getLeaveProfile(employeeId);
+  const cap = nplAnnualCap(p?.isPartTime);
   const { used, pending, paidBack } = await getNplUsage(employeeId, asOf.getFullYear(), excludeRequestId);
   return nplStatus(cap, used, pending, paidBack);
 }

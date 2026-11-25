@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, BellOff, Check, CheckCheck, Clock, CalendarCheck, CalendarX, Briefcase, Info, Building2, AlertTriangle } from "lucide-react";
+import { Bell, BellOff, Check, CheckCheck, Clock, CalendarCheck, CalendarX, Briefcase, Info, Building2, AlertTriangle, RotateCcw, X, Loader2 } from "lucide-react";
+import { requestActionCall, type RequestAction } from "@/lib/notification-relevance";
 
 interface Notification {
   id: string;
@@ -12,6 +13,8 @@ interface Notification {
   read: boolean;
   link: string | null;
   createdAt: string;
+  /** Approvers: the request this notice is about, so it can be approved or rejected right here. */
+  action?: RequestAction | null;
 }
 
 const ADMIN_TYPES = new Set([
@@ -76,6 +79,9 @@ const typeIcon: Record<string, React.ReactNode> = {
   ATTENDANCE_MISSED: <AlertTriangle className="h-4 w-4 text-amber-400" />,
   ATTENDANCE_ROLLUP: <AlertTriangle className="h-4 w-4 text-amber-400" />,
   ATTENDANCE_CORRECTION_SUBMITTED: <Clock className="h-4 w-4 text-blue-400" />,
+  PAYBACK_SUBMITTED: <RotateCcw className="h-4 w-4 text-blue-400" />,
+  TIME_OFF_SUBMITTED: <Clock className="h-4 w-4 text-blue-400" />,
+  EXPENSE_SUBMITTED: <Clock className="h-4 w-4 text-blue-400" />,
   ATTENDANCE_CORRECTION_APPROVED: <CalendarCheck className="h-4 w-4 text-green-400" />,
   ATTENDANCE_CORRECTION_REJECTED: <CalendarX className="h-4 w-4 text-red-400" />,
   HR_COMPLIANCE: <AlertTriangle className="h-4 w-4 text-red-400" />,
@@ -202,6 +208,37 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
     setNotifications((prev) => prev.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n)));
   };
 
+  // Approve / Reject straight from a request notice (Alfred, 23 Nov 2026). The route enforces the role.
+  const [acting, setActing] = useState<string | null>(null);
+  const [actError, setActError] = useState<{ id: string; text: string } | null>(null);
+  const decide = async (n: Notification, approve: boolean) => {
+    if (!n.action || acting) return;
+    let note: string | undefined;
+    if (!approve) {
+      const typed = window.prompt("Reason for rejecting (optional)");
+      if (typed === null) return;
+      note = typed;
+    }
+    setActing(n.id);
+    setActError(null);
+    try {
+      const call = requestActionCall(n.action, approve, note);
+      const res = await fetch(call.path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(call.body) });
+      if (!res.ok) {
+        const msg = (await res.json().catch(() => null))?.error;
+        setActError({ id: n.id, text: msg ?? `Could not ${approve ? "approve" : "reject"} this request.` });
+        return;
+      }
+      if (!n.read) await markOne(n.id);
+      // Decided requests drop out of the list on the next fetch.
+      setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+      router.refresh();
+      fetchNotifications();
+    } finally {
+      setActing(null);
+    }
+  };
+
   const handleClick = async (n: Notification) => {
     if (!n.read) await markOne(n.id);
     setOpen(false);
@@ -293,10 +330,10 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
               </div>
             ) : (
               visible.map((n) => (
+                <div key={n.id} className={`hover:bg-gray-900 transition-colors ${n.read && !n.action ? "opacity-60" : ""}`}>
                 <button
-                  key={n.id}
                   onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-gray-900 transition-colors ${n.read ? "opacity-60" : ""}`}
+                  className="w-full text-left px-4 py-3 flex gap-3"
                 >
                   <div className="mt-0.5 shrink-0">
                     {typeIcon[n.type] ?? <Info className="h-4 w-4 text-gray-400" />}
@@ -312,6 +349,28 @@ export function NotificationBell({ viewAs = "admin" }: BellProps) {
                   </div>
                   {!n.read && <div className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-blue-500" />}
                 </button>
+                {isAdminView && n.action && (
+                  <div className="flex items-center gap-2 px-4 pb-3 pl-11">
+                    <button
+                      onClick={() => decide(n, true)}
+                      disabled={acting !== null}
+                      className="inline-flex items-center gap-1 rounded-md bg-green-600 hover:bg-green-500 disabled:opacity-50 px-2.5 py-1 text-[11px] font-semibold text-on-color"
+                    >
+                      {acting === n.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => decide(n, false)}
+                      disabled={acting !== null}
+                      className="inline-flex items-center gap-1 rounded-md border border-red-500/50 text-red-400 hover:bg-red-500/10 disabled:opacity-50 px-2.5 py-1 text-[11px] font-semibold"
+                    >
+                      <X className="h-3 w-3" />
+                      Reject
+                    </button>
+                    {actError?.id === n.id && <span className="text-[11px] text-red-400 truncate">{actError.text}</span>}
+                  </div>
+                )}
+                </div>
               ))
             )}
           </div>

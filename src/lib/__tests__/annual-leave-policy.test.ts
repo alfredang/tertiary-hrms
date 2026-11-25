@@ -6,49 +6,43 @@ const d = (day: string) => new Date(`${day}T00:00:00Z`);
 const allocation = { entitlement: 7, used: 2, pending: 0, carriedOver: 0,
   periodStart: "2026-03-30", periodEnd: "2027-02-26" };
 
-describe("Opt-in internship annual leave", () => {
-  it("retains previously allocated days when a completed holiday is reconciled, without increasing the contract total", () => {
+describe("Contract annual leave ledger (7-day rate, ÷ 12, whole days)", () => {
+  it("retains a reconciled allocation but never grants more than the rate earns", () => {
+    // 13 Nov 2026: 7 complete months → 7 × 7 / 12 = 4.08 → 4; the audited 5.5 is kept.
     const a = annualLeaveAmounts({ ...allocation, used: 5, pending: 0.5, recordedEarned: 5.5 }, null, d("2026-11-13"));
-    expect(a).toMatchObject({ earned: 5.5, remaining: 0, fullEntitlement: 7, fullAvailable: 1.5 });
-    const afterApproval = annualLeaveAmounts({ ...allocation, used: 5.5, pending: 0, recordedEarned: 5.5 }, null, d("2026-11-13"));
-    expect(afterApproval.remaining).toBe(0);
-    // Future accrual catches up naturally; the retained allocation is never added a second time.
-    expect(annualLeaveAmounts({ ...allocation, used: 5.5, recordedEarned: 5.5 }, null, d("2027-01-31")).earned).toBe(6);
+    expect(a).toMatchObject({ earned: 5.5, remaining: 0, fullEntitlement: 6 });
+    expect(annualLeaveAmounts({ ...allocation, used: 5.5, recordedEarned: 5.5 }, null, d("2027-01-31")).earned).toBe(5.5);
     expect(annualLeaveAmounts({ ...allocation, recordedEarned: 20 }, null, d("2026-11-13")).earned).toBe(7);
   });
 
-  it("offers 3 advance days from the full 7-day internship, with 4 earned and 2 used", () => {
+  it("earns 7 × months / 12 rounded down to a whole day; AL covers only that (+ OIL)", () => {
     const a = annualLeaveAmounts(allocation, null, d("2026-11-13"));
-    expect(a).toEqual({ isContract: true, earned: 4, fullEntitlement: 7, remaining: 2, fullAvailable: 5 });
-    expect(a.fullAvailable - a.remaining).toBe(3);
-    const coverage = evaluateAlRequest({ days: 14, earnedAvailable: a.remaining, fullAvailable: a.fullAvailable,
-      otAvailable: 2, otRequested: 2, useAdvance: true });
-    expect(coverage).toMatchObject({ advanceDays: 3, otDaysUsed: 2, excessDays: 7, coverable: 7 });
+    expect(a).toEqual({ isContract: true, earned: 4, fullEntitlement: 6, remaining: 2, fullAvailable: 4 });
+    const coverage = evaluateAlRequest({ days: 14, earnedAvailable: a.remaining, otAvailable: 2, otRequested: 2 });
+    expect(coverage).toMatchObject({ otDaysUsed: 2, excessDays: 10, coverable: 4 });
   });
 
-  it("keeps the same total and deductions after New Year", () => {
+  it("keeps accruing across New Year: 9 months → 5.25 → 5", () => {
     const a = annualLeaveAmounts(allocation, null, d("2027-01-04"));
-    expect(a.fullEntitlement).toBe(7);
-    expect(a.fullAvailable).toBe(5);
-    expect(a.earned).toBe(5.5);
-    expect(a.remaining).toBe(3.5);
+    expect(a.earned).toBe(5);
+    expect(a.remaining).toBe(3);
   });
 
-  it("counts pending reservations; never grants a second pool to cover existing excess", () => {
+  it("counts pending reservations", () => {
     const a = annualLeaveAmounts({ ...allocation, used: 3, pending: 4.5 }, null, d("2026-11-13"));
-    expect(a.fullAvailable).toBe(-0.5);
     expect(a.remaining).toBe(-3.5);
   });
 
-  it("fully earns the agreed total when the contract finishes, including the last part-month", () => {
+  it("11 contract months earn 7 × 11 / 12 = 6.4 → 6, including the last part-month", () => {
     expect(contractAccrualPeriods(allocation.periodStart, allocation.periodEnd)).toHaveLength(11);
-    expect(contractLeaveEarned(7, allocation.periodStart, allocation.periodEnd, d("2027-02-27"))).toBe(7);
+    expect(contractLeaveEarned(7, allocation.periodStart, allocation.periodEnd, d("2027-02-27"))).toBe(6);
     expect(contractLeaveEarned(7, allocation.periodStart, allocation.periodEnd, d("2026-03-29"))).toBe(0);
   });
 
   it("keeps ordinary calendar-year proration for accounts without a configured period", () => {
     const a = annualLeaveAmounts({ entitlement: 7, used: 2, pending: 0, carriedOver: 0 },
       { startDate: "2026-03-30", endDate: "2027-02-26" }, d("2026-11-13"));
+    // 30 Mar → 13 Nov: 7 complete months → 7 × 7 / 12 = 4.08 → 4; whole year: 9 months → 5.25 → 5.
     expect(a).toMatchObject({ isContract: false, earned: 4, fullEntitlement: 5, remaining: 2, fullAvailable: 3 });
   });
 

@@ -173,7 +173,7 @@ export async function buildLeaveSummary(month: ReportMonth) {
         if (b.leaveType.code === "AL_OT") {
           available = num(b.earned) - used - num(b.autoDeducted) - pending;
         } else if (b.leaveType.code === "AL" && (isCurrentYear || b.periodStart)) {
-          available = annualLeaveAmounts({ entitlement: entitlement || b.leaveType.defaultDays, carriedOver, used, pending,
+          available = annualLeaveAmounts({ entitlement, carriedOver, used, pending,
             recordedEarned: num(b.earned), periodStart: b.periodStart, periodEnd: b.periodEnd }, { ...e, monthlyLeaveRate: e.monthlyLeaveRate != null ? num(e.monthlyLeaveRate) : null },
             isCurrentYear ? new Date() : month.end).remaining;
         } else {

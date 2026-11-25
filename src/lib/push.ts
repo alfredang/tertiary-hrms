@@ -24,12 +24,12 @@ export interface PushItem {
 }
 
 /** Admin approval requests: the web link is the list page, but the apps open Approvals. */
-const APPROVAL_TYPES = new Set(["LEAVE_SUBMITTED", "TIME_OFF_SUBMITTED", "EXPENSE_SUBMITTED"]);
+const APPROVAL_TYPES = new Set(["LEAVE_SUBMITTED", "TIME_OFF_SUBMITTED", "EXPENSE_SUBMITTED", "PAYBACK_SUBMITTED"]);
 /**
  * Only approval requests make a sound; every other push (decisions, alerts, reminders, birthdays)
  * arrives silently (Alfred, 20 Nov 2026).
  */
-const SOUND_TYPES = new Set([...Array.from(APPROVAL_TYPES), "PAYBACK_SUBMITTED"]);
+const SOUND_TYPES = new Set(Array.from(APPROVAL_TYPES));
 export const pushHasSound = (type?: string | null): boolean => !!type && SOUND_TYPES.has(type);
 /** Android channel for silent pushes. The Android app must create it with no sound; until then Android uses its default channel. */
 export const ANDROID_SILENT_CHANNEL = "hrms_silent";
