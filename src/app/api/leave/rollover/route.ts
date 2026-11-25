@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     // Get all active employees
     const employees = await prisma.employee.findMany({
       where: { status: "ACTIVE" },
-      select: { id: true, name: true, employeeId: true },
+      select: { id: true, name: true, employeeId: true, employmentType: true },
     });
 
     const summary: Array<{
@@ -91,7 +91,8 @@ export async function POST(request: Request) {
               employeeId: emp.id,
               leaveTypeId: bal.leaveTypeId,
               year: targetYear,
-              entitlement: bal.leaveType.defaultDays,
+              // Interns get the leave type's intern days (AL: 5) when set; staff the default (AL: 7).
+              entitlement: emp.employmentType === "INTERN" && bal.leaveType.internDefaultDays > 0 ? bal.leaveType.internDefaultDays : bal.leaveType.defaultDays,
               used: 0,
               pending: 0,
               carriedOver: carryAmount,

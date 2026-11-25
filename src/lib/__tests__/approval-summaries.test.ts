@@ -16,7 +16,7 @@ const bal = (code: string, name: string, paid: boolean, o: Partial<Record<"entit
 });
 
 describe("buildLeaveSummary", () => {
-  it("totals paid leave, AL balance and NPL taken", () => {
+  it("counts annual leave taken (AL only), AL balance and NPL taken", () => {
     const s = buildLeaveSummary({
       employeeName: "ANG SEE SIANG",
       year: 2026,
@@ -30,7 +30,7 @@ describe("buildLeaveSummary", () => {
       npl: { cap: 17.5, used: 3, pending: 1, remaining: 13.5 },
       asOf: new Date("2026-11-12T00:00:00Z"),
     });
-    expect(s.stats[0]).toMatchObject({ label: "Paid leave taken", value: "7 days" });
+    expect(s.stats[0]).toMatchObject({ label: "Annual leave taken", value: "5 days" });
     expect(s.stats[2]).toMatchObject({ label: "MC taken", value: "2 days" });
     expect(s.stats[3]).toMatchObject({ label: "No-pay leave taken", value: "3 days", hint: "13.5 of 17.5 left" });
     expect(s.table!.rows.map((r) => r[0])).toEqual(["Annual Leave", "Medical Leave", "No Pay Leave"]);

@@ -50,8 +50,8 @@ async function main() {
   console.log("Creating leave types...");
   const annualLeave = await prisma.leaveType.upsert({
     where: { code: "AL" },
-    update: { defaultDays: 7, internDefaultDays: 3, carryOver: true, maxCarryOver: 4 },
-    create: { id: randomUUID(), name: "Annual Leave", code: "AL", defaultDays: 7, internDefaultDays: 3, carryOver: true, maxCarryOver: 4, description: "Paid annual leave" },
+    update: { defaultDays: 7, internDefaultDays: 5, carryOver: true, maxCarryOver: 4 },
+    create: { id: randomUUID(), name: "Annual Leave", code: "AL", defaultDays: 7, internDefaultDays: 5, carryOver: true, maxCarryOver: 4, description: "Paid annual leave" },
   });
   const sickLeave = await prisma.leaveType.upsert({
     where: { code: "SL" },

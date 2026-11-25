@@ -186,7 +186,7 @@ export default async function DashboardPage() {
   // The dashboard follows the person's role (Alfred, 20 Nov 2026):
   //   admin view      -> staff, interns, pending approvals
   //   accountant view -> pending claims, income, expenses
-  //   staff / intern  -> own paid leave taken, annual leave balance, MC taken, no-pay leave taken (as in the decision email)
+  //   staff / intern  -> own annual leave taken, annual leave balance, MC taken, no-pay leave taken (as in the decision email)
   //   Trainer Admins  -> trainers, ACLP, non-ACLP, as a second row under their own (not in accountant view)
   //   trainer view    -> the trainer row only (admins holding TRAINER_ADMIN, picked in View As)
   // Admins pick the view; an accountant always gets the accountant view, with their own leave row under it.

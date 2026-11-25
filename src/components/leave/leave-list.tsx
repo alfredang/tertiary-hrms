@@ -492,8 +492,12 @@ export function LeaveList({ requests, isManager }: LeaveListProps) {
       <div className="flex items-center gap-1 whitespace-nowrap">
         {base}
         {otUsed > 0 && (
-          <span className="text-xs bg-emerald-950/40 text-emerald-400 border border-emerald-800/50 rounded px-1.5 py-0.5">
-            +{otUsed}d OIL
+          // The total already includes the Off In Lieu days: show what it is made of, not an extra.
+          <span
+            className="text-xs bg-emerald-950/40 text-emerald-400 border border-emerald-800/50 rounded px-1.5 py-0.5"
+            title={`${numDays} ${dayLabel} = ${Math.max(0, numDays - otUsed - deficit)} annual leave + ${otUsed} Off In Lieu`}
+          >
+            {Math.max(0, numDays - otUsed - deficit)} AL + {otUsed} OIL
           </span>
         )}
         {deficit > 0 && (

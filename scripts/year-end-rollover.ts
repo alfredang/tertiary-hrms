@@ -32,7 +32,7 @@ async function main() {
   // Step 2: Get all active employees
   const employees = await prisma.employee.findMany({
     where: { status: 'ACTIVE' },
-    select: { id: true, name: true, employeeId: true },
+    select: { id: true, name: true, employeeId: true, employmentType: true },
   });
   console.log(`Active employees: ${employees.length}\n`);
 
@@ -82,7 +82,7 @@ async function main() {
             employeeId: emp.id,
             leaveTypeId: bal.leaveTypeId,
             year: targetYear,
-            entitlement: bal.leaveType.defaultDays,
+            entitlement: emp.employmentType === "INTERN" && bal.leaveType.internDefaultDays > 0 ? bal.leaveType.internDefaultDays : bal.leaveType.defaultDays,
             used: 0,
             pending: 0,
             carriedOver: carryAmount,

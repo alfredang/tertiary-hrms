@@ -26,7 +26,7 @@ vi.mock("@/lib/approval-summaries", () => ({
   loadLeaveSummary: vi.fn(async () => ({
     heading: "ANG SEE SIANG: leave summary 2026",
     stats: [
-      { label: "Paid leave taken", value: "8 days" },
+      { label: "Annual leave taken", value: "8 days" },
       { label: "Annual leave balance", value: "5.5 days" },
       { label: "MC taken", value: "2 days" },
       { label: "No-pay leave taken", value: "1 day" },
@@ -52,7 +52,7 @@ describe("sendLeaveDecisionEmail", () => {
     expect(arg.to).toBe("staff@tertiaryinfotech.com");
     expect(arg.cc).toEqual(["tansc@tertiaryinfotech.com", "angch@tertiaryinfotech.com"]);
     expect(arg.subject).toBe("subject LEAVE_REJECTED");
-    for (const text of ["Not Approved", "Paid leave taken", "Annual leave balance", "MC taken", "No-pay leave taken", "Clash with class", "Tan Soik Ching"]) {
+    for (const text of ["Not Approved", "Annual leave taken", "Annual leave balance", "MC taken", "No-pay leave taken", "Clash with class", "Tan Soik Ching"]) {
       expect(arg.html).toContain(text);
     }
   });

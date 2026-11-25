@@ -19,7 +19,7 @@ interface OtStats {
 
 interface StaffStats {
   /**
-   * The four leave figures of the decision email, in its order: paid leave taken, annual leave
+   * The four leave figures of the decision email, in its order: annual leave taken, annual leave
    * balance, MC taken, no-pay leave taken. Built by buildLeaveSummary(); shown as given.
    */
   leave: { label: string; value: string; hint?: string }[];

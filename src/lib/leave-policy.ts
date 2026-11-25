@@ -10,7 +10,8 @@
  *       joined 1 Sep, today 9 Nov → Sep + Oct served → 2 months.
  *       joined 20 Sep, today 9 Nov → 20 Sep–19 Oct served → 1 month.
  *       joined last year, today 9 Nov → Jan…Oct → 10 months.
- *  2. AL default is 7 days/year. AL beyond what the employee has available must
+ *  2. AL default is 7 days/year for staff and 5 for interns (Annual Leave type's
+ *     internDefaultDays, 25 Nov 2026). AL beyond what the employee has available must
  *     be applied for as No Pay Leave — the API rejects the excess with guidance.
  *  3. No Pay Leave is capped at 14 days/year for staff and interns alike, with NO
  *     proration: the full 14 days are available from the first day (Alfred, 20 Nov 2026).

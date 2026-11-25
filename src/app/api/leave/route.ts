@@ -204,7 +204,8 @@ export async function POST(req: NextRequest) {
           employeeId,
           leaveTypeId,
           year: currentYear,
-          entitlement: leaveType.defaultDays,
+          // Interns get the leave type's intern days (AL: 5) when set; staff the default (AL: 7).
+          entitlement: employee?.isIntern && leaveType.internDefaultDays > 0 ? leaveType.internDefaultDays : leaveType.defaultDays,
           used: 0,
           pending: 0,
           carriedOver: 0,

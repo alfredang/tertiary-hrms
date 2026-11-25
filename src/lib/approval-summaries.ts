@@ -43,7 +43,7 @@ export function buildLeaveSummary(args: {
   asOf?: Date;
 }): ResultSummary {
   const { balances, profile, npl, year } = args;
-  let paidTaken = 0;
+  let alTaken = 0;
   let alBalance: number | null = null;
   let mcTaken = 0;
   const rows: { order: number; cells: string[] }[] = [];
@@ -62,7 +62,7 @@ export function buildLeaveSummary(args: {
       rows.push({ order: 9, cells: [b.leaveType.name, days(taken), days(pend), npl ? days(npl.remaining) : "-"] });
       continue;
     }
-    if (b.leaveType.paid) paidTaken += used;
+    if (code === "AL") alTaken = used;
     if (code === "AL") alBalance = available;
     if (isMedicalLeaveCode(code)) mcTaken += used;
 
@@ -81,7 +81,7 @@ export function buildLeaveSummary(args: {
   return {
     heading: `${args.employeeName}: leave summary ${year}`,
     stats: [
-      { label: "Paid leave taken", value: days(paidTaken) },
+      { label: "Annual leave taken", value: days(alTaken) },
       { label: "Annual leave balance", value: alBalance == null ? "-" : days(alBalance) },
       { label: "MC taken", value: days(mcTaken) },
       {
@@ -92,7 +92,7 @@ export function buildLeaveSummary(args: {
       },
     ],
     table: { columns: ["Leave type", "Taken", "Pending", "Balance"], rows: rows.map((r) => r.cells) },
-    note: "Paid leave taken includes MC. Taken includes this decision. Balance = prorated entitlement + carried over − taken − pending.",
+    note: "Annual leave taken counts annual leave only (not MC or Off In Lieu). Taken includes this decision. Balance = prorated entitlement + carried over − taken − pending.",
   };
 }
 
