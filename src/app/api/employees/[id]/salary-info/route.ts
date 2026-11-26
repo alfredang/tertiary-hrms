@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 import { prisma } from "@/lib/prisma";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { refreshBaseSalaryPayslip } from "@/lib/payroll-month-end";
 
 // Update salary info for a staff (non-intern) employee.
@@ -11,15 +10,9 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!isDevAuthSkipped()) {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!["ADMIN", "HR"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  // Pay-edit guardrail: admins only (src/lib/pay-edit-policy.ts).
+  const refused = await requirePayEditor();
+  if (refused) return refused;
 
   const { id } = await params;
   const body = await req.json();

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { hasAdminAccess } from "@/lib/utils";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,12 +25,9 @@ const BodySchema = z.object({
   cpfSubmissionFileId: z.string().regex(/^[A-Za-z0-9_-]{10,}$/).nullish(),
 });
 
+// Pay-edit guardrail: only the admins may create or change payslips (src/lib/pay-edit-policy.ts).
 async function isAuthorized(): Promise<boolean> {
-  if (isDevAuthSkipped()) return true;
-  const session = await auth();
-  if (!session?.user) return false;
-  const role = session.user.role;
-  return role === "ADMIN" || role === "HR" || hasAdminAccess(role);
+  return (await requirePayEditor()) === null;
 }
 
 export async function POST(req: NextRequest) {

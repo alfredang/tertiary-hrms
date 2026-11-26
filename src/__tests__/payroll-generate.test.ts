@@ -44,7 +44,7 @@ function makeRequest(body: Record<string, unknown>) {
 }
 
 const ADMIN_SESSION = {
-  user: { id: "user_admin", email: "admin@test.com", role: "ADMIN", employeeId: "emp_admin" },
+  user: { id: "user_admin", email: "angch@tertiaryinfotech.com", role: "ADMIN", employeeId: "emp_admin" },
 };
 
 const HR_SESSION = {
@@ -138,15 +138,25 @@ describe("POST /api/payroll/generate — Auth", () => {
     expect(data.created).toBe(0);
   });
 
-  it("should allow HR role", async () => {
+  // Pay-edit guardrail (Alfred, 26 Nov 2026): only the two admins change pay; HR is refused.
+  it("should return 403 for HR role", async () => {
     mockAuth.mockResolvedValue(HR_SESSION);
-    mockPrisma.employee.findMany.mockResolvedValue([]);
-    noPayslipsNoCpf();
 
     const req = makeRequest({ month: 3, year: 2026 });
     const res = await POST(req);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
+  });
+
+  it("should return 403 for an ADMIN who is not one of the named admins", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user_x", email: "someone@tertiaryinfotech.com", role: "ADMIN", employeeId: "emp_x" },
+    });
+
+    const req = makeRequest({ month: 3, year: 2026 });
+    const res = await POST(req);
+
+    expect(res.status).toBe(403);
   });
 
   it("should return 403 for MANAGER role", async () => {

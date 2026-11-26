@@ -101,20 +101,24 @@ describe("baseSalaryPayslip", () => {
     expect(r.payroll.grossSalary).toBeLessThan(3000);
   });
 
-  // October 2026 has 22 Mon–Fri days: the day rate is the monthly amount / 22.
-  it("deducts an intern's MC / No Pay Leave days as their own line", () => {
-    const r = baseSalaryPayslip({ ...full, salary: { basicSalary: 0, allowances: 1000 }, intern: true, dateOfBirth: null, unpaidDays: 2 });
+  // October 2026 has 22 Mon–Fri days. Interns: take-home = (22 − No Pay Leave − MC + payback)
+  // × allowance ÷ 22, rounded down to a whole dollar (src/lib/intern-pay.ts).
+  it("deducts an intern's No Pay Leave and MC as their own lines, by the intern formula", () => {
+    const r = baseSalaryPayslip({ ...full, salary: { basicSalary: 0, allowances: 1000 }, intern: true, dateOfBirth: null, unpaidDays: 1, mcDays: 1 });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
+    expect(r.payroll.nplDays).toBe(1);
+    expect(r.payroll.mcDays).toBe(1);
+    expect(r.payroll.nplDeduction).toBe(45.45);
+    expect(r.payroll.mcDeduction).toBe(45.45);
     expect(r.payroll.unpaidLeaveDays).toBe(2);
-    expect(r.payroll.unpaidLeaveDeduction).toBe(90.91); // 1000 / 22 × 2
     expect(r.payroll.grossSalary).toBe(1000);
-    expect(r.payroll.totalDeductions).toBe(90.91);
-    expect(r.payroll.netSalary).toBe(909.09);
+    expect(r.payroll.netSalary).toBe(909); // (22 − 1 − 1) × 1000 ÷ 22 = 909.09 → 909
+    expect(r.payroll.totalDeductions).toBe(91); // 45.45 + 45.45 + 0.09 rounding down
     expect(r.payroll.cpfEmployee).toBe(0);
   });
 
-  it("adds paybacks back as their own earnings line", () => {
+  it("adds paybacks back to take-home, never to gross (gross = the flat allowance only)", () => {
     const r = baseSalaryPayslip({
       ...full,
       salary: { basicSalary: 0, allowances: 600 },
@@ -127,9 +131,55 @@ describe("baseSalaryPayslip", () => {
     if (!r.ok) return;
     expect(r.payroll.paybackDays).toBe(1);
     expect(r.payroll.paybackAmount).toBe(27.27); // 600 / 22
-    expect(r.payroll.grossSalary).toBe(627.27);
-    expect(r.payroll.unpaidLeaveDeduction).toBe(54.55);
-    expect(r.payroll.netSalary).toBe(572.72);
+    expect(r.payroll.grossSalary).toBe(600);
+    expect(r.payroll.netSalary).toBe(572); // (22 − 2 + 1) × 600 ÷ 22 = 572.72 → 572
+    // Lines add up: gross − deductions + payback = take-home.
+    expect(r.payroll.grossSalary - r.payroll.totalDeductions + r.payroll.paybackAmount).toBeCloseTo(572, 2);
+  });
+
+  // Oct 2026 case (Alfred, 26 Nov 2026): gross was shown as $1,045.45; it is $1,000 only.
+  it("keeps a $1,000 intern's gross at $1,000 with No Pay Leave, MC and a payback", () => {
+    const r = baseSalaryPayslip({
+      ...full,
+      salary: { basicSalary: 0, allowances: 1000 },
+      intern: true,
+      dateOfBirth: null,
+      unpaidDays: 1,
+      mcDays: 4,
+      paybackDays: 1,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.payroll.grossSalary).toBe(1000);
+    expect(r.payroll.netSalary).toBe(818); // (22 − 1 − 4 + 1) × 1000 ÷ 22 = 818.18 → 818
+  });
+
+  it("ignores mcDays for staff (their MC is paid)", () => {
+    const r = baseSalaryPayslip({
+      ...full,
+      salary: { basicSalary: 2200, allowances: 0 },
+      intern: false,
+      dateOfBirth: new Date(1990, 0, 1),
+      mcDays: 3,
+    });
+    expect(r.ok && r.payroll.mcDays).toBe(0);
+    expect(r.ok && r.payroll.netSalary).toBe(1760); // 2200 − 20% CPF
+  });
+
+  it("works out staff CPF on the pay earned after No Pay Leave and payback", () => {
+    const r = baseSalaryPayslip({
+      ...full,
+      salary: { basicSalary: 2200, allowances: 0 },
+      intern: false,
+      dateOfBirth: new Date(1990, 0, 1),
+      unpaidDays: 2,
+      paybackDays: 1,
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.payroll.grossSalary).toBe(2200);
+    expect(r.payroll.cpfEmployee).toBe(420); // 20% of 2200 − 200 + 100
+    expect(r.payroll.netSalary).toBe(1680); // 2200 − 200 − 420 + 100
   });
 
   it("works out staff CPF on the pay left after No Pay Leave", () => {

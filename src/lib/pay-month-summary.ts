@@ -13,16 +13,14 @@
 // `paybackDays`: days are split across months the same way (`nplDaysOfRequest`: Mon–Fri, public
 // holidays excluded) and paybacks count on the day worked.
 
-import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
-import { isInternEmployee, isMedicalLeaveCode, NPL_CODE } from "@/lib/leave-policy";
-import { nplDaysOfRequest } from "@/lib/npl-payback";
+import { isInternEmployee } from "@/lib/leave-policy";
 import { holidayKeys } from "@/lib/npl-payback-store";
 import { loadPaybackDays } from "@/lib/payroll-month-end";
 
-export const AL_CODE = "AL";
-/** Reason prefix of the No Pay Leave the API files for an intern's MC. */
-export const INTERN_MC_REASON_PREFIX = "Sick leave (MC)";
+export { AL_CODE, INTERN_MC_REASON_PREFIX, monthKey, payMonthLeaveFigures } from "@/lib/leave-month-figures";
+export type { PayMonthRequest } from "@/lib/leave-month-figures";
+import { monthKey, payMonthLeaveFigures } from "@/lib/leave-month-figures";
 
 export interface PayMonthSummary {
   /** "YYYY-MM" */
@@ -39,14 +37,6 @@ export interface PayMonthSummary {
   paybackDays: number;
 }
 
-export interface PayMonthRequest {
-  code: string;
-  reason: string | null;
-  startDate: Date;
-  endDate: Date;
-  days: number;
-}
-
 /** "2026-09" → { year: 2026, month: 9 }; null when not a valid month. */
 export function parseMonth(value: string | null | undefined): { year: number; month: number } | null {
   const m = /^(\d{4})-(\d{2})$/.exec(value ?? "");
@@ -54,37 +44,6 @@ export function parseMonth(value: string | null | undefined): { year: number; mo
   const year = Number(m[1]);
   const month = Number(m[2]);
   return month >= 1 && month <= 12 ? { year, month } : null;
-}
-
-export function monthKey(year: number, month: number): string {
-  return `${year}-${String(month).padStart(2, "0")}`;
-}
-
-/** Pure: the leave figures of the month from the person's approved requests. */
-export function payMonthLeaveFigures(
-  requests: PayMonthRequest[],
-  intern: boolean,
-  month: number,
-  year: number,
-  holidays: ReadonlySet<string> = new Set(),
-): { annualLeaveDays: number; noPayLeaveDays: number; mcDays: number } {
-  const prefix = `${monthKey(year, month)}-`;
-  const inMonth = (r: PayMonthRequest) =>
-    nplDaysOfRequest(r, holidays)
-      .filter((d) => d.date.startsWith(prefix))
-      .reduce((s, d) => s.plus(d.days), new Decimal(0));
-  let al = new Decimal(0);
-  let npl = new Decimal(0);
-  let mc = new Decimal(0);
-  for (const r of requests) {
-    const code = r.code.toUpperCase();
-    if (code === AL_CODE) al = al.plus(inMonth(r));
-    else if (code === NPL_CODE) {
-      if (intern && (r.reason ?? "").startsWith(INTERN_MC_REASON_PREFIX)) mc = mc.plus(inMonth(r));
-      else npl = npl.plus(inMonth(r));
-    } else if (isMedicalLeaveCode(code)) mc = mc.plus(inMonth(r));
-  }
-  return { annualLeaveDays: al.toNumber(), noPayLeaveDays: npl.toNumber(), mcDays: mc.toNumber() };
 }
 
 /** The four figures for one person and month, from the database. Null when the person does not exist. */

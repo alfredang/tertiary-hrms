@@ -16,6 +16,9 @@ export interface PaySummary {
   takeHome: number;
   /** Unpaid days (No Pay Leave; MC too for interns) and paybacks on that payslip. */
   unpaidLeaveDays: number;
+  /** The unpaid days split: No Pay Leave and MC (interns). Both 0 on older payslips. */
+  nplDays: number;
+  mcDays: number;
   paybackDays: number;
 }
 
@@ -39,6 +42,8 @@ export async function latestPaySummaries(employeeIds: string[]): Promise<Record<
       cpfEmployer: true,
       netSalary: true,
       unpaidLeaveDays: true,
+      nplDays: true,
+      mcDays: true,
       paybackDays: true,
     },
   });
@@ -53,6 +58,8 @@ export async function latestPaySummaries(employeeIds: string[]): Promise<Record<
       cpfEmployer: Number(r.cpfEmployer),
       takeHome: Number(r.netSalary),
       unpaidLeaveDays: Number(r.unpaidLeaveDays),
+      nplDays: Number(r.nplDays),
+      mcDays: Number(r.mcDays),
       paybackDays: Number(r.paybackDays),
     };
   }

@@ -29,6 +29,9 @@ async function getPayslips(employeeId?: string) {
           name: true,
           employeeId: true,
           department: { select: { name: true } },
+          // Intern rows say "Allowance" and "No CPF" (Alfred, 26 Nov 2026).
+          employmentType: true,
+          user: { select: { roles: true } },
         },
       },
     },

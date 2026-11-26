@@ -187,7 +187,7 @@ export function EmployeeList({ employees, departments, isAdmin = true, kind = "s
                 {pay && (
                   <>
                     <th className="px-3 py-2 font-medium whitespace-nowrap" title="Month of the latest payslip">Pay Month</th>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap text-right">Gross Pay</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap text-right">{kind === "intern" ? "Allowance" : "Gross Pay"}</th>
                     <th className="px-3 py-2 font-medium whitespace-nowrap text-right">CPF (Employee)</th>
                     <th className="px-3 py-2 font-medium whitespace-nowrap text-right">CPF (Employer)</th>
                     <th className="px-3 py-2 font-medium whitespace-nowrap text-right">Take-Home Pay</th>
@@ -301,7 +301,7 @@ export function EmployeeList({ employees, departments, isAdmin = true, kind = "s
   );
 }
 
-/** Gross, CPF (employee / employer) and take-home from the latest payslip. Interns have no CPF. */
+/** Gross (interns: Allowance), CPF (employee / employer) and take-home from the latest payslip. Interns have no CPF. */
 function PayCells({ summary, intern }: { summary?: PaySummary; intern: boolean }) {
   if (!summary) {
     return (

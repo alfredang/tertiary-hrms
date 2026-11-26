@@ -6,6 +6,8 @@ import { nplDaysOfRequest, ymd } from "@/lib/npl-payback";
 import { holidayKeys } from "@/lib/npl-payback-store";
 import { escapeHtml, notifyAdmins } from "@/lib/admin-alerts";
 import { listCpfSubmissionFiles } from "@/lib/cpf-submission-files";
+import { internPayslipFigures } from "@/lib/intern-pay";
+import { payMonthLeaveFigures } from "@/lib/leave-month-figures";
 
 /**
  * Payslip source rule (Alfred, 26 Nov 2026):
@@ -49,8 +51,14 @@ export interface BaseSalaryFigures {
   overtime: number;
   bonus: number;
   grossSalary: number;
+  /** No Pay Leave + MC (interns): the total unpaid days and amount. */
   unpaidLeaveDays: number;
   unpaidLeaveDeduction: number;
+  /** The two unpaid lines on their own: No Pay Leave, and MC (interns only; staff MC is paid). */
+  nplDays: number;
+  nplDeduction: number;
+  mcDays: number;
+  mcDeduction: number;
   paybackDays: number;
   paybackAmount: number;
   cpfEmployee: number;
@@ -67,13 +75,17 @@ const money = (d: Decimal.Value) => new Decimal(d).toDecimalPlaces(2, Decimal.RO
 
 /**
  * Base-salary payslip figures for one person and month (pure). Shown line by line on the payslip:
- *  - Interns: the flat monthly amount, no part-month proration, no CPF (employee or employer).
+ *  - Interns: the HARD-CODED formula in src/lib/intern-pay.ts (`internPayslipFigures`):
+ *    take-home = (working days − No Pay Leave − MC + payback) × gross ÷ working days, rounded down
+ *    to a whole dollar; gross = the flat monthly amount, no proration, no CPF (employee or employer).
  *  - Staff: prorated for a part month (MOM working-day standard), CPF by age band.
  *  - Unpaid days taken in the month (No Pay Leave; MC too for interns) are a deduction line at
  *    the day rate = monthly rate / Mon–Fri working days in the month, at most the month's pay.
- *  - Paybacks (approved off days worked in the month) are an earnings line at the same day rate,
- *    so they add back what the leave took. Gross includes them.
- *  - Staff CPF is on the pay actually earned (gross − unpaid leave). Income tax is 0.
+ *  - Paybacks (approved off days worked in the month) are an add-back line at the same day rate,
+ *    so they give back what the leave took. Gross is the base pay ONLY (an intern's flat $600 /
+ *    $1,000, never more; Alfred, 26 Nov 2026): the payback goes into take-home, not gross.
+ *    Take-home = gross − unpaid leave − CPF + payback.
+ *  - Staff CPF is on the pay actually earned (gross − unpaid leave + payback). Income tax is 0.
  */
 export function baseSalaryPayslip(args: {
   salary: SalaryInput;
@@ -83,7 +95,10 @@ export function baseSalaryPayslip(args: {
   endDate: Date | null;
   month: number;
   year: number;
+  /** No Pay Leave days in the month. */
   unpaidDays?: number;
+  /** Interns: MC days in the month (unpaid). Ignored for staff, whose MC is paid. */
+  mcDays?: number;
   paybackDays?: number;
 }): BaseSalaryResult {
   const { payPeriodStart, payPeriodEnd } = payPeriod(args.month, args.year);
@@ -113,11 +128,50 @@ export function baseSalaryPayslip(args: {
   const unpaidDays = Math.max(0, args.unpaidDays ?? 0);
   const paybackDays = Math.max(0, args.paybackDays ?? 0);
   const workingDays = countWorkingDays(payPeriodStart, payPeriodEnd);
+
+  if (args.intern) {
+    // Interns: take-home = (working days − No Pay Leave − MC + Payback) × gross ÷ working days,
+    // rounded down to a whole dollar (hard-coded, src/lib/intern-pay.ts).
+    const f = internPayslipFigures({
+      monthlyAllowance: monthly,
+      workingDays,
+      nplDays: unpaidDays,
+      mcDays: Math.max(0, args.mcDays ?? 0),
+      paybackDays,
+    });
+    // No Pay Leave + MC (+ the cents dropped by rounding down): gross − total + payback = take-home.
+    const unpaidTotal = f.totalDeductions;
+    return {
+      ok: true,
+      payroll: {
+        basicSalary: money(basic),
+        allowances: money(allowances),
+        overtime: 0,
+        bonus: 0,
+        grossSalary: f.grossSalary,
+        unpaidLeaveDays: new Decimal(f.nplDays).plus(f.mcDays).toNumber(),
+        unpaidLeaveDeduction: unpaidTotal,
+        nplDays: f.nplDays,
+        nplDeduction: f.nplDeduction,
+        mcDays: f.mcDays,
+        mcDeduction: f.mcDeduction,
+        paybackDays: f.paybackDays,
+        paybackAmount: f.paybackAmount,
+        cpfEmployee: 0,
+        cpfEmployer: 0,
+        incomeTax: 0,
+        otherDeductions: 0,
+        totalDeductions: unpaidTotal,
+        netSalary: f.netSalary,
+      },
+    };
+  }
+
   const dayRate = workingDays > 0 ? new Decimal(monthly).div(workingDays) : new Decimal(0);
   const deduction = Math.min(base, money(dayRate.times(unpaidDays)));
   const payback = money(dayRate.times(paybackDays));
-  const gross = money(new Decimal(base).plus(payback));
-  const wages = money(new Decimal(gross).minus(deduction));
+  const gross = base;
+  const wages = money(new Decimal(gross).minus(deduction).plus(payback));
 
   let cpfEmployee = 0;
   let cpfEmployer = 0;
@@ -137,6 +191,10 @@ export function baseSalaryPayslip(args: {
       grossSalary: gross,
       unpaidLeaveDays: unpaidDays,
       unpaidLeaveDeduction: deduction,
+      nplDays: unpaidDays,
+      nplDeduction: deduction,
+      mcDays: 0,
+      mcDeduction: 0,
       paybackDays,
       paybackAmount: payback,
       cpfEmployee,
@@ -144,7 +202,7 @@ export function baseSalaryPayslip(args: {
       incomeTax: 0,
       otherDeductions: 0,
       totalDeductions,
-      netSalary: money(new Decimal(gross).minus(totalDeductions)),
+      netSalary: money(new Decimal(gross).plus(payback).minus(totalDeductions)),
     },
   };
 }
@@ -180,14 +238,18 @@ function utcMonth(month: number, year: number) {
   return { from: new Date(Date.UTC(year, month - 1, 1)), to: new Date(Date.UTC(year, month, 0, 23, 59, 59)) };
 }
 
-/** Unpaid days taken in the month, from the database. */
+/**
+ * Unpaid days taken in the month, from the database, split into No Pay Leave and MC with the same
+ * rule as the person page (`payMonthLeaveFigures`): an intern's MC, including the No Pay Leave filed
+ * for it ("Sick leave (MC) — …"), is MC; staff MC is paid, so staff have No Pay Leave only.
+ */
 export async function loadUnpaidDays(
   employeeId: string,
   intern: boolean,
   month: number,
   year: number,
   holidays: ReadonlySet<string>,
-): Promise<number> {
+): Promise<{ nplDays: number; mcDays: number }> {
   const { from, to } = utcMonth(month, year);
   const requests = await prisma.leaveRequest.findMany({
     where: {
@@ -197,9 +259,16 @@ export async function loadUnpaidDays(
       startDate: { lte: to },
       endDate: { gte: from },
     },
-    select: { startDate: true, endDate: true, days: true },
+    select: { startDate: true, endDate: true, days: true, reason: true, leaveType: { select: { code: true } } },
   });
-  return unpaidDaysInMonth(requests.map((r) => ({ ...r, days: Number(r.days) })), month, year, holidays);
+  const f = payMonthLeaveFigures(
+    requests.map((r) => ({ code: r.leaveType.code, reason: r.reason, startDate: r.startDate, endDate: r.endDate, days: Number(r.days) })),
+    intern,
+    month,
+    year,
+    holidays,
+  );
+  return { nplDays: f.noPayLeaveDays, mcDays: intern ? f.mcDays : 0 };
 }
 
 /** Approved paybacks worked (off days) in the month: added back on that month's payslip. */
@@ -248,6 +317,10 @@ function payslipData(p: BaseSalaryFigures) {
     otherDeductions: p.otherDeductions,
     unpaidLeaveDays: p.unpaidLeaveDays,
     unpaidLeaveDeduction: p.unpaidLeaveDeduction,
+    nplDays: p.nplDays,
+    nplDeduction: p.nplDeduction,
+    mcDays: p.mcDays,
+    mcDeduction: p.mcDeduction,
     paybackDays: p.paybackDays,
     paybackAmount: p.paybackAmount,
     totalDeductions: p.totalDeductions,
@@ -258,6 +331,7 @@ function payslipData(p: BaseSalaryFigures) {
 
 const FIGURE_KEYS = [
   "grossSalary", "cpfEmployee", "cpfEmployer", "unpaidLeaveDays", "unpaidLeaveDeduction",
+  "nplDays", "nplDeduction", "mcDays", "mcDeduction",
   "paybackDays", "paybackAmount", "totalDeductions", "netSalary", "basicSalary", "allowances",
 ] as const;
 
@@ -291,7 +365,7 @@ async function figuresFor(
     endDate: employee.endDate,
     month,
     year,
-    unpaidDays: await loadUnpaidDays(employee.id, intern, month, year, holidays),
+    ...(await loadUnpaidDays(employee.id, intern, month, year, holidays).then((u) => ({ unpaidDays: u.nplDays, mcDays: u.mcDays }))),
     paybackDays: await loadPaybackDays(employee.id, month, year),
   });
   return { intern, result };

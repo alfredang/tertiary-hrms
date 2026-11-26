@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 import { generateBaseSalaryPayslips, MONTHS } from "@/lib/payroll-month-end";
 
 // "Auto-Generate" on /payroll/generate: base-salary payslips for the month, with the
@@ -9,16 +8,9 @@ import { generateBaseSalaryPayslips, MONTHS } from "@/lib/payroll-month-end";
 // otherwise everyone without a payslip. Interns have CPF 0. Never overwrites.
 export async function POST(req: NextRequest) {
   try {
-    if (!isDevAuthSkipped()) {
-      const session = await auth();
-      if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      const role = session.user.role;
-      if (role !== "ADMIN" && role !== "HR") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
+    // Pay-edit guardrail: admins only (src/lib/pay-edit-policy.ts).
+    const refused = await requirePayEditor();
+    if (refused) return refused;
 
     const body = await req.json();
     const month = Number(body.month);

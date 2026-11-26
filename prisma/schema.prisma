@@ -343,6 +343,12 @@ model Payslip {
   unpaidLeaveDays      Decimal       @default(0) @db.Decimal(4, 1)
   /// Amount deducted for those days (monthly rate / Mon–Fri working days in the month × days).
   unpaidLeaveDeduction Decimal       @default(0) @db.Decimal(12, 2)
+  /// The two unpaid lines on their own (Alfred, 26 Nov 2026): No Pay Leave, and MC (interns only; staff MC is paid).
+  /// Intern take-home = gross − nplDeduction − mcDeduction + paybackAmount (src/lib/intern-pay.ts).
+  nplDays              Decimal       @default(0) @db.Decimal(4, 1)
+  nplDeduction         Decimal       @default(0) @db.Decimal(12, 2)
+  mcDays               Decimal       @default(0) @db.Decimal(4, 1)
+  mcDeduction          Decimal       @default(0) @db.Decimal(12, 2)
   /// Approved paybacks (off days worked) in the month, added back at the same day rate.
   paybackDays          Decimal       @default(0) @db.Decimal(4, 1)
   paybackAmount        Decimal       @default(0) @db.Decimal(12, 2)

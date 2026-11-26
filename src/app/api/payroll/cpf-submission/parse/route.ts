@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { hasAdminAccess } from "@/lib/utils";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 import { uploadPdfToFolder } from "@/lib/drive";
 import {
   CPF_SUBMISSION_FOLDER_ID,
@@ -14,12 +12,9 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Pay-edit guardrail: only the admins may create or change payslips (src/lib/pay-edit-policy.ts).
 async function isAuthorized(): Promise<boolean> {
-  if (isDevAuthSkipped()) return true;
-  const session = await auth();
-  if (!session?.user) return false;
-  const role = session.user.role;
-  return role === "ADMIN" || role === "HR" || hasAdminAccess(role);
+  return (await requirePayEditor()) === null;
 }
 
 function driveFileName(month: number, year: number, original: string): string {

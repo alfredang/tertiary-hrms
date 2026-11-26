@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { INTERN_PAY_FORMULA } from "@/lib/intern-pay";
 import { prisma } from "@/lib/prisma";
 import { getMobileContext, unauthorized, iso, num } from "@/lib/mobile-api";
 import { isInternEmployee } from "@/lib/leave-policy";
@@ -62,8 +63,15 @@ export async function GET() {
       // Unpaid days taken (No Pay Leave; MC too for interns) and paybacks added back.
       unpaidLeaveDays: num(p.unpaidLeaveDays),
       unpaidLeaveDeduction: num(p.unpaidLeaveDeduction),
+      // The two unpaid lines on their own (interns: MC is unpaid; staff MC is paid, so 0).
+      nplDays: num(p.nplDays),
+      nplDeduction: num(p.nplDeduction),
+      mcDays: num(p.mcDays),
+      mcDeduction: num(p.mcDeduction),
       paybackDays: num(p.paybackDays),
       paybackAmount: num(p.paybackAmount),
+      // Interns: take-home = (working days − No Pay Leave − MC + Payback) × gross ÷ working days, rounded down.
+      payFormula: intern ? INTERN_PAY_FORMULA : null,
       totalDeductions: num(p.totalDeductions),
       netSalary: num(p.netSalary),
       status: p.status,

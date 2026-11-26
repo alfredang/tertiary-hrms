@@ -4,10 +4,11 @@ import { formatCurrency } from "@/lib/utils";
 import type { PaySummary } from "@/lib/pay-summary";
 
 /**
- * The person's latest payslip at a glance (admin view): gross pay, CPF employee / employer
- * (interns: no CPF), unpaid leave and paybacks, and take-home pay.
+ * The person's latest payslip at a glance (admin view): gross pay (interns: Allowance, as they have
+ * no CPF), CPF employee / employer, unpaid leave and paybacks, and take-home pay.
  */
 export function LatestPayslipCard({ summary, intern }: { summary?: PaySummary; intern: boolean }) {
+  const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
   const row = (label: string, value: string, strong = false) => (
     <div className="flex justify-between text-sm">
       <span className="text-gray-400">{label}</span>
@@ -27,10 +28,17 @@ export function LatestPayslipCard({ summary, intern }: { summary?: PaySummary; i
           <p className="text-sm text-gray-400">No payslip yet.</p>
         ) : (
           <>
-            {row("Gross Pay", formatCurrency(summary.gross))}
-            {summary.paybackDays > 0 && row("  incl. payback (off days worked)", `${summary.paybackDays} day${summary.paybackDays === 1 ? "" : "s"}`)}
-            {summary.unpaidLeaveDays > 0 &&
-              row(intern ? "MC / No Pay Leave deducted" : "No Pay Leave deducted", `${summary.unpaidLeaveDays} day${summary.unpaidLeaveDays === 1 ? "" : "s"}`)}
+            {row(intern ? "Allowance" : "Gross Pay", formatCurrency(summary.gross))}
+            {intern && summary.nplDays + summary.mcDays > 0 ? (
+              <>
+                {summary.nplDays > 0 && row("No Pay Leave deducted", days(summary.nplDays))}
+                {summary.mcDays > 0 && row("MC deducted", days(summary.mcDays))}
+              </>
+            ) : (
+              summary.unpaidLeaveDays > 0 &&
+              row(intern ? "MC / No Pay Leave deducted" : "No Pay Leave deducted", days(summary.unpaidLeaveDays))
+            )}
+            {summary.paybackDays > 0 && row("Payback added back (off days worked)", days(summary.paybackDays))}
             {intern ? (
               row("CPF", "None (interns have no CPF)")
             ) : (

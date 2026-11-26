@@ -15,6 +15,12 @@ PostToolUse Edit/Write
                      keep calling isLoginEmailAllowed; an edit that removes a call is reported back as a failure.
                    - ROLE GUARDRAIL (22 Nov 2026): elevated roles only for the people in src/lib/role-policy.ts (everyone
                      else STAFF or INTERN); sign-in paths keep effectiveRoles, role writes keep disallowedRoles.
+                   - PAY-EDIT GUARDRAIL (Alfred, 26 Nov 2026): only the two admins (Alfred Ang, Tan Soik Ching) change
+                     salary or pay. Every route writing SalaryInfo/Payslip keeps requirePayEditor/callerCanEditPay
+                     (src/lib/pay-edit-policy.ts), and no other API route may write them.
+                   - INTERN PAY FORMULA (Alfred, 26 Nov 2026), hard-coded in src/lib/intern-pay.ts:
+                     take-home = (working days − No Pay Leave − MC + Payback) × Allowance ÷ working days, rounded down.
+                     The formula must stay as written and the payslip run must use internPayslipFigures().
 Exit code 2 = block (PreToolUse) / report failure back to Claude (PostToolUse).
 """
 import json, os, re, subprocess, sys
@@ -108,6 +114,10 @@ def pre_bash(cmd):
         if bad:
             block("HRMS guard: blocked push — ROLE GUARDRAIL broken (elevated roles only for src/lib/role-policy.ts):\n  "
                   + "\n  ".join(bad))
+        bad = pay_guard_problems()
+        if bad:
+            block("HRMS guard: blocked push — PAY-EDIT GUARDRAIL broken (only the admins change salary or pay):\n  "
+                  + "\n  ".join(bad))
         bad = login_guard_problems()
         if bad:
             block("HRMS guard: blocked push — LOGIN GUARDRAIL broken (company email for staff on every sign-in path):\n  "
@@ -135,6 +145,52 @@ ROLE_GUARD = {
     "src/app/api/employees/route.ts": ("disallowedRoles(", 1),
     "src/app/api/employees/[id]/route.ts": ("disallowedRoles(", 1),
 }
+
+
+# Pay-edit guardrail (Alfred, 26 Nov 2026): only the admins change salary or pay.
+PAY_GUARD = {
+    "src/app/api/payroll/payslip/[id]/route.ts": "requirePayEditor(",
+    "src/app/api/payroll/upload/route.ts": "requirePayEditor(",
+    "src/app/api/payroll/generate/route.ts": "requirePayEditor(",
+    "src/app/api/payroll/cpf-submission/parse/route.ts": "requirePayEditor(",
+    "src/app/api/payroll/cpf-submission/apply/route.ts": "requirePayEditor(",
+    "src/app/api/employees/[id]/salary-info/route.ts": "requirePayEditor(",
+    "src/app/api/employees/[id]/intern-allowance/route.ts": "requirePayEditor(",
+    "src/app/api/employees/route.ts": "callerCanEditPay(",
+    "src/app/api/employees/[id]/route.ts": "callerCanEditPay(",
+}
+PAY_WRITE = re.compile(r"\b(payslip|salaryInfo)\.(update|updateMany|create|createMany|upsert)\(")
+
+
+INTERN_FORMULA = "(working days − No Pay Leave − MC + Payback) × Allowance ÷ working days, rounded down to a whole dollar"
+
+
+def pay_guard_problems():
+    problems = []
+    ip = os.path.join(ROOT, "src/lib/intern-pay.ts")
+    ip_src = open(ip, encoding="utf-8").read() if os.path.exists(ip) else ""
+    if INTERN_FORMULA not in ip_src or ".floor()" not in ip_src:
+        problems.append("src/lib/intern-pay.ts must keep the intern formula: take-home = " + INTERN_FORMULA)
+    pme = os.path.join(ROOT, "src/lib/payroll-month-end.ts")
+    if not os.path.exists(pme) or "internPayslipFigures(" not in open(pme, encoding="utf-8").read():
+        problems.append("src/lib/payroll-month-end.ts must pay interns with internPayslipFigures() (src/lib/intern-pay.ts)")
+    policy = os.path.join(ROOT, "src/lib/pay-edit-policy.ts")
+    if not os.path.exists(policy) or 'user.role !== "ADMIN"' not in open(policy).read():
+        problems.append("src/lib/pay-edit-policy.ts must keep canEditPay() limited to ADMIN")
+    for rel, call in PAY_GUARD.items():
+        f = os.path.join(ROOT, rel)
+        if not os.path.exists(f) or call not in open(f).read():
+            problems.append(f"{rel}: must call {call[:-1]} before changing pay")
+    api = os.path.join(ROOT, "src/app/api")
+    for d, _, files in os.walk(api):
+        for name in files:
+            f = os.path.join(d, name)
+            rel = os.path.relpath(f, ROOT).replace(os.sep, "/")
+            if not name.endswith(".ts") or rel in PAY_GUARD or "/cron/" in rel:
+                continue
+            if PAY_WRITE.search(open(f, encoding="utf-8", errors="replace").read()):
+                problems.append(f"{rel}: writes SalaryInfo/Payslip without the admin-only gate (add it to PAY_GUARD and call requirePayEditor)")
+    return problems
 
 
 def role_guard_problems():
@@ -174,6 +230,19 @@ def post_edit(path):
         if code != 0:
             print("HRMS guard: role-policy tests FAILED:\n" + out[-2500:], file=sys.stderr)
             sys.exit(2)
+    if rel in PAY_GUARD or rel in ("src/lib/pay-edit-policy.ts", "src/lib/pay-edit-gate.ts", "src/lib/role-policy.ts",
+                                   "src/lib/intern-pay.ts", "src/lib/payroll-month-end.ts") or (
+            rel.startswith("src/app/api/") and rel.endswith(".ts")):
+        bad = pay_guard_problems()
+        if bad:
+            print("HRMS guard: PAY-EDIT GUARDRAIL broken. Only the admins (Alfred Ang, Tan Soik Ching) may change salary "
+                  "or pay; every route that writes SalaryInfo or Payslip must call the gate:\n  " + "\n  ".join(bad), file=sys.stderr)
+            sys.exit(2)
+        if rel in PAY_GUARD or rel.startswith("src/lib/"):
+            code, out = run("npx vitest run src/lib/__tests__/pay-edit-policy.test.ts src/lib/__tests__/intern-pay.test.ts", timeout=300)
+            if code != 0:
+                print("HRMS guard: pay-edit-policy tests FAILED:\n" + out[-2500:], file=sys.stderr)
+                sys.exit(2)
     if rel in LOGIN_GUARD or rel == "src/lib/login-policy.ts":
         bad = login_guard_problems()
         if bad:

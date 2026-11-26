@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
 import { getCompanyBranding } from "@/lib/company-settings";
 import { isInternEmployee } from "@/lib/leave-policy";
+import { countWorkingDays } from "@/lib/cpf-calculator";
+import { internPaidDays } from "@/lib/intern-pay";
 
 function renderPayslipRemarks(template: string | null | undefined, payslip: any): string | null {
   if (!template) return null;
@@ -40,6 +42,33 @@ export function payslipFileName(
   // the employeeId as the first arg).
   const namePart = sanitizeForFilename(employeeName?.trim() || employeeIdOrName);
   return `${namePart}-${mm}-${yyyy}.pdf`;
+}
+
+/** Intern payslip lines for the PDF, from the stored payslip (src/lib/intern-pay.ts). */
+function internPayLines(p: any) {
+  const workingDays = countWorkingDays(p.payPeriodStart, p.payPeriodEnd);
+  const npl = Number(p.nplDays ?? 0);
+  const mc = Number(p.mcDays ?? 0);
+  // Older payslips have only the combined unpaid days: show them as No Pay Leave.
+  const split = npl + mc > 0;
+  const nplDays = split ? npl : Number(p.unpaidLeaveDays ?? 0);
+  const nplDeduction = split ? Number(p.nplDeduction ?? 0) : Number(p.unpaidLeaveDeduction ?? 0);
+  const mcDeduction = split ? Number(p.mcDeduction ?? 0) : 0;
+  const paybackDays = Number(p.paybackDays ?? 0);
+  const paybackAmount = Number(p.paybackAmount ?? 0);
+  const net = Number(p.netSalary);
+  const roundingDown = Math.max(0, Math.round((Number(p.grossSalary) - nplDeduction - mcDeduction + paybackAmount - net) * 100) / 100);
+  return {
+    workingDays,
+    nplDays,
+    nplDeduction,
+    mcDays: split ? mc : 0,
+    mcDeduction,
+    paybackDays,
+    paybackAmount,
+    paidDays: internPaidDays({ workingDays, nplDays, mcDays: split ? mc : 0, paybackDays }),
+    roundingDown,
+  };
 }
 
 export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> {
@@ -93,6 +122,7 @@ export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> 
       total: Number(payslip.cpfEmployee) + Number(payslip.cpfEmployer),
     },
     netSalary: Number(payslip.netSalary),
+    internPay: intern ? internPayLines(payslip) : undefined,
   });
   return Buffer.from(pdfData);
 }

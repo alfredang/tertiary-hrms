@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 import { prisma } from "@/lib/prisma";
 import ExcelJS from "exceljs";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
 
 export async function POST(req: NextRequest) {
   try {
-    if (!isDevAuthSkipped()) {
-      const session = await auth();
-      if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      if (session.user.role !== "ADMIN" && session.user.role !== "HR") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
+    // Pay-edit guardrail: admins only (src/lib/pay-edit-policy.ts).
+    const refused = await requirePayEditor();
+    if (refused) return refused;
 
     const formData = await req.formData();
     const file = formData.get("file") as File;
