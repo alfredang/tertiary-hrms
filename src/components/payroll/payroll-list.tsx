@@ -31,6 +31,10 @@ interface Payslip {
   incomeTax: any;
   totalDeductions: any;
   netSalary: any;
+  unpaidLeaveDays?: any;
+  unpaidLeaveDeduction?: any;
+  paybackDays?: any;
+  paybackAmount?: any;
   status: PayslipStatus;
   employee: {
     id: string;
@@ -45,6 +49,8 @@ interface PayrollListProps {
   isHR: boolean;
   /** payslip id → download path of the CPF statement it was built from (admin/accountant only). */
   cpfLinks?: Record<string, { path: string; name: string }>;
+  /** The viewer is an intern looking at their own payslips: no CPF columns. */
+  intern?: boolean;
 }
 
 const statusColors: Record<PayslipStatus, string> = {
@@ -62,7 +68,24 @@ function formatPayPeriod(date: Date): string {
 
 const PAGE_SIZE = 50;
 
-export function PayrollList({ payslips, isHR, cpfLinks = {} }: PayrollListProps) {
+/** Intern payslip lines: the flat allowance, the MC / No Pay Leave deduction and the payback add-back. */
+function internLines(p: Payslip) {
+  const payback = Number(p.paybackAmount ?? 0);
+  const unpaid = Number(p.unpaidLeaveDeduction ?? 0);
+  return {
+    allowance: Number(p.grossSalary) - payback,
+    unpaid,
+    unpaidDays: Number(p.unpaidLeaveDays ?? 0),
+    payback,
+    paybackDays: Number(p.paybackDays ?? 0),
+  };
+}
+
+function daysLabel(n: number): string {
+  return `${n} day${n === 1 ? "" : "s"}`;
+}
+
+export function PayrollList({ payslips, isHR, cpfLinks = {}, intern = false }: PayrollListProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [editing, setEditing] = useState<Payslip | null>(null);
@@ -393,10 +416,36 @@ export function PayrollList({ payslips, isHR, cpfLinks = {} }: PayrollListProps)
                     <p className="text-sm font-semibold text-white">{formatCurrency(Number(payslip.netSalary))}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <span>CPF (ER): {formatCurrency(Number(payslip.cpfEmployer))}</span>
-                  <span>CPF (EE): {formatCurrency(Number(payslip.cpfEmployee))}</span>
-                </div>
+                {intern ? (
+                  (() => {
+                    const l = internLines(payslip);
+                    return (
+                      <div className="space-y-1 text-xs text-gray-400">
+                        <div className="flex justify-between">
+                          <span>Monthly allowance (flat)</span>
+                          <span>{formatCurrency(l.allowance)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>MC / No Pay Leave{l.unpaidDays > 0 ? ` (${daysLabel(l.unpaidDays)})` : ""}</span>
+                          <span>{l.unpaid > 0 ? `−${formatCurrency(l.unpaid)}` : "—"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Payback added back{l.paybackDays > 0 ? ` (${daysLabel(l.paybackDays)})` : ""}</span>
+                          <span>{l.payback > 0 ? `+${formatCurrency(l.payback)}` : "—"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>CPF</span>
+                          <span>None (interns have no CPF)</span>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>CPF (ER): {formatCurrency(Number(payslip.cpfEmployer))}</span>
+                    <span>CPF (EE): {formatCurrency(Number(payslip.cpfEmployee))}</span>
+                  </div>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -421,10 +470,21 @@ export function PayrollList({ payslips, isHR, cpfLinks = {} }: PayrollListProps)
               <thead>
                 <tr className="bg-gray-950 border-b border-gray-800">
                   <th className="text-left text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Date</th>
-                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Gross</th>
-                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (ER)</th>
-                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (EE)</th>
-                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Net Pay</th>
+                  {intern ? (
+                    <>
+                      <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Monthly Allowance</th>
+                      <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">MC / No Pay Leave</th>
+                      <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Payback</th>
+                      <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">Gross</th>
+                      <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (ER)</th>
+                      <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">CPF (EE)</th>
+                    </>
+                  )}
+                  <th className="text-right text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">{intern ? "Take-Home Pay" : "Net Pay"}</th>
                   <th className="text-left text-sm font-medium text-gray-400 px-4 py-3 whitespace-nowrap">PDF</th>
                 </tr>
               </thead>
@@ -434,15 +494,37 @@ export function PayrollList({ payslips, isHR, cpfLinks = {} }: PayrollListProps)
                     <td className="px-4 py-3 text-sm text-gray-300 whitespace-nowrap">
                       {formatPayPeriod(payslip.payPeriodStart)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
-                      {formatCurrency(Number(payslip.grossSalary))}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
-                      {formatCurrency(Number(payslip.cpfEmployer))}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
-                      {formatCurrency(Number(payslip.cpfEmployee))}
-                    </td>
+                    {intern ? (
+                      (() => {
+                        const l = internLines(payslip);
+                        return (
+                          <>
+                            <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
+                              {formatCurrency(l.allowance)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap" title="Deducted at the monthly allowance ÷ Mon–Fri working days">
+                              {l.unpaid > 0 ? `−${formatCurrency(l.unpaid)} (${daysLabel(l.unpaidDays)})` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap" title="Off days worked to pay back No Pay Leave, added back at the same rate">
+                              {l.payback > 0 ? `+${formatCurrency(l.payback)} (${daysLabel(l.paybackDays)})` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500 text-right whitespace-nowrap">None</td>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
+                          {formatCurrency(Number(payslip.grossSalary))}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
+                          {formatCurrency(Number(payslip.cpfEmployer))}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-300 text-right whitespace-nowrap">
+                          {formatCurrency(Number(payslip.cpfEmployee))}
+                        </td>
+                      </>
+                    )}
                     <td className="px-4 py-3 text-sm text-white text-right font-medium whitespace-nowrap">
                       {formatCurrency(Number(payslip.netSalary))}
                     </td>

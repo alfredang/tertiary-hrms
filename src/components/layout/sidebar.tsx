@@ -161,7 +161,7 @@ const navigationGroups: NavGroup[] = [
         adminName: "Payroll Management",
         href: "/payroll",
         icon: DollarSign,
-        hideForIntern: true as const,
+        // Interns see their own payslips too (Alfred, 26 Nov 2026).
         children: [
           { name: "Payroll", href: "/payroll", icon: DollarSign, exact: true as const },
           { name: "Upload CPF", href: "/payroll/generate", icon: ShieldCheck, adminOnly: true as const },

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, FolderOpen } from "lucide-react";
 import { buildFolderWebUrl, getEmployeeSubfolderId } from "@/lib/drive";
 import { hasAdminAccess } from "@/lib/utils";
+import { isInternEmployee } from "@/lib/leave-policy";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import {
   canViewCpfSubmissions,
@@ -80,6 +81,16 @@ export default async function PayrollPage() {
 
   const payslips = await getPayslips(filterByEmployeeId);
 
+  // An intern's own payslips: flat allowance, no CPF, MC / No Pay Leave and paybacks shown instead.
+  let internViewer = false;
+  if (!isFinanceView && currentEmployeeId) {
+    const me = await prisma.employee.findUnique({
+      where: { id: currentEmployeeId },
+      select: { employmentType: true },
+    });
+    internViewer = isInternEmployee({ employmentType: me?.employmentType, roles });
+  }
+
   // Finance view: each payslip links to the CPF statement it was generated from.
   // Never in the staff view — the statement lists everyone's NRIC and wages.
   const cpfLinks: Record<string, { path: string; name: string }> = {};
@@ -111,7 +122,11 @@ export default async function PayrollPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Payroll</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">
-            {isFinanceView ? "Manage all employee payroll" : "Manage salary payments"}
+            {isFinanceView
+              ? "Manage all employee payroll"
+              : internViewer
+                ? "Your monthly allowance payslips. Interns have no CPF."
+                : "Your payslips"}
           </p>
         </div>
         {isFinanceView && (
@@ -137,7 +152,7 @@ export default async function PayrollPage() {
         )}
       </div>
 
-      <PayrollList payslips={payslips} isHR={isFinanceView} cpfLinks={cpfLinks} />
+      <PayrollList payslips={payslips} isHR={isFinanceView} cpfLinks={cpfLinks} intern={internViewer} />
     </div>
   );
 }
