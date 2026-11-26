@@ -4,8 +4,7 @@ import { PayrollList } from "@/components/payroll/payroll-list";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, FolderOpen } from "lucide-react";
-import { buildFolderWebUrl, getEmployeeSubfolderId } from "@/lib/drive";
+import { Plus } from "lucide-react";
 import { hasAdminAccess } from "@/lib/utils";
 import { isInternEmployee } from "@/lib/leave-policy";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
@@ -106,16 +105,6 @@ export default async function PayrollPage() {
     }
   }
 
-  let payrollFolderUrl: string | null = null;
-  if (!isFinanceView && currentEmployeeId) {
-    try {
-      const folderId = await getEmployeeSubfolderId(currentEmployeeId, "Payroll");
-      if (folderId) payrollFolderUrl = buildFolderWebUrl(folderId);
-    } catch (err) {
-      console.error("Failed to resolve Payroll folder:", err);
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -136,19 +125,6 @@ export default async function PayrollPage() {
               Process Payroll
             </Button>
           </Link>
-        )}
-        {!isFinanceView && payrollFolderUrl && (
-          <a
-            href={payrollFolderUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto"
-          >
-            <Button variant="outline" className="w-full sm:w-auto">
-              <FolderOpen className="h-4 w-4 mr-2" />
-              My Payroll Folder
-            </Button>
-          </a>
         )}
       </div>
 

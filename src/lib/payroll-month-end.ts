@@ -4,8 +4,6 @@ import { calculatePayroll, countWorkingDays, prorateMonthlySalary } from "@/lib/
 import { isInternEmployee, MEDICAL_LEAVE_CODES, NPL_CODE } from "@/lib/leave-policy";
 import { nplDaysOfRequest, ymd } from "@/lib/npl-payback";
 import { holidayKeys } from "@/lib/npl-payback-store";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
-import { emailPayslipToEmployee } from "@/lib/payslip-email";
 import { escapeHtml, notifyAdmins } from "@/lib/admin-alerts";
 import { listCpfSubmissionFiles } from "@/lib/cpf-submission-files";
 
@@ -326,9 +324,6 @@ export async function refreshBaseSalaryPayslip(
   const { result } = await figuresFor(employee, month, year, await holidayKeys([year]));
   if (!result.ok) return { payslipUpdated: false, reason: result.reason };
   const updated = await prisma.payslip.update({ where: { id: existing.id }, data: payslipData(result.payroll) });
-  await uploadPayslipToDrive(updated.id).catch((err) =>
-    console.error(`Drive upload failed for payslip ${updated.id}:`, err),
-  );
   return { payslipUpdated: true, payslipId: updated.id };
 }
 
@@ -354,10 +349,13 @@ export interface BaseSalaryRun {
 export async function generateBaseSalaryPayslips(opts: {
   month: number;
   year: number;
-  /** Email each new payslip to the person (the month-end run and the button do). */
-  email?: boolean;
-  /** Work everything out but write and send nothing; `planned` lists who would be paid. */
+  /** Work everything out but write nothing; `planned` lists who would be paid. */
   dryRun?: boolean;
+  /**
+   * Only these people (Employee.id), whatever their status: back-pay for someone who has left,
+   * for any month between their start and end dates. Everyone else is left alone.
+   */
+  onlyEmployeeIds?: string[];
 }): Promise<BaseSalaryRun> {
   const { month, year } = opts;
   const { payPeriodStart, payPeriodEnd, paymentDate } = payPeriod(month, year);
@@ -366,11 +364,20 @@ export async function generateBaseSalaryPayslips(opts: {
   // Active people, plus anyone whose last day fell in the month (an intern who finished on the
   // 15th is deactivated by then but is still paid). Not someone inactive with a stale future end date.
   const employees = await prisma.employee.findMany({
-    where: {
-      salaryInfo: { isNot: null },
-      OR: [{ status: "ACTIVE" }, { endDate: { gte: payPeriodStart, lte: payPeriodEnd } }],
-      AND: [{ OR: [{ startDate: null }, { startDate: { lte: payPeriodEnd } }] }],
-    },
+    where: opts.onlyEmployeeIds
+      ? {
+          id: { in: opts.onlyEmployeeIds },
+          salaryInfo: { isNot: null },
+          AND: [
+            { OR: [{ startDate: null }, { startDate: { lte: payPeriodEnd } }] },
+            { OR: [{ endDate: null }, { endDate: { gte: payPeriodStart } }] },
+          ],
+        }
+      : {
+          salaryInfo: { isNot: null },
+          OR: [{ status: "ACTIVE" }, { endDate: { gte: payPeriodStart, lte: payPeriodEnd } }],
+          AND: [{ OR: [{ startDate: null }, { startDate: { lte: payPeriodEnd } }] }],
+        },
     include: { salaryInfo: true, user: { select: { roles: true } } },
     orderBy: { name: "asc" },
   });
@@ -432,9 +439,8 @@ export async function generateBaseSalaryPayslips(opts: {
       continue;
     }
     try {
-      const created = current
-        ? await prisma.payslip.update({ where: { id: current.id }, data: payslipData(p) })
-        : await prisma.payslip.create({
+      if (current) await prisma.payslip.update({ where: { id: current.id }, data: payslipData(p) });
+      else await prisma.payslip.create({
             data: {
               id: `ps_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
               employeeId: employee.id,
@@ -447,14 +453,6 @@ export async function generateBaseSalaryPayslips(opts: {
           });
       if (current) run.refreshed++;
       else run.created++;
-      await uploadPayslipToDrive(created.id).catch((err) =>
-        console.error(`Drive upload failed for payslip ${created.id}:`, err),
-      );
-      if (opts.email) {
-        await emailPayslipToEmployee(created.id).catch((err) =>
-          console.error(`Payslip email failed for ${created.id}:`, err),
-        );
-      }
     } catch (err) {
       console.error(`[payroll-month-end] payslip for ${employee.id} failed:`, err);
       run.errors++;
@@ -484,7 +482,7 @@ export function monthEndTarget(now: Date = new Date()): { month: number; year: n
 export async function monthEndPayroll(now: Date = new Date()): Promise<Record<string, unknown>> {
   const target = monthEndTarget(now);
   if (!target) return { payroll: "skipped (not the 1st–3rd)" };
-  const run = await generateBaseSalaryPayslips({ ...target, email: true });
+  const run = await generateBaseSalaryPayslips(target);
 
   if (run.created > 0 || run.refreshed > 0 || run.staffNotOnCpf.length > 0 || run.problems.length > 0) {
     const label = `${MONTHS[target.month - 1]} ${target.year}`;

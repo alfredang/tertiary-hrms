@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import ExcelJS from "exceljs";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 
 export async function POST(req: NextRequest) {
   try {
@@ -162,11 +161,6 @@ export async function POST(req: NextRequest) {
           });
           payslipId = created.id;
           results.created++;
-        }
-        try {
-          await uploadPayslipToDrive(payslipId);
-        } catch (err) {
-          console.error(`Drive upload failed for payslip ${payslipId}:`, err);
         }
       } catch (error) {
         results.errors++;

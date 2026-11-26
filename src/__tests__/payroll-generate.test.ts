@@ -16,8 +16,6 @@ const { mockPrisma, mockAuth, mockCpfFiles } = vi.hoisted(() => ({
 
 vi.mock("@/lib/cpf-submission-files", () => ({ listCpfSubmissionFiles: () => mockCpfFiles() }));
 vi.mock("@/lib/npl-payback-store", () => ({ holidayKeys: vi.fn(async () => new Set()) }));
-vi.mock("@/lib/payslip-drive", () => ({ uploadPayslipToDrive: vi.fn(async () => {}) }));
-vi.mock("@/lib/payslip-email", () => ({ emailPayslipToEmployee: vi.fn(async () => {}) }));
 vi.mock("@/lib/admin-alerts", () => ({ escapeHtml: (x: string) => x, notifyAdmins: vi.fn() }));
 
 vi.mock("@/lib/prisma", () => ({

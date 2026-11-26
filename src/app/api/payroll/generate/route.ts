@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Month and year are required" }, { status: 400 });
     }
 
-    const run = await generateBaseSalaryPayslips({ month, year, email: true });
+    const run = await generateBaseSalaryPayslips({ month, year });
     const label = `${MONTHS[month - 1]} ${year}`;
     return NextResponse.json({
       message: run.cpfUploaded

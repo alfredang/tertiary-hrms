@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, Calendar, Download, Pencil, X, RefreshCw, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Search, Calendar, Download, Pencil, X, Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import type { PayslipStatus } from "@prisma/client";
@@ -91,44 +91,7 @@ export function PayrollList({ payslips, isHR, cpfLinks = {}, intern = false }: P
   const [editing, setEditing] = useState<Payslip | null>(null);
   const [editGross, setEditGross] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
-  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
-  const [emailingId, setEmailingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-
-  const emailPayslip = async (payslipId: string) => {
-    setEmailingId(payslipId);
-    try {
-      const res = await fetch(`/api/payroll/payslip/${payslipId}/email`, { method: "POST" });
-      if (!res.ok) throw new Error((await res.json()).error || "Email failed");
-      toast({ title: "Payslip emailed", description: "The employee has been sent their payslip." });
-    } catch (err) {
-      toast({
-        title: "Email failed",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setEmailingId(null);
-    }
-  };
-
-  const regenerate = async (payslipId: string) => {
-    setRegeneratingId(payslipId);
-    try {
-      const res = await fetch(`/api/payroll/payslip/${payslipId}/regenerate`, { method: "POST" });
-      if (!res.ok) throw new Error((await res.json()).error || "Regenerate failed");
-      toast({ title: "Payslip regenerated", description: "Drive copy was replaced." });
-      router.refresh();
-    } catch (err) {
-      toast({
-        title: "Regenerate failed",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
-    } finally {
-      setRegeneratingId(null);
-    }
-  };
 
   const openEdit = (p: Payslip) => {
     setEditing(p);
@@ -353,34 +316,6 @@ export function PayrollList({ payslips, isHR, cpfLinks = {}, intern = false }: P
                           title="Edit gross pay"
                         >
                           <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => regenerate(payslip.id)}
-                          disabled={regeneratingId === payslip.id}
-                          className="h-8 px-2 text-gray-300 hover:text-white"
-                          title="Regenerate PDF"
-                        >
-                          {regeneratingId === payslip.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => emailPayslip(payslip.id)}
-                          disabled={emailingId === payslip.id}
-                          className="h-8 px-2 text-gray-300 hover:text-cyan-400"
-                          title="Email payslip to employee"
-                        >
-                          {emailingId === payslip.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Mail className="h-4 w-4" />
-                          )}
                         </Button>
                       </div>
                     </td>

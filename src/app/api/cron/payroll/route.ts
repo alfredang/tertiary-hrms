@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await withCronRun("monthly-payroll", async () => ({
-      ...(await generateBaseSalaryPayslips({ ...target, email: true })),
+      ...(await generateBaseSalaryPayslips(target)),
     }));
     return NextResponse.json(result);
   } catch (err) {

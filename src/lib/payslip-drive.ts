@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
 import { getCompanyBranding } from "@/lib/company-settings";
 import { isInternEmployee } from "@/lib/leave-policy";
-import { getEmployeeSubfolderId, uploadPdfToFolder } from "@/lib/drive";
 
 function renderPayslipRemarks(template: string | null | undefined, payslip: any): string | null {
   if (!template) return null;
@@ -96,22 +95,4 @@ export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> 
     netSalary: Number(payslip.netSalary),
   });
   return Buffer.from(pdfData);
-}
-
-export async function uploadPayslipToDrive(payslipId: string): Promise<{ id: string; webViewLink: string | null } | null> {
-  const payslip = await prisma.payslip.findUnique({
-    where: { id: payslipId },
-    select: { employeeId: true, payPeriodStart: true, employee: { select: { employeeId: true, name: true } } },
-  });
-  if (!payslip) return null;
-  const folderId = await getEmployeeSubfolderId(payslip.employeeId, "Payroll");
-  if (!folderId) return null;
-  const buffer = await buildPayslipPdfBuffer(payslipId);
-  const fileName = payslipFileName(payslip.employee.employeeId, payslip.payPeriodStart, payslip.employee.name);
-  const result = await uploadPdfToFolder(folderId, fileName, buffer, { replaceByName: true });
-  await prisma.payslip.update({
-    where: { id: payslipId },
-    data: { driveFileId: result.id, driveWebViewLink: result.webViewLink ?? undefined },
-  });
-  return result;
 }

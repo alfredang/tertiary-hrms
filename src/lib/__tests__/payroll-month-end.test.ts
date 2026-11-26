@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
-vi.mock("@/lib/payslip-drive", () => ({ uploadPayslipToDrive: vi.fn() }));
-vi.mock("@/lib/payslip-email", () => ({ emailPayslipToEmployee: vi.fn() }));
 vi.mock("@/lib/admin-alerts", () => ({ escapeHtml: (s: string) => s, notifyAdmins: vi.fn() }));
 vi.mock("@/lib/cpf-submission-files", () => ({ listCpfSubmissionFiles: vi.fn() }));
 vi.mock("@/lib/npl-payback-store", () => ({ holidayKeys: vi.fn(async () => new Set()) }));

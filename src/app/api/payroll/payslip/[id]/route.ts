@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculatePayroll } from "@/lib/cpf-calculator";
 import { isInternEmployee } from "@/lib/leave-policy";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import * as z from "zod";
 
@@ -73,13 +72,6 @@ export async function PATCH(
         netSalary: Math.round((parsed.data.grossSalary - totalDeductions) * 100) / 100,
       },
     });
-
-    // Regenerate PDF and replace in Drive
-    try {
-      await uploadPayslipToDrive(updated.id);
-    } catch (err) {
-      console.error(`Drive replace failed for payslip ${updated.id}:`, err);
-    }
 
     return NextResponse.json(updated);
   } catch (error) {

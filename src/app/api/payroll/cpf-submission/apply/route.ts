@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { hasAdminAccess } from "@/lib/utils";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,12 +148,6 @@ export async function POST(req: NextRequest) {
           });
           payslipId = created.id;
           results.created++;
-        }
-
-        try {
-          await uploadPayslipToDrive(payslipId);
-        } catch (err) {
-          console.error(`Drive upload failed for payslip ${payslipId}:`, err);
         }
       } catch (error) {
         console.error(`Error creating payslip for ${row.employeeId}:`, error);
