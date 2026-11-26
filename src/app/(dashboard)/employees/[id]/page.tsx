@@ -15,6 +15,7 @@ import { LeaveBalanceEditDialog } from "@/components/employees/leave-balance-edi
 import { ResetPasswordButton } from "@/components/employees/reset-password-button";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
 import { LatestPayslipCard } from "@/components/employees/latest-payslip-card";
+import { PayMonthCard } from "@/components/employees/pay-month-card";
 import { latestPaySummaries } from "@/lib/pay-summary";
 
 export const dynamic = 'force-dynamic';
@@ -127,6 +128,10 @@ export default async function EmployeeDetailPage({
         </div>
       )}
       <EmployeeDetailEditable employee={employee} departments={departments} canEdit={canEdit} />
+
+      {/* The month's Annual Leave, No Pay Leave, MC (No Pay MC for interns, Paid MC for staff) and Payback,
+          with a month filter, for working out the pay (Alfred, 26 Nov 2026). Admin only. */}
+      {isAdmin && <PayMonthCard employeeId={employee.id} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 

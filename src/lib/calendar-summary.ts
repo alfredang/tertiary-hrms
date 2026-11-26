@@ -1,7 +1,8 @@
 // Month totals for one person on the calendar (Alfred, 20 Nov 2026): when the admin filters the
 // calendar by a staff member or intern, the month shown carries how much annual leave, medical
 // leave, no-pay leave and time off that person has in it. With nobody picked ("Everyone"), the
-// same row shows the totals of everyone together (Alfred, 21 Nov 2026).
+// same row shows the totals of everyone together (Alfred, 21 Nov 2026). Paybacks (category "PAYBACK": an off day
+// worked to pay back No Pay Leave, counted on the day worked) replace Time Off in that row (Alfred, 26 Nov 2026).
 
 export interface SummaryEvent {
   category: string;
@@ -15,6 +16,9 @@ export interface SummaryEvent {
   hours?: number;
 }
 
+/** Category of an approved payback in `personMonthSummary` input; `start` = the off day worked, `days` = 1 or 0.5. */
+export const PAYBACK_SUMMARY_CATEGORY = "PAYBACK";
+
 export interface PersonMonthSummary {
   annualLeaveDays: number;
   medicalLeaveDays: number;
@@ -25,6 +29,8 @@ export interface PersonMonthSummary {
   offDays: number;
   /** Days with a clock-in (interns and accountants; Alfred, 20 Nov 2026). */
   workingDays: number;
+  /** Approved paybacks: off days worked in the month to pay back No Pay Leave (1 or 0.5 each). */
+  paybackDays: number;
 }
 
 const key = (d: Date) =>
@@ -48,7 +54,7 @@ export function personMonthSummary(
   holidayKeys: ReadonlySet<string> = new Set(),
 ): PersonMonthSummary {
   const out: PersonMonthSummary = {
-    annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0, workingDays: 0,
+    annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0, workingDays: 0, paybackDays: 0,
   };
   const clockInDays = new Set<string>();
   const inMonth = (d: Date) => d.getFullYear() === year && d.getMonth() === month;
@@ -64,6 +70,10 @@ export function personMonthSummary(
     if (e.category === "ATTENDANCE") {
       // For everyone, one working day per person per day.
       if (inMonth(start)) clockInDays.add(`${e.personId}:${key(start)}`);
+      continue;
+    }
+    if (e.category === PAYBACK_SUMMARY_CATEGORY) {
+      if (inMonth(start)) out.paybackDays += e.days ?? 1;
       continue;
     }
     if (e.category === "TIME_OFF") {
@@ -101,6 +111,7 @@ export function personMonthSummary(
   out.noPayLeaveDays = round2(out.noPayLeaveDays);
   out.otherLeaveDays = round2(out.otherLeaveDays);
   out.timeOffHours = round2(out.timeOffHours);
+  out.paybackDays = round2(out.paybackDays);
   out.workingDays = clockInDays.size;
   return out;
 }

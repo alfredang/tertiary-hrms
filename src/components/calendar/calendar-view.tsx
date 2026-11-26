@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AddEventButton } from "./add-event-button";
 import { cn } from "@/lib/utils";
-import { CALENDAR_CATEGORIES, calendarCategoryColor, calendarCategoryLabel, isPersonCategory } from "@/lib/calendar-categories";
-import { personMonthSummary } from "@/lib/calendar-summary";
+import { CALENDAR_CATEGORIES, PAYBACK_CHIP_COLOR, calendarCategoryColor, calendarCategoryLabel, isPersonCategory } from "@/lib/calendar-categories";
+import { PAYBACK_SUMMARY_CATEGORY, personMonthSummary } from "@/lib/calendar-summary";
 
 interface CalendarEvent {
   id: string;
@@ -40,6 +40,8 @@ interface CalendarViewProps {
   people?: { id: string; name: string; intern: boolean; workdays?: number[]; clocksIn?: boolean }[];
   /** Staff / intern view: the viewer's own workdays (ISO 1 = Mon … 7 = Sun). The other days are their off days. */
   ownWorkdays?: number[];
+  /** Admin view: approved No Pay Leave paybacks (the off day worked), for the month totals' Payback chip. */
+  paybacks?: { personId: string; workDate: Date | string; days: number }[];
 }
 
 const DEFAULT_WORKDAYS = [1, 2, 3, 4, 5];
@@ -62,7 +64,7 @@ const dayKey = (d: Date) =>
 
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 
-export function CalendarView({ events: allEvents, personFilter = false, people: activePeople = [], ownWorkdays }: CalendarViewProps) {
+export function CalendarView({ events: allEvents, personFilter = false, people: activePeople = [], ownWorkdays, paybacks = [] }: CalendarViewProps) {
   const [person, setPerson] = useState("");
   // Every active staff member and intern, with how many leave and time-off entries each has (0 when none).
   // People who have left are not listed; their past leave still shows under Everyone.
@@ -153,12 +155,16 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
 
   // Interns and accountants clock in: their clock-ins and working days show once picked.
   const pickedClocksIn = !!person && !!activePeople.find((p) => p.id === person)?.clocksIn;
-  // The picked person's leave and time off in the month shown; with nobody picked on the admin
-  // calendar ("Everyone"), the totals of everyone together (Alfred, 21 Nov 2026).
+  // The picked person's leave and paybacks in the month shown; with nobody picked on the admin
+  // calendar ("Everyone"), the totals of everyone together (Alfred, 21 Nov 2026). Payback replaces
+  // the Time Off chip (Alfred, 26 Nov 2026).
   const monthSummary = useMemo(() => {
     if (!person && !personFilter) return null;
     const holidayKeys = new Set(allEvents.filter((e) => e.type === "HOLIDAY").map((e) => dayKey(new Date(e.start))));
-    const s = personMonthSummary(allEvents, person || null, currentDate.getFullYear(), currentDate.getMonth(), holidayKeys);
+    const paybackEvents = paybacks.map((p) => ({
+      category: PAYBACK_SUMMARY_CATEGORY, start: p.workDate, end: p.workDate, allDay: true, personId: p.personId, days: p.days,
+    }));
+    const s = personMonthSummary([...allEvents, ...paybackEvents], person || null, currentDate.getFullYear(), currentDate.getMonth(), holidayKeys);
     const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
     return [
       ...(pickedClocksIn
@@ -170,13 +176,9 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
       ...(s.otherLeaveDays > 0
         ? [{ label: "Other Leave", value: days(s.otherLeaveDays), color: calendarCategoryColor("OTHER_LEAVE") }]
         : []),
-      {
-        label: "Time Off",
-        value: `${s.timeOffHours} h${s.offDays > 0 ? ` + ${s.offDays} off ${s.offDays === 1 ? "day" : "days"}` : ""}`,
-        color: calendarCategoryColor("TIME_OFF"),
-      },
+      { label: "Payback", value: days(s.paybackDays), color: PAYBACK_CHIP_COLOR },
     ];
-  }, [allEvents, person, personFilter, currentDate, pickedClocksIn]);
+  }, [allEvents, paybacks, person, personFilter, currentDate, pickedClocksIn]);
 
   const shiftMonth = (delta: number) => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1));
   const goToToday = () => {

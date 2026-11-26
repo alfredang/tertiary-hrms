@@ -31,6 +31,10 @@ export const dynamic = "force-dynamic";
  * - `birthdays` (approvers): day and month only, never the age.
  * - `people[].workdays` (approvers) and `ownWorkdays`, so off days can be shaded.
  * - Holiday titles carry an emoji ("🎄 Christmas Day").
+ * Since 26 Nov 2026 (additive): `paybacks`, approved No Pay Leave paybacks (the off day worked, `workDate`, and
+ * the No Pay Leave request it pays back, `leaveRequestId` = `entries[].id`) — approvers: everyone; others: their
+ * own. The month totals show "Payback N days" instead of Time Off, and a paid-back No Pay Leave day is no longer
+ * counted under No Pay Leave (as on the web).
  */
 export async function GET(req: Request) {
   const ctx = await getMobileContext();
@@ -93,7 +97,7 @@ export async function GET(req: Request) {
   ]);
 
   // Approved time off and intern Off Days: approvers see everyone's, others only their own.
-  const [timeOffRows, self] = await Promise.all([
+  const [timeOffRows, self, paybackRows] = await Promise.all([
     ctx.isAdmin || canSeeOwn
       ? prisma.timeOffRequest.findMany({
           where: {
@@ -111,6 +115,19 @@ export async function GET(req: Request) {
     ctx.employeeId
       ? prisma.employee.findUnique({ where: { id: ctx.employeeId }, select: { workdays: true } })
       : Promise.resolve(null),
+    ctx.isAdmin || canSeeOwn
+      ? prisma.nplPayback
+          .findMany({
+            where: {
+              status: "APPROVED",
+              workDate: { lt: to, gte: from },
+              ...(ctx.isAdmin ? {} : { employeeId: ctx.employeeId }),
+            },
+            select: { id: true, employeeId: true, leaveRequestId: true, nplDate: true, workDate: true, days: true },
+            orderBy: { workDate: "asc" },
+          })
+          .catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   const dayKey = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
@@ -174,6 +191,15 @@ export async function GET(req: Request) {
       : null,
     holidays: allHolidays,
     timeOff,
+    paybacks: paybackRows.map((p) => ({
+      id: p.id,
+      employeeId: p.employeeId,
+      leaveRequestId: p.leaveRequestId,
+      nplDate: iso(p.nplDate),
+      workDate: iso(p.workDate),
+      days: Number(p.days),
+      isSelf: !!ctx.employeeId && p.employeeId === ctx.employeeId,
+    })),
     birthdays,
     ownWorkdays: self?.workdays ?? null,
     // Clock-ins are web-only for now (no events of that kind are sent), so the shipped apps don't get the key.
