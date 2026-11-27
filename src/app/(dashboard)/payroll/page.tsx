@@ -4,10 +4,16 @@ import { PayrollList } from "@/components/payroll/payroll-list";
 import { getViewMode } from "@/lib/view-mode";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus, FolderOpen } from "lucide-react";
-import { buildFolderWebUrl, getEmployeeSubfolderId } from "@/lib/drive";
+import { Plus } from "lucide-react";
 import { hasAdminAccess } from "@/lib/utils";
+import { isInternEmployee } from "@/lib/leave-policy";
 import { isDevAuthSkipped } from "@/lib/dev-auth";
+import {
+  canViewCpfSubmissions,
+  cpfDownloadPath,
+  cpfFileForPayslip,
+  listCpfSubmissionFiles,
+} from "@/lib/cpf-submission-files";
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +29,9 @@ async function getPayslips(employeeId?: string) {
           name: true,
           employeeId: true,
           department: { select: { name: true } },
+          // Intern rows say "Allowance" and "No CPF" (Alfred, 26 Nov 2026).
+          employmentType: true,
+          user: { select: { roles: true } },
         },
       },
     },
@@ -37,6 +46,7 @@ export default async function PayrollPage() {
   const viewMode = await getViewMode();
 
   let role = "STAFF";
+  let roles: string[] = [];
   let currentEmployeeId: string | undefined;
 
   if (isDevAuthSkipped()) {
@@ -51,6 +61,7 @@ export default async function PayrollPage() {
       return null;
     }
     role = session.user.role;
+    roles = session.user.roles ?? [];
     currentEmployeeId = session.user.employeeId;
   }
 
@@ -72,13 +83,28 @@ export default async function PayrollPage() {
 
   const payslips = await getPayslips(filterByEmployeeId);
 
-  let payrollFolderUrl: string | null = null;
+  // An intern's own payslips: flat allowance, no CPF, MC / No Pay Leave and paybacks shown instead.
+  let internViewer = false;
   if (!isFinanceView && currentEmployeeId) {
+    const me = await prisma.employee.findUnique({
+      where: { id: currentEmployeeId },
+      select: { employmentType: true },
+    });
+    internViewer = isInternEmployee({ employmentType: me?.employmentType, roles });
+  }
+
+  // Finance view: each payslip links to the CPF statement it was generated from.
+  // Never in the staff view — the statement lists everyone's NRIC and wages.
+  const cpfLinks: Record<string, { path: string; name: string }> = {};
+  if (isFinanceView && (isDevAuthSkipped() || canViewCpfSubmissions(role, roles))) {
     try {
-      const folderId = await getEmployeeSubfolderId(currentEmployeeId, "Payroll");
-      if (folderId) payrollFolderUrl = buildFolderWebUrl(folderId);
+      const files = await listCpfSubmissionFiles();
+      for (const p of payslips) {
+        const f = cpfFileForPayslip(p, files);
+        if (f) cpfLinks[p.id] = { path: cpfDownloadPath(f.id), name: f.name };
+      }
     } catch (err) {
-      console.error("Failed to resolve Payroll folder:", err);
+      console.error("CPF statement lookup for payroll failed:", err);
     }
   }
 
@@ -88,7 +114,11 @@ export default async function PayrollPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Payroll</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">
-            {isFinanceView ? "Manage all employee payroll" : "Manage salary payments"}
+            {isFinanceView
+              ? "Manage all employee payroll"
+              : internViewer
+                ? "Your monthly allowance payslips. Interns have no CPF."
+                : "Your payslips"}
           </p>
         </div>
         {isFinanceView && (
@@ -99,22 +129,9 @@ export default async function PayrollPage() {
             </Button>
           </Link>
         )}
-        {!isFinanceView && payrollFolderUrl && (
-          <a
-            href={payrollFolderUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto"
-          >
-            <Button variant="outline" className="w-full sm:w-auto">
-              <FolderOpen className="h-4 w-4 mr-2" />
-              My Payroll Folder
-            </Button>
-          </a>
-        )}
       </div>
 
-      <PayrollList payslips={payslips} isHR={isFinanceView} />
+      <PayrollList payslips={payslips} isHR={isFinanceView} cpfLinks={cpfLinks} intern={internViewer} />
     </div>
   );
 }

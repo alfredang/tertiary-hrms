@@ -136,7 +136,7 @@ export function InternCompensationCard({
 
         {canEdit && (
           <p className="text-xs text-gray-500">
-            Saving regenerates the current-month payslip automatically and replaces the Drive PDF.
+            Saving updates this month&apos;s payslip if it was made from base salary. Payslips are made at month end; interns have no CPF and lose MC / No Pay Leave days, with paybacks added back.
           </p>
         )}
       </CardContent>

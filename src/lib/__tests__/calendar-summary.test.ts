@@ -19,7 +19,7 @@ describe("personMonthSummary", () => {
       { category: "TIME_OFF", start: d(2026, 11, 20), end: d(2026, 11, 20), allDay: true, personId: "p1", hours: 0 },
     ];
     expect(personMonthSummary(events, "p1", 2026, 10)).toEqual({
-      annualLeaveDays: 2.5, medicalLeaveDays: 1, noPayLeaveDays: 2, otherLeaveDays: 1, timeOffHours: 3.5, offDays: 1, workingDays: 0,
+      annualLeaveDays: 2.5, medicalLeaveDays: 1, noPayLeaveDays: 2, otherLeaveDays: 1, timeOffHours: 3.5, offDays: 1, workingDays: 0, paybackDays: 0,
     });
   });
 
@@ -31,7 +31,7 @@ describe("personMonthSummary", () => {
       { category: "TIME_OFF", start: d(2026, 12, 1), end: d(2026, 12, 1), allDay: false, personId: "p1", hours: 2 },
     ];
     expect(personMonthSummary(events, "p1", 2026, 10)).toEqual({
-      annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0, workingDays: 0,
+      annualLeaveDays: 0, medicalLeaveDays: 0, noPayLeaveDays: 0, otherLeaveDays: 0, timeOffHours: 0, offDays: 0, workingDays: 0, paybackDays: 0,
     });
   });
 
@@ -81,7 +81,21 @@ describe("personMonthSummary working days", () => {
       leave("ANNUAL_LEAVE", d(2026, 10, 26), d(2026, 10, 26), 1, "p3"),
     ];
     expect(personMonthSummary(events, null, 2026, 10)).toEqual({
-      annualLeaveDays: 2.5, medicalLeaveDays: 1, noPayLeaveDays: 1, otherLeaveDays: 0, timeOffHours: 3.5, offDays: 0, workingDays: 0,
+      annualLeaveDays: 2.5, medicalLeaveDays: 1, noPayLeaveDays: 1, otherLeaveDays: 0, timeOffHours: 3.5, offDays: 0, workingDays: 0, paybackDays: 0,
     });
+  });
+});
+
+describe("personMonthSummary paybacks (Alfred, 26 Nov 2026)", () => {
+  it("counts approved paybacks on the off day worked, in that month only", () => {
+    const ev = [
+      { category: "PAYBACK", start: new Date(2026, 8, 5, 12), end: new Date(2026, 8, 5, 12), allDay: true, personId: "p1", days: 1 },
+      { category: "PAYBACK", start: new Date(2026, 8, 12, 12), end: new Date(2026, 8, 12, 12), allDay: true, personId: "p1", days: 0.5 },
+      { category: "PAYBACK", start: new Date(2026, 9, 3, 12), end: new Date(2026, 9, 3, 12), allDay: true, personId: "p1", days: 1 },
+      { category: "PAYBACK", start: new Date(2026, 8, 6, 12), end: new Date(2026, 8, 6, 12), allDay: true, personId: "p2", days: 1 },
+    ];
+    expect(personMonthSummary(ev, "p1", 2026, 8).paybackDays).toBe(1.5);
+    expect(personMonthSummary(ev, null, 2026, 8).paybackDays).toBe(2.5);
+    expect(personMonthSummary(ev, "p1", 2026, 9).paybackDays).toBe(1);
   });
 });

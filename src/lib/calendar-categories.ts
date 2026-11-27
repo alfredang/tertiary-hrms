@@ -33,6 +33,12 @@ export const CALENDAR_CATEGORIES: { key: CalendarCategory; label: string; color:
 
 const BY_KEY = new Map(CALENDAR_CATEGORIES.map((c) => [c.key, c]));
 
+/**
+ * The "Payback" chip of the calendar's month totals (Alfred, 26 Nov 2026: shown instead of Time Off): off days
+ * worked to pay back No Pay Leave. Not an event category (paybacks are not drawn on the grid), so not in the legend.
+ */
+export const PAYBACK_CHIP_COLOR = "#10b981";
+
 export function calendarCategoryColor(category: CalendarCategory): string {
   return BY_KEY.get(category)?.color ?? "#6b7280";
 }

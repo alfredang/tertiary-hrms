@@ -22,17 +22,25 @@ interface PayslipData {
   remarks?: string | null;
   titleTemplate?: string | null;
   headerNote?: string | null;
+  /** Interns have no CPF: the payslip says so instead of showing CPF figures. */
+  intern?: boolean;
   earnings: {
     basicSalary: number;
     allowances: number;
     overtime: number;
     bonus: number;
+    /** Approved paybacks (off days worked) added back this month. */
+    paybackDays?: number;
+    paybackAmount?: number;
     gross: number;
   };
   deductions: {
     cpfEmployee: number;
     incomeTax: number;
     other: number;
+    /** Unpaid days taken this month: No Pay Leave (and MC for interns). */
+    unpaidLeaveDays?: number;
+    unpaidLeaveAmount?: number;
     total: number;
   };
   cpf: {
@@ -41,6 +49,21 @@ interface PayslipData {
     total: number;
   };
   netSalary: number;
+  /**
+   * Interns: the hard-coded formula (src/lib/intern-pay.ts), shown line by line:
+   * take-home = (working days − No Pay Leave − MC + Payback) × gross ÷ working days, rounded down.
+   */
+  internPay?: {
+    workingDays: number;
+    nplDays: number;
+    nplDeduction: number;
+    mcDays: number;
+    mcDeduction: number;
+    paybackDays: number;
+    paybackAmount: number;
+    paidDays: number;
+    roundingDown: number;
+  };
 }
 
 function formatCurrency(amount: number): string {
@@ -48,6 +71,12 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function formatDays(days: number, amount?: number): string {
+  const label = `${days} day${days === 1 ? "" : "s"}`;
+  // Show the day rate so the line explains itself: "5 days × 45.45".
+  return amount && days ? `${label} × ${formatCurrency(amount / days)}` : label;
 }
 
 function formatDate(date: Date): string {
@@ -137,75 +166,137 @@ export function generatePayslipPDF(data: PayslipData): ArrayBuffer {
     },
   });
 
-  // Earnings Table
-  const earningsY = (doc as any).lastAutoTable.finalY + 10;
-  autoTable(doc, {
-    startY: earningsY,
-    head: [["Earnings", "Amount (SGD)"]],
-    body: [
-      ["Basic Salary", formatCurrency(data.earnings.basicSalary)],
-      ["Allowances", formatCurrency(data.earnings.allowances)],
-      ["Overtime", formatCurrency(data.earnings.overtime)],
-      ["Bonus", formatCurrency(data.earnings.bonus)],
-      [
-        { content: "Gross Salary", styles: { fontStyle: "bold" } },
-        {
-          content: formatCurrency(data.earnings.gross),
-          styles: { fontStyle: "bold" },
-        },
+  if (data.intern && data.internPay) {
+    // Intern pay: the hard-coded formula, one line per term (Alfred, 26 Nov 2026).
+    const ip = data.internPay;
+    const rate = ip.workingDays > 0 ? data.earnings.gross / ip.workingDays : 0;
+    const days = (n: number) => `${n} day${n === 1 ? "" : "s"} × ${formatCurrency(rate)}`;
+    const exact = ip.workingDays > 0 ? (ip.paidDays * data.earnings.gross) / ip.workingDays : data.earnings.gross;
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 10,
+      head: [["Pay", "Amount (SGD)"]],
+      body: [
+        [
+          { content: "Allowance (monthly, flat; interns have no CPF)", styles: { fontStyle: "bold" } },
+          { content: formatCurrency(data.earnings.gross), styles: { fontStyle: "bold" } },
+        ],
+        [`Less No Pay Leave (${days(ip.nplDays)})`, ip.nplDays ? `- ${formatCurrency(ip.nplDeduction)}` : "-"],
+        [`Less MC (${days(ip.mcDays)})`, ip.mcDays ? `- ${formatCurrency(ip.mcDeduction)}` : "-"],
+        [`Add back Payback, off days worked (${days(ip.paybackDays)})`, ip.paybackDays ? `+ ${formatCurrency(ip.paybackAmount)}` : "-"],
+        ["Rounded down to a whole dollar", ip.roundingDown ? `- ${formatCurrency(ip.roundingDown)}` : "-"],
+        [
+          { content: "Take Home Pay", styles: { fontStyle: "bold" } },
+          { content: formatCurrency(data.netSalary), styles: { fontStyle: "bold" } },
+        ],
       ],
-    ],
-    theme: "grid",
-    headStyles: { fillColor: [34, 197, 94], fontSize: 10 },
-    styles: { fontSize: 9 },
-    columnStyles: {
-      0: { cellWidth: 80 },
-      1: { halign: "right" },
-    },
-  });
+      theme: "grid",
+      headStyles: { fillColor: [34, 197, 94], fontSize: 10 },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { cellWidth: 110 }, 1: { halign: "right" } },
+    });
+    const fy = (doc as any).lastAutoTable.finalY + 6;
+    doc.setFontSize(8.5);
+    doc.setTextColor(80);
+    doc.text(
+      "Take-home pay = (working days - No Pay Leave - MC + Payback) x Allowance / working days, rounded down",
+      14,
+      fy,
+    );
+    doc.text(
+      `= (${ip.workingDays} - ${ip.nplDays} - ${ip.mcDays} + ${ip.paybackDays}) x ${formatCurrency(data.earnings.gross)} / ${ip.workingDays}` +
+        ` = ${formatCurrency(exact)}, rounded down to ${formatCurrency(data.netSalary)}`,
+      14,
+      fy + 5,
+    );
+    (doc as any).lastAutoTable.finalY = fy + 5;
+  } else {
+    // Earnings Table
+    const earningsY = (doc as any).lastAutoTable.finalY + 10;
+    autoTable(doc, {
+      startY: earningsY,
+      head: [["Earnings", "Amount (SGD)"]],
+      body: [
+        ["Basic Salary", formatCurrency(data.earnings.basicSalary)],
+        [data.intern ? "Monthly Allowance (flat)" : "Allowances", formatCurrency(data.earnings.allowances)],
+        ["Overtime", formatCurrency(data.earnings.overtime)],
+        ["Bonus", formatCurrency(data.earnings.bonus)],
+        [
+          { content: "Gross Salary", styles: { fontStyle: "bold" } },
+          {
+            content: formatCurrency(data.earnings.gross),
+            styles: { fontStyle: "bold" },
+          },
+        ],
+        // Gross is the base pay only; the payback goes into take-home (Alfred, 26 Nov 2026).
+        ...(data.earnings.paybackDays
+          ? [[
+              `Add back to take-home: payback, off days worked (${formatDays(data.earnings.paybackDays, data.earnings.paybackAmount)})`,
+              `+ ${formatCurrency(data.earnings.paybackAmount ?? 0)}`,
+            ]]
+          : []),
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [34, 197, 94], fontSize: 10 },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { halign: "right" },
+      },
+    });
 
-  // Deductions Table
-  const deductionsY = (doc as any).lastAutoTable.finalY + 10;
-  autoTable(doc, {
-    startY: deductionsY,
-    head: [["Deductions", "Amount (SGD)"]],
-    body: [
-      ["CPF (Employee)", formatCurrency(data.deductions.cpfEmployee)],
-      ["Income Tax", formatCurrency(data.deductions.incomeTax)],
-      ["Other Deductions", formatCurrency(data.deductions.other)],
-      [
-        { content: "Total Deductions", styles: { fontStyle: "bold" } },
-        {
-          content: formatCurrency(data.deductions.total),
-          styles: { fontStyle: "bold" },
-        },
+    // Deductions Table
+    const deductionsY = (doc as any).lastAutoTable.finalY + 10;
+    autoTable(doc, {
+      startY: deductionsY,
+      head: [["Deductions", "Amount (SGD)"]],
+      body: [
+        data.intern
+          ? ["CPF (Employee): none, interns have no CPF", formatCurrency(0)]
+          : ["CPF (Employee)", formatCurrency(data.deductions.cpfEmployee)],
+        ...(data.deductions.unpaidLeaveDays
+          ? [[
+              `${data.intern ? "MC / No Pay Leave" : "No Pay Leave"} (${formatDays(data.deductions.unpaidLeaveDays, data.deductions.unpaidLeaveAmount)})`,
+              `- ${formatCurrency(data.deductions.unpaidLeaveAmount ?? 0)}`,
+            ]]
+          : []),
+        ["Income Tax", formatCurrency(data.deductions.incomeTax)],
+        ["Other Deductions", formatCurrency(data.deductions.other)],
+        [
+          { content: "Total Deductions", styles: { fontStyle: "bold" } },
+          {
+            content: formatCurrency(data.deductions.total),
+            styles: { fontStyle: "bold" },
+          },
+        ],
       ],
-    ],
-    theme: "grid",
-    headStyles: { fillColor: [239, 68, 68], fontSize: 10 },
-    styles: { fontSize: 9 },
-    columnStyles: {
-      0: { cellWidth: 80 },
-      1: { halign: "right" },
-    },
-  });
+      theme: "grid",
+      headStyles: { fillColor: [239, 68, 68], fontSize: 10 },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { halign: "right" },
+      },
+    });
+  }
 
   // CPF Summary Table
   const cpfY = (doc as any).lastAutoTable.finalY + 10;
   autoTable(doc, {
     startY: cpfY,
     head: [["CPF Contributions", "Amount (SGD)"]],
-    body: [
-      ["Employee Contribution (20%)", formatCurrency(data.cpf.employee)],
-      ["Employer Contribution (17%)", formatCurrency(data.cpf.employer)],
-      [
-        { content: "Total CPF", styles: { fontStyle: "bold" } },
-        {
-          content: formatCurrency(data.cpf.total),
-          styles: { fontStyle: "bold" },
-        },
-      ],
-    ],
+    body: data.intern
+      ? [["No CPF: interns are not CPF members (employee 0.00, employer 0.00)", formatCurrency(0)]]
+      : [
+          ["Employee Contribution", formatCurrency(data.cpf.employee)],
+          ["Employer Contribution", formatCurrency(data.cpf.employer)],
+          [
+            { content: "Total CPF", styles: { fontStyle: "bold" } },
+            {
+              content: formatCurrency(data.cpf.total),
+              styles: { fontStyle: "bold" },
+            },
+          ],
+        ],
     theme: "grid",
     headStyles: { fillColor: [59, 130, 246], fontSize: 10 },
     styles: { fontSize: 9 },

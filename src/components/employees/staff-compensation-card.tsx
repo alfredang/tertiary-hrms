@@ -186,7 +186,7 @@ export function StaffCompensationCard({
 
         {canEdit && editing && (
           <p className="text-xs text-gray-500">
-            Saving regenerates the current-month payslip and replaces the Drive PDF.
+            Saving updates this month&apos;s payslip if it was made from base salary. A payslip made from the CPF statement is never changed.
           </p>
         )}
       </CardContent>

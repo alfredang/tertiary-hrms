@@ -256,7 +256,7 @@ export default async function CalendarPage() {
 
   // Admin view: see all employees' leaves; Staff view: see only own leaves
   const showAllLeaves = viewAs === "admin";
-  const [events, activeEmployees, self, punches] = await Promise.all([
+  const [events, activeEmployees, self, punches, paybackRows] = await Promise.all([
     getCalendarEvents(currentUserId, currentEmployeeId, showAllLeaves),
     // The person filter lists every active staff member and intern, with or without leave.
     showAllLeaves
@@ -271,7 +271,19 @@ export default async function CalendarPage() {
       ? prisma.employee.findUnique({ where: { id: currentEmployeeId }, select: { workdays: true } })
       : Promise.resolve(null),
     getAttendancePunches(showAllLeaves, currentEmployeeId),
+    // Admin view: approved No Pay Leave paybacks, for the month totals' Payback chip (Alfred, 26 Nov 2026).
+    showAllLeaves
+      ? prisma.nplPayback
+          .findMany({ where: { status: "APPROVED" }, select: { employeeId: true, workDate: true, days: true } })
+          .catch(() => [])
+      : Promise.resolve([]),
   ]);
+  // @db.Date is UTC midnight; anchor at SGT noon so the browser places it on the right day.
+  const paybacks = paybackRows.map((p) => ({
+    personId: p.employeeId,
+    workDate: new Date(`${p.workDate.toISOString().slice(0, 10)}T12:00:00+08:00`),
+    days: Number(p.days),
+  }));
   const attendance = attendanceEvents(punches, showAllLeaves);
   // Admin view: every active staff member's and intern's birthday, last year to two years ahead.
   const thisYear = new Date().getFullYear();
@@ -294,7 +306,7 @@ export default async function CalendarPage() {
         <AddEventButton />
       </div>
 
-      <CalendarView events={[...events, ...attendance, ...birthdays]} personFilter={showAllLeaves} people={people} ownWorkdays={self?.workdays} />
+      <CalendarView events={[...events, ...attendance, ...birthdays]} personFilter={showAllLeaves} people={people} ownWorkdays={self?.workdays} paybacks={paybacks} />
     </div>
   );
 }

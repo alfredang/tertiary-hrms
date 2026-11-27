@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/send-email";
 import { cronAuthError, escapeHtml, notifyAdmins, sgtToday, staffAlertCc } from "@/lib/admin-alerts";
 import { withCronRun } from "@/lib/cron-runs";
 import { januaryAlRollover } from "@/lib/al-rollover";
+import { monthEndPayroll } from "@/lib/payroll-month-end";
 import { getActiveClockInRequired, getMissedPunches } from "@/lib/hr-insights";
 import { addDays } from "@/lib/attendance-policy";
 
@@ -30,9 +31,17 @@ export async function GET(req: NextRequest) {
     const result = await withCronRun<Record<string, unknown>>(
       mode === "rollup" ? "missed-clock-out-rollup" : "missed-clock-out-reminder",
       // The morning run also tells the admins whose birthday it is and who is on MC / leave / No Pay Leave today,
-      // and every day in January resets AL for the new year with a one-year carry forward (src/lib/al-rollover.ts).
+      // every day in January resets AL for the new year with a one-year carry forward (src/lib/al-rollover.ts),
+      // and on the 1st–3rd pays the month just ended from base salary where no CPF statement
+      // was uploaded (interns always; src/lib/payroll-month-end.ts).
       async () => (mode === "rollup"
-        ? { ...(await runRollup()), ...(await sendBirthdayAlerts()), ...(await sendAwayTodayAlert()), ...(await januaryAlRollover()) }
+        ? {
+            ...(await runRollup()),
+            ...(await sendBirthdayAlerts()),
+            ...(await sendAwayTodayAlert()),
+            ...(await januaryAlRollover()),
+            ...(await monthEndPayroll().catch((err) => ({ payroll: `failed: ${err instanceof Error ? err.message : String(err)}` }))),
+          }
         : runReminder()),
     );
     return NextResponse.json(result);

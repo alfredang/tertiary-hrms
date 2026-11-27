@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { Search, Plus, Pencil } from "lucide-react";
 import type { Employee, Department, EmployeeStatus, Role } from "@prisma/client";
+import type { PaySummary } from "@/lib/pay-summary";
+import { formatCurrency } from "@/lib/utils";
 
 interface EmployeeListProps {
   employees: (Employee & { department: Department | null; user: { roles: Role[] } })[];
@@ -22,6 +24,8 @@ interface EmployeeListProps {
   isAdmin?: boolean;
   /** Which page this is: Staff Management or Intern Management. Sets the labels and the Create button. */
   kind?: "staff" | "intern";
+  /** Latest payslip figures per employee id (admin view only). Interns show "No CPF". */
+  pay?: Record<string, PaySummary>;
 }
 
 const statusColors: Record<EmployeeStatus, string> = {
@@ -79,7 +83,7 @@ function formatDate(d: Date | string | null | undefined): string {
 
 const PAGE_SIZE = 20;
 
-export function EmployeeList({ employees, departments, isAdmin = true, kind = "staff" }: EmployeeListProps) {
+export function EmployeeList({ employees, departments, isAdmin = true, kind = "staff", pay }: EmployeeListProps) {
   const noun = kind === "intern" ? "interns" : "staff";
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -179,8 +183,17 @@ export function EmployeeList({ employees, departments, isAdmin = true, kind = "s
               <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-800">
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Employee ID</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Name</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">Role</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
+                {pay && (
+                  <>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap" title="Month of the latest payslip">Pay Month</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap text-right">{kind === "intern" ? "Allowance" : "Gross Pay"}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap text-right">CPF (Employee)</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap text-right">CPF (Employer)</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap text-right">Take-Home Pay</th>
+                  </>
+                )}
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Role</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Job Function</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Email</th>
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Tel</th>
@@ -203,6 +216,12 @@ export function EmployeeList({ employees, departments, isAdmin = true, kind = "s
                     {employee.name}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
+                    <Badge className={statusColors[employee.status]}>
+                      {statusLabels[employee.status]}
+                    </Badge>
+                  </td>
+                  {pay && <PayCells summary={pay[employee.id]} intern={kind === "intern"} />}
+                  <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex gap-1">
                       {[...(employee.user.roles ?? [])].sort((a, b) => rolePriority[a] - rolePriority[b]).map((r) => (
                         <Badge key={r} className={roleColors[r]}>
@@ -210,11 +229,6 @@ export function EmployeeList({ employees, departments, isAdmin = true, kind = "s
                         </Badge>
                       ))}
                     </div>
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <Badge className={statusColors[employee.status]}>
-                      {statusLabels[employee.status]}
-                    </Badge>
                   </td>
                   <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
                     {employee.department?.name ?? "—"}
@@ -284,5 +298,27 @@ export function EmployeeList({ employees, departments, isAdmin = true, kind = "s
         </div>
       )}
     </div>
+  );
+}
+
+/** Gross (interns: Allowance), CPF (employee / employer) and take-home from the latest payslip. Interns have no CPF. */
+function PayCells({ summary, intern }: { summary?: PaySummary; intern: boolean }) {
+  if (!summary) {
+    return (
+      <>
+        <td className="px-3 py-2 text-gray-500 whitespace-nowrap">No payslip</td>
+        <td /><td /><td /><td />
+      </>
+    );
+  }
+  const cpf = (n: number) => (intern ? <span className="text-gray-500">No CPF</span> : formatCurrency(n));
+  return (
+    <>
+      <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{summary.month}</td>
+      <td className="px-3 py-2 text-gray-300 whitespace-nowrap text-right">{formatCurrency(summary.gross)}</td>
+      <td className="px-3 py-2 text-gray-300 whitespace-nowrap text-right">{cpf(summary.cpfEmployee)}</td>
+      <td className="px-3 py-2 text-gray-300 whitespace-nowrap text-right">{cpf(summary.cpfEmployer)}</td>
+      <td className="px-3 py-2 font-medium text-white whitespace-nowrap text-right">{formatCurrency(summary.takeHome)}</td>
+    </>
   );
 }

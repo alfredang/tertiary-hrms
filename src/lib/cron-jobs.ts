@@ -18,11 +18,11 @@ export interface BuiltInCronJob {
 export const BUILT_IN_CRON_JOBS: BuiltInCronJob[] = [
   {
     id: "monthly-payroll",
-    name: "Monthly Payroll Generation",
+    name: "Month-End Payroll",
     description:
-      "Generates payslips for all active employees with salary info on the 28th of each month. Pro-rates basic + allowances if the employee started mid-month (MOM working-day standard). Skips CPF for interns. Uploads each payslip PDF to the employee's Payroll folder in Drive.",
-    schedule: "28th of every month, 09:00 SGT",
-    cron: "0 1 28 * *",
+      "On the 1st (catch-up 2nd–3rd) pays the month just ended: if no CPF statement was uploaded, every staff member and intern without a payslip gets one from base salary (prorated for a part month); if it was uploaded, staff payslips come from the CPF statement and only interns (no CPF) are generated. Never overwrites a CPF payslip. Never sends a payslip out (people sign in to the HRMS web or apps to see it); tells the admins. Runs inside the 08:30 SGT roll-up.",
+    schedule: "1st–3rd of every month, 08:30 SGT (with the daily roll-up)",
+    cron: "30 0 1-3 * *",
     method: "GET",
     path: "/api/cron/payroll",
     status: "active",

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildPayslipPdfBuffer, uploadPayslipToDrive, payslipFileName } from "@/lib/payslip-drive";
-import { downloadFileBuffer } from "@/lib/drive";
+import { buildPayslipPdfBuffer, payslipFileName } from "@/lib/payslip-drive";
 
 export async function GET(
   req: NextRequest,
@@ -21,7 +20,6 @@ export async function GET(
         id: true,
         employeeId: true,
         payPeriodStart: true,
-        driveFileId: true,
         employee: { select: { employeeId: true, name: true } },
       },
     });
@@ -37,26 +35,9 @@ export async function GET(
 
     const fileName = payslipFileName(payslip.employee.employeeId, payslip.payPeriodStart, payslip.employee.name);
 
-    // Prefer Drive copy if available
-    if (payslip.driveFileId) {
-      try {
-        const buf = await downloadFileBuffer(payslip.driveFileId);
-        return new Response(new Uint8Array(buf), {
-          headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename="${fileName}"`,
-          },
-        });
-      } catch (err) {
-        console.error(`Drive download failed for payslip ${payslip.id}, regenerating:`, err);
-      }
-    }
-
-    // Fallback: generate locally and opportunistically upload to Drive
+    // Built from the payslip record on every download, so it is always current. Payslips are
+    // only ever viewed and downloaded here, by a signed-in user (Alfred, 26 Nov 2026).
     const pdfBuffer = await buildPayslipPdfBuffer(payslip.id);
-    uploadPayslipToDrive(payslip.id).catch((err) =>
-      console.error(`Background Drive upload failed for payslip ${payslip.id}:`, err),
-    );
 
     return new Response(new Uint8Array(pdfBuffer), {
       headers: {

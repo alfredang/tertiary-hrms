@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 import { prisma } from "@/lib/prisma";
-import { calculatePayroll } from "@/lib/cpf-calculator";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
+import { calculatePayroll, countWorkingDays } from "@/lib/cpf-calculator";
+import { internPayslipFigures } from "@/lib/intern-pay";
+import { isInternEmployee } from "@/lib/leave-policy";
 import * as z from "zod";
 
 const patchSchema = z.object({
@@ -18,15 +18,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    if (!isDevAuthSkipped()) {
-      const session = await auth();
-      if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      if (session.user.role !== "ADMIN") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
+    // Pay-edit guardrail: admins only (src/lib/pay-edit-policy.ts).
+    const refused = await requirePayEditor();
+    if (refused) return refused;
 
     const { id } = await params;
     const body = await req.json();
@@ -37,48 +31,78 @@ export async function PATCH(
 
     const payslip = await prisma.payslip.findUnique({
       where: { id },
-      include: { employee: true },
+      include: { employee: { include: { user: { select: { roles: true } } } } },
     });
     if (!payslip) {
       return NextResponse.json({ error: "Payslip not found" }, { status: 404 });
     }
-    if (!payslip.employee.dateOfBirth) {
+    // Interns have no CPF, so they need no date of birth (Alfred, 26 Nov 2026).
+    const isIntern = isInternEmployee({ employmentType: payslip.employee.employmentType, roles: payslip.employee.user?.roles });
+    if (!isIntern && !payslip.employee.dateOfBirth) {
       return NextResponse.json({ error: "Employee has no date of birth on record" }, { status: 400 });
     }
 
-    const isIntern = payslip.employee.employmentType === "INTERN";
-    const recalc = calculatePayroll(
-      parsed.data.basicSalary ?? parsed.data.grossSalary,
-      parsed.data.allowances ?? 0,
-      payslip.employee.dateOfBirth,
-      0,
-      0,
-      0,
-      0,
-      { cpfApplicable: !isIntern },
-    );
+    // Interns: the hard-coded formula (src/lib/intern-pay.ts), with the payslip's own days.
+    if (isIntern) {
+      const nplStored = Number(payslip.nplDays);
+      const mcStored = Number(payslip.mcDays);
+      // Older payslips have only the combined unpaid days: count them as No Pay Leave.
+      const nplDays = nplStored + mcStored > 0 ? nplStored : Number(payslip.unpaidLeaveDays);
+      const f = internPayslipFigures({
+        monthlyAllowance: parsed.data.grossSalary,
+        workingDays: countWorkingDays(payslip.payPeriodStart, payslip.payPeriodEnd),
+        nplDays,
+        mcDays: mcStored,
+        paybackDays: Number(payslip.paybackDays),
+      });
+      const updatedIntern = await prisma.payslip.update({
+        where: { id },
+        data: {
+          basicSalary: 0,
+          allowances: f.grossSalary,
+          grossSalary: f.grossSalary,
+          cpfEmployee: 0,
+          cpfEmployer: 0,
+          incomeTax: 0,
+          otherDeductions: 0,
+          unpaidLeaveDays: f.nplDays + f.mcDays,
+          unpaidLeaveDeduction: f.totalDeductions,
+          nplDays: f.nplDays,
+          nplDeduction: f.nplDeduction,
+          mcDays: f.mcDays,
+          mcDeduction: f.mcDeduction,
+          paybackAmount: f.paybackAmount,
+          totalDeductions: f.totalDeductions,
+          netSalary: f.netSalary,
+        },
+      });
+      return NextResponse.json(updatedIntern);
+    }
+
+    // Staff: keep the unpaid-leave and payback lines. Gross is the base pay only; the payback is an
+    // add-back to take-home (Alfred, 26 Nov 2026). CPF is on the pay actually earned
+    // (gross − unpaid leave + payback); take-home = gross − deductions + payback.
+    const gross = parsed.data.grossSalary;
+    const unpaid = Number(payslip.unpaidLeaveDeduction);
+    const payback = Number(payslip.paybackAmount);
+    const earned = Math.max(0, gross - unpaid + payback);
+    const recalc = calculatePayroll(earned, 0, payslip.employee.dateOfBirth as Date, 0, 0, 0, 0, { cpfApplicable: true });
+    const totalDeductions = Math.round((recalc.cpfEmployee + unpaid) * 100) / 100;
 
     const updated = await prisma.payslip.update({
       where: { id },
       data: {
-        basicSalary: parsed.data.basicSalary ?? parsed.data.grossSalary,
+        basicSalary: parsed.data.basicSalary ?? gross,
         allowances: parsed.data.allowances ?? 0,
-        grossSalary: parsed.data.grossSalary,
+        grossSalary: gross,
         cpfEmployee: recalc.cpfEmployee,
         cpfEmployer: recalc.cpfEmployer,
         incomeTax: 0,
         otherDeductions: 0,
-        totalDeductions: recalc.cpfEmployee,
-        netSalary: parsed.data.grossSalary - recalc.cpfEmployee,
+        totalDeductions,
+        netSalary: Math.round((gross + payback - totalDeductions) * 100) / 100,
       },
     });
-
-    // Regenerate PDF and replace in Drive
-    try {
-      await uploadPayslipToDrive(updated.id);
-    } catch (err) {
-      console.error(`Drive replace failed for payslip ${updated.id}:`, err);
-    }
 
     return NextResponse.json(updated);
   } catch (error) {

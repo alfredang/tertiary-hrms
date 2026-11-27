@@ -1,4 +1,6 @@
 import { disallowedRoles, roleRefusalMessage } from "@/lib/role-policy";
+import { callerCanEditPay } from "@/lib/pay-edit-gate";
+import { PAY_EDIT_REFUSAL } from "@/lib/pay-edit-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -49,6 +51,10 @@ export async function PATCH(
     }
 
     const { personalInfo, employmentInfo, salaryInfo, roles } = validation.data;
+    // Pay-edit guardrail: only the admins change salary (src/lib/pay-edit-policy.ts).
+    if (salaryInfo && !(await callerCanEditPay())) {
+      return NextResponse.json({ error: PAY_EDIT_REFUSAL }, { status: 403 });
+    }
     if (selfEditOnly && (employmentInfo || salaryInfo || roles)) {
       return NextResponse.json(
         { error: "You can only edit your personal details" },

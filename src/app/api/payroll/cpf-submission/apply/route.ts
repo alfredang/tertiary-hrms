@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { hasAdminAccess } from "@/lib/utils";
-import { uploadPayslipToDrive } from "@/lib/payslip-drive";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,14 +21,13 @@ const BodySchema = z.object({
   rows: z.array(RowSchema).min(1),
   /** Overwrite payslips that already exist for the period. */
   overwrite: z.boolean().optional().default(false),
+  /** Drive id of the archived statement (parse route), stored on each payslip. */
+  cpfSubmissionFileId: z.string().regex(/^[A-Za-z0-9_-]{10,}$/).nullish(),
 });
 
+// Pay-edit guardrail: only the admins may create or change payslips (src/lib/pay-edit-policy.ts).
 async function isAuthorized(): Promise<boolean> {
-  if (isDevAuthSkipped()) return true;
-  const session = await auth();
-  if (!session?.user) return false;
-  const role = session.user.role;
-  return role === "ADMIN" || role === "HR" || hasAdminAccess(role);
+  return (await requirePayEditor()) === null;
 }
 
 export async function POST(req: NextRequest) {
@@ -47,7 +43,7 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    const { month, year, rows, overwrite } = parsed.data;
+    const { month, year, rows, overwrite, cpfSubmissionFileId } = parsed.data;
 
     const payPeriodStart = new Date(year, month - 1, 1);
     const payPeriodEnd = new Date(year, month, 0);
@@ -106,6 +102,13 @@ export async function POST(req: NextRequest) {
           totalDeductions,
           netSalary,
           status: "GENERATED" as const,
+          cpfSubmissionFileId: cpfSubmissionFileId ?? null,
+          // Figures as filed with the CPF Board: the month-end rule never touches it.
+          source: "CPF",
+          unpaidLeaveDays: 0,
+          unpaidLeaveDeduction: 0,
+          paybackDays: 0,
+          paybackAmount: 0,
         };
 
         const existing = await prisma.payslip.findUnique({
@@ -140,12 +143,6 @@ export async function POST(req: NextRequest) {
           });
           payslipId = created.id;
           results.created++;
-        }
-
-        try {
-          await uploadPayslipToDrive(payslipId);
-        } catch (err) {
-          console.error(`Drive upload failed for payslip ${payslipId}:`, err);
         }
       } catch (error) {
         console.error(`Error creating payslip for ${row.employeeId}:`, error);

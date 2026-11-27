@@ -24,7 +24,7 @@ export type RequestType = (typeof REQUEST_TYPES)[number];
 /** A newer one replaces the older ones. */
 export const SNAPSHOT_TYPES = new Set([
   "ATTENDANCE_ROLLUP", "HR_COMPLIANCE", "QUICKBOOKS_HEALTH", "BANK_RECONCILIATION", "FINANCE_TO_CLEAR",
-  "TIMESHEET_REMINDER", "AWAY_TODAY", "BIRTHDAY", "ATTENDANCE_MISSED",
+  "TIMESHEET_REMINDER", "AWAY_TODAY", "BIRTHDAY", "ATTENDANCE_MISSED", "PAYROLL_MONTH_END",
 ]);
 /** Only relevant on the (Singapore) day they were sent. */
 export const TODAY_ONLY_TYPES = new Set(["AWAY_TODAY", "BIRTHDAY", "ATTENDANCE_MISSED"]);

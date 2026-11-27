@@ -1,4 +1,6 @@
 import { disallowedRoles, roleRefusalMessage } from "@/lib/role-policy";
+import { callerCanEditPay } from "@/lib/pay-edit-gate";
+import { PAY_EDIT_REFUSAL } from "@/lib/pay-edit-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +37,10 @@ export async function POST(req: NextRequest) {
 
     const { personalInfo, employmentInfo, salaryInfo, role } = validation.data;
     const effectiveRole = role ?? "STAFF";
+    // Pay-edit guardrail: only the admins set salary (src/lib/pay-edit-policy.ts).
+    if (salaryInfo && !(await callerCanEditPay())) {
+      return NextResponse.json({ error: PAY_EDIT_REFUSAL }, { status: 403 });
+    }
     // Elevated roles only for the people named in src/lib/role-policy.ts (Alfred, 22 Nov 2026).
     const badRoles = disallowedRoles(personalInfo.email, [effectiveRole]);
     if (badRoles.length) return NextResponse.json({ error: roleRefusalMessage(badRoles) }, { status: 400 });

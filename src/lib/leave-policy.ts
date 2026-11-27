@@ -66,6 +66,11 @@ export function isInternRoles(roles: readonly string[] | null | undefined): bool
   return !!roles && roles.length === 1 && roles[0] === "INTERN";
 }
 
+/** An intern on the payroll: employment type INTERN, or roles exactly ["INTERN"]. */
+export function isInternEmployee(e: { employmentType?: string | null; roles?: readonly string[] | null }): boolean {
+  return e.employmentType === "INTERN" || isInternRoles(e.roles);
+}
+
 /** Round DOWN to the nearest 0.5 (never grants a part-day that has not been earned). */
 export function floorToHalf(value: number): number {
   // Guard against float noise such as 6.999999 → 6.5

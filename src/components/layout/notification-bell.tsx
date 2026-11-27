@@ -34,6 +34,8 @@ const ADMIN_TYPES = new Set([
   "BIRTHDAY",
   "QUICKBOOKS_HEALTH",
   "BANK_RECONCILIATION",
+  // Month-end payroll result (src/lib/payroll-month-end.ts, 26 Nov 2026)
+  "PAYROLL_MONTH_END",
 ]);
 const EMPLOYEE_TYPES = new Set([
   "LEAVE_APPROVED",

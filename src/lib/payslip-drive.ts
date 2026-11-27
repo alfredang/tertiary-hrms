@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { generatePayslipPDF } from "@/lib/pdf-generator";
 import { getCompanyBranding } from "@/lib/company-settings";
-import { getEmployeeSubfolderId, uploadPdfToFolder } from "@/lib/drive";
+import { isInternEmployee } from "@/lib/leave-policy";
+import { countWorkingDays } from "@/lib/cpf-calculator";
+import { internPaidDays } from "@/lib/intern-pay";
 
 function renderPayslipRemarks(template: string | null | undefined, payslip: any): string | null {
   if (!template) return null;
@@ -42,12 +44,40 @@ export function payslipFileName(
   return `${namePart}-${mm}-${yyyy}.pdf`;
 }
 
+/** Intern payslip lines for the PDF, from the stored payslip (src/lib/intern-pay.ts). */
+function internPayLines(p: any) {
+  const workingDays = countWorkingDays(p.payPeriodStart, p.payPeriodEnd);
+  const npl = Number(p.nplDays ?? 0);
+  const mc = Number(p.mcDays ?? 0);
+  // Older payslips have only the combined unpaid days: show them as No Pay Leave.
+  const split = npl + mc > 0;
+  const nplDays = split ? npl : Number(p.unpaidLeaveDays ?? 0);
+  const nplDeduction = split ? Number(p.nplDeduction ?? 0) : Number(p.unpaidLeaveDeduction ?? 0);
+  const mcDeduction = split ? Number(p.mcDeduction ?? 0) : 0;
+  const paybackDays = Number(p.paybackDays ?? 0);
+  const paybackAmount = Number(p.paybackAmount ?? 0);
+  const net = Number(p.netSalary);
+  const roundingDown = Math.max(0, Math.round((Number(p.grossSalary) - nplDeduction - mcDeduction + paybackAmount - net) * 100) / 100);
+  return {
+    workingDays,
+    nplDays,
+    nplDeduction,
+    mcDays: split ? mc : 0,
+    mcDeduction,
+    paybackDays,
+    paybackAmount,
+    paidDays: internPaidDays({ workingDays, nplDays, mcDays: split ? mc : 0, paybackDays }),
+    roundingDown,
+  };
+}
+
 export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> {
   const payslip = await prisma.payslip.findUnique({
     where: { id: payslipId },
-    include: { employee: { include: { department: true } } },
+    include: { employee: { include: { department: true, user: { select: { roles: true } } } } },
   });
   if (!payslip) throw new Error("Payslip not found");
+  const intern = isInternEmployee({ employmentType: payslip.employee.employmentType, roles: payslip.employee.user?.roles });
   const company = await getCompanyBranding();
   const settings = await prisma.companySettings.findUnique({ where: { id: "company_settings" } });
   const remarks = renderPayslipRemarks(
@@ -68,17 +98,22 @@ export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> 
     headerNote: (settings as any)?.payslipHeaderNote ?? null,
     payPeriod: { start: payslip.payPeriodStart, end: payslip.payPeriodEnd },
     paymentDate: payslip.paymentDate,
+    intern,
     earnings: {
       basicSalary: Number(payslip.basicSalary),
       allowances: Number(payslip.allowances),
       overtime: Number(payslip.overtime),
       bonus: Number(payslip.bonus),
+      paybackDays: Number(payslip.paybackDays),
+      paybackAmount: Number(payslip.paybackAmount),
       gross: Number(payslip.grossSalary),
     },
     deductions: {
       cpfEmployee: Number(payslip.cpfEmployee),
       incomeTax: Number(payslip.incomeTax),
       other: Number(payslip.otherDeductions),
+      unpaidLeaveDays: Number(payslip.unpaidLeaveDays),
+      unpaidLeaveAmount: Number(payslip.unpaidLeaveDeduction),
       total: Number(payslip.totalDeductions),
     },
     cpf: {
@@ -87,24 +122,7 @@ export async function buildPayslipPdfBuffer(payslipId: string): Promise<Buffer> 
       total: Number(payslip.cpfEmployee) + Number(payslip.cpfEmployer),
     },
     netSalary: Number(payslip.netSalary),
+    internPay: intern ? internPayLines(payslip) : undefined,
   });
   return Buffer.from(pdfData);
-}
-
-export async function uploadPayslipToDrive(payslipId: string): Promise<{ id: string; webViewLink: string | null } | null> {
-  const payslip = await prisma.payslip.findUnique({
-    where: { id: payslipId },
-    select: { employeeId: true, payPeriodStart: true, employee: { select: { employeeId: true, name: true } } },
-  });
-  if (!payslip) return null;
-  const folderId = await getEmployeeSubfolderId(payslip.employeeId, "Payroll");
-  if (!folderId) return null;
-  const buffer = await buildPayslipPdfBuffer(payslipId);
-  const fileName = payslipFileName(payslip.employee.employeeId, payslip.payPeriodStart, payslip.employee.name);
-  const result = await uploadPdfToFolder(folderId, fileName, buffer, { replaceByName: true });
-  await prisma.payslip.update({
-    where: { id: payslipId },
-    data: { driveFileId: result.id, driveWebViewLink: result.webViewLink ?? undefined },
-  });
-  return result;
 }

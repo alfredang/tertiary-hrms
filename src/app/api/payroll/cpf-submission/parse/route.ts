@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isDevAuthSkipped } from "@/lib/dev-auth";
-import { hasAdminAccess } from "@/lib/utils";
+import { requirePayEditor } from "@/lib/pay-edit-gate";
 import { uploadPdfToFolder } from "@/lib/drive";
 import {
   CPF_SUBMISSION_FOLDER_ID,
@@ -14,12 +12,9 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Pay-edit guardrail: only the admins may create or change payslips (src/lib/pay-edit-policy.ts).
 async function isAuthorized(): Promise<boolean> {
-  if (isDevAuthSkipped()) return true;
-  const session = await auth();
-  if (!session?.user) return false;
-  const role = session.user.role;
-  return role === "ADMIN" || role === "HR" || hasAdminAccess(role);
+  return (await requirePayEditor()) === null;
 }
 
 function driveFileName(month: number, year: number, original: string): string {
@@ -62,6 +57,7 @@ export async function POST(req: NextRequest) {
     // is written — the filed statement must be on record, so a failed archive
     // stops the run.
     let driveWebViewLink: string | null = null;
+    let driveFileId: string | null = null;
     try {
       const uploaded = await uploadPdfToFolder(
         CPF_SUBMISSION_FOLDER_ID,
@@ -70,6 +66,7 @@ export async function POST(req: NextRequest) {
         { replaceByName: true },
       );
       driveWebViewLink = uploaded.webViewLink;
+      driveFileId = uploaded.id;
     } catch (err) {
       console.error("CPF statement Drive upload failed:", err);
       return NextResponse.json(
@@ -132,6 +129,8 @@ export async function POST(req: NextRequest) {
       },
       rows,
       driveWebViewLink,
+      // Recorded on every payslip written from this statement (apply route).
+      driveFileId,
     });
   } catch (error) {
     console.error("Error parsing CPF submission:", error);
