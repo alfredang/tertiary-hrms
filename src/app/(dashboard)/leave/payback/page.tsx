@@ -185,7 +185,7 @@ export default async function PaybackPage() {
                   <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300">
                     {d.alPending ? (
                       <span className="inline-flex items-center gap-1.5">
-                        Annual leave
+                        Replaced by leave
                         <Badge className="bg-amber-900 text-amber-200 border-amber-800">PENDING</Badge>
                       </span>
                     ) : d.paybacks.length === 0 ? (

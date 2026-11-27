@@ -9,6 +9,9 @@ import { NPL_CODE } from "@/lib/leave-policy";
 import { nplDaysOfRequest, nplPiecesAfterRemoving, dateOnly, ymd } from "@/lib/npl-payback";
 import { holidayKeys } from "@/lib/npl-payback-store";
 
+/** Leave that may stand in for No Pay Leave days: annual leave and Off In Lieu. */
+export const REPLACES_NPL_CODES = ["AL", "AL_OT"];
+
 export const AL_FOR_NPL_REASON = (date: string) => `Annual leave in place of No Pay Leave on ${date}`;
 
 /** Every calendar day from start to end, as YYYY-MM-DD. */
@@ -23,9 +26,9 @@ function datesBetween(start: Date, end: Date): Set<string> {
 type Db = Pick<typeof prisma, "leaveRequest" | "calendarEvent" | "nplPayback" | "auditLog">;
 
 /**
- * After an annual leave request is approved: take its days out of any approved No Pay Leave on the
- * same dates (only an AL request submitted with `coversNpl` can overlap one; for any other leave
- * this finds nothing and does nothing). Splits the No Pay Leave around the days, moving its
+ * After an annual leave or Off In Lieu request is approved: take its days out of any approved No
+ * Pay Leave on the same dates (only these two types may overlap one, see POST /api/leave; for any
+ * other leave this does nothing). Splits the No Pay Leave around the days, moving its
  * paybacks and calendar entry with each piece, and records it in the audit log. Returns the days
  * released.
  */
@@ -33,7 +36,7 @@ export async function releaseNplCoveredByAl(
   al: { id: string; employeeId: string; startDate: Date; endDate: Date; leaveType: { code: string } },
   db: Db = prisma,
 ): Promise<number> {
-  if (al.leaveType.code !== "AL") return 0;
+  if (!REPLACES_NPL_CODES.includes(al.leaveType.code)) return 0;
   const npls = await db.leaveRequest.findMany({
     where: {
       employeeId: al.employeeId,

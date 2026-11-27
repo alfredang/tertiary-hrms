@@ -30,7 +30,7 @@ export interface NplDayRow extends NplDay {
   paybacks: PaybackEntry[];
   paidBack: number;
   pending: number;
-  /** An annual leave request to replace this day is waiting for approval (src/lib/npl-to-al.ts). */
+  /** Annual leave or Off In Lieu to replace this day is waiting for approval (src/lib/npl-to-al.ts). */
   alPending: boolean;
   /** Still open to a new payback request. */
   outstanding: number;
@@ -55,9 +55,9 @@ export async function getNplDays(employeeId: string, year: number = new Date().g
       orderBy: { startDate: "desc" },
     }),
     holidayKeys([year, year + 1]),
-    // Normal annual leave never overlaps No Pay Leave, so a pending one on a No Pay Leave day is a replacement.
+    // Pending annual leave / Off In Lieu on a No Pay Leave day is a replacement (src/lib/npl-to-al.ts).
     prisma.leaveRequest.findMany({
-      where: { employeeId, status: "PENDING", leaveType: { code: "AL" }, endDate: { gte: yearRange(year).gte } },
+      where: { employeeId, status: "PENDING", leaveType: { code: { in: ["AL", "AL_OT"] } }, endDate: { gte: yearRange(year).gte } },
       select: { startDate: true, endDate: true },
     }),
   ]);

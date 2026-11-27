@@ -29,6 +29,7 @@ import { isDemoEmployee } from "@/lib/demo-guard";
 import { getAnnualLeaveBalance } from "@/lib/annual-leave";
 import { annualLeaveAmounts, withinAnnualLeavePeriod } from "@/lib/annual-leave-policy";
 import { getNplDays } from "@/lib/npl-payback-store";
+import { prettyDay } from "@/lib/npl-payback";
 import { AL_FOR_NPL_REASON } from "@/lib/npl-to-al";
 
 const leaveRequestSchema = z.object({
@@ -162,19 +163,38 @@ export async function POST(req: NextRequest) {
       days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
-    // Annual leave in place of No Pay Leave: one whole approved No Pay Leave day that is not paid
-    // back or already being replaced. That No Pay Leave is then not an overlap; it is taken out
-    // of the No Pay Leave only when this request is approved (src/lib/npl-to-al.ts).
-    if (coversNpl) {
-      if (!isAL || !isSingleDay || effectiveDayType !== "FULL_DAY") {
-        return NextResponse.json({ error: "Annual leave can replace one whole No Pay Leave day at a time." }, { status: 400 });
+    // Annual leave or Off In Lieu in place of No Pay Leave: an AL / Off In Lieu request may cover
+    // whole approved No Pay Leave days that are not paid back or already being replaced (e.g. Off
+    // In Lieu for 11–16 Dec when 16 Dec is No Pay Leave). Those days are then not an overlap; they
+    // leave the No Pay Leave only when this request is approved (src/lib/npl-to-al.ts).
+    // `coversNpl` is the Payback page's one-day button: that date must be a No Pay Leave day.
+    const replacesNpl = isAL || isOT;
+    if (coversNpl && (!isAL || !isSingleDay || effectiveDayType !== "FULL_DAY")) {
+      return NextResponse.json({ error: "Annual leave can replace one whole No Pay Leave day at a time." }, { status: 400 });
+    }
+    if (replacesNpl) {
+      const startKey = startDate.slice(0, 10);
+      const endKey = endDate.slice(0, 10);
+      const nplYears = Array.from(new Set([start.getUTCFullYear(), end.getUTCFullYear()]));
+      const nplHit = (await Promise.all(nplYears.map((y) => getNplDays(employeeId!, y))))
+        .flat()
+        .filter((d) => d.date >= startKey && d.date <= endKey);
+      if (coversNpl && nplHit.length === 0) {
+        return NextResponse.json({ error: "That date is not one of your approved No Pay Leave days." }, { status: 400 });
       }
-      const nplDay = (await getNplDays(employeeId, start.getUTCFullYear())).find((d) => d.date === startDate.slice(0, 10));
-      if (!nplDay || nplDay.days !== 1 || nplDay.outstanding < 1) {
-        return NextResponse.json(
-          { error: "That date is not a No Pay Leave day you can still replace (it may be paid back, pending, or half a day)." },
-          { status: 400 },
-        );
+      if (nplHit.length > 0) {
+        const partDay = effectiveDayType !== "FULL_DAY" || !!effectiveHalfDayPosition;
+        const blocked = nplHit.find((d) => d.days !== 1 || d.outstanding < 1);
+        if (partDay || blocked) {
+          return NextResponse.json(
+            {
+              error: blocked
+                ? `Your No Pay Leave on ${prettyDay(blocked.date)} is already paid back, waiting for approval, or half a day, so this leave cannot replace it.`
+                : "A half day cannot replace a No Pay Leave day. Apply for whole days.",
+            },
+            { status: 400 },
+          );
+        }
       }
     }
 
@@ -185,7 +205,7 @@ export async function POST(req: NextRequest) {
         status: { in: ["PENDING", "APPROVED"] },
         startDate: { lte: end },
         endDate: { gte: start },
-        ...(coversNpl ? { NOT: { status: "APPROVED", leaveType: { code: NPL_CODE } } } : {}),
+        ...(replacesNpl ? { NOT: { status: "APPROVED", leaveType: { code: NPL_CODE } } } : {}),
       },
       select: {
         startDate: true, endDate: true, days: true,
