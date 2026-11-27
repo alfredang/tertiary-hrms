@@ -32,6 +32,7 @@ describe("payslips are never sent out", () => {
     const users = files.filter(
       (f) => !f.endsWith("payslip-drive.ts") && readFileSync(f, "utf8").includes("buildPayslipPdfBuffer"),
     );
-    expect(users.map((f) => f.replace(/^.*\/src\//, "src/"))).toEqual(["src/app/api/payroll/payslip/[id]/pdf/route.ts"]);
+    // Forward slashes first, so the check also passes on Windows.
+    expect(users.map((f) => f.replace(/\\/g, "/").replace(/^.*\/src\//, "src/"))).toEqual(["src/app/api/payroll/payslip/[id]/pdf/route.ts"]);
   });
 });
