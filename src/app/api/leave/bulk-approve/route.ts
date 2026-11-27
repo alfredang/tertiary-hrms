@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { alApprovalBlock } from "@/lib/al-approval-guard";
+import { releaseNplCoveredByAl } from "@/lib/npl-to-al";
 import { sendLeaveDecisionEmail } from "@/lib/decision-email";
 
 // Bulk-approve multiple PENDING leave requests in one shot.
@@ -76,6 +77,9 @@ export async function POST(req: NextRequest) {
           pending: { decrement: Number(leaveRequest.balanceDays ?? leaveRequest.days) },
         },
       });
+
+      // Annual leave in place of No Pay Leave: the day leaves the No Pay Leave now.
+      await releaseNplCoveredByAl(leaveRequest);
 
       if ((otDaysUsed > 0 || deficitDays > 0) && alOtType) {
         const otUpdateData: Record<string, unknown> = {};

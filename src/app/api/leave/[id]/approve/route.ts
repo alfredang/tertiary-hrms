@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendLeaveDecisionEmail } from "@/lib/decision-email";
 import { alApprovalBlock } from "@/lib/al-approval-guard";
+import { releaseNplCoveredByAl } from "@/lib/npl-to-al";
 
 export async function POST(
   req: NextRequest,
@@ -69,6 +70,9 @@ export async function POST(
         pending: { decrement: Number(leaveRequest.balanceDays ?? leaveRequest.days) },
       },
     });
+
+    // Annual leave in place of No Pay Leave: the day leaves the No Pay Leave now.
+    await releaseNplCoveredByAl(leaveRequest);
 
     // Handle OT balance adjustments
     if (otDaysUsed > 0 || deficitDays > 0) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOffDayFor, nplDaysOfRequest, paidBackSuffix, paybackProblem, type PaybackCheck } from "@/lib/npl-payback";
+import { isOffDayFor, nplDaysOfRequest, nplPiecesAfterRemoving, paidBackSuffix, paybackProblem, type PaybackCheck } from "@/lib/npl-payback";
 
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
 
@@ -64,5 +64,24 @@ describe("paidBackSuffix", () => {
     expect(paidBackSuffix(0, 1)).toBe("");
     expect(paidBackSuffix(1, 1)).toBe(" ✅ Paid back");
     expect(paidBackSuffix(1, 3)).toBe(" (1 of 3 days paid back)");
+  });
+});
+
+describe("nplPiecesAfterRemoving (annual leave in place of No Pay Leave)", () => {
+  // 16–31 Dec 2026: Christmas (25 Dec) a holiday → 11 working days
+  const dec = nplDaysOfRequest({ startDate: d("2026-12-16"), endDate: d("2026-12-31"), days: 11 }, new Set(["2026-12-25"]));
+  it("splits the leave around a day in the middle", () => {
+    expect(nplPiecesAfterRemoving(dec, new Set(["2026-12-17"]))).toEqual([
+      { startDate: "2026-12-16", endDate: "2026-12-16", days: 1 },
+      { startDate: "2026-12-18", endDate: "2026-12-31", days: 9 },
+    ]);
+  });
+  it("trims the first day without a second piece", () => {
+    expect(nplPiecesAfterRemoving(dec, new Set(["2026-12-16"]))).toEqual([{ startDate: "2026-12-17", endDate: "2026-12-31", days: 10 }]);
+  });
+  it("leaves nothing when the only day is removed, and null when the day is not in the leave", () => {
+    const one = nplDaysOfRequest({ startDate: d("2026-10-05"), endDate: d("2026-10-05"), days: 1 });
+    expect(nplPiecesAfterRemoving(one, new Set(["2026-10-05"]))).toEqual([]);
+    expect(nplPiecesAfterRemoving(one, new Set(["2026-10-06"]))).toBeNull();
   });
 });

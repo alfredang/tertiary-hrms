@@ -64,6 +64,36 @@ export function nplDaysOfRequest(
   return out;
 }
 
+export interface NplPiece {
+  startDate: string;
+  endDate: string;
+  days: number;
+}
+
+/**
+ * The No Pay Leave left after removing `remove` (YYYY-MM-DD) from a request's days: one piece per
+ * run of days still in it, so 16–31 Dec less 17 Dec is 16 Dec and 18–31 Dec. Null when none of
+ * `remove` is in the request (nothing to change).
+ */
+export function nplPiecesAfterRemoving(days: NplDay[], remove: ReadonlySet<string>): NplPiece[] | null {
+  if (!days.some((d) => remove.has(d.date))) return null;
+  const pieces: NplPiece[] = [];
+  let cur: NplPiece | null = null;
+  for (const d of days) {
+    if (remove.has(d.date)) {
+      cur = null;
+      continue;
+    }
+    if (!cur) {
+      cur = { startDate: d.date, endDate: d.date, days: 0 };
+      pieces.push(cur);
+    }
+    cur.endDate = d.date;
+    cur.days += d.days;
+  }
+  return pieces;
+}
+
 /** An off day for this person: not one of their workdays (default Mon–Fri), or a public holiday. */
 export function isOffDayFor(workdays: number[] | null | undefined, date: string, holidays: ReadonlySet<string> = new Set()): boolean {
   return holidays.has(date) || !isScheduledWorkday(workdays, dateOnly(date));

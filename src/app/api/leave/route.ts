@@ -28,6 +28,8 @@ import { getLeaveProfile, getNplStatus, newBalanceEntitlement } from "@/lib/leav
 import { isDemoEmployee } from "@/lib/demo-guard";
 import { getAnnualLeaveBalance } from "@/lib/annual-leave";
 import { annualLeaveAmounts, withinAnnualLeavePeriod } from "@/lib/annual-leave-policy";
+import { getNplDays } from "@/lib/npl-payback-store";
+import { AL_FOR_NPL_REASON } from "@/lib/npl-to-al";
 
 const leaveRequestSchema = z.object({
   leaveTypeId: z.string().min(1, "Leave type is required"),
@@ -43,6 +45,8 @@ const leaveRequestSchema = z.object({
   // AL only: borrow from the rest of the year's entitlement. Off → unearned days are deficit.
   /** Ignored: advance AL was removed (hard rule, 24 Nov 2026). Accepted so older app builds still submit. */
   useAdvance: z.boolean().optional(),
+  /** AL only: use annual leave for one approved No Pay Leave day (src/lib/npl-to-al.ts). */
+  coversNpl: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -79,7 +83,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { leaveTypeId: requestedLeaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason: requestedReason, documentUrl, documentFileName, otDaysUsed } = validation.data;
+    const { leaveTypeId: requestedLeaveTypeId, startDate, endDate, days: submittedDays, dayType, halfDayPosition, reason: requestedReason, documentUrl, documentFileName, otDaysUsed, coversNpl } = validation.data;
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -134,7 +138,11 @@ export async function POST(req: NextRequest) {
       );
     }
     const leaveTypeId = leaveType?.id ?? requestedLeaveTypeId;
-    const reason = internSick ? `Sick leave (MC)${requestedReason ? ` — ${requestedReason}` : ""}` : requestedReason;
+    const reason = internSick
+      ? `Sick leave (MC)${requestedReason ? ` — ${requestedReason}` : ""}`
+      : coversNpl
+        ? `${AL_FOR_NPL_REASON(startDate.slice(0, 10))}${requestedReason ? ` — ${requestedReason}` : ""}`
+        : requestedReason;
 
     const isAL = leaveType?.code === "AL";
     const isOT = leaveType?.code === "AL_OT";
@@ -154,6 +162,22 @@ export async function POST(req: NextRequest) {
       days = submittedDays ? roundToHalf(submittedDays) : roundToHalf(wd);
     }
 
+    // Annual leave in place of No Pay Leave: one whole approved No Pay Leave day that is not paid
+    // back or already being replaced. That No Pay Leave is then not an overlap; it is taken out
+    // of the No Pay Leave only when this request is approved (src/lib/npl-to-al.ts).
+    if (coversNpl) {
+      if (!isAL || !isSingleDay || effectiveDayType !== "FULL_DAY") {
+        return NextResponse.json({ error: "Annual leave can replace one whole No Pay Leave day at a time." }, { status: 400 });
+      }
+      const nplDay = (await getNplDays(employeeId, start.getUTCFullYear())).find((d) => d.date === startDate.slice(0, 10));
+      if (!nplDay || nplDay.days !== 1 || nplDay.outstanding < 1) {
+        return NextResponse.json(
+          { error: "That date is not a No Pay Leave day you can still replace (it may be paid back, pending, or half a day)." },
+          { status: 400 },
+        );
+      }
+    }
+
     // Check for overlapping leave requests
     const overlappingLeaves = await prisma.leaveRequest.findMany({
       where: {
@@ -161,6 +185,7 @@ export async function POST(req: NextRequest) {
         status: { in: ["PENDING", "APPROVED"] },
         startDate: { lte: end },
         endDate: { gte: start },
+        ...(coversNpl ? { NOT: { status: "APPROVED", leaveType: { code: NPL_CODE } } } : {}),
       },
       select: {
         startDate: true, endDate: true, days: true,

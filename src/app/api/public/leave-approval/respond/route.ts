@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { alApprovalBlock } from "@/lib/al-approval-guard";
+import { releaseNplCoveredByAl } from "@/lib/npl-to-al";
 import { approvalResultPage, type ResultSummary } from "@/lib/approval-result";
 import { loadLeaveSummary } from "@/lib/approval-summaries";
 import { sendLeaveDecisionEmail } from "@/lib/decision-email";
@@ -120,6 +121,9 @@ async function decide(token: string | null, action: string | null): Promise<Resp
           pending: { decrement: Number(leave.balanceDays ?? leave.days) },
         },
       });
+
+      // Annual leave in place of No Pay Leave: the day leaves the No Pay Leave now.
+      await releaseNplCoveredByAl(leave, tx);
 
       try {
         await tx.calendarEvent.upsert({

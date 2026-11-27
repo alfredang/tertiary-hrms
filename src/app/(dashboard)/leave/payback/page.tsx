@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, RotateCcw } from "lucide-react";
 import { PaybackList, type PaybackRow } from "@/components/leave/payback-list";
+import { UseAlForNplButton } from "@/components/leave/use-al-for-npl-button";
 import { getLeaveProfile, getNplStatus } from "@/lib/leave-allowance";
 import { loadLeaveSummary } from "@/lib/approval-summaries";
 import { getNplDays } from "@/lib/npl-payback-store";
@@ -115,15 +116,19 @@ export default async function PaybackPage() {
 
   const employeeId = currentEmployeeId!;
   const year = new Date().getFullYear();
-  const [rows, nplDays, npl, summary, profile] = await Promise.all([
+  const [rows, nplDays, npl, summary, profile, alType] = await Promise.all([
     getPaybacks(employeeId, false),
     getNplDays(employeeId, year),
     getNplStatus(employeeId),
     // The same figures as the dashboard tiles and the decision email.
     loadLeaveSummary(employeeId, year),
     getLeaveProfile(employeeId),
+    prisma.leaveType.findUnique({ where: { code: "AL" }, select: { id: true } }),
   ]);
-  const alBalance = summary?.stats.find((s) => s.label === "Annual leave balance")?.value ?? "-";
+  // The label is "Annual leave balance (prorated)"; match its start so a wording change can't blank the tile.
+  const alStat = summary?.stats.find((s) => s.label.toLowerCase().startsWith("annual leave balance"));
+  const alBalance = alStat?.value ?? "-";
+  const alLeft = alStat ? parseFloat(alStat.value) || 0 : 0;
   const canPayBack = nplDays.some((d) => d.outstanding > 0);
 
   return (
@@ -132,7 +137,8 @@ export default async function PaybackPage() {
         <div>
           {title}
           <p className="text-sm sm:text-base text-gray-400 mt-1 allow-wrap">
-            Took No Pay Leave? Work one of your off days instead and, once approved, that day goes back to your No Pay Leave balance.
+            Took No Pay Leave? Work one of your off days instead, or use annual leave you have earned since, and once approved
+            that day goes back to your No Pay Leave balance.
           </p>
         </div>
         {canPayBack && (
@@ -153,7 +159,7 @@ export default async function PaybackPage() {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Tile label="Annual Leave Balance" value={alBalance} color="text-blue-400" />
+        <Tile label="Annual Leave Balance" value={alBalance} color="text-blue-400" hint={alLeft >= 1 && canPayBack ? "can replace No Pay Leave days" : undefined} />
         <Tile label="No Pay Leave Taken" value={dayCountText(npl.used)} color="text-amber-400" hint={npl.pending > 0 ? `${npl.pending} pending approval` : "after payback"} />
         <Tile label="Paid Back" value={dayCountText(npl.paidBack ?? 0)} color="text-green-400" hint="by working an off day" />
         <Tile label="No Pay Leave Balance" value={`${npl.remaining} of ${npl.cap}`} color="text-white" hint="days left this year" />
@@ -177,7 +183,12 @@ export default async function PaybackPage() {
                   <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300">{dayCountLabel(d.days)}</td>
                   <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300 max-w-[220px] truncate" title={d.reason ?? undefined}>{d.reason || "—"}</td>
                   <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm text-gray-300">
-                    {d.paybacks.length === 0 ? (
+                    {d.alPending ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        Annual leave
+                        <Badge className="bg-amber-900 text-amber-200 border-amber-800">PENDING</Badge>
+                      </span>
+                    ) : d.paybacks.length === 0 ? (
                       <span className="text-gray-500">Not paid back</span>
                     ) : (
                       <span className="inline-flex items-center gap-2 flex-wrap">
@@ -193,11 +204,16 @@ export default async function PaybackPage() {
                     )}
                   </td>
                   <td className="px-2 sm:px-4 py-3 text-right">
-                    {d.outstanding > 0 && (
-                      <Link href={`/leave/payback/request?npl=${d.date}`} className="text-xs sm:text-sm font-medium text-primary hover:underline">
-                        Pay back
-                      </Link>
-                    )}
+                    <span className="inline-flex items-center justify-end gap-2 whitespace-nowrap">
+                      {alType && alLeft >= 1 && d.days === 1 && d.outstanding >= 1 && (
+                        <UseAlForNplButton date={d.date} alLeaveTypeId={alType.id} />
+                      )}
+                      {d.outstanding > 0 && (
+                        <Button asChild size="sm" className="h-8 text-xs sm:text-sm">
+                          <Link href={`/leave/payback/request?npl=${d.date}`}>Pay back</Link>
+                        </Button>
+                      )}
+                    </span>
                   </td>
                 </tr>
               ))}

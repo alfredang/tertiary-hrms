@@ -30,6 +30,8 @@ export interface NplDayRow extends NplDay {
   paybacks: PaybackEntry[];
   paidBack: number;
   pending: number;
+  /** An annual leave request to replace this day is waiting for approval (src/lib/npl-to-al.ts). */
+  alPending: boolean;
   /** Still open to a new payback request. */
   outstanding: number;
 }
@@ -39,7 +41,7 @@ export interface NplDayRow extends NplDay {
  * against it. Drives the staff page, the request form and the API validation.
  */
 export async function getNplDays(employeeId: string, year: number = new Date().getFullYear()): Promise<NplDayRow[]> {
-  const [requests, holidays] = await Promise.all([
+  const [requests, holidays, pendingAl] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: { employeeId, status: "APPROVED", leaveType: { code: NPL_CODE }, startDate: yearRange(year) },
       select: {
@@ -53,7 +55,13 @@ export async function getNplDays(employeeId: string, year: number = new Date().g
       orderBy: { startDate: "desc" },
     }),
     holidayKeys([year, year + 1]),
+    // Normal annual leave never overlaps No Pay Leave, so a pending one on a No Pay Leave day is a replacement.
+    prisma.leaveRequest.findMany({
+      where: { employeeId, status: "PENDING", leaveType: { code: "AL" }, endDate: { gte: yearRange(year).gte } },
+      select: { startDate: true, endDate: true },
+    }),
   ]);
+  const alPendingOn = (date: string) => pendingAl.some((a) => ymd(a.startDate) <= date && date <= ymd(a.endDate));
   const rows: NplDayRow[] = [];
   for (const r of requests) {
     const days = nplDaysOfRequest({ startDate: r.startDate, endDate: r.endDate, days: Number(r.days) }, holidays);
@@ -63,7 +71,11 @@ export async function getNplDays(employeeId: string, year: number = new Date().g
         .map((p) => ({ id: p.id, workDate: ymd(p.workDate), days: Number(p.days), status: p.status as "PENDING" | "APPROVED" }));
       const paidBack = paybacks.filter((p) => p.status === "APPROVED").reduce((s, p) => s + p.days, 0);
       const pending = paybacks.filter((p) => p.status === "PENDING").reduce((s, p) => s + p.days, 0);
-      rows.push({ ...day, leaveRequestId: r.id, reason: r.reason, paybacks, paidBack, pending, outstanding: Math.max(0, day.days - paidBack - pending) });
+      const alPending = alPendingOn(day.date);
+      rows.push({
+        ...day, leaveRequestId: r.id, reason: r.reason, paybacks, paidBack, pending, alPending,
+        outstanding: alPending ? 0 : Math.max(0, day.days - paidBack - pending),
+      });
     }
   }
   return rows;

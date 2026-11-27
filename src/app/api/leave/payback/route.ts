@@ -67,6 +67,9 @@ export async function POST(req: Request) {
       workDateUsage(employeeId, workDate),
     ]);
     const nplDay = nplDays.find((d) => d.date === nplDate);
+    if (nplDay?.alPending) {
+      return NextResponse.json({ error: "Annual leave for this No Pay Leave day is waiting for approval." }, { status: 400 });
+    }
     const problem = paybackProblem({
       days,
       nplDay,
