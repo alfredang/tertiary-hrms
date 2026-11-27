@@ -139,16 +139,32 @@ export function CalendarView({ events: allEvents, personFilter = false, people: 
     return { cells, monthName: first.toLocaleString("default", { month: "long" }), year: y };
   }, [currentDate]);
 
+  // Leave is charged on working days only, so a leave spanning a weekend or public holiday is drawn
+  // on the person's workdays only (16–31 Dec No Pay Leave: not on Sat/Sun or Christmas; Femina, 27 Nov 2026).
+  const holidayDays = useMemo(
+    () => new Set(allEvents.filter((e) => e.type === "HOLIDAY").map((e) => dayKey(new Date(e.start)))),
+    [allEvents],
+  );
+  const workdaysOf = (personId?: string) => {
+    const own = personFilter ? activePeople.find((p) => p.id === personId)?.workdays : ownWorkdays;
+    return own && own.length > 0 ? own : DEFAULT_WORKDAYS;
+  };
   const eventsOn = (date: Date, list: CalendarEvent[] = visible) => {
     const noon = new Date(date);
     noon.setHours(12, 0, 0, 0);
+    const isoDay = date.getDay() || 7;
+    const holiday = holidayDays.has(dayKey(date));
     return list
       .filter((event) => {
         const s = new Date(event.start);
         const e = new Date(event.end);
         s.setHours(0, 0, 0, 0);
         e.setHours(23, 59, 59, 999);
-        return noon >= s && noon <= e;
+        if (noon < s || noon > e) return false;
+        if (event.category.endsWith("_LEAVE") && !sameDay(s, e)) {
+          return !holiday && workdaysOf(event.personId).includes(isoDay);
+        }
+        return true;
       })
       .sort((a, b) => (a.type === "HOLIDAY" ? -1 : 0) - (b.type === "HOLIDAY" ? -1 : 0));
   };

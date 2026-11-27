@@ -43,7 +43,7 @@ async function getLeaveForDate(dateStr: string, staffEmployeeId?: string) {
       ...(staffEmployeeId ? { employeeId: staffEmployeeId } : {}),
     },
     include: {
-      employee: { select: { name: true, department: { select: { name: true } } } },
+      employee: { select: { name: true, workdays: true, department: { select: { name: true } } } },
       leaveType: { select: { name: true, code: true } },
     },
     orderBy: { employee: { name: "asc" } },
@@ -147,7 +147,7 @@ export default async function CalendarDayPage({
   const staffFilter = viewAs !== "admin" ? currentEmployeeId : undefined;
 
   // Fetch data in parallel
-  const [leaveRequests, rawEvents, holidays] = await Promise.all([
+  const [leaveOnRange, rawEvents, holidays] = await Promise.all([
     getLeaveForDate(date, staffFilter),
     getEventsForDate(date, currentUserId),
     // Public holidays on this day: the seeded SG list plus any admin-added holiday events.
@@ -159,6 +159,15 @@ export default async function CalendarDayPage({
       }),
     ]).then(([ph, ev]) => Array.from(new Set([...ph.map((h) => h.name), ...ev.map((e) => e.title)].map(holidayTitle)))),
   ]);
+
+  // Leave is charged on working days only: a leave spanning this day is not listed on the
+  // person's off day (e.g. Sat/Sun) or a public holiday (same rule as the month view).
+  const isoDay = new Date(`${date}T12:00:00Z`).getUTCDay() || 7;
+  const leaveRequests = leaveOnRange.filter((l) => {
+    if (l.startDate.toISOString().slice(0, 10) === l.endDate.toISOString().slice(0, 10)) return true;
+    const workdays = l.employee.workdays?.length ? l.employee.workdays : [1, 2, 3, 4, 5];
+    return holidays.length === 0 && workdays.includes(isoDay);
+  });
 
   // Sort meetings first, then by start date
   const events = rawEvents.sort((a, b) => {
